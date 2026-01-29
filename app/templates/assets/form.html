@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-8">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">{% if asset %}Editar Ativo: {{ asset.nome }}{% else %}Novo Ativo{%
+        endif %}</h2>
+
+    {% if error %}
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+        <span class="block sm:inline">{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <form action="{% if asset %}/assets/{{ asset.id }}/edit{% else %}/assets/new{% endif %}" method="post"
+        class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="nome" class="block text-sm font-medium text-gray-700">Nome do Ativo</label>
+                <input type="text" name="nome" id="nome" required value="{{ asset.nome if asset else '' }}"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label for="modelo" class="block text-sm font-medium text-gray-700">Modelo</label>
+                <input type="text" name="modelo" id="modelo" required value="{{ asset.modelo if asset else '' }}"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+        </div>
+
+        <div>
+            <label for="serial_number" class="block text-sm font-medium text-gray-700">Número de Série</label>
+            <input type="text" name="serial_number" id="serial_number" required
+                value="{{ asset.serial_number if asset else '' }}"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div>
+            <label for="descricao" class="block text-sm font-medium text-gray-700">Descrição</label>
+            <textarea name="descricao" id="descricao" rows="3"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">{{ asset.descricao if asset else '' }}</textarea>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="data_aquisicao" class="block text-sm font-medium text-gray-700">Data de Aquisição</label>
+                <input type="date" name="data_aquisicao" id="data_aquisicao"
+                    value="{{ asset.data_aquisicao if asset else '' }}"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label for="valor_aquisicao" class="block text-sm font-medium text-gray-700">Valor (R$)</label>
+                <input type="number" step="0.01" name="valor_aquisicao" id="valor_aquisicao"
+                    value="{{ asset.valor_aquisicao if asset else '' }}"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-4">
+            <a href="/assets{% if asset %}/{{ asset.id }}{% endif %}"
+                class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition">Cancelar</a>
+            <button type="submit"
+                class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition">Salvar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

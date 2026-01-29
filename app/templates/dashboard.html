@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900 tracking-tight">Dashboard Overview</h2>
+            <p class="text-sm text-gray-500">Visão geral do inventário de TI e solicitações.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span
+                class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200 connection-pulse">
+                <span class="w-2 h-2 rounded-full bg-green-500 inline-block mr-1"></span> Sistema Online
+            </span>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Total Assets -->
+        <div
+            class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group hover:shadow-md transition">
+            <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition">
+                <svg class="h-24 w-24 text-brand-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z">
+                    </path>
+                </svg>
+            </div>
+            <div class="relative z-10">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Total de Ativos</h3>
+                <div class="flex items-baseline mt-2">
+                    <p class="text-4xl font-bold text-gray-900">{{ stats.total_assets }}</p>
+                    <span class="ml-2 text-sm text-gray-400">items</span>
+                </div>
+                <div class="mt-4 flex items-center text-sm text-brand-600 font-medium cursor-pointer hover:underline">
+                    <a href="/assets">Ver inventário &rarr;</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Available Assets -->
+        <div
+            class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group hover:shadow-md transition">
+            <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition">
+                <svg class="h-24 w-24 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="relative z-10">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Disponíveis</h3>
+                <div class="flex items-baseline mt-2">
+                    <p class="text-4xl font-bold text-green-600">{{ stats.available_assets }}</p>
+                    <span class="ml-2 text-sm text-gray-400">para uso</span>
+                </div>
+                <div class="mt-4 flex items-center text-sm text-green-600 font-medium cursor-pointer hover:underline">
+                    <a href="/assets?status=Disponivel">Solicitar agora &rarr;</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending (Warning) -->
+        <div
+            class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group hover:shadow-md transition">
+            <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition">
+                <svg class="h-24 w-24 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="relative z-10">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Aguardando Ação</h3>
+                <div class="flex items-baseline mt-2">
+                    <p class="text-4xl font-bold text-yellow-600">{{ stats.pending_solicitations }}</p>
+                    <span class="ml-2 text-sm text-gray-400">pendentes</span>
+                </div>
+                <div class="mt-4 flex items-center text-sm text-yellow-600 font-medium cursor-pointer hover:underline">
+                    <a href="/solicitacoes">Gerenciar fila &rarr;</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Approvals -->
+    {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Pending Users -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                    </path>
+                </svg>
+                Novos Usuários ({{ pending_users_list|length }})
+            </h3>
+            {% if pending_users_list %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Nome/Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Cargo</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for pending_user in pending_users_list %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">{{ pending_user.nome }}</div>
+                                <div class="text-sm text-gray-500">{{ pending_user.email }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ pending_user.cargo or '-' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <form action="/admin/users/{{ pending_user.id }}/approve" method="post" class="inline">
+                                    <button type="submit"
+                                        class="text-green-600 hover:text-green-900 font-bold bg-green-50 px-3 py-1 rounded-full border border-green-200 shadow-sm hover:shadow">Aprovar</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-6 text-gray-500 text-sm bg-gray-50 rounded-lg">
+                Nenhum usuário pendente.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Pending Solicitations -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                    </path>
+                </svg>
+                Solicitações Pendentes ({{ pending_solicitations_list|length }})
+            </h3>
+            {% if pending_solicitations_list %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Solicitante</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Ativo</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for sol in pending_solicitations_list %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ sol.solicitante.nome if sol.solicitante else 'ID: ' ~ sol.solicitante_id }}<br>
+                                <span class="text-xs text-gray-500">{{ sol.data_solicitacao.strftime('%d/%m %H:%M')
+                                    }}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {% if sol.asset %}
+                                <span class="font-medium text-brand-700">{{ sol.asset.nome }}</span>
+                                {% else %}
+                                <span class="text-gray-400">Genérico</span>
+                                {% endif %}
+                            </td>
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end gap-2">
+                                <form action="/admin/solicitacoes/{{ sol.id }}/approve" method="post" class="inline">
+                                    <button type="submit"
+                                        class="text-white bg-green-500 hover:bg-green-600 px-3 py-1 rounded-md shadow-sm transition">✔</button>
+                                </form>
+                                <form action="/admin/solicitacoes/{{ sol.id }}/reject" method="post" class="inline">
+                                    <button type="submit"
+                                        class="text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded-md shadow-sm transition">✖</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-6 text-gray-500 text-sm bg-gray-50 rounded-lg">
+                Nenhuma solicitação pendente.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-6 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
+                </path>
+            </svg>
+            Menu de Ações Rápidas
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <a href="/assets"
+                class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 hover:bg-brand-50 hover:text-brand-700 transition group border border-transparent hover:border-brand-200">
+                <div class="bg-white p-3 rounded-full shadow-sm mb-3 group-hover:scale-110 transition">
+                    <svg class="w-6 h-6 text-gray-600 group-hover:text-brand-600" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                    </svg>
+                </div>
+                <span class="text-sm font-medium">Listar Ativos</span>
+            </a>
+
+            <a href="/solicitacoes"
+                class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 hover:bg-brand-50 hover:text-brand-700 transition group border border-transparent hover:border-brand-200">
+                <div class="bg-white p-3 rounded-full shadow-sm mb-3 group-hover:scale-110 transition">
+                    <svg class="w-6 h-6 text-gray-600 group-hover:text-brand-600" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                        </path>
+                    </svg>
+                </div>
+                <span class="text-sm font-medium">Minhas Solicitações</span>
+            </a>
+
+            <button
+                class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 hover:bg-brand-50 hover:text-brand-700 transition group border border-transparent hover:border-brand-200"
+                onclick="alert('Funcionalidade de Câmera em Breve!')">
+                <div class="bg-white p-3 rounded-full shadow-sm mb-3 group-hover:scale-110 transition">
+                    <svg class="w-6 h-6 text-gray-600 group-hover:text-brand-600" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
+                        </path>
+                    </svg>
+                </div>
+                <span class="text-sm font-medium">Ler QR Code</span>
+            </button>
+
+            {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+            <a href="/assets/new"
+                class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 hover:bg-brand-50 hover:text-brand-700 transition group border border-transparent hover:border-brand-200">
+                <div class="bg-white p-3 rounded-full shadow-sm mb-3 group-hover:scale-110 transition">
+                    <svg class="w-6 h-6 text-gray-600 group-hover:text-brand-600" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                </div>
+                <span class="text-sm font-medium">Cadastrar Ativo</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

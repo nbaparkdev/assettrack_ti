@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-8">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">Nova Solicitação</h2>
+
+    {% if error %}
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+        <span class="block sm:inline">{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <form action="/solicitacoes/new" method="post" class="space-y-6">
+        <div>
+            <label for="asset_id" class="block text-sm font-medium text-gray-700">Selecione o Ativo</label>
+            <select name="asset_id" id="asset_id" required
+                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                {% for asset in assets %}
+                <option value="{{ asset.id }}">{{ asset.nome }} - {{ asset.serial_number }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="reason" class="block text-sm font-medium text-gray-700">Motivo</label>
+            <textarea name="reason" id="reason" rows="4" required
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-4">
+            <a href="/solicitacoes"
+                class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition">Cancelar</a>
+            <button type="submit"
+                class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition">Enviar
+                Solicitação</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

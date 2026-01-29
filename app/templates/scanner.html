@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b">
+        <div class="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="/" class="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </a>
+                <h1 class="text-xl font-bold text-gray-900">Scanner QR Code</h1>
+            </div>
+            <div id="flash-toggle" class="hidden">
+                <button id="flash-btn" class="p-2 rounded-lg hover:bg-gray-100 transition">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanner Container -->
+    <div class="max-w-lg mx-auto">
+        <!-- Camera View -->
+        <div class="relative bg-black">
+            <div id="qr-reader" class="w-full"></div>
+
+            <!-- Scanning Overlay -->
+            <div id="scanning-overlay" class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div class="w-64 h-64 relative">
+                    <!-- Corner brackets -->
+                    <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-brand-500 rounded-tl-lg">
+                    </div>
+                    <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-brand-500 rounded-tr-lg">
+                    </div>
+                    <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-brand-500 rounded-bl-lg">
+                    </div>
+                    <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-brand-500 rounded-br-lg">
+                    </div>
+                    <!-- Scanning line animation -->
+                    <div id="scan-line"
+                        class="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-brand-500 to-transparent animate-scan">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="p-6 text-center">
+            <div id="scanner-status" class="space-y-4">
+                <div class="flex items-center justify-center gap-2 text-gray-600">
+                    <svg class="w-5 h-5 animate-pulse text-brand-600" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <span>Aponte a câmera para o QR Code do ativo</span>
+                </div>
+                <p class="text-sm text-gray-500">O ativo será identificado automaticamente</p>
+            </div>
+
+            <!-- Success State (hidden by default) -->
+            <div id="scan-success" class="hidden space-y-4">
+                <div class="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <p class="font-medium text-green-800">QR Code detectado!</p>
+                <p class="text-sm text-gray-500">Redirecionando...</p>
+            </div>
+
+            <!-- Error State (hidden by default) -->
+            <div id="scan-error" class="hidden space-y-4">
+                <div class="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </div>
+                <p class="font-medium text-red-800">Erro ao acessar câmera</p>
+                <p id="error-message" class="text-sm text-gray-500">Verifique as permissões do navegador</p>
+
+                <!-- HTTPS Warning -->
+                <div id="https-warning" class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left">
+                    <div class="flex gap-3">
+                        <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div class="text-sm">
+                            <p class="font-medium text-yellow-800">Conexão HTTPS necessária</p>
+                            <p class="text-yellow-700 mt-1">A câmera requer conexão segura (HTTPS). Para usar o scanner:
+                            </p>
+                            <ul class="text-yellow-700 mt-2 space-y-1 list-disc list-inside">
+                                <li>Acesse via <strong>localhost</strong></li>
+                                <li>Ou configure HTTPS no servidor</li>
+                                <li>Ou use a busca manual abaixo</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="startScanner()" class="btn btn-primary">
+                    Tentar Novamente
+                </button>
+            </div>
+        </div>
+
+        <!-- Manual Entry -->
+        <div class="px-6 pb-6">
+            <div class="border-t pt-6">
+                <p class="text-sm text-gray-500 text-center mb-4">Ou digite o código manualmente:</p>
+                <form action="/assets/search" method="GET" class="flex gap-2">
+                    <input type="text" name="serial" placeholder="Número de série do ativo"
+                        class="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500">
+                    <button type="submit" class="btn btn-primary">
+                        Buscar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- html5-qrcode library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+    @keyframes scan {
+
+        0%,
+        100% {
+            top: 0.5rem;
+        }
+
+        50% {
+            top: calc(100% - 0.5rem);
+        }
+    }
+
+    .animate-scan {
+        animation: scan 2s ease-in-out infinite;
+    }
+
+    /* Hide default html5-qrcode UI elements */
+    #qr-reader__dashboard_section_csr button {
+        background-color: var(--color-brand-600) !important;
+        border: none !important;
+        padding: 0.75rem 1.5rem !important;
+        border-radius: 0.5rem !important;
+        font-weight: 500 !important;
+    }
+
+    #qr-reader__dashboard_section_swaplink {
+        color: var(--color-brand-600) !important;
+        text-decoration: none !important;
+    }
+
+    #qr-reader video {
+        border-radius: 0 !important;
+    }
+
+    #qr-reader__scan_region {
+        min-height: 300px !important;
+    }
+</style>
+
+<script>
+    let html5QrCode = null;
+    let isScanning = false;
+
+    function onScanSuccess(decodedText, decodedResult) {
+        if (isScanning) {
+            isScanning = false;
+
+            // Show success state
+            document.getElementById('scanner-status').classList.add('hidden');
+            document.getElementById('scan-success').classList.remove('hidden');
+            document.getElementById('scanning-overlay').classList.add('hidden');
+
+            // Stop scanner
+            if (html5QrCode) {
+                html5QrCode.stop().catch(err => console.log('Stop error:', err));
+            }
+
+            // Vibrate on success (mobile)
+            if (navigator.vibrate) {
+                navigator.vibrate(200);
+            }
+
+            // Parse the QR code content
+            // Expected format: URL like /assets/1 or just asset ID
+            let redirectUrl = decodedText;
+
+            // If it's just a number, assume it's an asset ID
+            if (/^\d+$/.test(decodedText)) {
+                redirectUrl = `/assets/${decodedText}`;
+            }
+            // If it's a relative path, use as-is
+            else if (decodedText.startsWith('/assets/')) {
+                redirectUrl = decodedText;
+            }
+            // If it's a full URL, extract the path
+            else if (decodedText.includes('/assets/')) {
+                const match = decodedText.match(/\/assets\/\d+/);
+                if (match) {
+                    redirectUrl = match[0];
+                }
+            }
+            // If it contains asset_id parameter
+            else if (decodedText.includes('asset_id=')) {
+                const match = decodedText.match(/asset_id=(\d+)/);
+                if (match) {
+                    redirectUrl = `/assets/${match[1]}`;
+                }
+            }
+
+            // Redirect after a short delay
+            setTimeout(() => {
+                window.location.href = redirectUrl;
+            }, 1000);
+        }
+    }
+
+    function onScanFailure(error) {
+        // Ignore scan failures (continuous scanning)
+    }
+
+    function startScanner() {
+        // Reset UI
+        document.getElementById('scanner-status').classList.remove('hidden');
+        document.getElementById('scan-success').classList.add('hidden');
+        document.getElementById('scan-error').classList.add('hidden');
+        document.getElementById('scanning-overlay').classList.remove('hidden');
+
+        // Create scanner instance
+        html5QrCode = new Html5Qrcode("qr-reader");
+
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        };
+
+        // Start with back camera (environment facing)
+        html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccess,
+            onScanFailure
+        ).then(() => {
+            isScanning = true;
+        }).catch((err) => {
+            console.error('Camera error:', err);
+            const errStr = String(err);
+
+            // Show error state
+            document.getElementById('scanner-status').classList.add('hidden');
+            document.getElementById('scan-error').classList.remove('hidden');
+            document.getElementById('scanning-overlay').classList.add('hidden');
+
+            // Check if it's a security/HTTPS issue
+            const isInsecure = !window.isSecureContext ||
+                (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1');
+
+            // Set specific error message
+            let errorMsg = 'Verifique as permissões do navegador';
+            let showHttpsWarning = false;
+
+            if (isInsecure || errStr.includes('NotAllowed') || errStr.includes('Permission')) {
+                if (isInsecure) {
+                    errorMsg = 'Acesso à câmera bloqueado (requer HTTPS)';
+                    showHttpsWarning = true;
+                } else {
+                    errorMsg = 'Permissão de câmera negada. Permita o acesso nas configurações.';
+                }
+            } else if (errStr.includes('NotFound') || errStr.includes('not found')) {
+                errorMsg = 'Nenhuma câmera encontrada no dispositivo.';
+            } else if (errStr.includes('NotReadable')) {
+                errorMsg = 'Câmera em uso por outro aplicativo.';
+            } else if (isInsecure) {
+                showHttpsWarning = true;
+            }
+
+            document.getElementById('error-message').textContent = errorMsg;
+
+            // Show/hide HTTPS warning
+            const httpsWarning = document.getElementById('https-warning');
+            if (showHttpsWarning) {
+                httpsWarning.classList.remove('hidden');
+            } else {
+                httpsWarning.classList.add('hidden');
+            }
+        });
+    }
+
+    // Start scanner on page load
+    document.addEventListener('DOMContentLoaded', startScanner);
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+        if (html5QrCode && isScanning) {
+            html5QrCode.stop().catch(err => console.log('Stop error:', err));
+        }
+    });
+</script>
+{% endblock %}
