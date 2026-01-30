@@ -9,9 +9,11 @@
 | Funcionalidade | Rota | Descrição |
 |----------------|------|-----------|
 | **Login** | `/login` | Autenticação com email/senha, JWT em cookie HTTP-only |
+| **Login via QR** | `/login/qr` | Autenticação alternativa com QR Code + PIN |
 | **Registro** | `/register` | Cadastro de novos usuários (requer aprovação admin) |
 | **Logout** | `/logout` | Encerramento de sessão |
 | **Perfil** | `/profile` | Visualização e edição de dados pessoais |
+| **Meu QR Code** | `/meu-qrcode` | Crachá digital com QR Code do usuário |
 
 ### Roles de Usuário
 - `ADMIN` - Acesso total ao sistema
@@ -42,6 +44,40 @@
 - Status: `Disponível`, `Em Uso`, `Manutenção`, `Armazenado`, `Baixado`
 - Localização: Departamento, Local, Armazenamento
 - Responsável atual (Usuário)
+
+---
+
+## 📱 QR Code de Usuário
+
+| Funcionalidade | Rota | Permissão |
+|----------------|------|-----------|
+| **Meu QR Code** | `/meu-qrcode` | Todos (autenticados) |
+| **Regenerar QR** | `/meu-qrcode/regenerar` | Todos (autenticados) |
+| **Configurar PIN** | `/meu-qrcode/pin` | Todos (autenticados) |
+| **Escanear QR Usuário** | `/scanner/usuario` | Admin, Gerente |
+| **Perfil Público via QR** | `/usuario/{token}` | Admin, Gerente |
+
+### Funcionalidades
+- **Crachá Digital** - QR Code único para identificação
+- **Login via QR + PIN** - Alternativa ao login tradicional
+- **Consulta de Perfil** - Admin/Gerente podem escanear QR para ver histórico
+- **Confirmação de Entrega** - Validação de entregas via QR
+
+---
+
+## ✅ Confirmação de Entrega
+
+| Funcionalidade | Rota | Permissão |
+|----------------|------|-----------|
+| **Confirmar Entrega** | `/solicitacoes/{id}/confirmar-entrega` | Admin, Gerente |
+
+### Fluxo de Entrega
+1. Solicitação é **Aprovada**
+2. Botão "Confirmar Entrega" aparece
+3. Admin/Gerente pode:
+   - Escanear QR do usuário (validação forte)
+   - Confirmar manualmente (registrado com ID do confirmador)
+4. Status muda para **ENTREGUE**
 
 ---
 
@@ -106,7 +142,27 @@
 
 ---
 
-## 📊 Dashboard
+## � Segurança
+
+| Recurso | Descrição |
+|---------|-----------|
+| **Rate Limiting** | Proteção contra abuso (slowapi) |
+| **Expiração de Token QR** | Tokens expiram após 90 dias |
+| **PIN Seguro** | Hash bcrypt, 4-6 dígitos |
+| **Logs de Auditoria** | Todas ações de QR são registradas |
+| **JWT HTTP-only** | Cookies seguros para autenticação |
+
+### Limites de Taxa (Rate Limiting)
+| Endpoint | Limite |
+|----------|--------|
+| Login QR | 10/minuto |
+| Regenerar Token | 3/hora |
+| Configurar PIN | 5/hora |
+| Consulta Perfil | 30/minuto |
+
+---
+
+## �📊 Dashboard
 
 | Funcionalidade | Descrição |
 |----------------|-----------|
@@ -155,6 +211,10 @@
 /setores/             → Gerenciamento de setores
 /admin/               → Funções administrativas
 /maintenance/         → Gestão de manutenções
+/meu-qrcode           → QR Code do usuário
+/login/qr             → Login via QR Code
+/scanner/usuario      → Scanner QR de usuários
+/usuario/{token}      → Perfil público via QR
 ```
 
 ---

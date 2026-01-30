@@ -1,8 +1,9 @@
 
 # app/models/user.py
-from sqlalchemy import String, Boolean, Enum as SAEnum, ForeignKey
+from sqlalchemy import String, Boolean, Enum as SAEnum, ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from enum import Enum
+from datetime import datetime
 from app.database import Base
 
 class UserRole(str, Enum):
@@ -23,6 +24,11 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(SAEnum(UserRole), default=UserRole.USUARIO)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    
+    # QR Code de Usuário
+    qr_token: Mapped[str | None] = mapped_column(String, unique=True, index=True, nullable=True)
+    qr_token_created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    pin_hash: Mapped[str | None] = mapped_column(String, nullable=True)  # PIN para login via QR
     
     departamento_id: Mapped[int | None] = mapped_column(ForeignKey("departamentos.id"), nullable=True)
 

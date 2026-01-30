@@ -1,15 +1,18 @@
 
 # app/main.py
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.config import settings
 from app.api.v1 import api_router
 from app.database import engine, Base
 from app.web import web_router
 from app.web.endpoints import admin 
+from app.core.rate_limit import limiter
+from slowapi.errors import RateLimitExceeded
 
 # Função para criar tabelas no startup (apenas para dev rápido se não usar alembic)
 @asynccontextmanager
@@ -27,6 +30,16 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan
 )
+
+# Rate Limiter
+app.state.limiter = limiter
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Muitas tentativas. Aguarde antes de tentar novamente."}
+    )
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

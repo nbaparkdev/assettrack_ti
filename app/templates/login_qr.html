@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md space-y-6 fade-in">
+
+        <!-- Header -->
+        <div class="text-center">
+            <h1 class="text-3xl font-black text-black uppercase tracking-tighter">Login com QR Code</h1>
+            <p class="text-sm text-gray-500 mt-2">Escaneie seu crachá digital ou insira o código manualmente</p>
+        </div>
+
+        <!-- Error Message -->
+        {% if error %}
+        <div class="bg-red-100 border-2 border-red-600 text-red-800 px-4 py-3 font-bold uppercase text-xs text-center">
+            ⚠ {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Login Form -->
+        <form action="/login/qr" method="post"
+            class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
+            <div class="bg-black text-white p-4 text-center">
+                <h2 class="font-bold uppercase text-sm tracking-widest">Autenticação Rápida</h2>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <!-- Scanner Area (placeholder) -->
+                <div id="scannerArea"
+                    class="border-2 border-dashed border-gray-300 bg-gray-50 h-48 flex flex-col items-center justify-center text-center p-4">
+                    <svg class="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
+                        </path>
+                    </svg>
+                    <p class="text-xs text-gray-400 uppercase font-bold">Scanner disponível apenas via HTTPS</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Insira o código manualmente abaixo</p>
+                </div>
+
+                <div class="h-px bg-gray-200"></div>
+
+                <!-- Manual Input -->
+                <div>
+                    <label for="qr_token" class="block text-xs font-bold uppercase text-gray-700 mb-2">Código do
+                        QR</label>
+                    <input type="text" name="qr_token" id="qr_token" required
+                        class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition font-mono text-sm"
+                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                </div>
+
+                <div>
+                    <label for="pin" class="block text-xs font-bold uppercase text-gray-700 mb-2">PIN de
+                        Segurança</label>
+                    <input type="password" name="pin" id="pin" required minlength="4" maxlength="6" inputmode="numeric"
+                        pattern="[0-9]{4,6}"
+                        class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition text-center text-2xl font-mono tracking-widest"
+                        placeholder="••••">
+                </div>
+
+                <button type="submit"
+                    class="w-full bg-black text-white py-4 font-bold uppercase text-sm tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
+                    Entrar
+                </button>
+            </div>
+        </form>
+
+        <!-- Back to Normal Login -->
+        <div class="text-center">
+            <a href="/login"
+                class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-black transition uppercase font-bold">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Voltar ao Login Tradicional
+            </a>
+        </div>
+
+        <!-- Help -->
+        <div class="bg-gray-50 border border-gray-200 p-4 text-xs text-gray-500 text-center space-y-1">
+            <p><strong>Não tem um PIN?</strong></p>
+            <p>Faça login com email/senha e configure seu PIN na página "Meu QR Code"</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

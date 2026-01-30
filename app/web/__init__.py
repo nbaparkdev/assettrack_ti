@@ -15,3 +15,6 @@ from app.web.endpoints import profile
 web_router.include_router(profile.router, prefix="/profile", tags=["web_profile"])
 from app.web.endpoints import setores
 web_router.include_router(setores.router, prefix="/setores", tags=["web_setores"])
+from app.web.endpoints import qr
+web_router.include_router(qr.router, tags=["web_qr"])
+

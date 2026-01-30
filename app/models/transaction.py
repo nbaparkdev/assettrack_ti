@@ -17,6 +17,7 @@ class TipoMovimentacao(str, Enum):
 class StatusSolicitacao(str, Enum):
     PENDENTE = "Pendente"
     APROVADA = "Aprovada"
+    ENTREGUE = "Entregue"  # Novo - confirmação de recebimento
     REJEITADA = "Rejeitada"
     CANCELADA = "Cancelada"
 
@@ -59,8 +60,15 @@ class Solicitacao(Base):
     aprovador_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     data_aprovacao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     data_prevista_devolucao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    
+    # Confirmação de Entrega (via QR Code ou manual)
+    data_entrega: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    confirmado_por_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)  # Admin/Gerente que confirmou
+    confirmado_via_qr: Mapped[bool | None] = mapped_column(default=False)  # Se foi via QR do usuário
+    observacao_entrega: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relacionamentos
     solicitante = relationship("User", foreign_keys=[solicitante_id], back_populates="solicitacoes")
     aprovador = relationship("User", foreign_keys=[aprovador_id], back_populates="aprovacoes")
+    confirmador = relationship("User", foreign_keys=[confirmado_por_id])
     asset = relationship("Asset", back_populates="solicitacoes")

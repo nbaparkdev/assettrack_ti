@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6 fade-in max-w-2xl mx-auto px-4">
+
+    <!-- Success Messages -->
+    {% if success_qr %}
+    <div
+        class="bg-green-100 border-2 border-green-600 text-green-800 px-4 py-3 font-bold uppercase text-xs shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+        ✓ QR Code regenerado com sucesso! O código anterior foi invalidado.
+    </div>
+    {% endif %}
+
+    {% if success_pin %}
+    <div
+        class="bg-green-100 border-2 border-green-600 text-green-800 px-4 py-3 font-bold uppercase text-xs shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+        ✓ PIN configurado com sucesso! Agora você pode fazer login com QR Code.
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="border-2 border-black bg-white p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)]">
+        <span class="font-mono text-xs text-gray-400 uppercase tracking-widest block mb-2">Identificação Digital
+            //</span>
+        <h1 class="text-2xl md:text-3xl font-black text-black uppercase tracking-tighter leading-none">Meu QR Code</h1>
+        <p class="text-sm text-gray-500 mt-2">Seu crachá digital para identificação e login rápido</p>
+    </div>
+
+    <!-- Badge Card -->
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] overflow-hidden">
+        <!-- Header -->
+        <div class="bg-black text-white p-4 text-center">
+            <span class="font-mono text-[10px] uppercase tracking-widest text-gray-400">AssetTrack TI</span>
+            <h2 class="font-black text-lg uppercase tracking-tight mt-1">Crachá Digital</h2>
+        </div>
+
+        <!-- User Info -->
+        <div class="p-6 space-y-6">
+            <!-- Photo + Basic Info -->
+            <div class="flex flex-col sm:flex-row items-center gap-6">
+                <!-- Avatar -->
+                <div class="relative">
+                    <div
+                        class="w-28 h-28 border-4 border-black bg-gray-200 flex items-center justify-center overflow-hidden">
+                        {% if user.avatar_url %}
+                        <img src="{{ user.avatar_url }}" alt="Foto" class="w-full h-full object-cover">
+                        {% else %}
+                        <span class="text-3xl font-bold font-mono text-gray-400">{{ user.nome[:2] | upper }}</span>
+                        {% endif %}
+                    </div>
+                    <!-- Corner decorations -->
+                    <div class="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-black"></div>
+                    <div class="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-black"></div>
+                    <div class="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-black"></div>
+                    <div class="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-black"></div>
+                </div>
+
+                <!-- Info -->
+                <div class="flex-1 text-center sm:text-left space-y-2">
+                    <h3 class="text-xl font-black uppercase tracking-tight text-black">{{ user.nome }}</h3>
+
+                    {% if user.cargo %}
+                    <p class="text-sm font-bold text-gray-600 uppercase">{{ user.cargo }}</p>
+                    {% endif %}
+
+                    {% if departamento_nome %}
+                    <p class="text-xs font-mono text-gray-400 uppercase">{{ departamento_nome }}</p>
+                    {% endif %}
+
+                    <div class="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
+                        {% if user.matricula %}
+                        <span class="px-2 py-1 bg-gray-100 border border-gray-300 text-[10px] font-mono uppercase">
+                            MAT: {{ user.matricula }}
+                        </span>
+                        {% endif %}
+                        <span
+                            class="px-2 py-1 bg-{{ 'green' if user.is_active else 'red' }}-100 border border-{{ 'green' if user.is_active else 'red' }}-300 text-[10px] font-bold uppercase">
+                            {{ 'ATIVO' if user.is_active else 'INATIVO' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="h-px bg-gray-200"></div>
+
+            <!-- QR Code -->
+            <div class="text-center">
+                <div class="inline-block p-4 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+                    <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR Code" class="w-48 h-48 mx-auto">
+                </div>
+                <p class="text-[10px] font-mono text-gray-400 mt-3 uppercase">
+                    Use este código para login rápido ou identificação
+                </p>
+            </div>
+
+            <div class="h-px bg-gray-200"></div>
+
+            <!-- Actions -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Regenerate QR -->
+                <form action="/meu-qrcode/regenerar" method="post"
+                    onsubmit="return confirm('Tem certeza? O QR Code anterior será invalidado.')">
+                    <button type="submit"
+                        class="w-full bg-white border-2 border-black text-black px-4 py-3 font-bold uppercase text-xs hover:bg-gray-100 transition flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                            </path>
+                        </svg>
+                        Regenerar QR Code
+                    </button>
+                </form>
+
+                <!-- PIN Config Modal Trigger -->
+                <button onclick="document.getElementById('pinModal').classList.remove('hidden')"
+                    class="w-full bg-black border-2 border-black text-white px-4 py-3 font-bold uppercase text-xs hover:bg-gray-800 transition flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                        </path>
+                    </svg>
+                    {{ 'Alterar PIN' if user.pin_hash else 'Configurar PIN' }}
+                </button>
+            </div>
+
+            <!-- PIN Status -->
+            <div
+                class="bg-{{ 'green' if user.pin_hash else 'amber' }}-50 border border-{{ 'green' if user.pin_hash else 'amber' }}-300 p-3 text-center">
+                {% if user.pin_hash %}
+                <p class="text-xs uppercase font-bold text-green-700">
+                    <span class="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                    PIN Configurado - Login por QR Code habilitado
+                </p>
+                {% else %}
+                <p class="text-xs uppercase font-bold text-amber-700">
+                    <span class="inline-block w-2 h-2 bg-amber-500 rounded-full mr-1"></span>
+                    Configure um PIN para habilitar login por QR Code
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-gray-100 px-6 py-3 border-t-2 border-black text-center">
+            <p class="text-[10px] font-mono text-gray-400">
+                ID: #{{ user.id }} | {{ user.email }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Help Text -->
+    <div class="bg-gray-50 border border-gray-200 p-4 text-xs text-gray-500 space-y-2">
+        <p><strong>Como usar:</strong></p>
+        <ul class="list-disc list-inside space-y-1 ml-2">
+            <li>Mostre o QR Code para fazer login em outro dispositivo</li>
+            <li>Use como "assinatura digital" ao receber equipamentos</li>
+            <li>Regenere o código se suspeitar de uso indevido</li>
+        </ul>
+    </div>
+</div>
+
+<!-- PIN Modal -->
+<div id="pinModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] max-w-sm w-full">
+        <div class="bg-black text-white p-4 flex justify-between items-center">
+            <h3 class="font-bold uppercase text-sm">Configurar PIN</h3>
+            <button onclick="document.getElementById('pinModal').classList.add('hidden')"
+                class="text-white hover:text-gray-300">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
+        <form action="/meu-qrcode/pin" method="post" class="p-6 space-y-4">
+            {% if error_pin %}
+            <div class="bg-red-100 border border-red-300 text-red-700 px-3 py-2 text-xs font-bold uppercase">
+                {{ error_pin }}
+            </div>
+            {% endif %}
+
+            <div>
+                <label for="pin" class="block text-xs font-bold uppercase text-gray-700 mb-2">Novo PIN (4-6
+                    dígitos)</label>
+                <input type="password" name="pin" id="pin" required minlength="4" maxlength="6" pattern="[0-9]{4,6}"
+                    inputmode="numeric"
+                    class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition text-center text-2xl font-mono tracking-widest"
+                    placeholder="••••">
+                <p class="text-[10px] text-gray-400 mt-1">Use apenas números. Este PIN será necessário para login via QR
+                    Code.</p>
+            </div>
+
+            <button type="submit"
+                class="w-full bg-black text-white py-3 font-bold uppercase text-sm hover:bg-gray-800 transition">
+                Salvar PIN
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Close modal on ESC
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            document.getElementById('pinModal').classList.add('hidden');
+        }
+    });
+</script>
+{% endblock %}

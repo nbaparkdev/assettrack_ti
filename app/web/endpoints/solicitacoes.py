@@ -145,3 +145,86 @@ async def reject_solicitacao(
 
     await transaction_crud.solicitacao.reject(db, solicitacao_id=solicitacao_id, aprovador_id=current_user.id)
     return RedirectResponse(url="/solicitacoes", status_code=303)
+
+
+@router.get("/{solicitacao_id}/confirmar-entrega", response_class=HTMLResponse)
+async def confirmar_entrega_page(
+    request: Request,
+    solicitacao_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """Página de confirmação de entrega - Admin/Gerente pode confirmar com ou sem QR do usuário"""
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return RedirectResponse(url="/solicitacoes", status_code=303)
+
+    result = await db.execute(
+        select(Solicitacao)
+        .options(selectinload(Solicitacao.asset), selectinload(Solicitacao.solicitante))
+        .filter(Solicitacao.id == solicitacao_id)
+    )
+    solicitacao = result.scalars().first()
+    
+    if not solicitacao or solicitacao.status != StatusSolicitacao.APROVADA:
+        return RedirectResponse(url="/solicitacoes", status_code=303)
+    
+    return templates.TemplateResponse("solicitacoes/confirmar_entrega.html", {
+        "request": request,
+        "user": current_user,
+        "sol": solicitacao,
+        "title": f"Confirmar Entrega - #{solicitacao_id}"
+    })
+
+
+@router.post("/{solicitacao_id}/confirmar-entrega", response_class=HTMLResponse)
+async def confirmar_entrega_submit(
+    request: Request,
+    solicitacao_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    qr_token: Annotated[Optional[str], Form()] = None,
+    observacao: Annotated[Optional[str], Form()] = None
+):
+    """Processa confirmação de entrega - valida QR do usuário se fornecido"""
+    from app.crud import user as user_crud
+    
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return RedirectResponse(url="/solicitacoes", status_code=303)
+
+    result = await db.execute(
+        select(Solicitacao)
+        .options(selectinload(Solicitacao.asset), selectinload(Solicitacao.solicitante))
+        .filter(Solicitacao.id == solicitacao_id)
+    )
+    solicitacao = result.scalars().first()
+    
+    if not solicitacao or solicitacao.status != StatusSolicitacao.APROVADA:
+        return RedirectResponse(url="/solicitacoes?error=invalid_status", status_code=303)
+    
+    confirmado_via_qr = False
+    
+    # Validar QR Code se fornecido
+    if qr_token and qr_token.strip():
+        qr_user = await user_crud.user.get_by_qr_token(db, token=qr_token.strip())
+        if not qr_user or qr_user.id != solicitacao.solicitante_id:
+            # QR Code inválido ou não pertence ao solicitante
+            return templates.TemplateResponse("solicitacoes/confirmar_entrega.html", {
+                "request": request,
+                "user": current_user,
+                "sol": solicitacao,
+                "error": "QR Code inválido ou não pertence ao solicitante!",
+                "title": f"Confirmar Entrega - #{solicitacao_id}"
+            })
+        confirmado_via_qr = True
+    
+    # Atualizar solicitação
+    solicitacao.status = StatusSolicitacao.ENTREGUE
+    solicitacao.data_entrega = datetime.utcnow()
+    solicitacao.confirmado_por_id = current_user.id
+    solicitacao.confirmado_via_qr = confirmado_via_qr
+    solicitacao.observacao_entrega = observacao
+    
+    await db.commit()
+    
+    return RedirectResponse(url=f"/solicitacoes/{solicitacao_id}?success=delivered", status_code=303)
+

@@ -16,7 +16,12 @@
         </a>
 
         <div>
-            {% if sol.status.value == 'Aprovada' %}
+            {% if sol.status.value == 'Entregue' %}
+            <span
+                class="inline-block px-4 py-1.5 bg-blue-600 text-white border-2 border-blue-600 text-xs font-bold uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+                STATUS: ENTREGUE ✓
+            </span>
+            {% elif sol.status.value == 'Aprovada' %}
             <span
                 class="inline-block px-4 py-1.5 bg-green-600 text-white border-2 border-green-600 text-xs font-bold uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
                 STATUS: APROVADA
@@ -147,6 +152,19 @@
                 </div>
                 {% endif %}
 
+                <!-- Confirm Delivery Action (for approved requests) -->
+                {% if sol.status.value == 'Aprovada' and user.role.value|lower in ['admin', 'gerente_ti'] %}
+                <div>
+                    <h3 class="font-bold text-xs uppercase tracking-widest mb-4 border-b-2 border-gray-200 pb-2">Ação de
+                        Entrega</h3>
+                    <a href="/solicitacoes/{{ sol.id }}/confirmar-entrega"
+                        class="w-full block text-center bg-blue-600 border-2 border-blue-600 text-white font-bold uppercase text-xs py-3 hover:bg-blue-700 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        📦 Confirmar Entrega
+                    </a>
+                    <p class="text-xs text-gray-500 mt-2 text-center">Confirme com QR Code ou manualmente</p>
+                </div>
+                {% endif %}
+
                 <!-- History Widget -->
                 <div>
                     <h3 class="font-bold text-xs uppercase tracking-widest mb-4 border-b-2 border-gray-200 pb-2">
@@ -168,6 +186,19 @@
                             </p>
                             <p class="font-mono text-[10px] text-gray-500">{{ sol.data_aprovacao.strftime('%d/%m/%Y
                                 %H:%M') }}</p>
+                        </div>
+                        {% endif %}
+                        {% if sol.data_entrega %}
+                        <div class="relative pl-4 border-l-2 border-gray-300">
+                            <div class="absolute w-2 h-2 bg-blue-600 rounded-full -left-[5px] top-1.5"></div>
+                            <p class="text-xs font-bold uppercase">Entregue</p>
+                            <p class="font-mono text-[10px] text-gray-500">{{ sol.data_entrega.strftime('%d/%m/%Y
+                                %H:%M') }}</p>
+                            {% if sol.confirmado_via_qr %}
+                            <span class="inline-block bg-green-100 text-green-700 text-[10px] px-1 mt-1">Via QR</span>
+                            {% else %}
+                            <span class="inline-block bg-gray-100 text-gray-700 text-[10px] px-1 mt-1">Manual</span>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>

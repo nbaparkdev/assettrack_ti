@@ -110,3 +110,40 @@ python3 create_admin.py
 # Criar Técnico
 python3 create_technician.py
 ```
+
+## 📱 Sistema de QR Code
+
+O sistema inclui funcionalidades de QR Code para identificação e login rápido.
+
+### Funcionalidades
+
+| Recurso | Descrição |
+| :--- | :--- |
+| **Crachá Digital** | Cada usuário tem um QR Code único para identificação |
+| **Login via QR** | Login rápido escaneando QR + PIN de 4-6 dígitos |
+| **Confirmação de Entrega** | Valida entregas de ativos via QR do usuário |
+| **Logs de Auditoria** | Todas as ações de QR são registradas |
+
+### Segurança
+
+- 🔒 **Rate Limiting**: 10 tentativas de login/minuto, 3 regenerações/hora
+- ⏰ **Expiração**: Tokens QR expiram após 90 dias (configurável)
+- 🔐 **PIN obrigatório**: Login QR requer PIN de 4-6 dígitos
+- 📝 **Auditoria**: Todas as ações de QR são logadas (logins, regenerações, confirmações)
+
+### Acessar QR Code
+
+1. Faça login normalmente
+2. Clique em **"Meu QR Code"** no menu
+3. Configure seu PIN (primeira vez)
+4. Compartilhe o QR para identificação
+
+### Endpoints da API
+
+```
+POST /api/v1/qr/login          # Login via QR + PIN
+POST /api/v1/qr/me/generate    # Regenerar token QR
+POST /api/v1/qr/me/pin         # Configurar PIN
+GET  /api/v1/qr/me             # Obter QR Code atual
+GET  /api/v1/qr/user/{token}   # Consulta perfil (Admin/Gerente)
+```
