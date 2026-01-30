@@ -28,24 +28,85 @@ Certifique-se de ter Docker e Docker Compose instalados.
 ### Opção 2: Localmente (Sem Docker)
 Requer Python 3.11+ e um banco de dados (PostgreSQL ou SQLite).
 
-1.  Instale as dependências:
+1.  **Crie e ative o ambiente virtual (venv):**
+    ```bash
+    # Criar venv (se ainda não existir)
+    python3 -m venv venv
+
+    # Ativar venv (Linux/macOS)
+    source venv/bin/activate
+
+    # Ativar venv (Windows PowerShell)
+    .\venv\Scripts\Activate.ps1
+    ```
+
+2.  **Instale as dependências (dentro do venv):**
     ```bash
     pip install -r requirements.txt
     ```
-    *Nota: Você precisará da lib `zbar` instalada no sistema para o QR Code funcionar (`sudo apt-get install libzbar0` no Linux).*
 
-2.  Configure o banco no `.env` (exemplo SQLite):
+    > ⚠️ **Erro `externally-managed-environment`?**  
+    > Em sistemas Linux modernos (Debian 12+, Ubuntu 23.04+), o pip do sistema é bloqueado (PEP 668).  
+    > **Solução:** Certifique-se de ter ativado o venv antes de rodar `pip install`. Se o erro persistir, use o pip do venv explicitamente:
+    > ```bash
+    > ./venv/bin/pip install -r requirements.txt
+    > ```
+
+    *Nota: Você precisará da lib `zbar` instalada no sistema para o QR Code funcionar:*
+    ```bash
+    sudo apt-get install libzbar0  # Linux
+    ```
+
+3.  **Configure o banco no `.env`** (exemplo SQLite):
     ```env
     DATABASE_URL=sqlite+aiosqlite:///./assettrack.db
     # Remova as variáveis POSTGRES_* se for usar SQLite
     ```
 
-3.  Rode o servidor:
+4.  **Inicie o servidor:**
     ```bash
     uvicorn app.main:app --reload
     ```
+    
+    > **Acesso na Rede (Outros dispositivos):**
+    > Para permitir que outros computadores/celulares acessem, rode com `--host 0.0.0.0`:
+    > ```bash
+    > uvicorn app.main:app --reload --host 0.0.0.0
+    > ```
+    > O App estará acessível em `http://SEU_IP_NA_REDE:8000`
+    O servidor estará disponível em `http://localhost:8000`
 
-## Primeiro Acesso
-- O sistema cria as tabelas automaticamente ao iniciar.
-- Para criar o primeiro usuário ADMIN, você pode usar um script manual ou o endpoint de registro (se habilitado temporariamente) ou inserir diretamente no banco.
-- *Sugestão*: Use o endpoint `/api/v1/auth/register` (atualmente restrito a admin, mas para o primeiro uso você pode remover a dependência no código ou inserir manualmente no DB).
+### 🛠️ Solução de Problemas (Local)
+
+**Se tiver erros estranhos com pip ou imports:**
+Às vezes o `venv` quebra se a pasta for movida ou renomeada. Para consertar radicalmente:
+
+1. Apague a pasta `venv` antiga:
+   ```bash
+   rm -rf venv
+   ```
+2. Crie e instale tudo do zero:
+   ```bash
+   python3 -m venv venv
+   ./venv/bin/pip install -r requirements.txt
+   ```
+3. Tente rodar novamente.
+
+## 🔑 Usuários Padrão
+
+O sistema possui scripts para criar usuários iniciais. Credenciais sugeridas para teste:
+
+| Perfil | Email | Senha | Acesso |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin@example.com` | `admin` | Total (Configurações, Usuários, Ativos) |
+| **Técnico** | `tecnico@example.com` | `123` | Operacional (Manutenções e Devoluções) |
+
+### Criar usuários via terminal
+Se os usuários não existirem, rode:
+```bash
+# Criar Admin
+python3 create_admin.py
+
+# Criar Técnico
+python3 create_technician.py
+```

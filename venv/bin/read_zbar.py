@@ -1,4 +1,4 @@
-#!/home/humberto/controle de ativos/assettrack_ti/venv/bin/python3
+#!/home/humberto/assettrack_ti/venv/bin/python3
 from __future__ import print_function
 
 import argparse

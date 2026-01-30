@@ -55,7 +55,7 @@ async def get_current_active_superuser(
 async def get_current_active_manager_or_superuser(
     current_user: Annotated[User, Depends(get_current_active_user)]
 ) -> User:
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
         raise HTTPException(
             status_code=403, detail="The user doesn't have enough privileges"
         )

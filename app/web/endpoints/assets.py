@@ -276,7 +276,7 @@ async def return_asset(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
     
     asset = await asset_crud.asset.get(db, id=asset_id)
@@ -311,7 +311,7 @@ async def start_maintenance_form(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
     
     asset = await asset_crud.asset.get(db, id=asset_id)
@@ -337,7 +337,7 @@ async def start_maintenance(
 ):
     from app.models.maintenance import Manutencao, TipoManutencao, StatusManutencao
     
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
     
     asset = await asset_crud.asset.get(db, id=asset_id)
@@ -396,7 +396,7 @@ async def finish_maintenance_form(
     from sqlalchemy.orm import selectinload
     from app.models.maintenance import Manutencao, StatusManutencao
     
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
     
     asset = await asset_crud.asset.get(db, id=asset_id)
@@ -451,7 +451,7 @@ async def finish_maintenance(
     from sqlalchemy import select
     from app.models.maintenance import Manutencao, StatusManutencao, DestinoManutencao
     
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
     
     asset = await asset_crud.asset.get(db, id=asset_id)

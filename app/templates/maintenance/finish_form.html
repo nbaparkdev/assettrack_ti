@@ -170,8 +170,8 @@
                             Pendentes Encontradas:</p>
                         <div class="space-y-2">
                             {% for sol in pending_solicitations %}
-                            <div class="p-3 bg-white border border-gray-200 hover:border-black flex items-center justify-between transition group cursor-pointer"
-                                onclick="selectUser({{ sol.solicitante_id }})">
+                            <div class="p-3 bg-white border border-gray-200 hover:border-black flex items-center justify-between transition group cursor-pointer user-select-option"
+                                data-user-id="{{ sol.solicitante_id }}">
                                 <div class="flex items-center gap-3">
                                     <div class="w-1 h-1 bg-amber-500 rounded-full"></div>
                                     <span class="font-bold text-xs uppercase">{{ sol.solicitante.nome }}</span>
@@ -228,8 +228,15 @@
     // Select user from pending solicitations
     function selectUser(userId) {
         destinoUserSelect.value = userId;
-        // Visual feedback would be nice here, but simple value set works
         destinoUserSelect.focus();
     }
+
+    // Event delegation for user selection cards
+    document.querySelectorAll('.user-select-option').forEach(el => {
+        el.addEventListener('click', function () {
+            const userId = this.dataset.userId;
+            selectUser(userId);
+        });
+    });
 </script>
 {% endblock %}

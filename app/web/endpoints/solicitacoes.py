@@ -25,7 +25,10 @@ async def list_solicitacoes(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    solicitacoes = await transaction_crud.solicitacao.get_multi(db)
+    if current_user.role == UserRole.USUARIO:
+        solicitacoes = await transaction_crud.solicitacao.get_by_user(db, user_id=current_user.id)
+    else:
+        solicitacoes = await transaction_crud.solicitacao.get_multi(db)
     return templates.TemplateResponse("solicitacoes/list.html", {
         "request": request,
         "user": current_user,

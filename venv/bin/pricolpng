@@ -1,4 +1,4 @@
-#!/home/humberto/controle de ativos/assettrack_ti/venv/bin/python3
+#!/home/humberto/assettrack_ti/venv/bin/python3
 
 # http://www.python.org/doc/2.4.4/lib/module-itertools.html
 import itertools

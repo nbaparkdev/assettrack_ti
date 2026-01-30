@@ -71,6 +71,8 @@
                                     ADMINISTRADOR</option>
                                 <option value="gerente_ti" {% if target_user.role.value|lower=='gerente_ti' %}selected{%
                                     endif %}>GERENTE TI</option>
+                                <option value="tecnico" {% if target_user.role.value|lower=='tecnico' %}selected{% endif
+                                    %}>TÉCNICO</option>
                                 <option value="usuario_comum" {% if target_user.role.value|lower=='usuario_comum'
                                     %}selected{% endif %}>USUÁRIO COMUM</option>
                             </select>

@@ -1,6 +1,4 @@
-#!/bin/sh
-'''exec' "/home/humberto/controle de ativos/assettrack_ti/venv/bin/python3" "$0" "$@"
-' '''
+#!/home/humberto/assettrack_ti/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
