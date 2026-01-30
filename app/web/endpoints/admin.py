@@ -44,20 +44,28 @@ async def approve_solicitacao(
         raise HTTPException(status_code=404, detail="Solicitação inválida")
     
     asset = await db.get(Asset, solicitacao.asset_id)
-    if not asset or asset.status != AssetStatus.DISPONIVEL:
-         raise HTTPException(status_code=400, detail="Ativo indisponível")
+    if not asset or asset.status not in [AssetStatus.DISPONIVEL, AssetStatus.EM_USO]:
+         raise HTTPException(status_code=400, detail="Ativo indisponível para movimentação")
 
     # Update Solicitation
     solicitacao.status = StatusSolicitacao.APROVADA
     solicitacao.aprovador_id = admin.id
     solicitacao.data_aprovacao = datetime.utcnow()
     
-    # Create Movement (Saída)
+    # Determine movement type and origin
+    tipo_mov = TipoMovimentacao.EMPRESTIMO
+    origin_user_id = admin.id
+    
+    if asset.current_user_id:
+        tipo_mov = TipoMovimentacao.TRANSFERENCIA
+        origin_user_id = asset.current_user_id
+
+    # Create Movement (Saída/Transferência)
     movimentacao = Movimentacao(
         asset_id=asset.id,
-        tipo=TipoMovimentacao.EMPRESTIMO,
+        tipo=tipo_mov,
         para_user_id=solicitacao.solicitante_id,
-        de_user_id=admin.id, # Quem aprovou é a origem lógica da entrega
+        de_user_id=origin_user_id,
         observacao=f"Solicitação aprovada por {admin.nome}"
     )
     db.add(movimentacao)

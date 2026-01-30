@@ -1,141 +1,117 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6 fade-in">
-    <!-- Header -->
-    <div class="flex items-center gap-4">
-        <a href="/assets/{{ asset.id }}" class="p-2 rounded-lg bg-surface-100 hover:bg-surface-200 transition-colors">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-        </a>
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Enviar para Manutenção</h1>
-            <p class="text-gray-500">{{ asset.nome }} ({{ asset.serial_number }})</p>
-        </div>
-    </div>
-
-    <!-- Info Badge -->
-    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-        <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <div>
-            <h3 class="font-semibold text-amber-800">Ativo será indisponibilizado</h3>
-            <p class="text-sm text-amber-700">O ativo ficará com status "Manutenção" até que a manutenção seja
-                concluída.</p>
-        </div>
-    </div>
-
-    <!-- Form -->
-    <form method="POST" action="/assets/{{ asset.id }}/maintenance/start" class="card">
-        <div class="p-6 space-y-6">
-
-            <!-- Tipo de Manutenção -->
+<div class="max-w-4xl mx-auto space-y-8 fade-in">
+    <!-- Technical Header -->
+    <header class="border-b-2 border-gray-900 pb-6">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-                <label for="tipo" class="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo de Manutenção <span class="text-red-500">*</span>
+                <div class="flex items-center gap-3 mb-2">
+                    <a href="/assets/{{ asset.id }}" class="text-gray-500 hover:text-black transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </a>
+                    <span class="bg-black text-white px-2 py-0.5 text-xs font-mono uppercase tracking-wider">Modo
+                        Manutenção</span>
+                </div>
+                <h1 class="text-4xl font-bold text-gray-900 tracking-tight">{{ asset.nome }}</h1>
+            </div>
+            <div class="font-mono text-right">
+                <p class="text-sm text-gray-500 uppercase tracking-widest">Serial Number</p>
+                <p class="text-xl font-medium text-gray-900 bg-gray-100 px-3 py-1 inline-block">{{ asset.serial_number
+                    }}</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Warning Block -->
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-6 flex items-start gap-4">
+        <div class="p-2 bg-amber-100 rounded-sm shrink-0">
+            <svg class="w-6 h-6 text-amber-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </div>
+        <div>
+            <h3 class="font-bold text-amber-900 uppercase tracking-wide text-sm mb-1">Impacto Operacional</h3>
+            <p class="text-amber-800">Ao confirmar, este ativo ficará <strong>INDISPONÍVEL</strong> para uso. O status
+                será alterado para <span class="font-mono text-xs bg-amber-200 px-1">MANUTENCAO</span> system-wide.</p>
+        </div>
+    </div>
+
+    <!-- The Form -->
+    <form method="POST" action="/assets/{{ asset.id }}/maintenance/start" class="space-y-8">
+
+        <!-- Section: Tipo -->
+        <div class="space-y-4">
+            <h3 class="text-lg font-bold border-l-4 border-gray-900 pl-3 uppercase">01. Classificação do Serviço</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {% set types = [
+                ('corretiva', 'Corretiva', 'Reparo de falha', 'text-red-600'),
+                ('preventiva', 'Preventiva', 'Manutenção agendada', 'text-blue-600'),
+                ('upgrade', 'Upgrade', 'Melhoria de hardware', 'text-emerald-600'),
+                ('outro', 'Outro', 'Motivo diverso', 'text-gray-600')
+                ] %}
+
+                {% for value, label, sub, color in types %}
+                <label class="group relative cursor-pointer">
+                    <input type="radio" name="tipo" value="{{ value }}" class="peer sr-only" {% if loop.first
+                        %}checked{% endif %}>
+
+                    <div
+                        class="h-full p-4 border-2 border-gray-200 hover:border-gray-400 bg-white transition-all peer-checked:border-gray-900 peer-checked:bg-gray-50 peer-checked:shadow-none">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-mono text-xs text-gray-400">TYPE_{{ loop.index }}</span>
+                            <div
+                                class="w-3 h-3 rounded-full border border-gray-300 peer-checked:bg-gray-900 peer-checked:border-gray-900">
+                            </div>
+                        </div>
+                        <span class="block font-bold text-lg {{ color }}">{{ label }}</span>
+                        <span class="text-xs text-gray-500">{{ sub }}</span>
+                    </div>
                 </label>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <label class="relative">
-                        <input type="radio" name="tipo" value="corretiva" class="peer sr-only" checked>
-                        <div
-                            class="p-4 border-2 rounded-lg cursor-pointer transition-all peer-checked:border-brand-500 peer-checked:bg-brand-50 hover:border-gray-300">
-                            <div class="text-center">
-                                <svg class="w-8 h-8 mx-auto mb-2 text-red-500" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
-                                <span class="font-medium">Corretiva</span>
-                                <p class="text-xs text-gray-500">Reparo de defeito</p>
-                            </div>
-                        </div>
-                    </label>
-                    <label class="relative">
-                        <input type="radio" name="tipo" value="preventiva" class="peer sr-only">
-                        <div
-                            class="p-4 border-2 rounded-lg cursor-pointer transition-all peer-checked:border-brand-500 peer-checked:bg-brand-50 hover:border-gray-300">
-                            <div class="text-center">
-                                <svg class="w-8 h-8 mx-auto mb-2 text-blue-500" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                </svg>
-                                <span class="font-medium">Preventiva</span>
-                                <p class="text-xs text-gray-500">Manutenção agendada</p>
-                            </div>
-                        </div>
-                    </label>
-                    <label class="relative">
-                        <input type="radio" name="tipo" value="upgrade" class="peer sr-only">
-                        <div
-                            class="p-4 border-2 rounded-lg cursor-pointer transition-all peer-checked:border-brand-500 peer-checked:bg-brand-50 hover:border-gray-300">
-                            <div class="text-center">
-                                <svg class="w-8 h-8 mx-auto mb-2 text-green-500" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                                </svg>
-                                <span class="font-medium">Upgrade</span>
-                                <p class="text-xs text-gray-500">Melhoria/Atualização</p>
-                            </div>
-                        </div>
-                    </label>
-                    <label class="relative">
-                        <input type="radio" name="tipo" value="outro" class="peer sr-only">
-                        <div
-                            class="p-4 border-2 rounded-lg cursor-pointer transition-all peer-checked:border-brand-500 peer-checked:bg-brand-50 hover:border-gray-300">
-                            <div class="text-center">
-                                <svg class="w-8 h-8 mx-auto mb-2 text-gray-500" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span class="font-medium">Outro</span>
-                                <p class="text-xs text-gray-500">Outros motivos</p>
-                            </div>
-                        </div>
-                    </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Section: Detalhes -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-4">
+                <h3 class="text-lg font-bold border-l-4 border-gray-900 pl-3 uppercase">02. Diagnóstico Técnico</h3>
+                <div>
+                    <label for="motivo" class="block font-mono text-xs font-bold text-gray-500 uppercase mb-2">Descrição
+                        do Problema *</label>
+                    <textarea name="motivo" id="motivo" rows="5" required
+                        class="w-full border-2 border-gray-200 focus:border-gray-900 focus:ring-0 rounded-none bg-gray-50 p-4 font-mono text-sm placeholder-gray-400 transition-colors"
+                        placeholder="Descreva detalhadamente o defeito apresentado..."></textarea>
                 </div>
             </div>
 
-            <!-- Motivo -->
-            <div>
-                <label for="motivo" class="block text-sm font-medium text-gray-700 mb-2">
-                    Descrição do Problema <span class="text-red-500">*</span>
-                </label>
-                <textarea name="motivo" id="motivo" rows="4" required
-                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500"
-                    placeholder="Descreva o problema ou motivo da manutenção..."></textarea>
+            <div class="space-y-4">
+                <h3 class="text-lg font-bold border-l-4 border-gray-900 pl-3 uppercase">03. Cronograma</h3>
+                <div>
+                    <label for="data_previsao"
+                        class="block font-mono text-xs font-bold text-gray-500 uppercase mb-2">Previsão de
+                        Retorno</label>
+                    <input type="date" name="data_previsao" id="data_previsao"
+                        class="w-full border-2 border-gray-200 focus:border-gray-900 focus:ring-0 rounded-none bg-white p-3 font-mono text-sm">
+                    <p class="mt-2 text-xs text-gray-400">Deixar em branco se indeterminado.</p>
+                </div>
             </div>
-
-            <!-- Data Previsão -->
-            <div>
-                <label for="data_previsao" class="block text-sm font-medium text-gray-700 mb-2">
-                    Previsão de Retorno
-                </label>
-                <input type="date" name="data_previsao" id="data_previsao"
-                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500">
-                <p class="mt-1 text-sm text-gray-500">Estimativa de quando a manutenção será concluída</p>
-            </div>
-
         </div>
 
-        <!-- Footer -->
-        <div class="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3 rounded-b-lg">
-            <a href="/assets/{{ asset.id }}" class="btn btn-secondary">
-                Cancelar
+        <!-- Action Bar -->
+        <div class="pt-8 border-t border-gray-200 flex items-center justify-between">
+            <a href="/assets/{{ asset.id }}"
+                class="px-6 py-3 border-2 border-transparent text-gray-600 hover:text-gray-900 font-bold uppercase text-sm tracking-wider transition-colors">
+                Cancelar e Voltar
             </a>
-            <button type="submit" class="btn btn-warning">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Enviar para Manutenção
+
+            <button type="submit"
+                class="bg-amber-500 border-2 border-amber-500 text-black px-8 py-3 font-bold uppercase text-sm tracking-wider hover:bg-amber-400 hover:border-amber-400 transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none">
+                Confirmar Manutenção // EXECUTE
             </button>
         </div>
     </form>

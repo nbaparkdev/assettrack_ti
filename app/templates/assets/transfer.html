@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-8 fade-in">
+    <div>
+        <h1 class="font-black text-4xl uppercase tracking-tighter mb-2">Transferir Ativo</h1>
+        <p class="font-mono text-xs text-gray-500 uppercase">Solicitar transferência de custódia</p>
+    </div>
+
+    <div class="card-industrial bg-white">
+        <div class="mb-8 p-4 bg-gray-50 border border-gray-200">
+            <span class="font-mono text-xs text-gray-400 uppercase tracking-widest block mb-1">Ativo Selecionado</span>
+            <h2 class="font-bold text-lg uppercase">{{ asset.nome }}</h2>
+            <p class="font-mono text-sm">S/N: {{ asset.serial_number }}</p>
+        </div>
+
+        <form action="/assets/{{ asset.id }}/transfer" method="POST" class="space-y-6">
+            <div>
+                <label for="destinatario_id"
+                    class="block font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    Destinatário (Novo Responsável)
+                </label>
+                <select name="destinatario_id" id="destinatario_id" required
+                    class="w-full bg-gray-50 border-2 border-gray-200 p-3 font-mono text-sm focus:border-black focus:ring-0 rounded-none transition">
+                    <option value="" disabled selected>SELECIONE O USUÁRIO...</option>
+                    {% for u in users %}
+                    {% if u.id != user.id %}
+                    <option value="{{ u.id }}">{{ u.nome }} ({{ u.email }})</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="motivo"
+                    class="block font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    Motivo da Transferência
+                </label>
+                <textarea name="motivo" id="motivo" rows="3" required
+                    class="w-full bg-gray-50 border-2 border-gray-200 p-3 font-mono text-sm focus:border-black focus:ring-0 rounded-none transition"
+                    placeholder="JUSTIFICATIVA DA TRANSFERÊNCIA..."></textarea>
+            </div>
+
+            <div class="pt-6 flex flex-col sm:flex-row items-center gap-4">
+                <a href="/assets/{{ asset.id }}"
+                    class="w-full block bg-white border-2 border-gray-300 text-gray-600 font-bold uppercase text-xs py-3 px-6 hover:border-black hover:text-black transition text-center shadow-[3px_3px_0px_0px_rgba(200,200,200,1)] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px]">
+                    ← Cancelar
+                </a>
+                <button type="submit"
+                    class="w-full block bg-black border-2 border-black text-white font-bold uppercase text-xs py-3 px-6 hover:bg-gray-800 transition text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px]">
+                    ⇄ Solicitar Transferência
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

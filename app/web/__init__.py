@@ -11,3 +11,7 @@ web_router.include_router(solicitacoes.router, prefix="/solicitacoes", tags=["we
 web_router.include_router(movimentacoes.router, prefix="/movimentacoes", tags=["web_movimentacoes"])
 web_router.include_router(admin.router, prefix="/admin", tags=["web_admin"])
 web_router.include_router(users.router, tags=["web_users"])
+from app.web.endpoints import profile
+web_router.include_router(profile.router, prefix="/profile", tags=["web_profile"])
+from app.web.endpoints import setores
+web_router.include_router(setores.router, prefix="/setores", tags=["web_setores"])

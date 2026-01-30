@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8 fade-in">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="font-black text-4xl uppercase tracking-tighter mb-1">Gerenciar Setores</h1>
+            <p class="font-mono text-xs text-gray-500 uppercase tracking-wider">Departamentos da Organização</p>
+        </div>
+        <a href="/"
+            class="bg-white border-2 border-gray-300 text-gray-600 font-bold uppercase text-xs py-2 px-4 hover:border-black hover:text-black transition text-center shadow-[3px_3px_0px_0px_rgba(200,200,200,1)] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px]">
+            ← Voltar
+        </a>
+    </div>
+
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-400 text-red-800 p-4 font-mono text-sm uppercase">
+        ⚠ {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- New Setor Form -->
+    <div class="card-industrial bg-white">
+        <h2 class="font-bold text-lg uppercase tracking-tight mb-4 border-b border-gray-200 pb-2">Adicionar Novo Setor
+        </h2>
+        <form action="/setores/new" method="POST" class="flex flex-col sm:flex-row gap-4 items-end">
+            <div class="flex-1 w-full">
+                <label for="nome"
+                    class="block font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    Nome do Setor
+                </label>
+                <input type="text" name="nome" id="nome" required
+                    class="w-full bg-gray-50 border-2 border-gray-200 p-3 font-mono text-sm focus:border-black focus:ring-0 rounded-none transition"
+                    placeholder="EX: FINANCEIRO, TI, RECURSOS HUMANOS...">
+            </div>
+            <button type="submit"
+                class="w-full sm:w-auto bg-black border-2 border-black text-white font-bold uppercase text-xs py-3 px-6 hover:bg-gray-800 transition text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px]">
+                + Adicionar
+            </button>
+        </form>
+    </div>
+
+    <!-- List of Setores -->
+    <div class="card-industrial bg-white">
+        <h2 class="font-bold text-lg uppercase tracking-tight mb-4 border-b border-gray-200 pb-2">Setores Cadastrados
+        </h2>
+
+        {% if setores %}
+        <div class="divide-y divide-gray-100">
+            {% for setor in setores %}
+            <div class="flex items-center justify-between py-3 group">
+                <div class="flex items-center gap-4">
+                    <span class="font-mono text-xs text-gray-400 w-8">#{{ setor.id }}</span>
+                    <span class="font-bold uppercase">{{ setor.nome }}</span>
+                </div>
+                <form action="/setores/{{ setor.id }}/delete" method="POST"
+                    onsubmit="return confirm('Remover o setor {{ setor.nome }}?');">
+                    <button type="submit"
+                        class="text-gray-400 hover:text-red-600 font-mono text-xs uppercase transition px-2 py-1 border border-transparent hover:border-red-300">
+                        [REMOVER]
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="font-mono text-sm text-gray-400 uppercase text-center py-8">Nenhum setor cadastrado.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

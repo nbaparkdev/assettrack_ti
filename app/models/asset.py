@@ -20,6 +20,7 @@ class Asset(Base):
     nome: Mapped[str] = mapped_column(String, index=True, nullable=False)
     serial_number: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     modelo: Mapped[str] = mapped_column(String, nullable=True)
+    descricao: Mapped[str | None] = mapped_column(String, nullable=True)
     data_aquisicao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     valor: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     status: Mapped[AssetStatus] = mapped_column(SAEnum(AssetStatus), default=AssetStatus.DISPONIVEL, index=True)

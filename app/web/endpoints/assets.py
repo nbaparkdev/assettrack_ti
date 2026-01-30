@@ -100,9 +100,12 @@ async def create_asset(
         val_aquisicao = None
         if valor_aquisicao:
             try:
-                val_aquisicao = float(valor_aquisicao)
+                # Handle Brazilian currency format (1.200,50 -> 1200.50)
+                clean_value = valor_aquisicao.replace('.', '').replace(',', '.') if ',' in valor_aquisicao and '.' in valor_aquisicao else valor_aquisicao.replace(',', '.')
+                val_aquisicao = float(clean_value)
             except ValueError:
-                pass
+                # If conversion fails but user provided input, raise error to notify user
+                raise ValueError(f"Valor inválido: {valor_aquisicao}")
 
         asset_in = AssetCreate(
             nome=nome,
@@ -110,7 +113,7 @@ async def create_asset(
             serial_number=serial_number,
             descricao=descricao,
             data_aquisicao=dt_aquisicao,
-            valor_aquisicao=val_aquisicao,
+            valor=val_aquisicao,
             status=AssetStatus.DISPONIVEL
         )
         await asset_crud.asset.create(db, obj_in=asset_in)
@@ -215,9 +218,11 @@ async def update_asset(
         val_aquisicao = None
         if valor_aquisicao:
             try:
-                val_aquisicao = float(valor_aquisicao)
+                # Handle Brazilian currency format (1.200,50 -> 1200.50)
+                clean_value = valor_aquisicao.replace('.', '').replace(',', '.') if ',' in valor_aquisicao and '.' in valor_aquisicao else valor_aquisicao.replace(',', '.')
+                val_aquisicao = float(clean_value)
             except ValueError:
-                pass
+                raise ValueError(f"Valor inválido: {valor_aquisicao}")
 
         asset_update = AssetUpdate(
             nome=nome,
@@ -225,7 +230,7 @@ async def update_asset(
             serial_number=serial_number,
             descricao=descricao if descricao else None,
             data_aquisicao=dt_aquisicao,
-            valor_aquisicao=val_aquisicao
+            valor=val_aquisicao
         )
         await asset_crud.asset.update(db, db_obj=asset, obj_in=asset_update)
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
@@ -529,5 +534,107 @@ async def finish_maintenance(
     db.add(movimentacao)
     
     await db.commit()
+    return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
+
+
+@router.get("/{asset_id}/transfer", response_class=HTMLResponse)
+async def transfer_asset_form(
+    request: Request,
+    asset_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    asset = await asset_crud.asset.get(db, id=asset_id)
+    if not asset:
+        return RedirectResponse(url="/assets", status_code=303)
+    
+    # Get active users for destination selection
+    from sqlalchemy import select
+    from app.models.user import User
+    result = await db.execute(
+        select(User).filter(User.is_active == True).order_by(User.nome)
+    )
+    users = result.scalars().all()
+    
+    return templates.TemplateResponse("assets/transfer.html", {
+        "request": request,
+        "user": current_user,
+        "asset": asset,
+        "users": users,
+        "title": f"Transferir: {asset.nome}"
+    })
+
+
+@router.post("/{asset_id}/transfer", response_class=HTMLResponse)
+async def transfer_asset(
+    request: Request,
+    asset_id: int,
+    destinatario_id: Annotated[int, Form()],
+    motivo: Annotated[str, Form()],
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    try:
+        asset = await asset_crud.asset.get(db, id=asset_id)
+        if not asset:
+            return RedirectResponse(url="/assets", status_code=303)
+
+        # Create Solicitation (Transferencia)
+        solicitacao = Solicitacao(
+            solicitante_id=current_user.id, # Quem está pedindo a transferência (pode ser o atual dono ou admin)
+            asset_id=asset.id,
+            motivo=f"[TRANSFERÊNCIA] Para user ID {destinatario_id}: {motivo}",
+            status=StatusSolicitacao.PENDENTE,
+            data_solicitacao=datetime.utcnow()
+        )
+        
+        # Override solicitante to be the target user (so the request shows up for them/admin as for them)
+        solicitacao.solicitante_id = destinatario_id
+        solicitacao.motivo = f"Transferência solicitada por {current_user.nome}: {motivo}"
+        
+        db.add(solicitacao)
+        await db.commit()
+        
+        return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        return Response(content=f"ERRO DEBUG: {error_msg}", status_code=500, media_type="text/plain")
+
+
+@router.post("/{asset_id}/baixa", response_class=HTMLResponse)
+async def write_off_asset(
+    request: Request,
+    asset_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
+    
+    asset = await asset_crud.asset.get(db, id=asset_id)
+    if not asset:
+        return RedirectResponse(url="/assets", status_code=303)
+
+    previous_user = asset.current_user_id
+    
+    # Update Asset
+    asset.status = AssetStatus.BAIXADO
+    asset.current_user_id = None
+    db.add(asset)
+    
+    # Create Movement
+    movimentacao = Movimentacao(
+        asset_id=asset.id,
+        tipo=TipoMovimentacao.BAIXA,
+        de_user_id=previous_user,
+        para_user_id=None, # Gone
+        data=datetime.now(),
+        observacao=f"Baixa efetuada por {current_user.nome}"
+    )
+    db.add(movimentacao)
+    
+    await db.commit()
+    
     return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
 

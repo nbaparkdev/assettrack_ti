@@ -1,263 +1,204 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-8">
+<div class="space-y-12">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-end justify-between border-b-2 border-dashed border-gray-300 pb-6">
         <div>
-            <h2 class="text-2xl font-bold text-gray-900 tracking-tight">Dashboard Overview</h2>
-            <p class="text-sm text-gray-500">Visão geral do inventário de TI e solicitações.</p>
+            <h2 class="text-3xl font-bold text-black tracking-tighter uppercase">Visão Geral</h2>
+            <p class="font-mono text-xs text-gray-500 mt-1">STATUS_SISTEMA: <span
+                    class="text-green-600 font-bold">ONLINE</span></p>
         </div>
-        <div class="flex items-center gap-2">
-            <span
-                class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200 connection-pulse">
-                <span class="w-2 h-2 rounded-full bg-green-500 inline-block mr-1"></span> Sistema Online
-            </span>
+        <div class="hidden sm:block text-right">
+            <p class="font-mono text-xs text-gray-400">ULTIMA_ATUALIZACAO</p>
+            <p class="font-bold">{{ now_formatted }}</p>
         </div>
     </div>
 
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Total Assets -->
-        <div
-            class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group hover:shadow-md transition">
-            <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition">
-                <svg class="h-24 w-24 text-brand-600" fill="currentColor" viewBox="0 0 24 24">
-                    <path
-                        d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z">
-                    </path>
-                </svg>
+    <!-- Data Blocks (Stats) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-0 border-2 border-black bg-black">
+        <!-- Block 1 -->
+        <div class="bg-white p-6 md:border-r-2 md:border-black group hover:bg-gray-50 transition relative">
+            <h3 class="font-mono text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Total de Ativos</h3>
+            <div class="flex items-baseline gap-2">
+                <span class="text-5xl font-bold tracking-tighter">{{ stats.total_assets }}</span>
+                <span class="font-mono text-xs text-gray-400">UNID.</span>
             </div>
-            <div class="relative z-10">
-                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Total de Ativos</h3>
-                <div class="flex items-baseline mt-2">
-                    <p class="text-4xl font-bold text-gray-900">{{ stats.total_assets }}</p>
-                    <span class="ml-2 text-sm text-gray-400">items</span>
-                </div>
-                <div class="mt-4 flex items-center text-sm text-brand-600 font-medium cursor-pointer hover:underline">
-                    <a href="/assets">Ver inventário &rarr;</a>
-                </div>
-            </div>
+            <a href="/assets"
+                class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-sm font-bold border-b-2 border-black">VER
+                TODOS &rarr;</a>
         </div>
 
-        <!-- Available Assets -->
-        <div
-            class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group hover:shadow-md transition">
-            <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition">
-                <svg class="h-24 w-24 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
+        <!-- Block 2 -->
+        <div class="bg-white p-6 md:border-r-2 md:border-black group hover:bg-gray-50 transition relative">
+            <h3 class="font-mono text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Disponíveis</h3>
+            <div class="flex items-baseline gap-2">
+                <span class="text-5xl font-bold tracking-tighter text-green-600">{{ stats.available_assets }}</span>
+                <span class="font-mono text-xs text-gray-400">PRONTOS</span>
             </div>
-            <div class="relative z-10">
-                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Disponíveis</h3>
-                <div class="flex items-baseline mt-2">
-                    <p class="text-4xl font-bold text-green-600">{{ stats.available_assets }}</p>
-                    <span class="ml-2 text-sm text-gray-400">para uso</span>
-                </div>
-                <div class="mt-4 flex items-center text-sm text-green-600 font-medium cursor-pointer hover:underline">
-                    <a href="/assets?status=Disponivel">Solicitar agora &rarr;</a>
-                </div>
-            </div>
+            <a href="/assets?status=Disponivel"
+                class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-sm font-bold border-b-2 border-black">ALOCAR
+                &rarr;</a>
         </div>
 
-        <!-- Pending (Warning) -->
-        <div
-            class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group hover:shadow-md transition">
-            <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition">
-                <svg class="h-24 w-24 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
+        <!-- Block 3 -->
+        <div class="bg-white p-6 group hover:bg-gray-50 transition relative">
+            <h3 class="font-mono text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Ações Pendentes</h3>
+            <div class="flex items-baseline gap-2">
+                <span class="text-5xl font-bold tracking-tighter text-amber-500">{{ stats.pending_solicitations
+                    }}</span>
+                <span class="font-mono text-xs text-gray-400">TICKETS</span>
             </div>
-            <div class="relative z-10">
-                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Aguardando Ação</h3>
-                <div class="flex items-baseline mt-2">
-                    <p class="text-4xl font-bold text-yellow-600">{{ stats.pending_solicitations }}</p>
-                    <span class="ml-2 text-sm text-gray-400">pendentes</span>
-                </div>
-                <div class="mt-4 flex items-center text-sm text-yellow-600 font-medium cursor-pointer hover:underline">
-                    <a href="/solicitacoes">Gerenciar fila &rarr;</a>
-                </div>
-            </div>
+            <a href="/solicitacoes"
+                class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-sm font-bold border-b-2 border-black">RESOLVER
+                &rarr;</a>
         </div>
     </div>
 
     <!-- Admin Approvals -->
     {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
         <!-- Pending Users -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
-                    </path>
-                </svg>
-                Novos Usuários ({{ pending_users_list|length }})
-            </h3>
-            {% if pending_users_list %}
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+        <div>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-lg uppercase flex items-center gap-2">
+                    <span class="w-2 h-2 bg-blue-600 inline-block"></span>
+                    Novos Usuários
+                    <span class="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded-none ml-2">{{
+                        pending_users_list|length }}</span>
+                </h3>
+            </div>
+
+            <div class="border-2 border-gray-200">
+                {% if pending_users_list %}
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50 border-b-2 border-gray-200">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Nome/Email</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Cargo</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Ação</th>
+                            <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase">Usuário</th>
+                            <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase">Cargo</th>
+                            <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase text-right">Ação</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-200">
                         {% for pending_user in pending_users_list %}
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm font-medium text-gray-900">{{ pending_user.nome }}</div>
-                                <div class="text-sm text-gray-500">{{ pending_user.email }}</div>
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3">
+                                <div class="font-bold text-sm">{{ pending_user.nome }}</div>
+                                <div class="font-mono text-xs text-gray-500">{{ pending_user.email }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ pending_user.cargo or '-' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <form action="/admin/users/{{ pending_user.id }}/approve" method="post" class="inline">
+                            <td class="p-3 font-mono text-xs uppercase">{{ pending_user.cargo or '-' }}</td>
+                            <td class="p-3 text-right">
+                                <form action="/admin/users/{{ pending_user.id }}/approve" method="post">
                                     <button type="submit"
-                                        class="text-green-600 hover:text-green-900 font-bold bg-green-50 px-3 py-1 rounded-full border border-green-200 shadow-sm hover:shadow">Aprovar</button>
+                                        class="text-xs font-bold text-green-600 hover:text-green-800 uppercase tracking-wider">
+                                        [ APROVAR ]
+                                    </button>
                                 </form>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+                {% else %}
+                <div class="p-8 text-center bg-gray-50">
+                    <p class="font-mono text-sm text-gray-400">SEM_NOVOS_USUARIOS</p>
+                </div>
+                {% endif %}
             </div>
-            {% else %}
-            <div class="text-center py-6 text-gray-500 text-sm bg-gray-50 rounded-lg">
-                Nenhum usuário pendente.
-            </div>
-            {% endif %}
         </div>
 
         <!-- Pending Solicitations -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
-                    </path>
-                </svg>
-                Solicitações Pendentes ({{ pending_solicitations_list|length }})
-            </h3>
-            {% if pending_solicitations_list %}
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+        <div>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-lg uppercase flex items-center gap-2">
+                    <span class="w-2 h-2 bg-amber-500 inline-block"></span>
+                    Solicitações
+                    <span class="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded-none ml-2">{{
+                        pending_solicitations_list|length }}</span>
+                </h3>
+            </div>
+
+            <div class="border-2 border-gray-200">
+                {% if pending_solicitations_list %}
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50 border-b-2 border-gray-200">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Solicitante</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Ativo</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Ações</th>
+                            <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase">Solicitante</th>
+                            <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase">Ativo</th>
+                            <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase text-right">DECISÃO</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-200">
                         {% for sol in pending_solicitations_list %}
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {{ sol.solicitante.nome if sol.solicitante else 'ID: ' ~ sol.solicitante_id }}<br>
-                                <span class="text-xs text-gray-500">{{ sol.data_solicitacao.strftime('%d/%m %H:%M')
-                                    }}</span>
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3">
+                                <span class="font-bold text-sm block">{{ sol.solicitante.nome if sol.solicitante else
+                                    'ID: ' ~ sol.solicitante_id }}</span>
+                                <span class="font-mono text-[10px] text-gray-400">{{
+                                    sol.data_solicitacao.strftime('%d/%m %H:%M') }}</span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td class="p-3 text-sm">
                                 {% if sol.asset %}
-                                <span class="font-medium text-brand-700">{{ sol.asset.nome }}</span>
+                                <span class="font-medium">{{ sol.asset.nome }}</span>
                                 {% else %}
-                                <span class="text-gray-400">Genérico</span>
+                                <span class="text-gray-400 italic">Genérico</span>
                                 {% endif %}
                             </td>
-                            <td
-                                class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end gap-2">
-                                <form action="/admin/solicitacoes/{{ sol.id }}/approve" method="post" class="inline">
-                                    <button type="submit"
-                                        class="text-white bg-green-500 hover:bg-green-600 px-3 py-1 rounded-md shadow-sm transition">✔</button>
-                                </form>
-                                <form action="/admin/solicitacoes/{{ sol.id }}/reject" method="post" class="inline">
-                                    <button type="submit"
-                                        class="text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded-md shadow-sm transition">✖</button>
-                                </form>
+                            <td class="p-3 text-right">
+                                <div class="flex justify-end gap-2">
+                                    <form action="/admin/solicitacoes/{{ sol.id }}/approve" method="post"
+                                        class="inline">
+                                        <button type="submit"
+                                            class="w-6 h-6 flex items-center justify-center border border-green-600 text-green-600 hover:bg-green-600 hover:text-white transition">✓</button>
+                                    </form>
+                                    <form action="/admin/solicitacoes/{{ sol.id }}/reject" method="post" class="inline">
+                                        <button type="submit"
+                                            class="w-6 h-6 flex items-center justify-center border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition">✕</button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+                {% else %}
+                <div class="p-8 text-center bg-gray-50">
+                    <p class="font-mono text-sm text-gray-400">SEM_SOLICITACOES</p>
+                </div>
+                {% endif %}
             </div>
-            {% else %}
-            <div class="text-center py-6 text-gray-500 text-sm bg-gray-50 rounded-lg">
-                Nenhuma solicitação pendente.
-            </div>
-            {% endif %}
         </div>
     </div>
     {% endif %}
 
-    <!-- Quick Actions -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 class="text-lg font-bold text-gray-800 mb-6 flex items-center">
-            <svg class="w-5 h-5 mr-2 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
-                </path>
-            </svg>
-            Menu de Ações Rápidas
-        </h3>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <a href="/assets"
-                class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 hover:bg-brand-50 hover:text-brand-700 transition group border border-transparent hover:border-brand-200">
-                <div class="bg-white p-3 rounded-full shadow-sm mb-3 group-hover:scale-110 transition">
-                    <svg class="w-6 h-6 text-gray-600 group-hover:text-brand-600" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
-                    </svg>
-                </div>
-                <span class="text-sm font-medium">Listar Ativos</span>
+    <!-- Quick Actions (Grid) -->
+    <div>
+        <h3 class="font-bold text-lg uppercase mb-4">Comandos Rápidos</h3>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <a href="/assets" class="border-2 border-gray-200 p-6 hover:border-black hover:bg-gray-50 transition group">
+                <span class="font-mono text-xs text-gray-400 block mb-2">CMD_01</span>
+                <span class="font-bold text-lg group-hover:underline">Listar Ativos</span>
             </a>
-
             <a href="/solicitacoes"
-                class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 hover:bg-brand-50 hover:text-brand-700 transition group border border-transparent hover:border-brand-200">
-                <div class="bg-white p-3 rounded-full shadow-sm mb-3 group-hover:scale-110 transition">
-                    <svg class="w-6 h-6 text-gray-600 group-hover:text-brand-600" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
-                        </path>
-                    </svg>
-                </div>
-                <span class="text-sm font-medium">Minhas Solicitações</span>
+                class="border-2 border-gray-200 p-6 hover:border-black hover:bg-gray-50 transition group">
+                <span class="font-mono text-xs text-gray-400 block mb-2">CMD_02</span>
+                <span class="font-bold text-lg group-hover:underline">Minhas Solicitações</span>
             </a>
-
-            <button
-                class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 hover:bg-brand-50 hover:text-brand-700 transition group border border-transparent hover:border-brand-200"
-                onclick="alert('Funcionalidade de Câmera em Breve!')">
-                <div class="bg-white p-3 rounded-full shadow-sm mb-3 group-hover:scale-110 transition">
-                    <svg class="w-6 h-6 text-gray-600 group-hover:text-brand-600" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
-                        </path>
-                    </svg>
-                </div>
-                <span class="text-sm font-medium">Ler QR Code</span>
-            </button>
-
+            <a href="/assets/scanner"
+                class="border-2 border-gray-200 p-6 hover:border-black hover:bg-gray-50 transition group">
+                <span class="font-mono text-xs text-gray-400 block mb-2">CMD_03</span>
+                <span class="font-bold text-lg group-hover:underline">Scan QR</span>
+            </a>
             {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
             <a href="/assets/new"
-                class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 hover:bg-brand-50 hover:text-brand-700 transition group border border-transparent hover:border-brand-200">
-                <div class="bg-white p-3 rounded-full shadow-sm mb-3 group-hover:scale-110 transition">
-                    <svg class="w-6 h-6 text-gray-600 group-hover:text-brand-600" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                class="border-2 border-black bg-black text-white p-6 hover:bg-gray-900 transition group relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-2 opacity-20">
+                    <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
                 </div>
-                <span class="text-sm font-medium">Cadastrar Ativo</span>
+                <span class="font-mono text-xs text-gray-400 block mb-2">CMD_ADMIN</span>
+                <span class="font-bold text-lg group-hover:underline">Novo Ativo +</span>
             </a>
             {% endif %}
         </div>

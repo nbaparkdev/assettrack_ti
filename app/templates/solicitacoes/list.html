@@ -1,98 +1,105 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6 fade-in">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Minhas Solicitações</h1>
-            <p class="text-gray-500 mt-1">Acompanhe o status das suas solicitações de ativos</p>
+<div class="space-y-6 fade-in max-w-6xl mx-auto">
+    <!-- Header Block -->
+    <div class="border-2 border-black bg-white p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)]">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+                <span class="font-mono text-xs text-gray-400 uppercase tracking-widest block mb-2">Portal do Usuário
+                    //</span>
+                <h1 class="text-3xl font-black text-black uppercase tracking-tighter leading-none">Minhas Solicitações
+                </h1>
+            </div>
+            <a href="/solicitacoes/new"
+                class="bg-black border-2 border-black text-white px-6 py-3 font-bold uppercase text-xs tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[4px] active:translate-y-[4px]">
+                [+] Nova Solicitação
+            </a>
         </div>
-        <a href="/solicitacoes/new"
-            class="inline-flex items-center px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition shadow-sm">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-            </svg>
-            Nova Solicitação
-        </a>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <!-- Data List -->
+    <div class="border-2 border-black bg-white shadow-sm">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-100 border-b-2 border-black">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ativo
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest font-mono">
+                            Data / ID</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest font-mono">
+                            Ativo Solicitado</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest font-mono">
                             Motivo</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest font-mono">
                             Status</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Ações</th>
+                        <th
+                            class="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest font-mono text-right">
+                            Ação</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="divide-y divide-gray-200">
                     {% for sol in solicitacoes %}
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ sol.data_solicitacao.strftime('%d/%m/%Y %H:%M') if sol.data_solicitacao else '-' }}
+                    <tr class="hover:bg-gray-50 transition group">
+                        <td class="px-6 py-4">
+                            <span class="block font-mono text-xs font-bold text-black">#{{ sol.id }}</span>
+                            <span class="block font-mono text-[10px] text-gray-500 mt-1">
+                                {{ sol.data_solicitacao.strftime('%d/%m/%Y') }}
+                            </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td class="px-6 py-4">
                             {% if sol.asset %}
-                            {{ sol.asset.nome }}
+                            <a href="/assets/{{ sol.asset.id }}"
+                                class="font-bold text-sm text-black hover:underline uppercase decoration-2 underline-offset-2">
+                                {{ sol.asset.nome }}
+                            </a>
+                            <span
+                                class="block font-mono text-[10px] text-gray-500 mt-1 bg-gray-100 px-1 inline-block border border-gray-200">
+                                S/N: {{ sol.asset.serial_number }}
+                            </span>
                             {% else %}
-                            <span class="text-gray-400">Não especificado</span>
+                            <span class="text-gray-400 italic">Não especificado</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                            {{ sol.motivo[:50] }}{% if sol.motivo|length > 50 %}...{% endif %}
+                        <td class="px-6 py-4 max-w-xs">
+                            <div class="truncate font-mono text-xs text-gray-600" title="{{ sol.motivo }}">
+                                {{ sol.motivo }}
+                            </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             {% if sol.status.value == 'Aprovada' %}
                             <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span>
-                                Aprovada
+                                class="inline-block px-2 py-1 bg-green-100 text-green-700 border border-green-200 text-[10px] font-bold uppercase tracking-wider font-mono">
+                                [V] APROVADA
                             </span>
                             {% elif sol.status.value == 'Rejeitada' %}
                             <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                <span class="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
-                                Rejeitada
-                            </span>
-                            {% elif sol.status.value == 'Pendente' %}
-                            <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                <span class="w-2 h-2 bg-yellow-500 rounded-full mr-1.5"></span>
-                                Pendente
+                                class="inline-block px-2 py-1 bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold uppercase tracking-wider font-mono">
+                                [X] REJEITADA
                             </span>
                             {% else %}
                             <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {{ sol.status.value }}
+                                class="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 border border-yellow-200 text-[10px] font-bold uppercase tracking-wider font-mono flex items-center gap-2 w-max">
+                                <span class="w-1.5 h-1.5 bg-yellow-500 animate-pulse"></span>
+                                AGUARDANDO
                             </span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <td class="px-6 py-4 text-right">
                             <a href="/solicitacoes/{{ sol.id }}"
-                                class="text-brand-600 hover:text-brand-900">Detalhes</a>
+                                class="text-xs font-bold text-black hover:bg-black hover:text-white border-2 border-transparent hover:border-black px-3 py-1 transition uppercase tracking-wider">
+                                Detalhes &rarr;
+                            </a>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
-                            <svg class="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
-                                </path>
-                            </svg>
-                            Nenhuma solicitação encontrada.
-                            <a href="/solicitacoes/new"
-                                class="block mt-2 text-brand-600 hover:text-brand-700 font-medium">Criar primeira
-                                solicitação →</a>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500 bg-gray-50">
+                            <div class="inline-block border-2 border-gray-300 p-4 mb-4">
+                                <span class="block font-mono text-2xl text-gray-300 font-bold">VAZIO</span>
+                            </div>
+                            <p class="font-mono text-xs uppercase mb-4">Nenhuma solicitação encontrada.</p>
+                            <a href="/solicitacoes/new" class="font-bold underline uppercase text-xs">Criar
+                                Solicitação</a>
                         </td>
                     </tr>
                     {% endfor %}

@@ -21,6 +21,7 @@ class User(Base):
     cargo: Mapped[str] = mapped_column(String, nullable=True)
     role: Mapped[UserRole] = mapped_column(SAEnum(UserRole), default=UserRole.USUARIO)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)
     
     departamento_id: Mapped[int | None] = mapped_column(ForeignKey("departamentos.id"), nullable=True)
 

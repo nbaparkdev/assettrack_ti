@@ -1,99 +1,126 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-h-[80vh] flex items-center justify-center">
-    <div class="flex w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
+<div class="min-h-[85vh] flex items-center justify-center py-8 px-4">
+    <div
+        class="flex w-full max-w-4xl bg-white overflow-hidden border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
 
-        <!-- Left Side: Brand/Visual -->
-        <div
-            class="hidden md:flex w-1/2 bg-gradient-to-tr from-brand-700 to-brand-500 justify-center items-center text-white p-10 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-full opacity-10">
-                <svg fill="currentColor" viewBox="0 0 100 100" class="w-full h-full">
-                    <circle cx="50" cy="50" r="40" stroke="white" stroke-width="1" fill="none" opacity="0.3" />
-                    <circle cx="50" cy="50" r="30" stroke="white" stroke-width="1" fill="none" opacity="0.5" />
-                    <circle cx="50" cy="50" r="20" stroke="white" stroke-width="1" fill="none" opacity="0.7" />
+        <!-- Left Side: Industrial Brand Panel -->
+        <div class="hidden md:flex w-1/2 bg-black text-white justify-center items-center p-10 relative">
+            <!-- Grid Pattern -->
+            <div class="absolute inset-0 opacity-10">
+                <svg width="100%" height="100%">
+                    <defs>
+                        <pattern id="grid-register" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" stroke-width="0.5" />
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid-register)" />
                 </svg>
             </div>
 
-            <div class="relative z-10 text-center">
-                <h2 class="text-3xl font-bold mb-4">Junte-se à Equipe</h2>
-                <p class="text-brand-100 text-sm font-light mb-8">Crie sua conta para acessar o sistema de ativos e
-                    gerenciar suas solicitações.</p>
-                <ul class="text-left text-sm space-y-3 opacity-90">
-                    <li class="flex items-center"><svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7">
-                            </path>
-                        </svg> Solicite equipamentos</li>
-                    <li class="flex items-center"><svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7">
-                            </path>
-                        </svg> Acompanhe status</li>
-                    <li class="flex items-center"><svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7">
-                            </path>
-                        </svg> Histórico transparente</li>
-                </ul>
+            <div class="relative z-10">
+                <div class="mb-8">
+                    <span class="font-mono text-xs text-gray-400 tracking-widest">NEW_USER_PROTOCOL</span>
+                    <h2 class="text-3xl font-black uppercase tracking-tighter mt-2">Junte-se<br>à Equipe</h2>
+                </div>
+
+                <div class="space-y-4 font-mono text-xs text-gray-300">
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-400 font-bold">[+]</span>
+                        <span>SOLICITE EQUIPAMENTOS DIRETAMENTE</span>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-400 font-bold">[+]</span>
+                        <span>ACOMPANHE STATUS EM TEMPO REAL</span>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-400 font-bold">[+]</span>
+                        <span>HISTÓRICO TRANSPARENTE DE ATIVOS</span>
+                    </div>
+                </div>
+
+                <div class="mt-10 pt-6 border-t border-gray-700">
+                    <span class="font-mono text-xs text-gray-500">ASSETTRACK // TI SYSTEMS</span>
+                </div>
             </div>
         </div>
 
         <!-- Right Side: Registration Form -->
-        <div class="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
-            <div class="text-center mb-6">
-                <h3 class="text-2xl font-bold text-gray-900">Criar Nova Conta</h3>
+        <div class="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center bg-gray-50">
+            <div class="mb-6">
+                <span class="font-mono text-xs text-gray-400 uppercase tracking-widest">Novo Acesso</span>
+                <h3 class="text-2xl font-black uppercase tracking-tight mt-1">Criar Conta</h3>
             </div>
 
             {% if error %}
-            <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-r mb-6 text-sm" role="alert">
-                <p class="font-bold">Atenção</p>
-                <p>{{ error }}</p>
+            <div class="bg-red-50 border-2 border-red-400 text-red-800 p-4 mb-6 font-mono text-xs uppercase">
+                ⚠ {{ error }}
             </div>
             {% endif %}
 
-            <form action="/register" method="post" class="space-y-4">
+            <form action="/register" method="post" class="space-y-5">
                 <div>
-                    <label for="nome" class="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                    <label for="nome"
+                        class="block font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                        Nome Completo
+                    </label>
                     <input type="text" name="nome" id="nome" required
-                        class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition text-sm">
+                        class="w-full bg-white border-2 border-gray-200 p-3 font-mono text-sm focus:border-black focus:ring-0 rounded-none transition"
+                        placeholder="SEU NOME COMPLETO">
                 </div>
 
                 <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <label for="email"
+                        class="block font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                        Email
+                    </label>
                     <input type="email" name="email" id="email" required
-                        class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition text-sm">
+                        class="w-full bg-white border-2 border-gray-200 p-3 font-mono text-sm focus:border-black focus:ring-0 rounded-none transition"
+                        placeholder="SEU@EMAIL.COM">
                 </div>
 
                 <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+                    <label for="password"
+                        class="block font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                        Senha
+                    </label>
                     <input type="password" name="password" id="password" required
-                        class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition text-sm">
+                        class="w-full bg-white border-2 border-gray-200 p-3 font-mono text-sm focus:border-black focus:ring-0 rounded-none transition"
+                        placeholder="••••••••">
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label for="matricula" class="block text-sm font-medium text-gray-700 mb-1">Matrícula</label>
+                        <label for="matricula"
+                            class="block font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                            Matrícula
+                        </label>
                         <input type="text" name="matricula" id="matricula"
-                            class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition text-sm">
+                            class="w-full bg-white border-2 border-gray-200 p-3 font-mono text-sm focus:border-black focus:ring-0 rounded-none transition"
+                            placeholder="OPCIONAL">
                     </div>
                     <div>
-                        <label for="cargo" class="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
+                        <label for="cargo"
+                            class="block font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                            Cargo
+                        </label>
                         <input type="text" name="cargo" id="cargo"
-                            class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition text-sm">
+                            class="w-full bg-white border-2 border-gray-200 p-3 font-mono text-sm focus:border-black focus:ring-0 rounded-none transition"
+                            placeholder="OPCIONAL">
                     </div>
                 </div>
 
                 <button type="submit"
-                    class="w-full bg-green-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-green-700 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 mt-2">
-                    Confirmar Cadastro
+                    class="w-full bg-black border-2 border-black text-white font-bold uppercase text-sm py-4 px-6 hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] mt-2">
+                    Confirmar Cadastro →
                 </button>
             </form>
 
-            <div class="mt-6 text-center border-t border-gray-100 pt-4">
-                <p class="text-sm text-gray-500">
-                    Já possui acesso? <a href="/login"
-                        class="text-brand-600 hover:text-brand-800 font-semibold transition">Fazer Login</a>
+            <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+                <p class="font-mono text-xs text-gray-500 uppercase">
+                    Já possui acesso?
+                    <a href="/login" class="text-black font-bold hover:underline ml-1">FAZER LOGIN</a>
                 </p>
             </div>
         </div>

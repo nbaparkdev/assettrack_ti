@@ -1,85 +1,108 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-h-[80vh] flex items-center justify-center">
-    <div class="flex w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
+<div class="min-h-[85vh] flex items-center justify-center p-4">
+    <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8">
 
-        <!-- Left Side: Brand/Visual -->
+        <!-- Left Side: Visual/Brand -->
         <div
-            class="hidden md:flex w-1/2 bg-gradient-to-br from-brand-600 to-brand-900 justify-center items-center text-white p-10 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-full opacity-10">
-                <svg fill="currentColor" viewBox="0 0 100 100" class="w-full h-full">
-                    <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                        <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" stroke-width="0.5" />
-                    </pattern>
-                    <rect width="100" height="100" fill="url(#grid)" />
-                </svg>
-            </div>
-
-            <div class="relative z-10 text-center">
-                <div
-                    class="mb-6 inline-block p-4 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20 shadow-xl">
-                    <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            class="hidden md:flex flex-col justify-between bg-black text-white p-12 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
+            <div>
+                <div class="w-16 h-16 bg-amber-500 mb-8 flex items-center justify-center">
+                    <svg class="w-10 h-10 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                         </path>
                     </svg>
                 </div>
-                <h2 class="text-3xl font-bold mb-2 tracking-tight">AssetTrack TI</h2>
-                <p class="text-brand-100 text-sm font-light">Gerenciamento de ativos inteligente, seguro e eficiente.
+                <h1 class="text-5xl font-black uppercase tracking-tighter leading-none mb-6">Asset<br>Track<br><span
+                        class="text-gray-500">Systems_V1</span></h1>
+                <p class="font-mono text-xs text-gray-400 max-w-xs leading-relaxed border-l-2 border-amber-500 pl-4">
+                    // SISTEMA DE GESTÃO DE ATIVOS<br>
+                    // CONTROLE TI & INFRAESTRUTURA<br>
+                    // ACESSO RESTRITO
                 </p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="h-px bg-gray-800 w-full"></div>
+                <div class="flex justify-between font-mono text-[10px] text-gray-500 uppercase">
+                    <span>Server Status: Online</span>
+                    <span>v2.4.0-stable</span>
+                </div>
             </div>
         </div>
 
-        <!-- Right Side: Recent Activity / Login Form -->
-        <div class="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
-            <div class="text-center mb-8">
-                <h3 class="text-2xl font-bold text-gray-900">Bem-vindo de volta!</h3>
-                <p class="text-sm text-gray-500 mt-2">Acesse o sistema com suas credenciais.</p>
+        <!-- Right Side: Login Form -->
+        <div
+            class="bg-white border-2 border-black p-8 md:p-12 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] flex flex-col justify-center">
+            <div class="mb-10">
+                <span
+                    class="inline-block bg-black text-white px-2 py-1 text-[10px] font-bold uppercase tracking-widest mb-4">Autenticação</span>
+                <h2 class="text-3xl font-bold text-black uppercase tracking-tight">Acesso ao Sistema</h2>
+                <p class="text-gray-500 text-sm mt-2 font-mono">Insira suas credenciais corporativas.</p>
             </div>
 
             {% if error %}
-            <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-r mb-6 text-sm" role="alert">
-                <p class="font-bold">Atenção</p>
-                <p>{{ error }}</p>
+            <div class="bg-red-50 border-2 border-red-500 text-red-700 p-4 mb-8 flex items-start gap-3">
+                <span class="font-bold text-lg leading-none">!</span>
+                <div>
+                    <span class="block font-bold uppercase text-xs mb-1">Erro de Acesso</span>
+                    <span class="block text-sm">{{ error }}</span>
+                </div>
             </div>
             {% endif %}
 
-            <form action="/login" method="post" class="space-y-5">
+            <form action="/login" method="post" class="space-y-6">
                 <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Corporativo</label>
-                    <input type="email" name="email" id="email" required placeholder="seu.email@empresa.com.br"
-                        class="block w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition shadow-sm text-sm">
+                    <label for="email" class="block text-xs font-bold uppercase text-gray-900 mb-2">Email
+                        Corporativo</label>
+                    <input type="email" name="email" id="email" required placeholder="usuario@empresa.com"
+                        class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition font-mono text-sm placeholder-gray-400">
                 </div>
 
                 <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+                    <label for="password" class="block text-xs font-bold uppercase text-gray-900 mb-2">Senha</label>
                     <input type="password" name="password" id="password" required placeholder="••••••••"
-                        class="block w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition shadow-sm text-sm">
+                        class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition font-mono text-sm">
                 </div>
 
-                <div class="flex items-center justify-between text-sm">
-                    <label class="flex items-center text-gray-500 hover:text-gray-700 cursor-pointer">
+                <div class="flex items-center justify-between pt-2">
+                    <label class="flex items-center space-x-2 cursor-pointer group">
                         <input type="checkbox"
-                            class="h-4 w-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500 mr-2">
-                        Lembrar-me
+                            class="form-checkbox h-4 w-4 text-black border-2 border-gray-300 rounded-none focus:ring-0 focus:border-black transition-colors checked:bg-black">
+                        <span
+                            class="text-xs font-bold uppercase text-gray-500 group-hover:text-black transition">Lembrar
+                            sessão</span>
                     </label>
-                    <a href="#" class="text-brand-600 hover:text-brand-800 font-medium">Esqueceu a senha?</a>
+                    <!-- <a href="#" class="text-xs font-bold uppercase text-gray-400 hover:text-black hover:underline underline-offset-4 transition">Esqueceu a senha?</a> -->
                 </div>
 
                 <button type="submit"
-                    class="w-full bg-brand-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-brand-700 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
-                    Entrar no Sistema
+                    class="w-full bg-black border-2 border-black text-white px-6 py-4 font-bold uppercase text-sm tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] rounded-none mt-4 flex justify-between items-center group">
+                    <span>Entrar</span>
+                    <svg class="w-4 h-4 transform group-hover:translate-x-1 transition" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                    </svg>
                 </button>
             </form>
 
-            <div class="mt-8 text-center border-t border-gray-100 pt-6">
-                <p class="text-sm text-gray-500">
-                    Não possui conta? <a href="/register"
-                        class="text-brand-600 hover:text-brand-800 font-semibold transition">Solicitar Acesso</a>
-                </p>
-                <div class="mt-4 text-xs text-gray-400 bg-gray-50 inline-block px-3 py-1 rounded-full">
-                    Dica: admin@example.com / admin
+            <div
+                class="mt-10 pt-6 border-t-2 border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                <a href="/register"
+                    class="text-xs font-bold uppercase text-gray-500 hover:text-black transition border-b-2 border-transparent hover:border-black py-1">Criar
+                    nova conta</a>
+                <span
+                    class="px-3 py-1 bg-gray-100 text-[10px] font-mono text-gray-400 uppercase border border-gray-200">Acesso
+                    Seguro SSL</span>
+            </div>
+
+            <div class="mt-4 text-center">
+                <div
+                    class="text-[10px] text-gray-400 bg-gray-50 inline-block px-3 py-1 border border-gray-200 font-mono">
+                    Admin: admin@example.com / admin
                 </div>
             </div>
         </div>

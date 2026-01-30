@@ -12,6 +12,7 @@ class AssetBase(BaseModel):
     nome: str
     serial_number: str
     modelo: Optional[str] = None
+    descricao: Optional[str] = None
     data_aquisicao: Optional[datetime] = None
     valor: Optional[Decimal] = None
     status: AssetStatus = AssetStatus.DISPONIVEL
@@ -30,6 +31,7 @@ class AssetUpdate(BaseModel):
     nome: Optional[str] = None
     serial_number: Optional[str] = None
     modelo: Optional[str] = None
+    descricao: Optional[str] = None
     data_aquisicao: Optional[datetime] = None
     valor: Optional[Decimal] = None
     status: Optional[AssetStatus] = None

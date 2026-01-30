@@ -1,184 +1,177 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6 fade-in">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div class="flex items-center gap-4">
-            <a href="/solicitacoes" class="text-gray-400 hover:text-gray-600 transition">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+<div class="space-y-6 fade-in max-w-5xl mx-auto">
+    <!-- Top Nav and Status -->
+    <div class="flex items-center justify-between">
+        <a href="/solicitacoes"
+            class="group flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-500 hover:text-black transition">
+            <span
+                class="w-6 h-6 border-2 border-gray-300 group-hover:border-black flex items-center justify-center transition">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path>
                 </svg>
-            </a>
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Solicitação #{{ sol.id }}</h1>
-                <p class="text-gray-500 mt-1">Criada em {{ sol.data_solicitacao.strftime('%d/%m/%Y às %H:%M') if
-                    sol.data_solicitacao else '-' }}</p>
-            </div>
-        </div>
+            </span>
+            Voltar
+        </a>
 
-        <!-- Status Badge -->
         <div>
             {% if sol.status.value == 'Aprovada' %}
             <span
-                class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                Aprovada
+                class="inline-block px-4 py-1.5 bg-green-600 text-white border-2 border-green-600 text-xs font-bold uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+                STATUS: APROVADA
             </span>
             {% elif sol.status.value == 'Rejeitada' %}
-            <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                <span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-                Rejeitada
-            </span>
-            {% elif sol.status.value == 'Pendente' %}
             <span
-                class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-                <span class="w-2 h-2 bg-yellow-500 rounded-full mr-2 animate-pulse"></span>
-                Aguardando Aprovação
+                class="inline-block px-4 py-1.5 bg-red-600 text-white border-2 border-red-600 text-xs font-bold uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+                STATUS: REJEITADA
             </span>
             {% else %}
-            <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                {{ sol.status.value }}
+            <span
+                class="inline-block px-4 py-1.5 bg-amber-400 text-black border-2 border-amber-400 text-xs font-bold uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] flex items-center gap-2">
+                <span class="w-2 h-2 bg-black animate-pulse"></span>
+                AGUARDANDO APROVAÇÃO
             </span>
             {% endif %}
         </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Details Card -->
-        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 class="text-lg font-bold text-gray-800 mb-6 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                    </path>
-                </svg>
-                Detalhes da Solicitação
-            </h2>
-
-            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <!-- Ativo -->
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">Ativo Solicitado</dt>
-                    <dd class="mt-1 text-lg font-semibold text-gray-900">
-                        {% if sol.asset %}
-                        <a href="/assets/{{ sol.asset.id }}" class="text-brand-600 hover:text-brand-700">
-                            {{ sol.asset.nome }}
-                        </a>
-                        <p class="text-sm text-gray-500 font-normal">{{ sol.asset.serial_number }}</p>
-                        {% else %}
-                        <span class="text-gray-400">Não especificado</span>
-                        {% endif %}
-                    </dd>
-                </div>
-
-                <!-- Solicitante -->
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">Solicitante</dt>
-                    <dd class="mt-1 text-lg font-semibold text-gray-900">
-                        {% if sol.solicitante %}
-                        {{ sol.solicitante.nome }}
-                        <p class="text-sm text-gray-500 font-normal">{{ sol.solicitante.email }}</p>
-                        {% else %}
-                        <span class="text-gray-400">-</span>
-                        {% endif %}
-                    </dd>
-                </div>
-
-                <!-- Motivo -->
-                <div class="sm:col-span-2">
-                    <dt class="text-sm font-medium text-gray-500">Motivo da Solicitação</dt>
-                    <dd class="mt-2 p-4 bg-gray-50 rounded-lg text-gray-700">
-                        {{ sol.motivo }}
-                    </dd>
-                </div>
-
-                <!-- Data Prevista Devolução -->
-                {% if sol.data_prevista_devolucao %}
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">Previsão de Devolução</dt>
-                    <dd class="mt-1 text-gray-900">
-                        {{ sol.data_prevista_devolucao.strftime('%d/%m/%Y') }}
-                    </dd>
-                </div>
-                {% endif %}
-            </dl>
+    <!-- Main Request Card -->
+    <div class="border-2 border-black bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)]">
+        <!-- Header -->
+        <div class="bg-gray-50 border-b-2 border-black p-8">
+            <span class="font-mono text-xs text-gray-400 uppercase tracking-widest block mb-2">Detalhes da Solicitação
+                //</span>
+            <div class="flex items-baseline gap-4">
+                <h1 class="text-4xl font-black text-black uppercase tracking-tighter">REQUISIÇÃO #{{ sol.id }}</h1>
+                <span class="font-mono text-sm text-gray-500">{{ sol.data_solicitacao.strftime('%d/%m/%Y') }}</span>
+            </div>
         </div>
 
-        <!-- Sidebar -->
-        <div class="space-y-6">
-            <!-- Approval Info -->
-            {% if sol.status.value != 'Pendente' and sol.aprovador %}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 class="text-sm font-medium text-gray-500 mb-4">
-                    {% if sol.status.value == 'Aprovada' %}Aprovação{% else %}Rejeição{% endif %}
-                </h3>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center">
-                        <span class="text-brand-700 font-bold">{{ sol.aprovador.nome[0] }}</span>
-                    </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3">
+            <!-- Left Data Column -->
+            <div class="lg:col-span-2 p-8 border-b-2 lg:border-b-0 lg:border-r-2 border-gray-200">
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                    <!-- Asset Info -->
                     <div>
-                        <p class="font-medium text-gray-900">{{ sol.aprovador.nome }}</p>
-                        <p class="text-sm text-gray-500">
-                            {{ sol.data_aprovacao.strftime('%d/%m/%Y às %H:%M') if sol.data_aprovacao else '-' }}
-                        </p>
+                        <dt class="font-mono text-[10px] text-gray-400 uppercase tracking-widest mb-1">Ativo Solicitado
+                        </dt>
+                        <dd>
+                            {% if sol.asset %}
+                            <a href="/assets/{{ sol.asset.id }}"
+                                class="text-lg font-bold uppercase hover:underline decoration-2 underline-offset-2 block">
+                                {{ sol.asset.nome }}
+                            </a>
+                            <span class="font-mono text-xs bg-black text-white px-1">S/N: {{ sol.asset.serial_number
+                                }}</span>
+                            {% else %}
+                            <span class="text-gray-400 italic">Não especificado</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+
+                    <!-- Requester Info -->
+                    <div>
+                        <dt class="font-mono text-[10px] text-gray-400 uppercase tracking-widest mb-1">Solicitante</dt>
+                        <dd>
+                            <span class="block font-bold uppercase">{{ sol.solicitante.nome }}</span>
+                            <span class="block font-mono text-xs text-gray-500">{{ sol.solicitante.email }}</span>
+                        </dd>
+                    </div>
+
+                    <!-- Reason -->
+                    <div class="sm:col-span-2 bg-gray-50 border border-gray-200 p-4">
+                        <dt
+                            class="font-mono text-[10px] text-gray-400 uppercase tracking-widest mb-2 border-b border-gray-200 pb-1">
+                            Justificativa / Motivo</dt>
+                        <dd class="text-sm font-mono text-gray-800 leading-relaxed">
+                            {{ sol.motivo }}
+                        </dd>
+                    </div>
+
+                    <!-- Expected Return -->
+                    {% if sol.data_prevista_devolucao %}
+                    <div>
+                        <dt class="font-mono text-[10px] text-gray-400 uppercase tracking-widest mb-1">Previsão de
+                            Devolução</dt>
+                        <dd class="font-bold font-mono">
+                            {{ sol.data_prevista_devolucao.strftime('%d/%m/%Y') }}
+                        </dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+
+            <!-- Right Actions/Info Column -->
+            <div class="bg-gray-50 p-8 space-y-8">
+                <!-- Approval Meta -->
+                {% if sol.status.value != 'Pendente' and sol.aprovador %}
+                <div>
+                    <h3 class="font-bold text-xs uppercase tracking-widest mb-4 border-b-2 border-gray-200 pb-2">
+                        {% if sol.status.value == 'Aprovada' %}Dados da Aprovação{% else %}Dados da Rejeição{% endif %}
+                    </h3>
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 border-2 border-black flex items-center justify-center bg-white font-bold text-lg uppercase">
+                            {{ sol.aprovador.nome[0] }}
+                        </div>
+                        <div>
+                            <span class="block font-bold text-xs uppercase">{{ sol.aprovador.nome }}</span>
+                            <span class="block font-mono text-[10px] text-gray-500">
+                                {{ sol.data_aprovacao.strftime('%d/%m/%Y - %H:%M') }}
+                            </span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            {% endif %}
+                {% endif %}
 
-            <!-- Actions for Admin -->
-            {% if sol.status.value == 'Pendente' and user.role.value|lower in ['admin', 'gerente_ti'] %}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 class="text-sm font-medium text-gray-500 mb-4">Ações</h3>
-                <div class="space-y-3">
-                    <form action="/solicitacoes/{{ sol.id }}/approve" method="post">
-                        <button type="submit"
-                            class="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-4 rounded-lg transition">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M5 13l4 4L19 7"></path>
-                            </svg>
-                            Aprovar Solicitação
-                        </button>
-                    </form>
-                    <form action="/solicitacoes/{{ sol.id }}/reject" method="post">
-                        <button type="submit"
-                            class="w-full flex items-center justify-center gap-2 bg-white border border-red-300 text-red-600 hover:bg-red-50 font-medium py-2.5 px-4 rounded-lg transition">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                            Rejeitar
-                        </button>
-                    </form>
+                <!-- Admin Actions -->
+                {% if sol.status.value == 'Pendente' and user.role.value|lower in ['admin', 'gerente_ti'] %}
+                <div>
+                    <h3 class="font-bold text-xs uppercase tracking-widest mb-4 border-b-2 border-gray-200 pb-2">Painel
+                        de Decisão</h3>
+                    <div class="space-y-3">
+                        <form action="/solicitacoes/{{ sol.id }}/approve" method="post">
+                            <button type="submit"
+                                class="w-full bg-green-600 border-2 border-green-600 text-white font-bold uppercase text-xs py-3 hover:bg-green-700 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                [ Aprovar Solicitação ]
+                            </button>
+                        </form>
+                        <form action="/solicitacoes/{{ sol.id }}/reject" method="post">
+                            <button type="submit"
+                                class="w-full bg-white border-2 border-red-600 text-red-600 font-bold uppercase text-xs py-3 hover:bg-red-50 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] hover:shadow-none">
+                                x Rejeitar
+                            </button>
+                        </form>
+                    </div>
                 </div>
-            </div>
-            {% endif %}
+                {% endif %}
 
-            <!-- Timeline -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 class="text-sm font-medium text-gray-500 mb-4">Histórico</h3>
-                <ol class="relative border-l border-gray-200 ml-2">
-                    <li class="mb-6 ml-4">
-                        <div class="absolute w-3 h-3 bg-brand-600 rounded-full -left-1.5 border border-white"></div>
-                        <p class="text-sm font-medium text-gray-900">Solicitação criada</p>
-                        <p class="text-xs text-gray-500">{{ sol.data_solicitacao.strftime('%d/%m/%Y %H:%M') if
-                            sol.data_solicitacao else '-' }}</p>
-                    </li>
-                    {% if sol.data_aprovacao %}
-                    <li class="ml-4">
-                        <div
-                            class="absolute w-3 h-3 {% if sol.status.value == 'Aprovada' %}bg-green-500{% else %}bg-red-500{% endif %} rounded-full -left-1.5 border border-white">
+                <!-- History Widget -->
+                <div>
+                    <h3 class="font-bold text-xs uppercase tracking-widest mb-4 border-b-2 border-gray-200 pb-2">
+                        Timeline</h3>
+                    <div class="space-y-4">
+                        <div class="relative pl-4 border-l-2 border-gray-300">
+                            <div class="absolute w-2 h-2 bg-black rounded-full -left-[5px] top-1.5"></div>
+                            <p class="text-xs font-bold uppercase">Solicitação Criada</p>
+                            <p class="font-mono text-[10px] text-gray-500">{{ sol.data_solicitacao.strftime('%d/%m/%Y
+                                %H:%M') }}</p>
                         </div>
-                        <p class="text-sm font-medium text-gray-900">
-                            {% if sol.status.value == 'Aprovada' %}Aprovada{% else %}Rejeitada{% endif %}
-                        </p>
-                        <p class="text-xs text-gray-500">{{ sol.data_aprovacao.strftime('%d/%m/%Y %H:%M') }}</p>
-                    </li>
-                    {% endif %}
-                </ol>
+                        {% if sol.data_aprovacao %}
+                        <div class="relative pl-4 border-l-2 border-gray-300">
+                            <div
+                                class="absolute w-2 h-2 {% if sol.status.value == 'Aprovada' %}bg-green-600{% else %}bg-red-600{% endif %} rounded-full -left-[5px] top-1.5">
+                            </div>
+                            <p class="text-xs font-bold uppercase">
+                                {% if sol.status.value == 'Aprovada' %}Aprovado{% else %}Rejeitado{% endif %}
+                            </p>
+                            <p class="font-mono text-[10px] text-gray-500">{{ sol.data_aprovacao.strftime('%d/%m/%Y
+                                %H:%M') }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -7,8 +7,10 @@
     <title>{{ title }} - AssetTrack TI</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script>
@@ -17,6 +19,7 @@
                 extend: {
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
                     },
                     colors: {
                         brand: {
@@ -32,94 +35,99 @@
             }
         }
     </script>
-    <style>
-        .fade-in {
-            animation: fadeIn 0.4s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
+    <style type="text/tailwindcss">
+        @layer components {
+            .fade-in {
+                animation: fadeIn 0.4s ease-out;
             }
 
-            to {
-                opacity: 1;
-                transform: translateY(0);
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(5px); }
+                to { opacity: 1; transform: translateY(0); }
             }
-        }
 
-        .btn-primary {
-            @apply bg-brand-600 text-white font-medium py-2 px-4 rounded-lg shadow-sm hover:bg-brand-700 hover:shadow-md transition-all duration-200 transform hover:-translate-y-0.5;
-        }
+            /* INDUSTRIAL BUTTONS */
+            .btn-base {
+                @apply font-bold uppercase tracking-wider text-sm py-2 px-6 transition-all border-2 rounded-none;
+            }
+            .btn-primary {
+                @apply btn-base bg-black text-white border-black hover:bg-white hover:text-black;
+            }
+            .btn-secondary {
+                @apply btn-base bg-white text-gray-900 border-gray-200 hover:border-black;
+            }
+            .btn-warning {
+                @apply btn-base bg-amber-400 text-black border-amber-400 hover:bg-amber-300;
+            }
+            .btn-danger {
+                @apply btn-base bg-red-600 text-white border-red-600 hover:bg-red-700;
+            }
 
-        .glass-panel {
-            @apply bg-white bg-opacity-90 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20;
+            /* INDUSTRIAL COMPONENTS */
+            .card-industrial {
+                @apply bg-white border-2 border-gray-200 p-6 rounded-none;
+            }
+            .tag {
+                @apply font-mono text-xs px-2 py-0.5 border border-current rounded-none uppercase font-bold;
+            }
         }
     </style>
 </head>
 
-<body class="h-full font-sans text-gray-800 antialiased flex flex-col">
+<body class="h-full font-sans text-gray-900 antialiased flex flex-col bg-gray-50">
     {% if user %}
-    <nav class="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
+    <nav class="bg-white border-b-2 border-black sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <div class="flex items-center gap-8">
-                    <a href="/" class="flex items-center gap-2 group">
+            <div class="flex items-center justify-between h-20">
+                <div class="flex items-center gap-12">
+                    <a href="/" class="flex items-center gap-3 group">
                         <div
-                            class="bg-brand-600 text-white p-1.5 rounded-lg group-hover:bg-brand-700 transition shadow-lg shadow-brand-500/30">
+                            class="bg-black text-white p-2 rounded-none transform group-hover:rotate-180 transition-transform duration-500">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                                 </path>
                             </svg>
                         </div>
-                        <span
-                            class="font-bold text-xl tracking-tight text-gray-900 group-hover:text-brand-600 transition">AssetTrack</span>
+                        <div class="flex flex-col">
+                            <span
+                                class="font-bold text-xl tracking-tighter text-black uppercase leading-none">AssetTrack</span>
+                            <span class="font-mono text-xs text-gray-500 tracking-widest">SYSTEMS_V1</span>
+                        </div>
                     </a>
-                    <div class="hidden md:flex items-center space-x-1">
-                        <a href="/"
-                            class="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-brand-600 hover:bg-brand-50 transition">Dashboard</a>
-                        <a href="/assets"
-                            class="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-brand-600 hover:bg-brand-50 transition">Ativos</a>
-                        <a href="/solicitacoes"
-                            class="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-brand-600 hover:bg-brand-50 transition">Solicitações</a>
+                    <div class="hidden md:flex items-center space-x-8">
+                        {% set nav_link_class = "text-sm font-bold uppercase tracking-wider text-gray-500
+                        hover:text-black border-b-2 border-transparent hover:border-black py-1 transition-colors" %}
+                        <a href="/" class="{{ nav_link_class }}">Dashboard</a>
+                        <a href="/assets" class="{{ nav_link_class }}">Ativos</a>
+                        <a href="/solicitacoes" class="{{ nav_link_class }}">Solicitações</a>
                         {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
-                        <a href="/movimentacoes"
-                            class="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-brand-600 hover:bg-brand-50 transition">Movimentações</a>
-                        <a href="/admin/users"
-                            class="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-brand-600 hover:bg-brand-50 transition">Usuários</a>
+                        <a href="/setores" class="{{ nav_link_class }}">Setores</a>
+                        <a href="/movimentacoes" class="{{ nav_link_class }}">Log</a>
+                        <a href="/admin/users" class="{{ nav_link_class }}">Admin</a>
                         {% endif %}
                     </div>
                 </div>
-                <div class="flex items-center gap-4">
-                    <!-- Scanner Button (visible on all devices) -->
-                    <a href="/assets/scanner"
-                        class="flex items-center justify-center bg-gray-100 text-gray-700 p-2 rounded-full text-sm font-medium hover:bg-gray-200 transition border border-gray-200 shadow-sm"
-                        title="Scanner QR Code">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h2m10 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                        </svg>
-                    </a>
-                    {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
-                    <a href="/assets/new"
-                        class="hidden md:flex items-center gap-2 bg-brand-50 text-brand-700 px-4 py-2 rounded-full text-sm font-medium hover:bg-brand-100 transition border border-brand-200 shadow-sm">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
-                            </path>
-                        </svg>
-                        Novo Ativo
-                    </a>
-                    {% endif %}
-                    <div class="flex items-center gap-3 pl-4 border-l border-gray-200">
-                        <div class="flex flex-col text-right hidden sm:block">
-                            <span class="text-sm font-medium text-gray-900 leading-none">{{ user.nome }}</span>
-                            <span class="text-xs text-gray-500 uppercase tracking-wider">{{ user.role.value }}</span>
-                        </div>
-                        <a href="/logout"
-                            class="text-gray-400 hover:text-red-500 transition p-2 rounded-full hover:bg-red-50"
-                            title="Sair">
+                <div class="flex items-center gap-6">
+
+                    <div class="flex items-center gap-4 pl-6 border-l-2 border-gray-200">
+                        <a href="/profile" class="flex items-center gap-3 group">
+                            <div class="flex flex-col text-right hidden sm:block">
+                                <span
+                                    class="text-sm font-bold text-black leading-none group-hover:underline decoration-2 underline-offset-4 transition">{{
+                                    user.nome }}</span>
+                                <span class="font-mono text-[10px] text-gray-500 uppercase">{{ user.role.value }}</span>
+                            </div>
+                            <div
+                                class="w-10 h-10 border-2 border-black bg-gray-100 flex items-center justify-center overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-hover:translate-x-[1px] group-hover:translate-y-[1px] group-hover:shadow-none transition-all">
+                                {% if user.avatar_url %}
+                                <img src="{{ user.avatar_url }}" alt="Profile" class="w-full h-full object-cover">
+                                {% else %}
+                                <span class="font-bold text-xs uppercase">{{ user.nome[:2] }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                        <a href="/logout" class="text-gray-400 hover:text-red-600 transition ml-2" title="Sair">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
@@ -144,6 +152,7 @@
             </p>
         </div>
     </footer>
+    {% block scripts %}{% endblock %}
 </body>
 
 </html>

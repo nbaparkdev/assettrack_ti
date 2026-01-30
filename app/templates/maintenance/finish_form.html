@@ -1,176 +1,204 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6 fade-in">
-    <!-- Header -->
-    <div class="flex items-center gap-4">
-        <a href="/assets/{{ asset.id }}" class="p-2 rounded-lg bg-surface-100 hover:bg-surface-200 transition-colors">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-        </a>
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Concluir Manutenção</h1>
-            <p class="text-gray-500">{{ asset.nome }} ({{ asset.serial_number }})</p>
-        </div>
-    </div>
-
-    <!-- Maintenance Info -->
-    {% if manutencao %}
-    <div class="card p-4">
-        <div class="flex items-start gap-4">
-            <div class="p-3 rounded-lg bg-amber-100">
-                <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+<div class="space-y-8 fade-in max-w-4xl mx-auto">
+    <!-- Technical Header -->
+    <header
+        class="border-b-2 border-gray-900 pb-6 bg-white p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] border-2 border-b-0">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+                <span class="font-mono text-xs text-gray-400 uppercase tracking-widest block mb-2">Protocolo de
+                    Finalização //</span>
+                <h1 class="text-3xl font-black text-black uppercase tracking-tighter leading-none">Concluir Manutenção
+                </h1>
             </div>
-            <div class="flex-1">
-                <h3 class="font-semibold text-gray-900">Manutenção em Andamento</h3>
-                <div class="mt-2 grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <span class="text-gray-500">Tipo:</span>
-                        <span class="font-medium capitalize">{{ manutencao.tipo.value }}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">Entrada:</span>
-                        <span class="font-medium">{{ manutencao.data_entrada.strftime('%d/%m/%Y') }}</span>
-                    </div>
-                    <div class="col-span-2">
-                        <span class="text-gray-500">Motivo:</span>
-                        <p class="font-medium mt-1">{{ manutencao.motivo }}</p>
-                    </div>
+
+            <a href="/assets/{{ asset.id }}"
+                class="group flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black transition">
+                <span>Voltar ao Ativo</span>
+                <div
+                    class="bg-gray-100 p-1 group-hover:bg-black group-hover:text-white transition rounded-none border border-gray-200 group-hover:border-black">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
                 </div>
+            </a>
+        </div>
+
+        <!-- Asset Context Strip -->
+        <div class="mt-6 pt-6 border-t-2 border-gray-100 flex items-center gap-4 text-sm font-mono">
+            <span class="text-gray-400">ATIVO:</span>
+            <span class="font-bold uppercase">{{ asset.nome }}</span>
+            <span class="text-gray-300">|</span>
+            <span class="text-gray-400">S/N:</span>
+            <span class="bg-gray-100 px-2 py-0.5 border border-gray-200">{{ asset.serial_number }}</span>
+        </div>
+    </header>
+
+    <!-- Maintenance Info Block -->
+    {% if manutencao %}
+    <div
+        class="bg-amber-50 border-2 border-amber-500 p-6 flex flex-col md:flex-row gap-6 shadow-[8px_8px_0px_0px_rgba(245,158,11,0.2)]">
+        <div
+            class="w-16 h-16 bg-amber-500 border-2 border-amber-600 flex items-center justify-center text-black shrink-0">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        </div>
+        <div class="flex-1 space-y-2">
+            <h3 class="font-black uppercase text-amber-900 tracking-wider text-sm">Status Atual: Em Manutenção</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm font-mono text-amber-900/80">
+                <p><span class="font-bold opacity-50">TIPO:</span> {{ manutencao.tipo.value|upper }}</p>
+                <p><span class="font-bold opacity-50">ENTRADA:</span> {{ manutencao.data_entrada.strftime('%d/%m/%Y') }}
+                </p>
+                <p class="md:col-span-2 pt-2 border-t border-amber-200 mt-2"><span class="font-bold opacity-50">MOTIVO
+                        REGISTRADO:</span><br />{{ manutencao.motivo }}</p>
             </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- Form -->
-    <form method="POST" action="/assets/{{ asset.id }}/maintenance/finish" class="card">
-        <div class="p-6 space-y-6">
+    <!-- Main Form -->
+    <form method="POST" action="/assets/{{ asset.id }}/maintenance/finish"
+        class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
+        <div class="bg-black text-white px-6 py-3 font-bold uppercase text-xs tracking-widest border-b-2 border-black">
+            Relatório Técnico
+        </div>
 
-            <!-- O que foi feito -->
+        <div class="p-8 space-y-8">
+            <!-- 01. Procedures -->
             <div>
-                <label for="observacao_conclusao" class="block text-sm font-medium text-gray-700 mb-2">
-                    O que foi feito? <span class="text-red-500">*</span>
-                </label>
+                <label for="observacao_conclusao" class="block font-bold text-xs uppercase text-gray-900 mb-2">01.
+                    Procedimentos Realizados *</label>
                 <textarea name="observacao_conclusao" id="observacao_conclusao" rows="4" required
-                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500"
-                    placeholder="Descreva os procedimentos realizados na manutenção..."></textarea>
+                    class="block w-full border-2 border-gray-200 bg-gray-50 p-4 focus:border-black focus:ring-0 rounded-none font-mono text-sm transition"
+                    placeholder="Descreva detalhadamente a solução aplicada..."></textarea>
             </div>
 
-            <!-- Custo -->
+            <!-- 02. Cost -->
             <div>
-                <label for="custo" class="block text-sm font-medium text-gray-700 mb-2">
-                    Custo da Manutenção (R$)
-                </label>
-                <input type="number" name="custo" id="custo" step="0.01" min="0"
-                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500"
-                    placeholder="0.00">
+                <label for="custo" class="block font-bold text-xs uppercase text-gray-900 mb-2">02. Custo Total
+                    (BRL)</label>
+                <div class="relative max-w-xs">
+                    <span class="absolute left-4 top-3 text-gray-400 font-mono">R$</span>
+                    <input type="number" name="custo" id="custo" step="0.01" min="0"
+                        class="block w-full pl-10 pr-4 py-3 border-2 border-gray-200 bg-white focus:border-black focus:ring-0 rounded-none font-mono font-bold text-lg"
+                        placeholder="0.00">
+                </div>
             </div>
 
-            <!-- Destino -->
+            <div class="h-px bg-gray-200 my-4"></div>
+
+            <!-- 03. Destination -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-4">
-                    Destino do Ativo <span class="text-red-500">*</span>
-                </label>
-                <div class="space-y-3">
-                    <!-- Armazenamento -->
-                    <label class="relative block">
+                <label class="block font-bold text-xs uppercase text-gray-900 mb-6">03. Destino Pós-Manutenção *</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Storage Option -->
+                    <label class="relative cursor-pointer group">
                         <input type="radio" name="destino_tipo" value="armazenamento" class="peer sr-only" checked>
                         <div
-                            class="p-4 border-2 rounded-lg cursor-pointer transition-all peer-checked:border-green-500 peer-checked:bg-green-50 hover:border-gray-300">
-                            <div class="flex items-center gap-4">
-                                <div class="p-3 rounded-lg bg-green-100">
-                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
+                            class="h-full p-6 border-2 border-gray-200 hover:border-black bg-white transition-all peer-checked:border-black peer-checked:bg-gray-50 peer-checked:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                            <div class="flex items-start gap-4">
+                                <div
+                                    class="p-2 bg-gray-100 border border-gray-200 rounded-none peer-checked:bg-black peer-checked:text-white transition-colors">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                                     </svg>
                                 </div>
                                 <div>
-                                    <h4 class="font-semibold text-gray-900">Disponibilizar para Armazenamento</h4>
-                                    <p class="text-sm text-gray-500">O ativo ficará disponível para novas solicitações
-                                    </p>
+                                    <h4 class="font-bold uppercase text-sm mb-1">Armazenamento</h4>
+                                    <p class="text-xs text-gray-500 font-mono leading-relaxed">Retorna ao estoque.
+                                        Disponível para novas alocações.</p>
                                 </div>
                             </div>
                         </div>
                     </label>
 
-                    <!-- Atribuir a Usuário -->
-                    <label class="relative block">
+                    <!-- User User Option -->
+                    <label class="relative cursor-pointer group">
                         <input type="radio" name="destino_tipo" value="usuario" class="peer sr-only" id="radio-usuario">
                         <div
-                            class="p-4 border-2 rounded-lg cursor-pointer transition-all peer-checked:border-brand-500 peer-checked:bg-brand-50 hover:border-gray-300">
-                            <div class="flex items-center gap-4">
-                                <div class="p-3 rounded-lg bg-brand-100">
-                                    <svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
+                            class="h-full p-6 border-2 border-gray-200 hover:border-black bg-white transition-all peer-checked:border-black peer-checked:bg-gray-50 peer-checked:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                            <div class="flex items-start gap-4">
+                                <div
+                                    class="p-2 bg-gray-100 border border-gray-200 rounded-none peer-checked:bg-black peer-checked:text-white transition-colors">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                     </svg>
                                 </div>
-                                <div class="flex-1">
-                                    <h4 class="font-semibold text-gray-900">Atribuir a Usuário</h4>
-                                    <p class="text-sm text-gray-500">Enviar diretamente para um usuário específico</p>
+                                <div>
+                                    <h4 class="font-bold uppercase text-sm mb-1">Atribuir a Usuário</h4>
+                                    <p class="text-xs text-gray-500 font-mono leading-relaxed">Vinculação direta
+                                        imediata.</p>
                                 </div>
                             </div>
                         </div>
                     </label>
+                </div>
 
-                    <!-- User Selection (hidden until usuario is selected) -->
-                    <div id="user-selection" class="hidden pl-4 border-l-4 border-brand-200">
-                        <label for="destino_user_id" class="block text-sm font-medium text-gray-700 mb-2">
-                            Selecione o Usuário
-                        </label>
+                <!-- User Selection Panel -->
+                <div id="user-selection"
+                    class="hidden mt-6 pl-6 border-l-4 border-black bg-gray-50 py-4 pr-4 transition-all">
+                    <label for="destino_user_id" class="block font-bold text-xs uppercase text-gray-900 mb-2">
+                        Selecione o Colaborador
+                    </label>
+                    <div class="relative">
                         <select name="destino_user_id" id="destino_user_id"
-                            class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500">
-                            <option value="">Selecione...</option>
+                            class="block w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 appearance-none font-mono text-sm uppercase cursor-pointer">
+                            <option value="">-- Selecione na lista --</option>
                             {% for u in users %}
-                            <option value="{{ u.id }}">{{ u.nome }} ({{ u.cargo or 'Sem cargo' }})</option>
+                            <option value="{{ u.id }}">{{ u.nome }} // {{ u.cargo or 'N/A' }}</option>
                             {% endfor %}
                         </select>
-
-                        {% if pending_solicitations %}
-                        <div class="mt-4">
-                            <p class="text-sm font-medium text-gray-700 mb-2">Solicitações Pendentes:</p>
-                            <div class="space-y-2">
-                                {% for sol in pending_solicitations %}
-                                <div
-                                    class="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between">
-                                    <div>
-                                        <span class="font-medium">{{ sol.solicitante.nome }}</span>
-                                        <span class="text-sm text-gray-500">- {{
-                                            sol.data_solicitacao.strftime('%d/%m/%Y') }}</span>
-                                    </div>
-                                    <button type="button" onclick="selectUser({{ sol.solicitante_id }})"
-                                        class="text-sm text-brand-600 hover:text-brand-800 font-medium">
-                                        Selecionar
-                                    </button>
-                                </div>
-                                {% endfor %}
-                            </div>
+                        <div
+                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-700">
+                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                            </svg>
                         </div>
-                        {% endif %}
                     </div>
+
+                    {% if pending_solicitations %}
+                    <div class="mt-6">
+                        <p class="font-mono text-[10px] text-gray-500 uppercase tracking-widest mb-3">Solicitações
+                            Pendentes Encontradas:</p>
+                        <div class="space-y-2">
+                            {% for sol in pending_solicitations %}
+                            <div class="p-3 bg-white border border-gray-200 hover:border-black flex items-center justify-between transition group cursor-pointer"
+                                onclick="selectUser({{ sol.solicitante_id }})">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-1 h-1 bg-amber-500 rounded-full"></div>
+                                    <span class="font-bold text-xs uppercase">{{ sol.solicitante.nome }}</span>
+                                    <span class="font-mono text-[10px] text-gray-400">{{
+                                        sol.data_solicitacao.strftime('%d/%m') }}</span>
+                                </div>
+                                <button type="button"
+                                    class="text-[10px] uppercase font-bold text-black border-b border-black hover:bg-black hover:text-white transition px-1">
+                                    Selecionar
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
-
         </div>
 
-        <!-- Footer -->
-        <div class="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3 rounded-b-lg">
-            <a href="/assets/{{ asset.id }}" class="btn btn-secondary">
-                Cancelar
-            </a>
-            <button type="submit" class="btn btn-success">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        <!-- Footer Action -->
+        <div class="bg-gray-50 p-6 border-t-2 border-black flex justify-end gap-4">
+            <button type="submit"
+                class="bg-black border-2 border-black text-white px-8 py-3 font-bold uppercase text-sm tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[1px] hover:translate-y-[1px] rounded-none flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
-                Concluir Manutenção
+                <span>Finalizar Manutenção</span>
             </button>
         </div>
     </form>
@@ -178,7 +206,6 @@
 
 <script>
     const radioUsuario = document.getElementById('radio-usuario');
-    const radioArmazenamento = document.querySelector('input[value="armazenamento"]');
     const userSelection = document.getElementById('user-selection');
     const destinoUserSelect = document.getElementById('destino_user_id');
 
@@ -187,6 +214,8 @@
         radio.addEventListener('change', function () {
             if (this.value === 'usuario') {
                 userSelection.classList.remove('hidden');
+                // Adicionar animação de entrada
+                userSelection.classList.add('fade-in');
                 destinoUserSelect.required = true;
             } else {
                 userSelection.classList.add('hidden');
@@ -199,6 +228,8 @@
     // Select user from pending solicitations
     function selectUser(userId) {
         destinoUserSelect.value = userId;
+        // Visual feedback would be nice here, but simple value set works
+        destinoUserSelect.focus();
     }
 </script>
 {% endblock %}

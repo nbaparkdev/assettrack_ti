@@ -1,66 +1,250 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-8">
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">{% if asset %}Editar Ativo: {{ asset.nome }}{% else %}Novo Ativo{%
-        endif %}</h2>
+<div class="max-w-3xl mx-auto fade-in">
+    <!-- Form Container -->
+    <div class="bg-white border-2 border-black p-0 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
+        <!-- Header -->
+        <div class="bg-black p-6 border-b-2 border-black">
+            <h2 class="text-2xl font-bold text-white uppercase tracking-wider flex items-center gap-3">
+                <span class="w-3 h-3 bg-amber-500 inline-block"></span>
+                {% if asset %}Editar Especificações{% else %}Novo Registro de Ativo{% endif %}
+            </h2>
+            {% if asset %}
+            <p class="text-gray-400 font-mono text-xs mt-1 ml-6">ID: {{ asset.id }} // REF: {{ asset.serial_number }}
+            </p>
+            {% endif %}
+        </div>
 
-    {% if error %}
-    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-        <span class="block sm:inline">{{ error }}</span>
+        {% if error %}
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-6 mb-0" role="alert">
+            <span class="font-bold block uppercase text-xs mb-1">Erro Encontrado</span>
+            <span class="block text-sm">{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form action="{% if asset %}/assets/{{ asset.id }}/edit{% else %}/assets/new{% endif %}" method="post"
+            class="p-8 space-y-8">
+            <!-- Section 1: Identification -->
+            <div>
+                <h3
+                    class="font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-200 pb-2">
+                    Dados de Identificação</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="nome" class="block text-xs font-bold uppercase text-gray-900 mb-2">Nome do Ativo
+                            *</label>
+                        <input type="text" name="nome" id="nome" required value="{{ asset.nome if asset else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition placeholder-gray-400"
+                            placeholder="ex: MacBook Pro M3">
+                    </div>
+
+                    <div>
+                        <label for="modelo" class="block text-xs font-bold uppercase text-gray-900 mb-2">Modelo
+                            *</label>
+                        <input type="text" name="modelo" id="modelo" required
+                            value="{{ asset.modelo if asset else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition"
+                            placeholder="ex: A2992">
+                    </div>
+
+                    <label for="serial_number" class="block text-xs font-bold uppercase text-gray-900 mb-2">Número
+                        de Série (S/N) *</label>
+                    <div class="flex gap-2">
+                        <input type="text" name="serial_number" id="serial_number" required
+                            value="{{ asset.serial_number if asset else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition font-mono uppercase"
+                            placeholder="XXXX-YYYY-ZZZZ">
+                        <button type="button" onclick="openScanner()"
+                            class="bg-gray-100 border-2 border-gray-200 hover:border-black hover:bg-black hover:text-white px-4 transition rounded-none"
+                            title="Escanear QR Code">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h2m10 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
     </div>
-    {% endif %}
 
-    <form action="{% if asset %}/assets/{{ asset.id }}/edit{% else %}/assets/new{% endif %}" method="post"
-        class="space-y-6">
+    <!-- Scanner Modal -->
+    <div id="scanner-modal"
+        class="fixed inset-0 z-50 hidden bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-md border-2 border-gray-900 shadow-2xl relative">
+            <div class="p-4 bg-black text-white flex justify-between items-center border-b-2 border-gray-900">
+                <h3 class="font-bold uppercase text-xs tracking-widest">Scanner de S/N</h3>
+                <button type="button" onclick="closeScanner()" class="text-white hover:text-gray-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-0 bg-black">
+                <div id="qr-reader-form" class="w-full"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Details -->
+    <div>
+        <h3 style="margin-top: 1rem;"
+            class="font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-200 pb-2">
+            Financeiro & Specs</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                <label for="nome" class="block text-sm font-medium text-gray-700">Nome do Ativo</label>
-                <input type="text" name="nome" id="nome" required value="{{ asset.nome if asset else '' }}"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-
-            <div>
-                <label for="modelo" class="block text-sm font-medium text-gray-700">Modelo</label>
-                <input type="text" name="modelo" id="modelo" required value="{{ asset.modelo if asset else '' }}"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-        </div>
-
-        <div>
-            <label for="serial_number" class="block text-sm font-medium text-gray-700">Número de Série</label>
-            <input type="text" name="serial_number" id="serial_number" required
-                value="{{ asset.serial_number if asset else '' }}"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-        </div>
-
-        <div>
-            <label for="descricao" class="block text-sm font-medium text-gray-700">Descrição</label>
-            <textarea name="descricao" id="descricao" rows="3"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">{{ asset.descricao if asset else '' }}</textarea>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label for="data_aquisicao" class="block text-sm font-medium text-gray-700">Data de Aquisição</label>
+                <label for="data_aquisicao" class="block text-xs font-bold uppercase text-gray-900 mb-2">Data de
+                    Aquisição</label>
                 <input type="date" name="data_aquisicao" id="data_aquisicao"
                     value="{{ asset.data_aquisicao if asset else '' }}"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition">
             </div>
             <div>
-                <label for="valor_aquisicao" class="block text-sm font-medium text-gray-700">Valor (R$)</label>
-                <input type="number" step="0.01" name="valor_aquisicao" id="valor_aquisicao"
-                    value="{{ asset.valor_aquisicao if asset else '' }}"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                <label for="valor_aquisicao" class="block text-xs font-bold uppercase text-gray-900 mb-2">Valor
+                    (BRL)</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-3.5 text-gray-500 font-bold text-sm">R$</span>
+                    <input type="number" step="0.01" name="valor_aquisicao" id="valor_aquisicao"
+                        value="{{ asset.valor if asset else '' }}"
+                        class="block w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition"
+                        placeholder="0.00">
+                </div>
+            </div>
+
+            <div class="md:col-span-2">
+                <label for="descricao" class="block text-xs font-bold uppercase text-gray-900 mb-2">Descrição /
+                    Notas</label>
+                <textarea name="descricao" id="descricao" rows="4"
+                    class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition font-mono text-sm"
+                    placeholder="Especificações adicionais ou observações...">{{ asset.descricao if asset else '' }}</textarea>
             </div>
         </div>
+    </div>
 
-        <div class="flex justify-end space-x-3 pt-4">
-            <a href="/assets{% if asset %}/{{ asset.id }}{% endif %}"
-                class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition">Cancelar</a>
-            <button type="submit"
-                class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition">Salvar</button>
-        </div>
+    <!-- Actions -->
+    <div class="border-t-2 border-gray-100 pt-6 flex items-center justify-end gap-4">
+        <a href="/assets{% if asset %}/{{ asset.id }}{% endif %}"
+            class="px-6 py-3 border-2 border-transparent text-gray-500 font-bold uppercase text-sm hover:text-black hover:border-black transition rounded-none">
+            Cancelar
+        </a>
+        <button type="submit"
+            class="bg-black border-2 border-black text-white px-8 py-3 font-bold uppercase text-sm tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] rounded-none">
+            Salvar Registro
+        </button>
+    </div>
     </form>
 </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- html5-qrcode library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+    let html5QrCode = null;
+    let isScanning = false;
+    const scannerModal = document.getElementById('scanner-modal');
+    const serialInput = document.getElementById('serial_number');
+
+    function openScanner() {
+        // Check for HTTPS/Localhost first
+        const isSecure = window.isSecureContext ||
+            (location.protocol === 'https:') ||
+            (location.hostname === 'localhost') ||
+            (location.hostname === '127.0.0.1');
+
+        if (!isSecure) {
+            alert('Acesso à câmera requer HTTPS ou localhost. Por favor, verifique sua conexão.');
+            return;
+        }
+
+        scannerModal.classList.remove('hidden');
+        // Small delay to ensure modal is rendered
+        setTimeout(startScanner, 100);
+    }
+
+    function closeScanner() {
+        scannerModal.classList.add('hidden');
+        if (html5QrCode && isScanning) {
+            html5QrCode.stop().then(() => {
+                html5QrCode.clear();
+                isScanning = false;
+            }).catch(err => {
+                console.log('Stop error:', err);
+                isScanning = false;
+            });
+        }
+    }
+
+    function onScanSuccess(decodedText) {
+        if (isScanning) {
+            // Stop scanner
+            // Wait a moment before closing to show it worked (optional, but good UX)
+            // But we want to stop scanning immediately to avoid duplicate reads
+            html5QrCode.stop().then(() => {
+                isScanning = false;
+                html5QrCode.clear();
+                closeScanner();
+
+                // Use the text
+                serialInput.value = decodedText;
+
+                // Visual feedback on input
+                serialInput.classList.add('bg-green-100', 'text-green-800', 'font-bold');
+                setTimeout(() => {
+                    serialInput.classList.remove('bg-green-100', 'text-green-800', 'font-bold');
+                }, 2000);
+            }).catch(err => {
+                console.error("Failed to stop", err);
+                closeScanner();
+            });
+        }
+    }
+
+    function startScanner() {
+        if (isScanning) return;
+
+        // Ensure the element exists and has dimensions
+        const reader = document.getElementById("qr-reader-form");
+        if (!reader) {
+            console.error("QR Reader element not found");
+            return;
+        }
+
+        html5QrCode = new Html5Qrcode("qr-reader-form");
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        };
+
+        // Try 'environment' (back camera) first
+        html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+            .then(() => { isScanning = true; })
+            .catch((err) => {
+                console.error('Camera start error:', err);
+
+                // Should handled detailed errors like scanner.html
+                let msg = 'Erro ao acessar a câmera.';
+                if (err.name === 'NotAllowedError') {
+                    msg += ' Permissão negada.';
+                } else if (err.name === 'NotFoundError') {
+                    msg += ' Nenhuma câmera encontrada.';
+                } else if (err.name === 'NotReadableError') {
+                    msg += ' A câmera pode estar em uso por outro app.';
+                }
+
+                alert(msg);
+                closeScanner();
+            });
+    }
+
+    // Close on click outside
+    scannerModal.addEventListener('click', (e) => {
+        if (e.target === scannerModal) closeScanner();
+    });
+</script>
 {% endblock %}

@@ -31,6 +31,13 @@ async def login_submit(
         # Retorna template com erro
         return templates.TemplateResponse("login.html", {"request": request, "error": "Email ou senha incorretos."})
     
+    # Check if user is active (approved by admin)
+    if not user.is_active:
+        return templates.TemplateResponse("login.html", {
+            "request": request, 
+            "error": "Sua conta ainda não foi aprovada por um administrador. Aguarde a liberação do acesso."
+        })
+    
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.email, "role": user.role.value},
