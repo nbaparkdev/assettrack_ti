@@ -39,7 +39,7 @@ RUN pip install --no-cache-dir /wheels/*
 
 # Copy project files
 COPY ./app /app/app
-COPY ./alembic /app/alembic
+# COPY ./alembic /app/alembic
 # COPY ./alembic.ini /app/alembic.ini # Uncomment if present
 
 # Set ownership
