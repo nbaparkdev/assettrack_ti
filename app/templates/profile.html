@@ -185,6 +185,46 @@
                 </div>
             </form>
 
+            <!-- QR Code Access -->
+            <form action="/profile/qr/generate" method="post"
+                class="bg-white border-2 border-black p-0 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
+                <div
+                    class="bg-blue-600 text-white p-4 font-bold uppercase text-xs tracking-widest border-b-2 border-black flex justify-between items-center">
+                    <span>Acesso QR Code</span>
+                    <span class="text-xl">📷</span>
+                </div>
+
+                <div class="p-6 flex flex-col items-center text-center space-y-4">
+                    {% if user.qr_token %}
+                    <div class="bg-white p-2 border-2 border-black">
+                        <!-- Generates QR Code using API for MVP -->
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ user.qr_token }}"
+                            alt="QR Code" class="w-32 h-32">
+                    </div>
+                    <p class="text-[10px] text-gray-500 font-mono uppercase">
+                        Use para login rápido ou retiradas.
+                    </p>
+                    {% else %}
+                    <div
+                        class="w-32 h-32 bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
+                        <span class="text-xs text-gray-400 font-bold uppercase">Sem Token</span>
+                    </div>
+                    {% endif %}
+
+                    <button type="submit"
+                        class="w-full bg-white border-2 border-blue-600 text-blue-600 py-2 font-bold uppercase text-xs hover:bg-blue-600 hover:text-white transition">
+                        {% if user.qr_token %}Regerar QR Code{% else %}Gerar QR Code{% endif %}
+                    </button>
+
+                    {% if user.qr_token %}
+                    <div class="w-full text-left bg-gray-50 p-2 border border-gray-200 mt-2">
+                        <span class="block text-[8px] font-bold text-gray-400 uppercase">Token Atual:</span>
+                        <code class="block text-[8px] font-mono break-all text-gray-600">{{ user.qr_token }}</code>
+                    </div>
+                    {% endif %}
+                </div>
+            </form>
+
             <!-- Quick Info -->
             <div class="bg-gray-100 border-2 border-gray-300 p-6">
                 <h3 class="font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Credenciais</h3>

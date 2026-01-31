@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b">
+        <div class="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="/login" class="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </a>
+                <h1 class="text-xl font-bold text-gray-900">Login com QR Code</h1>
+            </div>
+            <div id="flash-toggle" class="hidden">
+                <button id="flash-btn" class="p-2 rounded-lg hover:bg-gray-100 transition">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanner Container -->
+    <div class="max-w-lg mx-auto">
+        <!-- Camera View -->
+        <div class="relative bg-black">
+            <div id="qr-reader" class="w-full"></div>
+
+            <!-- Scanning Overlay -->
+            <div id="scanning-overlay" class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div class="w-64 h-64 relative">
+                    <!-- Corner brackets -->
+                    <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-brand-500 rounded-tl-lg">
+                    </div>
+                    <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-brand-500 rounded-tr-lg">
+                    </div>
+                    <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-brand-500 rounded-bl-lg">
+                    </div>
+                    <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-brand-500 rounded-br-lg">
+                    </div>
+                    <!-- Scanning line animation -->
+                    <div id="scan-line"
+                        class="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-brand-500 to-transparent animate-scan">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="p-6 text-center">
+            <div id="scanner-status" class="space-y-4">
+                <div class="flex items-center justify-center gap-2 text-gray-600">
+                    <svg class="w-5 h-5 animate-pulse text-brand-600" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <span>Aponte a câmera para seu Crachá/QR Code de Acesso</span>
+                </div>
+            </div>
+
+            <!-- Success State (hidden by default) -->
+            <div id="scan-success" class="hidden space-y-4">
+                <div class="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <p class="font-medium text-green-800">Login Autorizado!</p>
+                <p class="text-sm text-gray-500">Entrando no sistema...</p>
+            </div>
+
+            <!-- Error State (hidden by default) -->
+            <div id="scan-error" class="hidden space-y-4">
+                <div class="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </div>
+                <p class="font-medium text-red-800">Erro ao acessar câmera</p>
+                <p id="error-message" class="text-sm text-gray-500">Verifique as permissões do navegador</p>
+
+                <!-- HTTPS Warning (Visible only if relevant) -->
+                <div id="https-warning"
+                    class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left mt-4 text-sm">
+                    <strong class="text-yellow-800 block mb-1">Requer HTTPS</strong>
+                    Para segurança, o acesso à câmera exige HTTPS ou localhost.
+                </div>
+
+                <button onclick="startScanner()"
+                    class="mt-4 bg-black text-white px-4 py-2 uppercase font-bold text-xs tracking-widest">
+                    Tentar Novamente
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- html5-qrcode library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+    @keyframes scan {
+
+        0%,
+        100% {
+            top: 0.5rem;
+        }
+
+        50% {
+            top: calc(100% - 0.5rem);
+        }
+    }
+
+    .animate-scan {
+        animation: scan 2s ease-in-out infinite;
+    }
+
+    #qr-reader video {
+        border-radius: 0 !important;
+    }
+</style>
+
+<script>
+    let html5QrCode = null;
+    let isScanning = false;
+
+    function onScanSuccess(decodedText, decodedResult) {
+        if (isScanning) {
+            isScanning = false;
+
+            // Show success UI
+            document.getElementById('scanner-status').classList.add('hidden');
+            document.getElementById('scan-success').classList.remove('hidden');
+            document.getElementById('scanning-overlay').classList.add('hidden');
+
+            if (html5QrCode) {
+                html5QrCode.stop().catch(err => console.log('Stop error:', err));
+            }
+            if (navigator.vibrate) navigator.vibrate(200);
+
+            // POST to Login endpoint
+            // Redirect to validate endpoint with token
+            // Assuming the QR code contains the TOKEN directly.
+            // Safe to pass via URL for GET endpoint that sets cookie? Yes, standard OIDC flow does this.
+            // But let's encode it just in case.
+
+            const token = encodeURIComponent(decodedText);
+            setTimeout(() => {
+                window.location.href = `/login/qr-validate?token=${token}`;
+            }, 800);
+        }
+    }
+
+    function onScanFailure(error) {
+        // Ignore scan failures
+    }
+
+    function startScanner() {
+        document.getElementById('scanner-status').classList.remove('hidden');
+        document.getElementById('scan-success').classList.add('hidden');
+        document.getElementById('scan-error').classList.add('hidden');
+        document.getElementById('scanning-overlay').classList.remove('hidden');
+
+        html5QrCode = new Html5Qrcode("qr-reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+
+        html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+            .then(() => { isScanning = true; })
+            .catch((err) => {
+                console.error(err);
+                document.getElementById('scanner-status').classList.add('hidden');
+                document.getElementById('scan-error').classList.remove('hidden');
+                document.getElementById('scanning-overlay').classList.add('hidden');
+                document.getElementById('error-message').innerText = "Não foi possível acessar a câmera.";
+
+                // HTTPS Check
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                    document.getElementById('https-warning').classList.remove('hidden');
+                }
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', startScanner);
+    window.addEventListener('beforeunload', () => {
+        if (html5QrCode && isScanning) html5QrCode.stop();
+    });
+</script>
+{% endblock %}

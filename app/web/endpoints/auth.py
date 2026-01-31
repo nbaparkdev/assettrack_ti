@@ -48,6 +48,43 @@ async def login_submit(
     response.set_cookie(key="access_token", value=f"Bearer {access_token}", httponly=True)
     return response
 
+@router.get("/login/qr", response_class=HTMLResponse)
+async def login_qr_page(request: Request):
+    """Página de leitura do QR Code para login"""
+    return templates.TemplateResponse("auth/scanner.html", {"request": request})
+
+@router.get("/login/qr-validate")
+async def login_qr_validate(
+    request: Request,
+    token: str,
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """Valida o token do QR e realiza login automático"""
+    user = await user_crud.user.get_by_qr_token(db, token=token)
+    
+    if not user:
+        return RedirectResponse(
+            url="/login?error=Token QR inválido. Tente novamente.", 
+            status_code=status.HTTP_302_FOUND
+        )
+    
+    if not user.is_active:
+        return RedirectResponse(
+            url="/login?error=Sua conta ainda não foi aprovada.", 
+            status_code=status.HTTP_302_FOUND
+        )
+        
+    # Create session
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email, "role": user.role.value},
+        expires_delta=access_token_expires
+    )
+    
+    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    response.set_cookie(key="access_token", value=f"Bearer {access_token}", httponly=True)
+    return response
+
 
 
 @router.get("/register", response_class=HTMLResponse)

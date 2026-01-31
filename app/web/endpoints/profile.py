@@ -127,3 +127,13 @@ async def change_password(
     await db.commit()
 
     return RedirectResponse(url="/profile?success=password_updated", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.post("/qr/generate")
+async def generate_qr_token_endpoint(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """Gera um novo token QR Code para o usuário logado"""
+    await user_crud.user.regenerate_qr_token(db, user_id=current_user.id)
+    return RedirectResponse(url="/profile", status_code=status.HTTP_303_SEE_OTHER)
