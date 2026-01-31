@@ -225,6 +225,73 @@
                 </div>
             </form>
 
+            </form>
+
+            <!-- PIN Management -->
+            <form action="/profile/pin" method="post"
+                class="bg-white border-2 border-black p-0 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
+                <div
+                    class="bg-amber-400 text-black p-4 font-bold uppercase text-xs tracking-widest border-b-2 border-black flex justify-between items-center">
+                    <span>PIN de Acesso</span>
+                    <span class="text-xl">🔢</span>
+                </div>
+
+                {% if error_pin %}
+                <div class="bg-red-100 text-red-700 p-4 border-b-2 border-red-200 text-xs font-bold uppercase">
+                    ⚠ {{ error_pin }}
+                </div>
+                {% endif %}
+
+                {% if request.query_params.get('success') == 'pin_updated' %}
+                <div
+                    class="bg-green-100 border-b-2 border-green-600 text-green-800 px-4 py-2 font-bold uppercase text-xs">
+                    ✓ PIN atualizado com sucesso
+                </div>
+                {% endif %}
+
+                <div class="p-6 space-y-4">
+                    <p class="text-[10px] text-gray-500 font-mono uppercase mb-2">
+                        Configure um PIN numérico de 4 a 6 dígitos para confirmar operações sensíveis ou login via QR
+                        Code.
+                    </p>
+
+                    <div>
+                        <label for="pin" class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Novo
+                            PIN</label>
+                        <input type="password" name="pin" id="pin" maxlength="6" pattern="\d{4,6}" inputmode="numeric"
+                            required
+                            class="block w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-none focus:border-amber-400 focus:ring-0 transition font-mono tracking-widest text-center"
+                            placeholder="****">
+                    </div>
+
+                    <div>
+                        <label for="confirm_pin"
+                            class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Confirmar PIN</label>
+                        <input type="password" name="confirm_pin" id="confirm_pin" maxlength="6" pattern="\d{4,6}"
+                            inputmode="numeric" required
+                            class="block w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-none focus:border-amber-400 focus:ring-0 transition font-mono tracking-widest text-center"
+                            placeholder="****">
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-white border-2 border-amber-400 text-amber-600 py-2 font-bold uppercase text-xs hover:bg-amber-400 hover:text-black transition mt-4">
+                        Salvar PIN
+                    </button>
+
+                    {% if user.pin_hash %}
+                    <div class="flex items-center justify-center gap-2 mt-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span class="text-[10px] uppercase font-bold text-gray-400">PIN Configurado</span>
+                    </div>
+                    {% else %}
+                    <div class="flex items-center justify-center gap-2 mt-2">
+                        <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <span class="text-[10px] uppercase font-bold text-gray-400">Sem PIN</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </form>
+
             <!-- Quick Info -->
             <div class="bg-gray-100 border-2 border-gray-300 p-6">
                 <h3 class="font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Credenciais</h3>

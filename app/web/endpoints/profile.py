@@ -137,3 +137,40 @@ async def generate_qr_token_endpoint(
     """Gera um novo token QR Code para o usuário logado"""
     await user_crud.user.regenerate_qr_token(db, user_id=current_user.id)
     return RedirectResponse(url="/profile", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.post("/pin")
+async def update_pin(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    pin: str = Form(...),
+    confirm_pin: str = Form(...)
+):
+    """Atualiza o PIN de acesso do usuário"""
+    if pin != confirm_pin:
+        return templates.TemplateResponse("profile.html", {
+            "request": request,
+            "user": current_user,
+            "error_pin": "Os PINs não coincidem.",
+            "active_tab": "security"
+        })
+    
+    if len(pin) < 4 or len(pin) > 6 or not pin.isdigit():
+         return templates.TemplateResponse("profile.html", {
+            "request": request,
+            "user": current_user,
+            "error_pin": "O PIN deve ter entre 4 e 6 dígitos numéricos.",
+            "active_tab": "security"
+        })
+
+    try:
+        await user_crud.user.set_pin(db, user_id=current_user.id, pin=pin)
+    except ValueError as e:
+         return templates.TemplateResponse("profile.html", {
+            "request": request,
+            "user": current_user,
+            "error_pin": str(e),
+            "active_tab": "security"
+        })
+
+    return RedirectResponse(url="/profile?success=pin_updated", status_code=status.HTTP_303_SEE_OTHER)

@@ -59,7 +59,7 @@ async def login_qr_validate(
     token: str,
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    """Valida o token do QR e realiza login automático"""
+    """Valida o token do QR e apresenta a tela de PIN ou erro."""
     user = await user_crud.user.get_by_qr_token(db, token=token)
     
     if not user:
@@ -73,6 +73,52 @@ async def login_qr_validate(
             url="/login?error=Sua conta ainda não foi aprovada.", 
             status_code=status.HTTP_302_FOUND
         )
+    
+    # If user has no PIN hash, we force error? Or allow login?
+    # User request implies "PIN is missing", so we assume strict mode.
+    if not user.pin_hash:
+         return RedirectResponse(
+            url="/login?error=PIN de acesso não configurado. Entre com senha e configure no perfil.", 
+            status_code=status.HTTP_302_FOUND
+        )
+
+    # Render PIN Check Page
+    return templates.TemplateResponse("auth/pin_check.html", {
+        "request": request,
+        "token": token,
+        "user_name": user.nome,
+        "user_role": user.role.value,
+        "user_initials": user.nome[:2],
+        "user_avatar": user.avatar_url,
+        "title": "Confirmar PIN"
+    })
+
+@router.post("/login/qr-confirm")
+async def login_qr_confirm(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token: str = Form(...),
+    pin: str = Form(...)
+):
+    """Valida token + PIN e realiza login"""
+    user = await user_crud.user.get_by_qr_token(db, token=token)
+    
+    # Re-validate user existence
+    if not user or not user.is_active:
+         return RedirectResponse(url="/login?error=Sessão expirada ou inválida.", status_code=303)
+
+    # Validate PIN
+    if not user_crud.user.verify_pin(pin, user.pin_hash):
+        return templates.TemplateResponse("auth/pin_check.html", {
+            "request": request,
+            "token": token,
+            "user_name": user.nome,
+            "user_role": user.role.value,
+            "user_initials": user.nome[:2],
+            "user_avatar": user.avatar_url,
+            "error": "PIN incorreto.",
+            "title": "Confirmar PIN"
+        })
         
     # Create session
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
