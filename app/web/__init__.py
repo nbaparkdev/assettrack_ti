@@ -17,4 +17,6 @@ from app.web.endpoints import setores
 web_router.include_router(setores.router, prefix="/setores", tags=["web_setores"])
 from app.web.endpoints import qr
 web_router.include_router(qr.router, tags=["web_qr"])
+from app.web.endpoints import maintenance_requests
+web_router.include_router(maintenance_requests.router, tags=["web_maintenance_requests"])
 

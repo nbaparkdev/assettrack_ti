@@ -79,10 +79,12 @@
     <nav class="bg-white border-b-2 border-black sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-20">
+                <!-- LEADING SECTION: LOGO + DESKTOP MENU -->
                 <div class="flex items-center gap-12">
+                    <!-- LOGO -->
                     <a href="/" class="flex items-center gap-3 group">
                         <div
-                            class="bg-black text-white p-2 rounded-none transform group-hover:rotate-180 transition-transform duration-500">
+                            class="bg-black text-white p-2 transform group-hover:rotate-180 transition-transform duration-500">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
@@ -95,68 +97,133 @@
                             <span class="font-mono text-xs text-gray-500 tracking-widest">SYSTEMS_V1</span>
                         </div>
                     </a>
-                    <div class="hidden md:flex items-center space-x-8">
-                        {% set nav_link_class = "text-sm font-bold uppercase tracking-wider text-gray-500
-                        hover:text-black border-b-2 border-transparent hover:border-black py-1 transition-colors" %}
-                        <a href="/" class="{{ nav_link_class }}">Dashboard</a>
-                        <a href="/assets" class="{{ nav_link_class }}">Ativos</a>
-                        <a href="/solicitacoes" class="{{ nav_link_class }}">Solicitações</a>
+
+                    <!-- DESKTOP MENU -->
+                    {% set link_class = "text-sm font-bold uppercase tracking-wider text-gray-500 hover:text-black
+                    border-b-2 border-transparent hover:border-black py-1 transition-all" %}
+                    <div class="hidden md:flex items-center space-x-6">
+                        <a href="/" class="{{ link_class }}">Dashboard</a>
+
+                        <!-- Group: Assets -->
+                        <div class="h-4 w-px bg-gray-300 mx-2"></div>
+                        <a href="/assets" class="{{ link_class }}">Ativos</a>
+                        <a href="/movimentacoes" class="{{ link_class }}">Log</a>
+
+                        <!-- Group: Services -->
+                        <div class="h-4 w-px bg-gray-300 mx-2"></div>
+                        <a href="/minhas-solicitacoes-manutencao" class="{{ link_class }}">Suporte</a>
+
+                        <!-- Group: Admin/Tech -->
+                        {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+                        <div class="h-4 w-px bg-black mx-2"></div>
+                        <a href="/solicitacoes-manutencao"
+                            class="text-sm font-bold uppercase tracking-wider text-blue-600 hover:text-blue-800 border-b-2 border-transparent hover:border-blue-800 py-1 transition-all">Painel
+                            TI</a>
+                        {% endif %}
+
                         {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
-                        <a href="/setores" class="{{ nav_link_class }}">Setores</a>
-                        <a href="/movimentacoes" class="{{ nav_link_class }}">Log</a>
-                        <a href="/admin/users" class="{{ nav_link_class }}">Admin</a>
+                        <a href="/admin/users" class="{{ link_class }}">Admin</a>
                         {% endif %}
                     </div>
                 </div>
-                <div class="flex items-center gap-6">
 
-                    <div class="flex items-center gap-4 pl-6 border-l-2 border-gray-200">
-                        <a href="/meu-qrcode" class="text-gray-400 hover:text-black transition" title="Meu QR Code">
+                <!-- TRAILING SECTION: ICONS + PROFILE + MOBILE TOGGLE -->
+                <div class="flex items-center gap-4">
+                    <!-- Desktop Icons -->
+                    <div class="hidden md:flex items-center gap-4 pl-6 border-l-2 border-gray-200">
+                        <!-- QR Code -->
+                        <a href="/meu-qrcode" class="text-gray-400 hover:text-black transition p-1" title="Meu QR Code">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
                                 </path>
                             </svg>
                         </a>
+                        <!-- Scanner (Admin) -->
                         {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
-                        <a href="/scanner/usuario" class="text-gray-400 hover:text-blue-600 transition"
-                            title="Escanear QR de Usuário">
+                        <a href="/scanner/usuario" class="text-gray-400 hover:text-blue-600 transition p-1"
+                            title="Escanear Usuário">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z">
                                 </path>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z">
-                                </path>
+                                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             </svg>
                         </a>
                         {% endif %}
-                        <a href="/profile" class="flex items-center gap-3 group">
-                            <div class="flex flex-col text-right hidden sm:block">
-                                <span
-                                    class="text-sm font-bold text-black leading-none group-hover:underline decoration-2 underline-offset-4 transition">{{
-                                    user.nome }}</span>
-                                <span class="font-mono text-[10px] text-gray-500 uppercase">{{ user.role.value }}</span>
-                            </div>
-                            <div
-                                class="w-10 h-10 border-2 border-black bg-gray-100 flex items-center justify-center overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-hover:translate-x-[1px] group-hover:translate-y-[1px] group-hover:shadow-none transition-all">
-                                {% if user.avatar_url %}
-                                <img src="{{ user.avatar_url }}" alt="Profile" class="w-full h-full object-cover">
-                                {% else %}
-                                <span class="font-bold text-xs uppercase">{{ user.nome[:2] }}</span>
-                                {% endif %}
-                            </div>
-                        </a>
-                        <a href="/logout" class="text-gray-400 hover:text-red-600 transition ml-2" title="Sair">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
-                                </path>
-                            </svg>
-                        </a>
                     </div>
+
+                    <!-- Profile (Always Visible) -->
+                    <a href="/profile" class="flex items-center gap-3 group">
+                        <div
+                            class="w-9 h-9 border-2 border-black bg-gray-100 flex items-center justify-center overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-hover:translate-x-[1px] group-hover:translate-y-[1px] group-hover:shadow-none transition-all">
+                            {% if user.avatar_url %}
+                            <img src="{{ user.avatar_url }}" alt="Avatar" class="w-full h-full object-cover">
+                            {% else %}
+                            <span class="font-bold text-xs uppercase">{{ user.nome[:2] }}</span>
+                            {% endif %}
+                        </div>
+                    </a>
+
+                    <!-- Hamburger Button (Mobile) -->
+                    <button type="button" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')"
+                        class="md:hidden p-2 text-black hover:bg-gray-100 border-2 border-transparent hover:border-black transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Logout (Desktop) -->
+                    <a href="/logout" class="hidden md:block text-gray-400 hover:text-red-600 transition" title="Sair">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
+                            </path>
+                        </svg>
+                    </a>
                 </div>
             </div>
+        </div>
+
+        <!-- MOBILE MENU (Hidden by default) -->
+        <div id="mobile-menu"
+            class="hidden md:hidden bg-white border-t-2 border-black px-4 pt-4 pb-6 space-y-2 shadow-xl">
+            {% set mobile_link = "block px-4 py-3 border-2 border-gray-100 hover:border-black hover:bg-gray-50 text-base
+            font-bold uppercase tracking-wider text-gray-700 hover:text-black transition-all" %}
+
+            <a href="/" class="{{ mobile_link }}">Dashboard</a>
+            <a href="/assets" class="{{ mobile_link }}">Ativos</a>
+            <a href="/minhas-solicitacoes-manutencao" class="{{ mobile_link }}">Suporte / Manutenção</a>
+
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+            <div class="pt-2 pb-1 text-xs font-mono uppercase text-gray-400 px-1">Área Técnica</div>
+            <a href="/solicitacoes-manutencao"
+                class="{{ mobile_link }} text-blue-600 border-blue-100 hover:border-blue-600 hover:bg-blue-50">Painel
+                TI</a>
+            {% endif %}
+
+            {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+            <a href="/movimentacoes" class="{{ mobile_link }}">Logs de Movimentação</a>
+            <a href="/admin/users" class="{{ mobile_link }}">Administração</a>
+            {% endif %}
+
+            <div class="border-t border-gray-200 my-4"></div>
+
+            <a href="/meu-qrcode" class="{{ mobile_link }} flex items-center justify-between">
+                Meu QR Code
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
+                    </path>
+                </svg>
+            </a>
+
+            <a href="/logout"
+                class="block px-4 py-3 bg-red-50 border-2 border-red-100 hover:border-red-600 text-red-600 text-base font-bold uppercase tracking-wider transition-all text-center mt-4">
+                Sair do Sistema
+            </a>
         </div>
     </nav>
     {% endif %}

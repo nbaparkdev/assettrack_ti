@@ -15,6 +15,37 @@
         </div>
     </div>
 
+    <!-- Alerts -->
+    {% if stats.pending_maintenance > 0 and user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+    <div class="bg-red-50 border-l-4 border-red-500 p-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <!-- Bell Icon -->
+                    <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path
+                            d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-bold text-red-700">
+                        ATENÇÃO: Existem {{ stats.pending_maintenance }} solicitação(ões) de manutenção pendente(s).
+                    </p>
+                </div>
+            </div>
+            <div class="ml-auto pl-3">
+                <div class="-mx-1.5 -my-1.5">
+                    <a href="/solicitacoes-manutencao"
+                        class="inline-flex rounded-md p-1.5 text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 font-bold uppercase text-xs tracking-wider">
+                        Verificar &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Data Blocks (Stats) -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-0 border-2 border-black bg-black">
         <!-- Block 1 -->
@@ -56,9 +87,75 @@
     </div>
 
     <!-- Admin Approvals -->
+    {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
     {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
+        <!-- Recent Deliveries (Added by request) -->
+        <div class="lg:col-span-2">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-lg uppercase flex items-center gap-2">
+                    <span class="w-2 h-2 bg-green-500 inline-block"></span>
+                    Últimas Entregas Realizadas
+                    <span class="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded-none ml-2">{{
+                        recent_deliveries|length }}</span>
+                </h3>
+                <a href="/solicitacoes-manutencao?status=concluida"
+                    class="text-xs font-bold underline hover:text-green-600">VER TODAS</a>
+            </div>
+
+            <div class="border-2 border-gray-200">
+                {% if recent_deliveries %}
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50 border-b-2 border-gray-200">
+                        <tr>
+                            <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase">Solicitação</th>
+                            <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase">Equipamento</th>
+                            <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase">Entregue Para</th>
+                            <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase">Técnico</th>
+                            <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase text-right">Data</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for req in recent_deliveries %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3">
+                                <a href="/solicitacoes-manutencao/{{ req.id }}"
+                                    class="font-bold text-sm hover:underline">#{{ req.id }}</a>
+                                <span
+                                    class="inline-block px-1 py-0.5 bg-green-100 text-green-800 text-[10px] font-bold uppercase rounded-none ml-1">{{
+                                    req.status.value }}</span>
+                            </td>
+                            <td class="p-3">
+                                <span class="text-sm font-medium">{{ req.asset.nome }}</span>
+                            </td>
+                            <td class="p-3">
+                                <div class="text-sm">{{ req.solicitante.nome }}</div>
+                            </td>
+                            <td class="p-3">
+                                <div class="text-xs font-mono text-gray-500">{{ req.responsavel.nome if req.responsavel
+                                    else '-' }}</div>
+                            </td>
+                            <td class="p-3 text-right">
+                                <span class="font-mono text-xs">{{ req.data_conclusao_tecnico.strftime('%d/%m %H:%M') if
+                                    req.data_conclusao_tecnico else 'Recente' }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="p-4 text-center bg-gray-50">
+                    <p class="font-mono text-xs text-gray-400">NENHUMA_ENTREGA_RECENTE</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
         <!-- Pending Users -->
+        {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
         <div>
             <div class="flex items-center justify-between mb-4">
                 <h3 class="font-bold text-lg uppercase flex items-center gap-2">
@@ -106,13 +203,63 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
 
-        <!-- Pending Solicitations -->
+        <!-- Pending Solicitations & Delivery -->
         <div>
+            <!-- Approved Solicitations (Waiting for Delivery) -->
+            {% if approved_solicitations_list %}
+            <div class="mb-12">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-lg uppercase flex items-center gap-2">
+                        <span class="w-2 h-2 bg-purple-500 inline-block"></span>
+                        Aguardando Entrega
+                        <span class="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded-none ml-2">{{
+                            approved_solicitations_list|length }}</span>
+                    </h3>
+                </div>
+
+                <div class="border-2 border-gray-200">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 border-b-2 border-gray-200">
+                            <tr>
+                                <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase">Solicitante</th>
+                                <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase">Ativo</th>
+                                <th class="p-3 font-mono text-xs font-bold text-gray-500 uppercase text-right">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for sol in approved_solicitations_list %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="p-3">
+                                    <span class="font-bold text-sm block">{{ sol.solicitante.nome }}</span>
+                                    <span class="font-mono text-[10px] text-gray-400">Aprovado: {{
+                                        sol.data_aprovacao.strftime('%d/%m %H:%M') if sol.data_aprovacao else '-'
+                                        }}</span>
+                                </td>
+                                <td class="p-3 text-sm">
+                                    <span class="font-medium">{{ sol.asset.nome }}</span>
+                                    <span class="block text-xs text-gray-500 font-mono">{{ sol.asset.serial_number
+                                        }}</span>
+                                </td>
+                                <td class="p-3 text-right">
+                                    <a href="/admin/solicitacoes/{{ sol.id }}/entrega"
+                                        class="inline-block bg-green-600 text-white text-xs font-bold px-3 py-2 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all uppercase">
+                                        VALIDAR ENTREGA
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="flex items-center justify-between mb-4">
                 <h3 class="font-bold text-lg uppercase flex items-center gap-2">
                     <span class="w-2 h-2 bg-amber-500 inline-block"></span>
-                    Solicitações
+                    Solicitações de Ativos
                     <span class="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded-none ml-2">{{
                         pending_solicitations_list|length }}</span>
                 </h3>
@@ -189,6 +336,14 @@
                 <span class="font-mono text-xs text-gray-400 block mb-2">CMD_03</span>
                 <span class="font-bold text-lg group-hover:underline">Scan QR</span>
             </a>
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+            <a href="/manutencao/entrega/scanner"
+                class="border-2 border-green-200 p-6 hover:border-green-600 hover:bg-green-50 transition group">
+                <span class="font-mono text-xs text-green-600 block mb-2">CMD_04</span>
+                <span class="font-bold text-lg group-hover:underline">📱 Validar Entrega</span>
+                <span class="font-mono text-[10px] text-gray-400 block mt-1">Ler QR do usuário</span>
+            </a>
+            {% endif %}
             {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
             <a href="/assets/new"
                 class="border-2 border-black bg-black text-white p-6 hover:bg-gray-900 transition group relative overflow-hidden">

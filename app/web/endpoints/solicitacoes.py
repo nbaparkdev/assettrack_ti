@@ -15,6 +15,7 @@ from app.models.transaction import Solicitacao, StatusSolicitacao
 from app.database import get_db
 from app.crud import transaction as transaction_crud
 from app.crud import asset as asset_crud
+from app.models.asset import Asset, AssetStatus
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -43,7 +44,14 @@ async def new_solicitacao_form(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    assets = await asset_crud.asset.get_multi(db)
+    # Only fetch AVAILABLE assets
+    result = await db.execute(
+        select(Asset)
+        .filter(Asset.status == AssetStatus.DISPONIVEL)
+        .order_by(Asset.nome)
+    )
+    assets = result.scalars().all()
+    
     return templates.TemplateResponse("solicitacoes/form.html", {
         "request": request,
         "user": current_user,
@@ -59,7 +67,35 @@ async def create_solicitacao(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
+    # Re-fetch assets for error context if needed
+    async def get_available_assets():
+        res = await db.execute(
+            select(Asset)
+            .filter(Asset.status == AssetStatus.DISPONIVEL)
+            .order_by(Asset.nome)
+        )
+        return res.scalars().all()
+
     try:
+        # Check if asset is actually available (concurrency check)
+        asset_result = await db.execute(select(Asset).filter(Asset.id == asset_id))
+        target_asset = asset_result.scalar_one_or_none()
+        
+        if not target_asset:
+            raise Exception("Ativo não encontrado.")
+            
+        if target_asset.status != AssetStatus.DISPONIVEL:
+            # Check reasons for unavailability
+            msg = "Ativo indisponível para solicitação."
+            if target_asset.current_user_id == current_user.id:
+                msg = "Você já possui este ativo (está em seu uso)."
+            elif target_asset.status == AssetStatus.EM_USO:
+                msg = "Este ativo já está em uso por outro usuário."
+            elif target_asset.status == AssetStatus.MANUTENCAO:
+                msg = "Este ativo está em manutenção."
+                
+            raise Exception(msg)
+
         solicitation_data = {
             "asset_id": asset_id,
             "solicitante_id": current_user.id,
@@ -69,12 +105,12 @@ async def create_solicitacao(
         await transaction_crud.solicitacao.create(db, obj_in=solicitation_data)
         return RedirectResponse(url="/solicitacoes", status_code=303)
     except Exception as e:
-        assets = await asset_crud.asset.get_multi(db)
+        assets = await get_available_assets()
         return templates.TemplateResponse("solicitacoes/form.html", {
             "request": request,
             "user": current_user,
             "assets": assets,
-            "error": f"Erro ao criar solicitação: {str(e)}",
+            "error": f"Erro: {str(e)}",
             "title": "Nova Solicitação"
         })
 

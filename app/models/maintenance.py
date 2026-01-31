@@ -56,3 +56,4 @@ class Manutencao(Base):
     asset = relationship("Asset", back_populates="manutencoes")
     responsavel = relationship("User", foreign_keys=[responsavel_id], back_populates="manutencoes_responsavel")
     destino_user = relationship("User", foreign_keys=[destino_user_id], back_populates="manutencoes_recebidas")
+    solicitacao_origem = relationship("SolicitacaoManutencao", back_populates="manutencao")

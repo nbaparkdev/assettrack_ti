@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Validar Entrega - #{{ solicitacao.id }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <a href="/" class="text-gray-500 hover:text-black text-sm mb-2 inline-block">&larr; Voltar para
+                Dashboard</a>
+            <h1 class="text-3xl font-bold">VALIDAR ENTREGA DE ATIVO</h1>
+            <p class="text-gray-500 font-mono text-sm">SOLICITAÇÃO #{{ solicitacao.id }}</p>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-500 px-4 py-3 mb-6">
+        <p class="text-red-700 font-medium">{{ error }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Info Card -->
+    <div class="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-6">
+        <h2 class="font-bold text-lg mb-4 border-b-2 border-black pb-2">DETALHES DA SOLICITAÇÃO</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <span class="text-gray-500 text-sm font-mono">EQUIPAMENTO</span>
+                <p class="font-bold text-lg">{{ solicitacao.asset.nome }}</p>
+                <p class="font-mono text-sm text-gray-600">{{ solicitacao.asset.serial_number }}</p>
+            </div>
+
+            <div>
+                <span class="text-gray-500 text-sm font-mono">SOLICITANTE</span>
+                <p class="font-bold text-lg">{{ solicitacao.solicitante.nome }}</p>
+                <p class="font-mono text-sm text-gray-600">{{ solicitacao.solicitante.email }}</p>
+            </div>
+
+            <div>
+                <span class="text-gray-500 text-sm font-mono">DATA APROVAÇÃO</span>
+                <p class="font-bold">{{ solicitacao.data_aprovacao.strftime('%d/%m/%Y %H:%M') if
+                    solicitacao.data_aprovacao else '-' }}</p>
+            </div>
+
+            <div>
+                <span class="text-gray-500 text-sm font-mono">STATUS ATUAL</span>
+                <span class="inline-block bg-blue-100 text-blue-800 border border-blue-600 px-3 py-1 font-mono text-sm">
+                    {{ solicitacao.status.value }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Validation Form -->
+    <form method="POST" class="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <h2 class="font-bold text-lg mb-4 border-b-2 border-black pb-2">CONFIRMAR IDENTIDADE</h2>
+
+        <!-- QR Code Input -->
+        <div class="mb-6">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 bg-blue-100 border-2 border-black flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <label class="font-bold text-red-600">QR Code do Solicitante (OBRIGATÓRIO)</label>
+                    <p class="text-gray-500 text-sm">Escaneie o crachá do solicitante para liberar o ativo.</p>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <input type="text" name="qr_token" id="qr_token_input" required
+                    class="w-full border-2 border-gray-300 focus:border-black p-3 font-mono text-sm"
+                    placeholder="Aguardando leitura do QR Code...">
+
+                <a href="/manutencao/entrega/scanner?redirect=/admin/solicitacoes/{{ solicitacao.id }}/entrega"
+                    class="bg-blue-600 text-white px-3 py-2 flex items-center justify-center border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all"
+                    title="Abrir Câmera">
+                    📷
+                </a>
+
+                <button type="button" onclick="autoFillQR()"
+                    class="bg-gray-100 border-2 border-gray-300 text-gray-500 px-3 py-2 text-xs font-bold uppercase hover:bg-gray-200"
+                    title="Preencher (Debug)">
+                    ⚡
+                </button>
+            </div>
+
+            <script>
+                function autoFillQR() {
+                    const token = "{{ solicitacao.solicitante.qr_token or '' }}";
+                    if (token) document.getElementById('qr_token_input').value = token;
+                    else alert('Usuário sem QR Code');
+                }
+            </script>
+        </div>
+
+        <div class="mb-6">
+            <label class="font-bold block mb-2">Observação de Entrega</label>
+            <textarea name="observacao" rows="2" class="w-full border-2 border-gray-300 focus:border-black p-3"
+                placeholder="Opcional"></textarea>
+        </div>
+
+        <button type="submit"
+            class="w-full bg-green-600 text-white font-bold py-4 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all uppercase tracking-widest text-lg">
+            ✓ Confirmar Entrega
+        </button>
+    </form>
+</div>
+{% endblock %}

@@ -40,7 +40,8 @@ class Asset(Base):
     current_local = relationship("Localizacao", back_populates="assets")
     current_armazenamento = relationship("Armazenamento", back_populates="assets")
     
-    movimentacoes = relationship("Movimentacao", back_populates="asset")
-    solicitacoes = relationship("Solicitacao", back_populates="asset")
-    manutencoes = relationship("Manutencao", back_populates="asset")
+    movimentacoes = relationship("Movimentacao", back_populates="asset", cascade="all, delete-orphan")
+    solicitacoes = relationship("Solicitacao", back_populates="asset", cascade="all, delete-orphan")
+    manutencoes = relationship("Manutencao", back_populates="asset", cascade="all, delete-orphan")
+    solicitacoes_manutencao = relationship("SolicitacaoManutencao", back_populates="asset", cascade="all, delete-orphan")
 

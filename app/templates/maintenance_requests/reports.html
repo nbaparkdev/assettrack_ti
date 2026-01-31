@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-end justify-between border-b-2 border-black pb-4 mb-8">
+        <div>
+            <h1 class="text-4xl font-bold tracking-tighter uppercase">Relatórios de Manutenção</h1>
+            <p class="font-mono text-sm text-gray-500 mt-2">FILTRAR E EXPORTAR DADOS HISTÓRICOS</p>
+        </div>
+        <div>
+            <button onclick="window.print()"
+                class="bg-gray-100 border-2 border-black px-4 py-2 font-bold uppercase text-xs hover:bg-gray-200 transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                    </path>
+                </svg>
+                Imprimir / PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="bg-gray-50 border-2 border-gray-200 p-6 mb-8 print:hidden">
+        <form action="" method="get" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            <!-- Data Inicio -->
+            <div>
+                <label class="block font-mono text-xs font-bold text-gray-500 uppercase mb-1">De:</label>
+                <input type="date" name="start_date" value="{{ filters.start_date }}"
+                    class="w-full border-2 border-gray-300 p-2 text-sm focus:border-black transition">
+            </div>
+
+            <!-- Data Fim -->
+            <div>
+                <label class="block font-mono text-xs font-bold text-gray-500 uppercase mb-1">Até:</label>
+                <input type="date" name="end_date" value="{{ filters.end_date }}"
+                    class="w-full border-2 border-gray-300 p-2 text-sm focus:border-black transition">
+            </div>
+
+            <!-- Status -->
+            <div>
+                <label class="block font-mono text-xs font-bold text-gray-500 uppercase mb-1">Status:</label>
+                <select name="status_filter"
+                    class="w-full border-2 border-gray-300 p-2 text-sm focus:border-black transition bg-white">
+                    <option value="">TODOS</option>
+                    {% for status in statuses %}
+                    <option value="{{ status.value }}" {% if filters.status==status.value %}selected{% endif %}>
+                        {{ status.value|upper }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Tecnico -->
+            <div>
+                <label class="block font-mono text-xs font-bold text-gray-500 uppercase mb-1">Técnico:</label>
+                <select name="tech_id"
+                    class="w-full border-2 border-gray-300 p-2 text-sm focus:border-black transition bg-white">
+                    <option value="0">TODOS</option>
+                    {% for tech in tecnicos %}
+                    <option value="{{ tech.id }}" {% if filters.tech_id==tech.id %}selected{% endif %}>
+                        {{ tech.nome }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Botão Filtrar -->
+            <div>
+                <button type="submit"
+                    class="w-full bg-black text-white border-2 border-black p-2 font-bold uppercase text-xs hover:bg-gray-800 transition">
+                    Filtrar Resultados
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Resultados -->
+    <div class="border-2 border-black bg-white">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-100 border-b-2 border-black text-xs font-mono uppercase text-gray-600">
+                        <th class="p-4 border-r border-gray-300">ID</th>
+                        <th class="p-4 border-r border-gray-300">Data</th>
+                        <th class="p-4 border-r border-gray-300">Ativo</th>
+                        <th class="p-4 border-r border-gray-300">Solicitante</th>
+                        <th class="p-4 border-r border-gray-300">Técnico</th>
+                        <th class="p-4 border-r border-gray-300">Status</th>
+                        <th class="p-4">Prioridade</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for sol in solicitacoes %}
+                    <tr class="hover:bg-blue-50 transition group">
+                        <td class="p-4 border-r border-gray-200 font-bold">#{{ sol.id }}</td>
+                        <td class="p-4 border-r border-gray-200 text-sm">
+                            <div class="font-bold">{{ sol.data_solicitacao.strftime('%d/%m/%Y') }}</div>
+                            <div class="text-xs text-gray-500 font-mono">{{ sol.data_solicitacao.strftime('%H:%M') }}
+                            </div>
+                        </td>
+                        <td class="p-4 border-r border-gray-200 text-sm font-medium">{{ sol.asset.nome }}</td>
+                        <td class="p-4 border-r border-gray-200 text-sm">
+                            <div class="font-medium">{{ sol.solicitante.nome }}</div>
+                            <div class="text-xs text-gray-400">{{ sol.solicitante.cargo or 'N/A' }}</div>
+                        </td>
+                        <td class="p-4 border-r border-gray-200 text-sm">
+                            {% if sol.responsavel %}
+                            <div class="font-medium">{{ sol.responsavel.nome }}</div>
+                            {% else %}
+                            <div class="text-xs text-gray-400 italic"> Pendente </div>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 border-r border-gray-200">
+                            {% set s = sol.status.value %}
+                            {% if s == 'pendente' %}
+                            <span
+                                class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-1 uppercase">Pendente</span>
+                            {% elif s == 'em_andamento' %}
+                            <span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-1 uppercase">Em
+                                Andamento</span>
+                            {% elif s == 'aguardando_entrega' %}
+                            <span
+                                class="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-1 uppercase">Aguardando
+                                Entrega</span>
+                            {% elif s == 'entregue' %}
+                            <span
+                                class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-1 uppercase">Entregue</span>
+                            {% elif s == 'concluida' %}
+                            <span
+                                class="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 uppercase">Concluída</span>
+                            {% elif s == 'rejeitada' %}
+                            <span
+                                class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-1 uppercase">Rejeitada</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4">
+                            {% if sol.prioridade.value == 'baixa' %}
+                            <span class="text-gray-500 font-mono text-xs">BAIXA</span>
+                            {% elif sol.prioridade.value == 'media' %}
+                            <span class="text-blue-500 font-mono text-xs">MÉDIA</span>
+                            {% elif sol.prioridade.value == 'alta' %}
+                            <span class="text-orange-500 font-mono text-xs font-bold">ALTA</span>
+                            {% elif sol.prioridade.value == 'critica' %}
+                            <span class="text-red-600 font-mono text-xs font-bold bg-red-50 px-1">CRÍTICA</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="p-12 text-center bg-gray-50">
+                            <p class="text-gray-400 font-mono uppercase text-sm">Nenhum registro encontrado para os
+                                filtros selecionados.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer do Relatório -->
+        <div
+            class="p-4 bg-gray-50 border-t-2 border-black flex justify-between items-center text-xs font-mono text-gray-500">
+            <div>
+                Total de Registros: <strong>{{ solicitacoes|length }}</strong>
+            </div>
+            <div>
+                Gerado em: {{ now_formatted }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

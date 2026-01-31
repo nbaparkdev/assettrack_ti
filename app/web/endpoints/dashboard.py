@@ -32,6 +32,15 @@ async def dashboard(
     # Pending Solicitations
     pending_solicitations = await db.scalar(select(func.count(Solicitacao.id)).filter(Solicitacao.status == StatusSolicitacao.PENDENTE))
 
+    # Pending Maintenance Requests (for alert)
+    pending_maintenance_count = 0
+    if current_user.role.value.lower() in ["admin", "gerente_ti", "tecnico"]:
+        from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
+        pending_maintenance_count = await db.scalar(
+            select(func.count(SolicitacaoManutencao.id))
+            .filter(SolicitacaoManutencao.status == StatusSolicitacaoManutencao.PENDENTE)
+        )
+
     # Context data
     context = {
         "request": request,
@@ -39,17 +48,38 @@ async def dashboard(
         "stats": {
             "total_assets": total_assets or 0,
             "available_assets": available_assets or 0,
-            "pending_solicitations": pending_solicitations or 0
+            "pending_solicitations": pending_solicitations or 0,
+            "pending_maintenance": pending_maintenance_count or 0
         },
         "title": "Dashboard"
     }
 
-    # Admin specific data
+    # Admin and Manager specific data (Users & Recent Deliveries)
     if current_user.role.value.lower() in ["admin", "gerente_ti"]:
         # Pending Users to Approve
         pending_users_result = await db.execute(select(User).filter(User.is_active == False))
         context["pending_users_list"] = pending_users_result.scalars().all()
 
+        # Recent Deliveries (Last 5)
+        from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
+        recent_deliveries_result = await db.execute(
+            select(SolicitacaoManutencao)
+            .options(
+                selectinload(SolicitacaoManutencao.asset), 
+                selectinload(SolicitacaoManutencao.solicitante),
+                selectinload(SolicitacaoManutencao.responsavel)
+            )
+            .filter(SolicitacaoManutencao.status.in_([
+                StatusSolicitacaoManutencao.ENTREGUE, 
+                StatusSolicitacaoManutencao.CONCLUIDA
+            ]))
+            .order_by(SolicitacaoManutencao.data_conclusao_tecnico.desc()) 
+            .limit(5)
+        )
+        context["recent_deliveries"] = recent_deliveries_result.scalars().all()
+
+    # Admin, Manager AND Technician (Solicitations of Assets)
+    if current_user.role.value.lower() in ["admin", "gerente_ti", "tecnico"]:
         # Pending Solicitations (Full details for table) - with eager loading
         pending_solicitations_result = await db.execute(
             select(Solicitacao)
@@ -58,6 +88,15 @@ async def dashboard(
             .order_by(Solicitacao.data_solicitacao)
         )
         context["pending_solicitations_list"] = pending_solicitations_result.scalars().all()
+
+        # Approved Solicitations (Waiting for Delivery)
+        approved_solicitations_result = await db.execute(
+            select(Solicitacao)
+            .options(selectinload(Solicitacao.asset), selectinload(Solicitacao.solicitante))
+            .filter(Solicitacao.status == StatusSolicitacao.APROVADA)
+            .order_by(Solicitacao.data_aprovacao.desc())
+        )
+        context["approved_solicitations_list"] = approved_solicitations_result.scalars().all()
 
     return templates.TemplateResponse("dashboard.html", context)
 

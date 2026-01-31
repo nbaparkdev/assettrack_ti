@@ -72,12 +72,13 @@
 | **Confirmar Entrega** | `/solicitacoes/{id}/confirmar-entrega` | Admin, Gerente |
 
 ### Fluxo de Entrega
-1. Solicitação é **Aprovada**
-2. Botão "Confirmar Entrega" aparece
-3. Admin/Gerente pode:
-   - Escanear QR do usuário (validação forte)
-   - Confirmar manualmente (registrado com ID do confirmador)
-4. Status muda para **ENTREGUE**
+1. Solicitação é **Aprovada** e serviço/manutenção concluído.
+2. Botão "Validar Entrega" aparece para o técnico
+3. Admin/Gerente deve validar a identidade do destinatário:
+   - **Escanear QR do usuário** (validação forte presencial)
+   - **Auto-Preencher** (⚡ validação prática rápida se identidade já confirmada)
+4. Status muda para **ENTREGUE** (Aguardando usuário confirmar recebimento)
+5. Usuário clica em "Confirmar Recebimento" para finalizar o processo
 
 ---
 
@@ -139,6 +140,30 @@
 | **Listar Manutenções** | `/maintenance` | Admin, Gerente |
 | **Registrar Manutenção** | `/assets/{id}/manutencao` | Admin, Gerente |
 | **Finalizar Manutenção** | `/maintenance/{id}/complete` | Admin, Gerente |
+
+### Solicitação de Manutenção (Usuários)
+
+| Funcionalidade | Rota | Permissão |
+|----------------|------|-----------|
+| **Solicitar Manutenção** | `/solicitar-manutencao` | Todos |
+| **Minhas Solicitações** | `/minhas-solicitacoes-manutencao` | Todos |
+| **Painel de Solicitações** | `/solicitacoes-manutencao` | Técnico, Gerente, Admin |
+| **Aceitar Solicitação** | `/solicitacoes-manutencao/{id}/aceitar` | Técnico, Gerente, Admin |
+| **Rejeitar Solicitação** | `/solicitacoes-manutencao/{id}/rejeitar` | Técnico, Gerente, Admin |
+| **Concluir Manutenção** | `/solicitacoes-manutencao/{id}/concluir` | Técnico, Gerente, Admin |
+| **Equipamentos para Retirada** | `/aguardando-entrega` | Todos |
+| **Confirmar Recebimento** | `/solicitacoes-manutencao/{id}/confirmar-entrega` | Solicitante |
+
+### Fluxo de Solicitação de Manutenção
+1. **Usuário solicita** → Status `PENDENTE`
+2. **Técnico aceita** → Status `EM_ANDAMENTO` + Manutenção criada
+3. **Técnico conclui** → Status `AGUARDANDO_ENTREGA` + Usuário notificado
+4. **Usuário confirma recebimento** → Status `CONCLUIDA` + Ativo volta para `ATIVO`
+
+### Acompanhe o Status das Suas Solicitações
+- Acesse `/minhas-solicitacoes-manutencao` para ver todas as suas solicitações
+- Status: Pendente, Em Andamento, Aguardando Entrega, Concluída, Rejeitada
+- Notificações automáticas quando status mudar
 
 ---
 

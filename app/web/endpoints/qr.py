@@ -218,7 +218,7 @@ async def user_public_profile_page(
             (Manutencao.responsavel_id == user.id) | 
             (Manutencao.destino_user_id == user.id)
         )
-        .order_by(Manutencao.data_abertura.desc())
+        .order_by(Manutencao.data_entrada.desc())
         .limit(10)
     )
     manutencoes = manutencoes_result.scalars().all()

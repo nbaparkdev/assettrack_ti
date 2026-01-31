@@ -261,11 +261,33 @@ async def delete_asset(
         await asset_crud.asset.remove(db, id=asset_id)
         return RedirectResponse(url="/assets", status_code=303)
     except Exception as e:
+        await db.rollback()
+        
+        # Explicitly eager load relationships to prevent MissingGreenlet in template
+        from sqlalchemy.orm import selectinload
+        from sqlalchemy import select
+        
+        # Re-fetch asset with necessary relationships
+        result = await db.execute(
+            select(Asset)
+            .options(
+                selectinload(Asset.current_user),
+                selectinload(Asset.current_armazenamento),
+                selectinload(Asset.current_local)
+            )
+            .filter(Asset.id == asset_id)
+        )
+        asset = result.scalars().first()
+        
+        error_msg = f"Erro ao excluir ativo: {str(e)}"
+        if "constraint" in str(e).lower() or "cforeign" in str(e).lower():
+             error_msg = "Não é possível excluir este ativo pois ele possui histórico (movimentações, solicitações, etc). Considere apenas atualizar o status para 'Baixado'."
+
         return templates.TemplateResponse("assets/detail.html", {
             "request": request,
             "user": current_user,
             "asset": asset,
-            "error": f"Erro ao excluir ativo: {str(e)}",
+            "error": error_msg,
             "title": f"Ativo: {asset.nome}"
         })
 

@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <header class="border-b-2 border-gray-900 pb-6">
+        <div class="flex items-center gap-3 mb-4">
+            <a href="{{ '/solicitacoes-manutencao' if is_tech else '/minhas-solicitacoes-manutencao' }}"
+                class="text-gray-500 hover:text-black transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+            </a>
+            <span class="font-mono text-sm text-gray-400">Solicitação #{{ solicitacao.id }}</span>
+        </div>
+
+        <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight">{{ solicitacao.asset.nome }}
+                </h1>
+                <p class="font-mono text-gray-500 mt-1">{{ solicitacao.asset.serial_number }}</p>
+            </div>
+
+            <div class="flex flex-col items-end gap-2">
+                {% set status_classes = {
+                'pendente': 'bg-yellow-100 text-yellow-800 border-yellow-400',
+                'aceita': 'bg-blue-100 text-blue-800 border-blue-400',
+                'em_andamento': 'bg-blue-100 text-blue-800 border-blue-400',
+                'aguardando_entrega': 'bg-green-100 text-green-800 border-green-400',
+                'entregue': 'bg-purple-100 text-purple-800 border-purple-400',
+                'concluida': 'bg-gray-100 text-gray-800 border-gray-400',
+                'rejeitada': 'bg-red-100 text-red-800 border-red-400'
+                } %}
+                <span
+                    class="px-4 py-2 text-sm font-bold uppercase border-2 {{ status_classes.get(solicitacao.status.value, 'bg-gray-100') }}">
+                    {{ solicitacao.status.value | replace('_', ' ') }}
+                </span>
+
+                {% set prio_classes = {
+                'baixa': 'text-green-600',
+                'media': 'text-blue-600',
+                'alta': 'text-orange-600',
+                'critica': 'text-red-600'
+                } %}
+                <span class="font-bold text-sm {{ prio_classes.get(solicitacao.prioridade.value, '') }}">
+                    Prioridade: {{ solicitacao.prioridade.value | upper }}
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Info Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Solicitante -->
+        <div class="border-2 border-gray-200 p-6">
+            <h3 class="font-mono text-xs text-gray-500 uppercase mb-3">Solicitante</h3>
+            <p class="font-bold text-lg">{{ solicitacao.solicitante.nome }}</p>
+            <p class="text-gray-600">{{ solicitacao.solicitante.email }}</p>
+            <p class="text-gray-500 text-sm mt-2">{{ solicitacao.solicitante.cargo or 'Sem cargo' }}</p>
+        </div>
+
+        <!-- Datas -->
+        <div class="border-2 border-gray-200 p-6">
+            <h3 class="font-mono text-xs text-gray-500 uppercase mb-3">Cronograma</h3>
+            <div class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Solicitado em:</span>
+                    <span class="font-mono">{{ solicitacao.data_solicitacao.strftime('%d/%m/%Y %H:%M') }}</span>
+                </div>
+                {% if solicitacao.data_resposta %}
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Respondido em:</span>
+                    <span class="font-mono">{{ solicitacao.data_resposta.strftime('%d/%m/%Y %H:%M') }}</span>
+                </div>
+                {% endif %}
+                {% if solicitacao.data_conclusao_tecnico %}
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Concluído (Téc):</span>
+                    <span class="font-mono">{{ solicitacao.data_conclusao_tecnico.strftime('%d/%m/%Y %H:%M') }}</span>
+                </div>
+                {% endif %}
+                {% if solicitacao.data_entrega %}
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Entregue em:</span>
+                    <span class="font-mono">{{ solicitacao.data_entrega.strftime('%d/%m/%Y %H:%M') }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Descrição do Problema -->
+    <div class="border-2 border-gray-200 p-6">
+        <h3 class="font-mono text-xs text-gray-500 uppercase mb-3">Descrição do Problema</h3>
+        <p class="text-gray-800 whitespace-pre-wrap">{{ solicitacao.descricao }}</p>
+    </div>
+
+    {% if solicitacao.observacao_resposta %}
+    <!-- Resposta do Técnico -->
+    <div class="border-2 border-gray-200 p-6 bg-gray-50">
+        <h3 class="font-mono text-xs text-gray-500 uppercase mb-3">Resposta do Técnico</h3>
+        <p class="text-gray-800 whitespace-pre-wrap">{{ solicitacao.observacao_resposta }}</p>
+        {% if solicitacao.responsavel %}
+        <p class="text-gray-500 text-sm mt-4">— {{ solicitacao.responsavel.nome }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if solicitacao.manutencao_id %}
+    <!-- Link para Manutenção -->
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+        <p class="text-blue-800">
+            <strong>Manutenção criada:</strong>
+            <a href="/assets/{{ solicitacao.asset_id }}" class="underline">Ver ativo em manutenção →</a>
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- Ações (apenas para técnicos e se pendente) -->
+    {% if can_respond %}
+    <div class="border-t-2 border-gray-200 pt-8 space-y-6">
+        <h3 class="text-lg font-bold uppercase">Responder Solicitação</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Aceitar -->
+            <form method="POST" action="/solicitacoes-manutencao/{{ solicitacao.id }}/aceitar"
+                class="border-2 border-green-200 p-6 bg-green-50">
+                <h4 class="font-bold text-green-800 mb-4">✓ Aceitar e Iniciar Manutenção</h4>
+                <textarea name="observacao" rows="3"
+                    class="w-full border-2 border-green-200 focus:border-green-500 focus:ring-0 rounded-none p-3 text-sm mb-4"
+                    placeholder="Observação (opcional)"></textarea>
+                <button type="submit"
+                    class="w-full bg-green-600 text-white py-3 font-bold uppercase text-sm hover:bg-green-700 transition-colors">
+                    Aceitar Solicitação
+                </button>
+            </form>
+
+            <!-- Rejeitar -->
+            <form method="POST" action="/solicitacoes-manutencao/{{ solicitacao.id }}/rejeitar"
+                class="border-2 border-red-200 p-6 bg-red-50">
+                <h4 class="font-bold text-red-800 mb-4">✗ Rejeitar Solicitação</h4>
+                <textarea name="observacao" rows="3" required minlength="10"
+                    class="w-full border-2 border-red-200 focus:border-red-500 focus:ring-0 rounded-none p-3 text-sm mb-4"
+                    placeholder="Justificativa (obrigatório)"></textarea>
+                <button type="submit"
+                    class="w-full bg-red-600 text-white py-3 font-bold uppercase text-sm hover:bg-red-700 transition-colors">
+                    Rejeitar Solicitação
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Técnico pode concluir manutenção em andamento #}
+    {% if is_tech and solicitacao.status.value == 'em_andamento' %}
+    <div class="border-t-2 border-gray-200 pt-8">
+        <h3 class="text-lg font-bold uppercase mb-4">Concluir Manutenção</h3>
+        <form method="POST" action="/solicitacoes-manutencao/{{ solicitacao.id }}/concluir"
+            class="border-2 border-blue-200 p-6 bg-blue-50">
+            <h4 class="font-bold text-blue-800 mb-4">✓ Marcar como Concluída</h4>
+            <p class="text-sm text-gray-600 mb-4">
+                Ao concluir, o usuário será notificado para confirmar o recebimento do equipamento.
+            </p>
+            <textarea name="observacao" rows="3"
+                class="w-full border-2 border-blue-200 focus:border-blue-500 focus:ring-0 rounded-none p-3 text-sm mb-4"
+                placeholder="Observações da manutenção realizada (opcional)"></textarea>
+            <button type="submit"
+                class="w-full bg-blue-600 text-white py-3 font-bold uppercase text-sm hover:bg-blue-700 transition-colors">
+                Concluir Manutenção
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    {# Técnico confirma entrega escaneando QR do usuário (apenas se AGUARDANDO_ENTREGA) #}
+    {% if is_tech and solicitacao.status.value == 'aguardando_entrega' %}
+    <div class="border-t-2 border-gray-200 pt-8">
+        <div class="bg-green-50 border-2 border-green-200 p-6">
+            <h3 class="text-lg font-bold text-green-800 mb-4">📦 Validar Entrega com Scanner</h3>
+            <p class="text-gray-700 mb-4">
+                O equipamento está pronto. Escaneie o QR Code do usuário para registrar que você entregou o item.
+            </p>
+            <a href="/solicitacoes-manutencao/{{ solicitacao.id }}/confirmar-entrega"
+                class="inline-block bg-green-600 text-white px-6 py-3 font-bold uppercase text-sm hover:bg-green-700 transition-colors">
+                📱 Escanear QR e Confirmar Entrega
+            </a>
+            <p class="text-xs text-gray-500 mt-2">
+                O status mudará para "Entregue". O usuário deverá confirmar o recebimento final.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Técnico ver status ENTREGUE (aguardando confirmação do usuário) #}
+    {% if is_tech and solicitacao.status.value == 'entregue' %}
+    <div class="border-t-2 border-gray-200 pt-8">
+        <div class="bg-purple-50 border-2 border-purple-200 p-6">
+            <h3 class="text-lg font-bold text-purple-800 mb-4">⏳ Aguardando Confirmação do Usuário</h3>
+            <p class="text-gray-700">
+                Você já registrou a entrega. Agora o usuário precisa confirmar no sistema que recebeu o equipamento.
+            </p>
+            <p class="text-sm text-gray-500 mt-2">
+                Data da Entrega: {{ solicitacao.data_entrega.strftime('%d/%m/%Y %H:%M') if solicitacao.data_entrega else
+                '-' }}
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Usuário vê mensagem de aguardando entrega (antes do técnico entregar) #}
+    {% if not is_tech and solicitacao.status.value == 'aguardando_entrega' and solicitacao.solicitante_id == user.id %}
+    <div class="border-t-2 border-gray-200 pt-8">
+        <div class="bg-blue-50 border-2 border-blue-200 p-6">
+            <h3 class="text-lg font-bold text-blue-800 mb-4">🎉 Seu equipamento está pronto!</h3>
+            <p class="text-gray-700 mb-2">
+                A manutenção foi concluída. Compareça ao setor de TI para retirar seu equipamento.
+            </p>
+            <p class="text-gray-600 text-sm">
+                <strong>Importante:</strong> Leve seu crachá digital (QR Code) para validar a entrega com o técnico.
+                Acesse seu QR Code em <a href="/meu-qrcode" class="text-blue-600 underline">Meu QR Code</a>.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Usuário confirma recebimento (APÓS técnico entregar/escanear status ENTREGUE) #}
+    {% if not is_tech and solicitacao.status.value == 'entregue' and solicitacao.solicitante_id == user.id %}
+    <div class="border-t-2 border-gray-200 pt-8">
+        <div class="bg-green-50 border-2 border-green-200 p-6">
+            <h3 class="text-lg font-bold text-green-800 mb-4">✅ Confirme o Recebimento</h3>
+            <p class="text-gray-700 mb-4">
+                O técnico registrou a entrega do seu equipamento. Por favor, confirme abaixo que você está com o item em
+                mãos e funcionando.
+            </p>
+
+            <form method="POST" action="/solicitacoes-manutencao/{{ solicitacao.id }}/confirmar-recebimento">
+                <button type="submit"
+                    class="w-full bg-green-600 text-white py-4 font-bold uppercase text-lg hover:bg-green-700 transition-colors shadow-md">
+                    👍 Confirmar que Recebi o Equipamento
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

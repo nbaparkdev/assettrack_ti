@@ -45,4 +45,8 @@ class User(Base):
     # Manutenções
     manutencoes_responsavel = relationship("Manutencao", foreign_keys="[Manutencao.responsavel_id]", back_populates="responsavel")
     manutencoes_recebidas = relationship("Manutencao", foreign_keys="[Manutencao.destino_user_id]", back_populates="destino_user")
+    
+    # Solicitações de Manutenção (usuário comum)
+    solicitacoes_manutencao = relationship("SolicitacaoManutencao", foreign_keys="[SolicitacaoManutencao.solicitante_id]", back_populates="solicitante")
+    solicitacoes_manutencao_responsavel = relationship("SolicitacaoManutencao", foreign_keys="[SolicitacaoManutencao.responsavel_id]", back_populates="responsavel")
 

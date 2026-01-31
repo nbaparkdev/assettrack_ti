@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <header class="border-b-2 border-gray-900 pb-6">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <span
+                    class="bg-blue-600 text-white px-2 py-0.5 text-xs font-mono uppercase tracking-wider">Acompanhamento</span>
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight mt-2">Retirada de Equipamentos
+                </h1>
+                <p class="text-gray-500 mt-2">Valide a entrega e confirme o recebimento</p>
+            </div>
+            <a href="/minhas-solicitacoes-manutencao"
+                class="text-gray-500 hover:text-black font-bold text-sm uppercase">
+                ← Ver Todas Solicitações
+            </a>
+        </div>
+    </header>
+
+    {% if success %}
+    <div class="bg-green-50 border-l-4 border-green-500 p-4">
+        <p class="text-green-800">{{ success }}</p>
+    </div>
+    {% endif %}
+
+    {% if solicitacoes|length == 0 %}
+    <div class="bg-gray-50 border-2 border-gray-200 p-8 text-center">
+        <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="text-lg font-bold text-gray-700 mb-2">Tudo certo!</h3>
+        <p class="text-gray-500">Você não tem pendências de retirada ou confirmação.</p>
+    </div>
+    {% else %}
+
+    <div class="space-y-4">
+        {% for s in solicitacoes %}
+        {% set is_entregue = s.status.value == 'entregue' %}
+
+        <div
+            class="border-2 {{ 'border-purple-200 bg-purple-50' if is_entregue else 'border-green-200 bg-green-50' }} p-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="font-mono text-xs text-gray-400">#{{ s.id }}</span>
+                        {% if is_entregue %}
+                        <span class="bg-purple-600 text-white px-2 py-1 text-xs font-bold uppercase animate-pulse">
+                            ENTREGUE - CONFIRME RECEBIMENTO
+                        </span>
+                        {% else %}
+                        <span class="bg-green-500 text-black px-2 py-1 text-xs font-bold uppercase">
+                            PRONTO NA TI - AGUARDANDO ENTREGA
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <h3 class="font-bold text-xl text-gray-900">{{ s.asset.nome }}</h3>
+                    <p class="font-mono text-sm text-gray-500">{{ s.asset.serial_number }}</p>
+
+                    {% if s.observacao_resposta %}
+                    <div class="mt-3 p-3 bg-white {{ 'border-purple-200' if is_entregue else 'border-green-200' }}">
+                        <p class="text-sm text-gray-700">{{ s.observacao_resposta }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if s.responsavel %}
+                    <p class="text-sm text-gray-500 mt-2">Técnico: {{ s.responsavel.nome }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="flex flex-col items-end gap-3 w-full md:w-auto">
+                    {% if s.data_conclusao_tecnico %}
+                    <p class="font-mono text-xs text-gray-400">
+                        Concluído em: {{ s.data_conclusao_tecnico.strftime('%d/%m/%Y %H:%M') }}
+                    </p>
+                    {% endif %}
+
+                    {% if is_entregue %}
+                    <div class="text-right mb-2">
+                        <p class="text-xs text-purple-800 font-bold">⚠️ Entrega registrada!</p>
+                        <p class="text-xs text-gray-500">Por favor, confirme abaixo.</p>
+                    </div>
+                    <form method="POST" action="/solicitacoes-manutencao/{{ s.id }}/confirmar-recebimento"
+                        class="w-full">
+                        <button type="submit"
+                            class="w-full bg-green-600 text-white px-6 py-3 font-bold uppercase text-sm hover:bg-green-700 transition-colors shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px]">
+                            ✓ Confirmar Recebimento
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="text-right p-3 bg-white/50 border border-green-200 rounded text-sm w-full md:w-64">
+                        <p class="font-bold text-green-900 mb-1">Para retirar:</p>
+                        <ol class="list-decimal list-inside text-xs text-gray-700 space-y-1">
+                            <li>Vá até a TI</li>
+                            <li>Mostre seu <a href="/meu-qrcode" class="underline text-blue-600">QRCode</a></li>
+                            <li>Técnico escaneia e entrega</li>
+                            <li>Você confirma aqui</li>
+                        </ol>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="bg-gray-100 border-2 border-gray-200 p-4 text-sm text-gray-600">
+        <strong>ℹ️ Fluxo de Entrega:</strong> Técnico libera > Técnico escaneia seu QR (Entrega) > Você confirma no
+        sistema (Conclusão).
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

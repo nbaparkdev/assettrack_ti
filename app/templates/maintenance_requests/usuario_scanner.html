@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <a href="/" class="text-gray-500 hover:text-black text-sm mb-2 inline-block">&larr; Dashboard</a>
+            <h1 class="text-3xl font-bold">VALIDAR ENTREGA</h1>
+            <p class="text-gray-500 font-mono text-sm">ESCANEAR QR DO USUÁRIO</p>
+        </div>
+        <div
+            class="w-16 h-16 bg-blue-100 border-2 border-black flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <svg class="w-8 h-8 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
+                </path>
+            </svg>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-500 px-4 py-3 mb-6">
+        <p class="text-red-700 font-medium">{{ error }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Scanner Container -->
+    <div class="bg-white border-2 border-black p-4 mb-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <!-- Camera View -->
+        <div class="relative bg-black overflow-hidden" style="min-height: 300px;">
+            <div id="qr-reader" class="w-full h-full"></div>
+
+            <!-- Scanning Overlay -->
+            <div id="scanning-overlay"
+                class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+                <div class="w-64 h-64 relative">
+                    <!-- Corner brackets -->
+                    <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-500"></div>
+                    <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-500"></div>
+                    <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-500"></div>
+                    <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-500"></div>
+                    <!-- Scanning line animation -->
+                    <div id="scan-line"
+                        class="absolute left-2 right-2 h-0.5 bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)] animate-scan">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status / Error Messages -->
+        <div class="mt-4 text-center">
+            <div id="scanner-status" class="py-2">
+                <p class="font-bold flex items-center justify-center gap-2">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    Câmera Ativa
+                </p>
+                <p class="text-sm text-gray-500">Aponte para o crachá digital do usuário</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="scan-error" class="hidden py-2 text-red-600">
+                <p class="font-bold">❌ Erro na câmera</p>
+                <p id="error-message" class="text-sm">Verifique permissões ou use HTTPS</p>
+                <button onclick="startScanner()" class="mt-2 text-sm underline hover:text-black">Tentar
+                    Novamente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Entry Form -->
+    <form id="scanner-form" method="POST" action="/manutencao/entrega/scanner"
+        class="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <h2 class="font-bold text-lg mb-4 border-b-2 border-black pb-2">ENTRADA MANUAL</h2>
+
+        <div class="mb-4">
+            <label class="font-bold block mb-2">Código do Token</label>
+            <input type="text" id="qr_token" name="qr_token"
+                class="w-full border-2 border-gray-300 focus:border-black p-3 font-mono text-sm uppercase transition-colors"
+                placeholder="Escaneie ou digite o código..." required>
+        </div>
+
+        <button type="submit"
+            class="w-full bg-green-600 text-white font-bold py-3 px-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all">
+            🔍 BUSCAR USUÁRIO
+        </button>
+    </form>
+</div>
+
+<!-- html5-qrcode library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+    @keyframes scan {
+
+        0%,
+        100% {
+            top: 1rem;
+            opacity: 0;
+        }
+
+        50% {
+            top: calc(100% - 1rem);
+            opacity: 1;
+        }
+    }
+
+    .animate-scan {
+        animation: scan 2s ease-in-out infinite;
+    }
+
+    /* Clean up scanner UI */
+    #qr-reader video {
+        object-fit: cover;
+    }
+
+    #qr-reader__dashboard_section_csr button {
+        display: none;
+    }
+</style>
+
+<script>
+    let html5QrCode = null;
+    let isScanning = false;
+
+    function extractToken(decodedText) {
+        // Tenta extrair UUID
+        const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+        const match = decodedText.match(uuidRegex);
+        return match ? match[0] : decodedText;
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        if (isScanning) {
+            const token = extractToken(decodedText);
+
+            // Stop scanning logic
+            isScanning = false;
+
+            // Fill input
+            document.getElementById('qr_token').value = token;
+
+            // Feedback
+            if (navigator.vibrate) navigator.vibrate(200);
+
+            // Play confirm animation
+            document.getElementById('scanning-overlay').innerHTML = `
+                <div class="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                    <div class="bg-white p-4 rounded-full border-4 border-green-500">
+                        <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                </div>
+            `;
+
+            // Visual feedback delay then submit
+            setTimeout(() => {
+                // Stop camera before submit
+                if (html5QrCode) {
+                    html5QrCode.stop().then(() => {
+                        document.getElementById('scanner-form').submit();
+                    }).catch(() => {
+                        document.getElementById('scanner-form').submit();
+                    });
+                } else {
+                    document.getElementById('scanner-form').submit();
+                }
+            }, 800);
+        }
+    }
+
+    function startScanner() {
+        // UI Reset
+        document.getElementById('scanner-status').classList.remove('hidden');
+        document.getElementById('scan-error').classList.add('hidden');
+
+        html5QrCode = new Html5Qrcode("qr-reader");
+
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        };
+
+        html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccess,
+            (error) => { /* Ignore regular scan failures */ }
+        ).then(() => {
+            isScanning = true;
+        }).catch((err) => {
+            console.error("Camera error:", err);
+            document.getElementById('scanner-status').classList.add('hidden');
+            document.getElementById('scan-error').classList.remove('hidden');
+            document.getElementById('error-message').innerText = "Erro: " + err;
+        });
+    }
+
+    // Auto-start
+    document.addEventListener('DOMContentLoaded', startScanner);
+
+    // Cleanup
+    window.addEventListener('beforeunload', () => {
+        if (html5QrCode && isScanning) html5QrCode.stop();
+    });
+</script>
+{% endblock %}
