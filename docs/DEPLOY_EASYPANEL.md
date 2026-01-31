@@ -65,4 +65,25 @@ Como o banco é novo, não há usuários. Você precisa criar o admin manualment
     ```
     *(Ou apenas edite o status se tiver acesso a um gerenciador de banco).*
 
+cat <<EOF > activate_user.py
+import asyncio
+from sqlalchemy import select
+from app.database import SessionLocal
+from app.models.user import User
+async def run():
+    async with SessionLocal() as db:
+        # Busca pelo email admin@example.com
+        result = await db.execute(select(User).filter(User.email == "admin@example.com"))
+        user = result.scalars().first()
+        if user:
+            user.is_active = True
+            db.add(user)
+            await db.commit()
+            print("SUCESSO: Usuario ativado!")
+        else:
+            print("ERRO: Usuario nao encontrado. Verifique se o email é exatamente admin@example.com")
+asyncio.run(run())
+EOF
+python activate_user.py
+
 Seu deploy está concluído! ✅
