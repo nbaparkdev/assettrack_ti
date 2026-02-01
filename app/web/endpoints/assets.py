@@ -26,11 +26,25 @@ async def list_assets(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
+    # Calculate stats for the header
+    from sqlalchemy import func, select
+    
+    total_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)))
+    available_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.DISPONIVEL))
+    in_use_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.EM_USO))
+    maintenance_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.MANUTENCAO))
+
     assets = await asset_crud.asset.get_multi(db)
     return templates.TemplateResponse("assets/list.html", {
         "request": request,
         "user": current_user,
         "assets": assets,
+        "stats": {
+            "total": total_assets or 0,
+            "available": available_assets or 0,
+            "in_use": in_use_assets or 0,
+            "maintenance": maintenance_assets or 0
+        },
         "title": "Ativos"
     })
 

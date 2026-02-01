@@ -28,8 +28,14 @@ async def dashboard(
     
     # Available Assets
     available_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.DISPONIVEL))
+
+    # In Use Assets
+    in_use_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.EM_USO))
+
+    # Maintenance Assets
+    maintenance_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.MANUTENCAO))
     
-    # Pending Solicitations
+    # Pending Solicitations (Tickets)
     pending_solicitations = await db.scalar(select(func.count(Solicitacao.id)).filter(Solicitacao.status == StatusSolicitacao.PENDENTE))
 
     # Pending Maintenance Requests (for alert)
@@ -48,6 +54,8 @@ async def dashboard(
         "stats": {
             "total_assets": total_assets or 0,
             "available_assets": available_assets or 0,
+            "in_use_assets": in_use_assets or 0,
+            "maintenance_assets": maintenance_assets or 0,
             "pending_solicitations": pending_solicitations or 0,
             "pending_maintenance": pending_maintenance_count or 0
         },

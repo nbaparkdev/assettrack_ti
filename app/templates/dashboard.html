@@ -47,41 +47,55 @@
     {% endif %}
 
     <!-- Data Blocks (Stats) -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-0 border-2 border-black bg-black">
-        <!-- Block 1 -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-0 border-2 border-black bg-black">
+        <!-- Block 1: Total -->
         <div class="bg-white p-6 md:border-r-2 md:border-black group hover:bg-gray-50 transition relative">
-            <h3 class="font-mono text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Total de Ativos</h3>
+            <h3 class="font-mono text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Total Geral</h3>
             <div class="flex items-baseline gap-2">
-                <span class="text-5xl font-bold tracking-tighter">{{ stats.total_assets }}</span>
-                <span class="font-mono text-xs text-gray-400">UNID.</span>
+                <span class="text-4xl md:text-5xl font-bold tracking-tighter">{{ stats.total_assets }}</span>
+                <span class="font-mono text-[10px] text-gray-400">UNID.</span>
             </div>
             <a href="/assets"
-                class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-sm font-bold border-b-2 border-black">VER
+                class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-xs font-bold border-b-2 border-black">VER
                 TODOS &rarr;</a>
         </div>
 
-        <!-- Block 2 -->
+        <!-- Block 2: Available -->
         <div class="bg-white p-6 md:border-r-2 md:border-black group hover:bg-gray-50 transition relative">
-            <h3 class="font-mono text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Disponíveis</h3>
+            <h3 class="font-mono text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Disponíveis</h3>
             <div class="flex items-baseline gap-2">
-                <span class="text-5xl font-bold tracking-tighter text-green-600">{{ stats.available_assets }}</span>
-                <span class="font-mono text-xs text-gray-400">PRONTOS</span>
+                <span class="text-4xl md:text-5xl font-bold tracking-tighter text-green-600">{{ stats.available_assets
+                    }}</span>
+                <span class="font-mono text-[10px] text-gray-400">PRONTOS</span>
             </div>
             <a href="/assets?status=Disponivel"
-                class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-sm font-bold border-b-2 border-black">ALOCAR
+                class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-xs font-bold border-b-2 border-green-600 text-green-600">ALOCAR
                 &rarr;</a>
         </div>
 
-        <!-- Block 3 -->
-        <div class="bg-white p-6 group hover:bg-gray-50 transition relative">
-            <h3 class="font-mono text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Ações Pendentes</h3>
+        <!-- Block 3: In Use (Ativos) -->
+        <div class="bg-white p-6 md:border-r-2 md:border-black group hover:bg-gray-50 transition relative">
+            <h3 class="font-mono text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Em Uso</h3>
             <div class="flex items-baseline gap-2">
-                <span class="text-5xl font-bold tracking-tighter text-amber-500">{{ stats.pending_solicitations
+                <span class="text-4xl md:text-5xl font-bold tracking-tighter text-blue-600">{{ stats.in_use_assets
                     }}</span>
-                <span class="font-mono text-xs text-gray-400">TICKETS</span>
+                <span class="font-mono text-[10px] text-gray-400">EXTERNOS</span>
             </div>
-            <a href="/solicitacoes"
-                class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-sm font-bold border-b-2 border-black">RESOLVER
+            <a href="/assets?status=Em uso"
+                class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-xs font-bold border-b-2 border-blue-600 text-blue-600">DETALHES
+                &rarr;</a>
+        </div>
+
+        <!-- Block 4: Maintenance -->
+        <div class="bg-white p-6 group hover:bg-gray-50 transition relative">
+            <h3 class="font-mono text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Manutenção</h3>
+            <div class="flex items-baseline gap-2">
+                <span class="text-4xl md:text-5xl font-bold tracking-tighter text-amber-500">{{ stats.maintenance_assets
+                    }}</span>
+                <span class="font-mono text-[10px] text-gray-400">OFICINA</span>
+            </div>
+            <a href="/assets?status=Manutenção"
+                class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-xs font-bold border-b-2 border-amber-500 text-amber-500">ACOMPANHAR
                 &rarr;</a>
         </div>
     </div>

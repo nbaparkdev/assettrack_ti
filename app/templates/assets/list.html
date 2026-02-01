@@ -23,30 +23,37 @@
     <!-- Stats Grid (Data Blocks) -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-0 border-2 border-black bg-black">
         <!-- Total -->
-        <div class="bg-white p-4 border-r-2 border-b-2 sm:border-b-0 border-black group hover:bg-gray-50 transition">
+        <div class="bg-white p-4 border-r-2 border-b-2 lg:border-b-0 border-black group hover:bg-gray-50 transition">
             <h3 class="font-mono text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Total Unidades</h3>
             <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-bold tracking-tighter">{{ assets|length }}</span>
+                <span class="text-3xl font-bold tracking-tighter">{{ stats.total }}</span>
+                <span class="font-mono text-[10px] text-gray-400">UNID.</span>
             </div>
         </div>
         <!-- Available -->
         <div
-            class="bg-white p-4 border-r-2 sm:border-r-0 lg:border-r-2 border-b-2 sm:border-b-0 border-black group hover:bg-gray-50 transition">
+            class="bg-white p-4 border-r-2 lg:border-r-2 border-b-2 lg:border-b-0 border-black group hover:bg-gray-50 transition">
             <h3 class="font-mono text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Disponíveis</h3>
-            <span class="text-3xl font-bold tracking-tighter text-green-600">{{ assets|selectattr('status.value',
-                'equalto', 'disponivel')|list|length }}</span>
+            <div class="flex items-baseline gap-2">
+                <span class="text-3xl font-bold tracking-tighter text-green-600">{{ stats.available }}</span>
+                <span class="font-mono text-[10px] text-gray-400">PRONTOS</span>
+            </div>
         </div>
         <!-- In Use -->
         <div class="bg-white p-4 border-r-2 border-black group hover:bg-gray-50 transition">
-            <h3 class="font-mono text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Ativos</h3>
-            <span class="text-3xl font-bold tracking-tighter text-blue-600">{{ assets|selectattr('status.value',
-                'equalto', 'em_uso')|list|length }}</span>
+            <h3 class="font-mono text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Em Uso</h3>
+            <div class="flex items-baseline gap-2">
+                <span class="text-3xl font-bold tracking-tighter text-blue-600">{{ stats.in_use }}</span>
+                <span class="font-mono text-[10px] text-gray-400">EXTERNOS</span>
+            </div>
         </div>
         <!-- Maintenance -->
         <div class="bg-white p-4 group hover:bg-gray-50 transition">
             <h3 class="font-mono text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Manutenção</h3>
-            <span class="text-3xl font-bold tracking-tighter text-amber-500">{{ assets|selectattr('status.value',
-                'equalto', 'manutencao')|list|length }}</span>
+            <div class="flex items-baseline gap-2">
+                <span class="text-3xl font-bold tracking-tighter text-amber-500">{{ stats.maintenance }}</span>
+                <span class="font-mono text-[10px] text-gray-400">OFICINA</span>
+            </div>
         </div>
     </div>
 

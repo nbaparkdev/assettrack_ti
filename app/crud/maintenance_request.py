@@ -250,10 +250,11 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         solicitacao.status = StatusSolicitacaoManutencao.CONCLUIDA
         solicitacao.data_entrega = datetime.utcnow()
         
-        # Atualizar status do asset para ATIVO novamente
+        # Atualizar status do asset para EM_USO (entregue ao usuário)
         asset = await db.get(Asset, solicitacao.asset_id)
         if asset:
-            asset.status = AssetStatus.DISPONIVEL
+            asset.status = AssetStatus.EM_USO
+            asset.current_user_id = solicitacao.solicitante_id
         
         await db.commit()
         await db.refresh(solicitacao)
@@ -312,10 +313,11 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         if observation:
             solicitacao.observacao_resposta = observation
         
-        # Atualizar status do asset para DISPONIVEL novamente
+        # Atualizar status do asset para EM_USO (entregue ao usuário)
         asset = await db.get(Asset, solicitacao.asset_id)
         if asset:
-            asset.status = AssetStatus.DISPONIVEL
+            asset.status = AssetStatus.EM_USO
+            asset.current_user_id = solicitacao.solicitante_id
         
         await db.commit()
         await db.refresh(solicitacao)

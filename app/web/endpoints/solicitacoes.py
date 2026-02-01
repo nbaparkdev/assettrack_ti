@@ -259,6 +259,13 @@ async def confirmar_entrega_submit(
     solicitacao.confirmado_por_id = current_user.id
     solicitacao.confirmado_via_qr = confirmado_via_qr
     solicitacao.observacao_entrega = observacao
+
+    # Enforce Asset Status to EM_USO (as requested by user)
+    # Even if it was already set during approval, we reinforce it here upon physical delivery confirmation
+    if solicitacao.asset:
+        solicitacao.asset.status = AssetStatus.EM_USO
+        solicitacao.asset.current_user_id = solicitacao.solicitante_id
+        db.add(solicitacao.asset)
     
     await db.commit()
     
