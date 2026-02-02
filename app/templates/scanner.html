@@ -198,25 +198,33 @@
             }
 
             // Parse the QR code content
-            // Expected format: URL like /assets/1 or just asset ID
             let redirectUrl = decodedText;
 
-            // If it's just a number, assume it's an asset ID
-            if (/^\d+$/.test(decodedText)) {
+            // Regex for UUID (User Token)
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            const uuidMatch = decodedText.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+
+            // 1. Check if it's a User UUID
+            if (uuidMatch) {
+                // If it's a UUID, it's likely a User Token -> Redirect to Public Profile
+                redirectUrl = `/usuario/${uuidMatch[0]}`;
+            }
+            // 2. If it's just a number, assume it's an Asset ID
+            else if (/^\d+$/.test(decodedText)) {
                 redirectUrl = `/assets/${decodedText}`;
             }
-            // If it's a relative path, use as-is
+            // 3. If it's a relative path starting with /assets/, use as-is
             else if (decodedText.startsWith('/assets/')) {
                 redirectUrl = decodedText;
             }
-            // If it's a full URL, extract the path
+            // 4. If it's a full URL containing /assets/, extract the path
             else if (decodedText.includes('/assets/')) {
                 const match = decodedText.match(/\/assets\/\d+/);
                 if (match) {
                     redirectUrl = match[0];
                 }
             }
-            // If it contains asset_id parameter
+            // 5. If it contains asset_id parameter
             else if (decodedText.includes('asset_id=')) {
                 const match = decodedText.match(/asset_id=(\d+)/);
                 if (match) {

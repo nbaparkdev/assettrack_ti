@@ -18,10 +18,15 @@ from app.schemas.user import (
     QRLoginRequest,
     UserPublicProfile,
     DeliveryConfirmRequest,
-    Token
+
+    Token,
+    PendingDeliveryItem
 )
 from app.models.user import User, UserRole
-from app.models.transaction import Solicitacao, Movimentacao, StatusSolicitacao
+from app.models.transaction import Solicitacao, Movimentacao, StatusSolicitacao, TipoMovimentacao
+from app.models.asset import Asset, AssetStatus
+from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
+from app.core.datetime_utils import now_sp
 from app.api.v1.endpoints.auth import create_access_token
 from app.config import settings
 from app.core.rate_limit import limiter, get_rate_limit
@@ -222,6 +227,48 @@ async def get_user_by_qr(
         if user.departamento:
             departamento_nome = user.departamento.nome
     
+    # Buscar Solicitacoes com Status APROVADA (Pendentes de Entrega)
+    stmt_sol = select(Solicitacao).options(selectinload(Solicitacao.asset)).filter(
+        Solicitacao.solicitante_id == user.id,
+        Solicitacao.status == StatusSolicitacao.APROVADA
+    )
+    result_sol = await db.execute(stmt_sol)
+    solicitacoes = result_sol.scalars().all()
+    
+    # Buscar Manutenções com Status AGUARDANDO_ENTREGA
+    stmt_man = select(SolicitacaoManutencao).options(selectinload(SolicitacaoManutencao.asset)).filter(
+        SolicitacaoManutencao.solicitante_id == user.id,
+        SolicitacaoManutencao.status == StatusSolicitacaoManutencao.AGUARDANDO_ENTREGA
+    )
+    result_man = await db.execute(stmt_man)
+    manutencoes = result_man.scalars().all()
+    
+    pending_items = []
+    
+    for s in solicitacoes:
+        asset_tag = s.asset.serial_number if s.asset else "N/A"
+        asset_nome = s.asset.nome if s.asset else "Ativo Solicitado"
+        pending_items.append(PendingDeliveryItem(
+            id=s.id,
+            tipo="solicitacao",
+            asset_tag=asset_tag,
+            asset_nome=asset_nome,
+            data_solicitacao=s.data_solicitacao,
+            status=s.status.value
+        ))
+
+    for m in manutencoes:
+        asset_tag = m.asset.serial_number if m.asset else "N/A"
+        asset_nome = m.asset.nome if m.asset else "Ativo em Manutenção"
+        pending_items.append(PendingDeliveryItem(
+            id=m.id,
+            tipo="manutencao",
+            asset_tag=asset_tag,
+            asset_nome=asset_nome,
+            data_solicitacao=m.data_solicitacao,
+            status=m.status.value
+        ))
+    
     return UserPublicProfile(
         id=user.id,
         nome=user.nome,
@@ -229,7 +276,8 @@ async def get_user_by_qr(
         matricula=user.matricula,
         cargo=user.cargo,
         departamento_nome=departamento_nome,
-        avatar_url=user.avatar_url
+        avatar_url=user.avatar_url,
+        pending_deliveries=pending_items
     )
 
 # ===== Endpoint de Confirmação de Entrega =====
@@ -266,9 +314,10 @@ async def confirm_delivery(
             )
     
     # Processar confirmação de solicitação
+    # Processar confirmação de solicitação
     if data.solicitacao_id:
         result = await db.execute(
-            select(Solicitacao).filter(Solicitacao.id == data.solicitacao_id)
+            select(Solicitacao).options(selectinload(Solicitacao.asset)).filter(Solicitacao.id == data.solicitacao_id)
         )
         solicitacao = result.scalars().first()
         
@@ -280,12 +329,40 @@ async def confirm_delivery(
         
         # Registrar observação de confirmação
         confirmado_por = user_confirmador.nome if user_confirmador else f"[VALIDAÇÃO MANUAL] {current_user.nome}"
-        observacao = f"Entrega confirmada por: {confirmado_por}"
+        observacao_texto = f"Entrega confirmada por: {confirmado_por}"
         if data.observacao:
-            observacao += f" | Obs: {data.observacao}"
+            observacao_texto += f" | Obs: {data.observacao}"
         
-        # Aqui você pode adicionar lógica adicional como criar movimentação
-        # Por enquanto, apenas retornamos sucesso
+        # 1. Atualizar Status da Solicitação
+        solicitacao.status = StatusSolicitacao.ENTREGUE
+        solicitacao.data_entrega = now_sp()
+        solicitacao.confirmado_por_id = current_user.id
+        solicitacao.confirmado_via_qr = user_confirmador is not None
+        solicitacao.observacao_entrega = observacao_texto
+        
+        # 2. Atualizar Status do Ativo e Responsável
+        if solicitacao.asset:
+            solicitacao.asset.status = AssetStatus.EM_USO
+            solicitacao.asset.current_user_id = solicitacao.solicitante_id
+            
+            # Limpar outras localizações
+            solicitacao.asset.current_departamento_id = None
+            solicitacao.asset.current_local_id = None
+            solicitacao.asset.current_armazenamento_id = None
+        
+        # 3. Criar log de Movimentação
+        nova_movimentacao = Movimentacao(
+            asset_id=solicitacao.asset_id,
+            tipo=TipoMovimentacao.EMPRESTIMO,
+            de_user_id=current_user.id, # Quem entregou (Técnico/Admin)
+            para_user_id=solicitacao.solicitante_id,
+            data=now_sp(),
+            observacao=f"Entrega de solicitação #{solicitacao.id} confirmada via QR."
+        )
+        db.add(nova_movimentacao)
+        
+        await db.commit()
+        await db.refresh(solicitacao)
         
         return {
             "message": "Entrega confirmada com sucesso",
@@ -294,6 +371,62 @@ async def confirm_delivery(
             "id": data.solicitacao_id,
             "validacao_manual": user_confirmador is None
         }
+
+    # Processar confirmação de manutenção (retorno ao usuário)
+    if data.manutencao_id:
+        result = await db.execute(
+            select(SolicitacaoManutencao).options(selectinload(SolicitacaoManutencao.asset)).filter(SolicitacaoManutencao.id == data.manutencao_id)
+        )
+        solicitacao_man = result.scalars().first()
+        
+        if not solicitacao_man:
+            raise HTTPException(status_code=404, detail="Solicitação de manutenção não encontrada")
+            
+        if solicitacao_man.status != StatusSolicitacaoManutencao.AGUARDANDO_ENTREGA:
+             raise HTTPException(status_code=400, detail="Manutenção não está aguardando entrega")
+
+        # Registrar observação de confirmação
+        confirmado_por = user_confirmador.nome if user_confirmador else f"[VALIDAÇÃO MANUAL] {current_user.nome}"
+        observacao_texto = f"Devolução pós-manutenção confirmada por: {confirmado_por}"
+        if data.observacao:
+             observacao_texto += f" | Obs: {data.observacao}"
+
+        # 1. Atualizar Status da Solicitação de Manutenção
+        solicitacao_man.status = StatusSolicitacaoManutencao.CONCLUIDA
+        solicitacao_man.data_entrega = now_sp()
+        
+        # 2. Atualizar Status do Ativo e Responsável
+        if solicitacao_man.asset:
+            solicitacao_man.asset.status = AssetStatus.EM_USO
+            solicitacao_man.asset.current_user_id = solicitacao_man.solicitante_id
+            
+            # Limpar outras localizações
+            solicitacao_man.asset.current_departamento_id = None
+            solicitacao_man.asset.current_local_id = None
+            solicitacao_man.asset.current_armazenamento_id = None
+
+        # 3. Criar log de Movimentação (Devolução ao usuário)
+        nova_movimentacao = Movimentacao(
+            asset_id=solicitacao_man.asset_id,
+            tipo=TipoMovimentacao.DEVOLUCAO, # ou TRANSFERENCIA, mas DEVOLUCAO faz sentido pós-manutenção
+            de_user_id=current_user.id, # Quem entregou
+            para_user_id=solicitacao_man.solicitante_id,
+            data=now_sp(),
+            observacao=f"Retorno de manutenção #{solicitacao_man.id} confirmada via QR."
+        )
+        db.add(nova_movimentacao)
+        
+        await db.commit()
+        await db.refresh(solicitacao_man)
+
+        return {
+            "message": "Entrega confirmada com sucesso",
+            "confirmado_por": confirmado_por,
+            "tipo": "manutencao",
+            "id": data.manutencao_id,
+            "validacao_manual": user_confirmador is None
+        }
+
     
     # Se chegou aqui, precisa de solicitacao_id ou manutencao_id
     raise HTTPException(

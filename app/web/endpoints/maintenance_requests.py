@@ -12,7 +12,10 @@ from starlette import status
 from app.database import get_db
 from app.crud.maintenance_request import maintenance_request
 from app.schemas.maintenance_request import SolicitacaoManutencaoCreate
-from app.models.maintenance_request import PrioridadeSolicitacao, StatusSolicitacaoManutencao
+from app.schemas.maintenance_request import SolicitacaoManutencaoCreate
+from app.models.maintenance_request import SolicitacaoManutencao, PrioridadeSolicitacao, StatusSolicitacaoManutencao
+from app.models.transaction import Solicitacao, StatusSolicitacao, Movimentacao
+from app.models.maintenance import Manutencao
 from app.models.asset import Asset, AssetStatus
 from app.models.user import User, UserRole
 from app.web.dependencies import get_active_user_web
@@ -563,18 +566,81 @@ async def usuario_scanner_submit(
             "error": "QR Code inválido! Nenhum usuário encontrado."
         })
     
-    # Buscar solicitações AGUARDANDO_ENTREGA deste usuário
-    awaiting = await maintenance_request.list_by_user_and_status(
+    # Buscar solicitações DE MANUTENÇÃO AGUARDANDO_ENTREGA deste usuário
+    awaiting_maintenance = await maintenance_request.list_by_user_and_status(
         db, 
         user_id=qr_user.id, 
         status=StatusSolicitacaoManutencao.AGUARDANDO_ENTREGA
     )
     
+    # Buscar solicitações DE ATIVOS APROVADAS (Pendente de Entrega)
+    result_sol = await db.execute(
+        select(Solicitacao)
+        .options(selectinload(Solicitacao.asset), selectinload(Solicitacao.solicitante))
+        .filter(
+            Solicitacao.solicitante_id == qr_user.id,
+            Solicitacao.status == StatusSolicitacao.APROVADA
+        )
+        .order_by(Solicitacao.data_solicitacao.desc())
+    )
+    awaiting_assets = result_sol.scalars().all()
+
+    # === BUSCAR HISTÓRICO COMPLETO (SOLICITAÇÃO DO USUÁRIO) ===
+    
+    # 1. Histórico de Solicitações (Geral - incluindo concluídas)
+    hist_sol_result = await db.execute(
+        select(Solicitacao)
+        .options(selectinload(Solicitacao.asset))
+        .filter(Solicitacao.solicitante_id == qr_user.id)
+        .order_by(Solicitacao.data_solicitacao.desc())
+        .limit(10)
+    )
+    history_solicitacoes = hist_sol_result.scalars().all()
+    
+    # 2. Histórico de Movimentações
+    hist_mov_result = await db.execute(
+        select(Movimentacao)
+        .filter(
+            (Movimentacao.de_user_id == qr_user.id) | 
+            (Movimentacao.para_user_id == qr_user.id)
+        )
+        .order_by(Movimentacao.data.desc())
+        .limit(10)
+    )
+    history_movimentacoes = hist_mov_result.scalars().all()
+    
+    # 3. Histórico de Manutenções (Geral)
+    # Nota: Manutencao vs SolicitacaoManutencao -> O sistema parece usar SolicitacaoManutencao para o fluxo
+    # Mas o user_public_profile usava Manutencao. Vamos verificar qual é o correto.
+    # O user_public_profile.py usa: from app.models.maintenance import Manutencao
+    # O maintenance_requests.py usa: SolicitacaoManutencao.
+    # Se Manutencao for a tabela antiga ou de registro, devemos usar SolicitacaoManutencao que é o que está sendo usado no fluxo atual.
+    # Vamos puxar SolicitacaoManutencao para o histórico também.
+    
+    hist_man_result = await db.execute(
+        select(SolicitacaoManutencao)
+        .options(selectinload(SolicitacaoManutencao.asset))
+        .filter(SolicitacaoManutencao.solicitante_id == qr_user.id)
+        .order_by(SolicitacaoManutencao.data_solicitacao.desc())
+        .limit(10)
+    )
+    history_manutencoes = hist_man_result.scalars().all()
+    
+    # Combinar as listas para exibição (pode precisar ajustar o template para lidar com tipos diferentes ou normalizar)
+    # Por enquanto, vamos passar ambas as listas e o template que lide com isso
+    
     return templates.TemplateResponse("maintenance_requests/usuario_scanner_result.html", {
         "request": request,
         "user": current_user,
         "target_user": qr_user,
-        "solicitacoes": awaiting,
+        "solicitacoes_manutencao": awaiting_maintenance,
+        "solicitacoes_ativos": awaiting_assets,
+        
+        # Histórico
+        "history_solicitacoes": history_solicitacoes,
+        "history_movimentacoes": history_movimentacoes,
+        "history_manutencoes": history_manutencoes,
+        
         "title": f"Entregas Pendentes - {qr_user.nome}"
     })
 

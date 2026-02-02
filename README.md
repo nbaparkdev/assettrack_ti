@@ -25,6 +25,8 @@ Certifique-se de ter Docker e Docker Compose instalados.
 3.  Acesse a documentação interativa (Swagger UI):
     [http://localhost:8000/docs](http://localhost:8000/docs)
 
+
+
 ### Opção 2: Localmente (Sem Docker)
 Requer Python 3.11+ e um banco de dados (PostgreSQL ou SQLite).
 
@@ -43,6 +45,8 @@ Requer Python 3.11+ e um banco de dados (PostgreSQL ou SQLite).
 2.  **Instale as dependências (dentro do venv):**
     ```bash
     pip install -r requirements.txt
+
+3.   DATABASE_URL=sqlite+aiosqlite:///./assettrack.db ./venv/bin/uvicorn app.main:app --reload --host 0.0.0.0
     ```
 
     > ⚠️ **Erro `externally-managed-environment`?**  

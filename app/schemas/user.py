@@ -73,6 +73,14 @@ class QRLoginRequest(BaseModel):
     qr_token: str
     pin: str
 
+class PendingDeliveryItem(BaseModel):
+    id: int
+    tipo: str  # "solicitacao" ou "manutencao"
+    asset_tag: str
+    asset_nome: str
+    data_solicitacao: datetime
+    status: str
+
 class UserPublicProfile(BaseModel):
     """Perfil público do usuário (visível após scan do QR)"""
     id: int
@@ -82,6 +90,8 @@ class UserPublicProfile(BaseModel):
     cargo: Optional[str] = None
     departamento_nome: Optional[str] = None
     avatar_url: Optional[str] = None
+    
+    pending_deliveries: List[PendingDeliveryItem] = []
     
     model_config = ConfigDict(from_attributes=True)
 

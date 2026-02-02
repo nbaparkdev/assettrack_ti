@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from enum import Enum
 from datetime import datetime
 from app.database import Base
+from app.core.datetime_utils import now_sp
 
 
 class TipoManutencao(str, Enum):
@@ -39,7 +40,7 @@ class Manutencao(Base):
     tipo: Mapped[TipoManutencao] = mapped_column(SAEnum(TipoManutencao), default=TipoManutencao.CORRETIVA)
     
     # Datas
-    data_entrada: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    data_entrada: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
     data_previsao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     data_conclusao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     

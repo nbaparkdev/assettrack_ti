@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from datetime import datetime
+from app.core.datetime_utils import now_sp
 
 from app.web.dependencies import get_active_user_web
 from app.models.user import User, UserRole
@@ -255,7 +256,7 @@ async def confirmar_entrega_submit(
     
     # Atualizar solicitação
     solicitacao.status = StatusSolicitacao.ENTREGUE
-    solicitacao.data_entrega = datetime.utcnow()
+    solicitacao.data_entrega = now_sp()
     solicitacao.confirmado_por_id = current_user.id
     solicitacao.confirmado_via_qr = confirmado_via_qr
     solicitacao.observacao_entrega = observacao

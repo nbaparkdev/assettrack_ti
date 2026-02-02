@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from enum import Enum
 from datetime import datetime
 from app.database import Base
+from app.core.datetime_utils import now_sp
 
 
 class PrioridadeSolicitacao(str, Enum):
@@ -43,7 +44,7 @@ class SolicitacaoManutencao(Base):
     )
     
     # Datas
-    data_solicitacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    data_solicitacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
     data_resposta: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     data_conclusao_tecnico: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # Quando técnico concluiu
     data_entrega: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # Quando usuário confirmou recebimento

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from enum import Enum
 from datetime import datetime
 from app.database import Base
+from app.core.datetime_utils import now_sp
 
 class TipoMovimentacao(str, Enum):
     EMPRESTIMO = "empréstimo"
@@ -26,7 +27,7 @@ class Movimentacao(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), nullable=False)
-    data: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    data: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
     tipo: Mapped[TipoMovimentacao] = mapped_column(SAEnum(TipoMovimentacao), nullable=False)
     
     # Origem e Destino (Users)
@@ -52,7 +53,7 @@ class Solicitacao(Base):
     solicitante_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     asset_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id"), nullable=True) # Pode solicitar um tipo, não necessariamente um asset específico, mas por enquanto linkamos direto se souber
     
-    data_solicitacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    data_solicitacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
     motivo: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[StatusSolicitacao] = mapped_column(SAEnum(StatusSolicitacao), default=StatusSolicitacao.PENDENTE)
     

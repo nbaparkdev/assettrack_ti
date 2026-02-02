@@ -345,11 +345,7 @@
                 <span class="font-mono text-xs text-gray-400 block mb-2">CMD_02</span>
                 <span class="font-bold text-lg group-hover:underline">Minhas Solicitações</span>
             </a>
-            <a href="/assets/scanner"
-                class="border-2 border-gray-200 p-6 hover:border-black hover:bg-gray-50 transition group">
-                <span class="font-mono text-xs text-gray-400 block mb-2">CMD_03</span>
-                <span class="font-bold text-lg group-hover:underline">Scan QR</span>
-            </a>
+
             {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
             <a href="/manutencao/entrega/scanner"
                 class="border-2 border-green-200 p-6 hover:border-green-600 hover:bg-green-50 transition group">

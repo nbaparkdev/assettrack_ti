@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from datetime import datetime
+from app.core.datetime_utils import now_sp
 
 from app.crud.base import CRUDBase
 from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
@@ -151,7 +152,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         # Atualizar solicitação
         solicitacao.status = StatusSolicitacaoManutencao.EM_ANDAMENTO
         solicitacao.responsavel_id = responsavel_id
-        solicitacao.data_resposta = datetime.utcnow()
+        solicitacao.data_resposta = now_sp()
         solicitacao.observacao_resposta = observacao
         solicitacao.manutencao_id = manutencao.id
         
@@ -182,7 +183,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         
         solicitacao.status = StatusSolicitacaoManutencao.REJEITADA
         solicitacao.responsavel_id = responsavel_id
-        solicitacao.data_resposta = datetime.utcnow()
+        solicitacao.data_resposta = now_sp()
         solicitacao.observacao_resposta = observacao
         
         await db.commit()
@@ -210,14 +211,14 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         
         # Atualizar solicitação
         solicitacao.status = StatusSolicitacaoManutencao.AGUARDANDO_ENTREGA
-        solicitacao.data_conclusao_tecnico = datetime.utcnow()
+        solicitacao.data_conclusao_tecnico = now_sp()
         if observacao_conclusao:
             solicitacao.observacao_resposta = observacao_conclusao
         
         # Atualizar manutenção
         if solicitacao.manutencao:
             solicitacao.manutencao.status = StatusManutencao.CONCLUIDA
-            solicitacao.manutencao.data_conclusao = datetime.utcnow()
+            solicitacao.manutencao.data_conclusao = now_sp()
             solicitacao.manutencao.observacao_conclusao = observacao_conclusao
         
         await db.commit()
@@ -248,7 +249,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         
         # Atualizar solicitação
         solicitacao.status = StatusSolicitacaoManutencao.CONCLUIDA
-        solicitacao.data_entrega = datetime.utcnow()
+        solicitacao.data_entrega = now_sp()
         
         # Atualizar status do asset para EM_USO (entregue ao usuário)
         asset = await db.get(Asset, solicitacao.asset_id)
@@ -309,7 +310,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         
         # Atualizar solicitação
         solicitacao.status = StatusSolicitacaoManutencao.ENTREGUE
-        solicitacao.data_entrega = datetime.utcnow()
+        solicitacao.data_entrega = now_sp()
         if observation:
             solicitacao.observacao_resposta = observation
         

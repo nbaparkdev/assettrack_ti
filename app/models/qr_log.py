@@ -4,6 +4,7 @@ Modelo para registro de uso do QR Code.
 Mantém auditoria de ações relacionadas a QR Code.
 """
 from datetime import datetime
+from app.core.datetime_utils import now_sp
 from sqlalchemy import String, DateTime, Integer, Boolean, ForeignKey, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
@@ -44,7 +45,7 @@ class QRLog(Base):
     
     timestamp: Mapped[datetime] = mapped_column(
         DateTime, 
-        default=datetime.utcnow, 
+        default=now_sp, 
         nullable=False
     )
     
