@@ -117,10 +117,15 @@ Em **"Meu QR Code"**, você visualiza seu código pessoal.
 - Apresente este código para um técnico ao **retirar um equipamento** (validação de identidade).
 - Se achar que seu QR Code vazou, clique em **"Regenerar Token"** para invalidar o anterior e criar um novo.
 
-### Scanner
-O sistema possui um leitor de QR Code integrado (`/assets/scanner`).
-- **Escanear Ativo**: Abre imediatamente os detalhes do equipamento.
-- **Escanear Usuário**: (Apenas Admins) Abre o perfil público do usuário.
+### Scanner (`/assets/scanner`)
+O sistema possui um leitor de QR Code integrado, acessível via:
+1.  **Menu Principal** (ícone de Câmera no topo ou menu mobile).
+2.  **Lista de Ativos** (Botão "SCANNER").
+
+**Funcionalidades:**
+-   **Escanear Ativo**: Abre imediatamente a página de detalhes do equipamento.
+    -   Exibe especificações técnicas + **Histórico Completo** (Movimentações, Manutenções e Solicitações recentes).
+-   **Escanear Usuário**: (Apenas Admins) Abre o perfil público do usuário para validação ou entrega.
 
 ---
 

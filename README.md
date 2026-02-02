@@ -22,7 +22,7 @@ Certifique-se de ter Docker e Docker Compose instalados.
     ```bash
     docker-compose up --build
     ```
-3.  Acesse a documentação interativa (Swagger UI):
+3.**  **Acesse a documentação interativa (Swagger UI):
     [http://localhost:8000/docs](http://localhost:8000/docs)
 
 
@@ -126,6 +126,8 @@ O sistema inclui funcionalidades de QR Code para identificação e login rápido
 | **Crachá Digital** | Cada usuário tem um QR Code único para identificação |
 | **Login via QR** | Login rápido escaneando QR + PIN de 4-6 dígitos |
 | **Confirmação de Entrega** | Valida entregas de ativos via QR do usuário |
+| **Histórico de Ativos** | Scanner revela histórico completo (movimentações, manutenções, solicitações) |
+| **Central de Ajuda** | Manuais integrados ao sistema (`/help`) para usuários e admins |
 | **Logs de Auditoria** | Todas as ações de QR são registradas |
 
 ### Segurança
