@@ -173,11 +173,46 @@ async def asset_detail(
              "assets": [],
             "title": "Ativos"
         })
+
+    # Fetch history
+    from sqlalchemy import select
+    from app.models.transaction import Movimentacao, Solicitacao
+    from app.models.maintenance import Manutencao
+    
+    # 1. Movimentações
+    mov_result = await db.execute(
+        select(Movimentacao)
+        .filter(Movimentacao.asset_id == asset_id)
+        .order_by(Movimentacao.data.desc())
+        .limit(10)
+    )
+    history_movimentacoes = mov_result.scalars().all()
+
+    # 2. Solicitações
+    sol_result = await db.execute(
+        select(Solicitacao)
+        .filter(Solicitacao.asset_id == asset_id)
+        .order_by(Solicitacao.data_solicitacao.desc())
+        .limit(10)
+    )
+    history_solicitacoes = sol_result.scalars().all()
+
+    # 3. Manutenções
+    man_result = await db.execute(
+        select(Manutencao)
+        .filter(Manutencao.asset_id == asset_id)
+        .order_by(Manutencao.data_entrada.desc())
+        .limit(10)
+    )
+    history_manutencoes = man_result.scalars().all()
         
     return templates.TemplateResponse("assets/detail.html", {
         "request": request,
         "user": current_user,
         "asset": asset,
+        "history_movimentacoes": history_movimentacoes,
+        "history_solicitacoes": history_solicitacoes,
+        "history_manutencoes": history_manutencoes,
         "title": f"Ativo: {asset.nome}"
     })
 

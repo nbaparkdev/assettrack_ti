@@ -199,12 +199,120 @@
                 {% endif %}
 
                 <div>
-                    <h3 class="font-mono text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Histórico
-                    </h3>
+                    <h3 class="font-mono text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Ações
+                        Rápidas</h3>
                     <a href="/movimentacoes?asset_id={{ asset.id }}"
                         class="text-xs font-bold underline decoration-2 underline-offset-4 hover:text-gray-600">
-                        VER LOGS COMPLETOS &rarr;
+                        VER LOGS COMPLETOS (ANTIGO) &rarr;
                     </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW HISTORY SECTION -->
+        <div class="border-t-2 border-dashed border-gray-300">
+            <div class="p-8 bg-gray-50">
+                <h2 class="font-bold text-xl mb-6 border-b-2 border-black pb-2 uppercase tracking-tight">Histórico
+                    Completo do Ativo</h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- 1. Movimentações -->
+                    <div class="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+                        <div class="bg-purple-600 text-white p-3 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                            </svg>
+                            <span class="font-bold uppercase text-xs tracking-widest">Movimentações</span>
+                        </div>
+                        <div class="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                            {% if history_movimentacoes %}
+                            {% for mov in history_movimentacoes %}
+                            <div class="p-3 hover:bg-gray-50 transition">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold uppercase">{{ mov.tipo.value }}</span>
+                                    <span class="text-[10px] text-gray-400 font-mono">{{ mov.data.strftime('%d/%m/%y')
+                                        }}</span>
+                                </div>
+                                <p class="text-[10px] text-gray-500 mt-1 truncate">{{ mov.observacao or '-' }}</p>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <p class="p-4 text-xs text-gray-400 text-center uppercase">Sem registro</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- 2. Manutenções -->
+                    <div class="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+                        <div class="bg-amber-600 text-white p-3 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                                </path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <span class="font-bold uppercase text-xs tracking-widest">Manutenções</span>
+                        </div>
+                        <div class="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                            {% if history_manutencoes %}
+                            {% for man in history_manutencoes %}
+                            <div class="p-3 hover:bg-gray-50 transition">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold uppercase block">#{{ man.id }} {{ man.tipo.value
+                                        }}</span>
+                                    <span class="px-2 py-0.5 text-[10px] font-bold uppercase 
+                                            {% if man.status.value == 'Concluída' %}bg-green-100 text-green-700
+                                            {% elif man.status.value == 'Em andamento' %}bg-blue-100 text-blue-700
+                                            {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                        {{ man.status.value }}
+                                    </span>
+                                </div>
+                                <p class="text-[10px] text-gray-500 mt-1">Entrada: {{
+                                    man.data_entrada.strftime('%d/%m/%y') }}</p>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <p class="p-4 text-xs text-gray-400 text-center uppercase">Sem registro</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- 3. Solicitações -->
+                    <div class="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+                        <div class="bg-blue-600 text-white p-3 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                                </path>
+                            </svg>
+                            <span class="font-bold uppercase text-xs tracking-widest">Solicitações</span>
+                        </div>
+                        <div class="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                            {% if history_solicitacoes %}
+                            {% for sol in history_solicitacoes %}
+                            <div class="p-3 hover:bg-gray-50 transition">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold uppercase block">Solicitação #{{ sol.id }}</span>
+                                    <span class="px-2 py-0.5 text-[10px] font-bold uppercase 
+                                            {% if sol.status.value == 'Aprovada' %}bg-green-100 text-green-700
+                                            {% elif sol.status.value == 'Pendente' %}bg-amber-100 text-amber-700
+                                            {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                        {{ sol.status.value }}
+                                    </span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">{{ sol.data_solicitacao.strftime('%d/%m/%Y')
+                                    }}</p>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <p class="p-4 text-xs text-gray-400 text-center uppercase">Sem registro</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
