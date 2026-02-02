@@ -41,6 +41,22 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
         content={"detail": "Muitas tentativas. Aguarde antes de tentar novamente."}
     )
 
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, exc):
+    return templates.TemplateResponse("errors/404.html", {
+        "request": request,
+        "title": "Página não Encontrada"
+    }, status_code=404)
+
+@app.exception_handler(500)
+async def custom_500_handler(request: Request, exc):
+    # Log error here if logger configured
+    print(f"ERROR: {exc}") 
+    return templates.TemplateResponse("errors/500.html", {
+        "request": request,
+        "title": "Erro Interno"
+    }, status_code=500)
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
