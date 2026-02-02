@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-12">
+    <!-- Header -->
+    <div class="flex items-end justify-between border-b-2 border-dashed border-gray-300 pb-6">
+        <div>
+            <h2 class="text-3xl font-bold text-black tracking-tighter uppercase">Manual do Sistema</h2>
+            <p class="font-mono text-xs text-gray-500 mt-1">DOC_VERSION: <span
+                    class="text-blue-600 font-bold">V1.0</span></p>
+        </div>
+        <div class="hidden sm:block text-right">
+            <p class="font-mono text-xs text-gray-400">PERFIL_ACESSO</p>
+            <p class="font-bold uppercase">{{ user.role.value }}</p>
+        </div>
+    </div>
+
+    <!-- Quick Navigation Grid -->
+    <div>
+        <h3 class="font-bold text-lg uppercase mb-4 flex items-center gap-2">
+            <span class="w-2 h-2 bg-black inline-block"></span>
+            Índice Rápido
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <a href="#acesso"
+                class="border-2 border-gray-200 p-4 hover:border-black hover:bg-gray-50 transition group text-center">
+                <span class="text-2xl mb-2 block">🔐</span>
+                <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_01</span>
+                <span class="font-bold text-sm group-hover:underline">Acesso</span>
+            </a>
+            <a href="#dashboard"
+                class="border-2 border-gray-200 p-4 hover:border-black hover:bg-gray-50 transition group text-center">
+                <span class="text-2xl mb-2 block">📊</span>
+                <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_02</span>
+                <span class="font-bold text-sm group-hover:underline">Dashboard</span>
+            </a>
+            <a href="#ativos"
+                class="border-2 border-gray-200 p-4 hover:border-black hover:bg-gray-50 transition group text-center">
+                <span class="text-2xl mb-2 block">📦</span>
+                <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_03</span>
+                <span class="font-bold text-sm group-hover:underline">Ativos</span>
+            </a>
+            <a href="#manutencao"
+                class="border-2 border-gray-200 p-4 hover:border-black hover:bg-gray-50 transition group text-center">
+                <span class="text-2xl mb-2 block">🛠️</span>
+                <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_04</span>
+                <span class="font-bold text-sm group-hover:underline">Manutenção</span>
+            </a>
+            <a href="#qrcode"
+                class="border-2 border-gray-200 p-4 hover:border-black hover:bg-gray-50 transition group text-center">
+                <span class="text-2xl mb-2 block">📱</span>
+                <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_05</span>
+                <span class="font-bold text-sm group-hover:underline">QR Code</span>
+            </a>
+            <a href="#perfis"
+                class="border-2 border-gray-200 p-4 hover:border-black hover:bg-gray-50 transition group text-center">
+                <span class="text-2xl mb-2 block">👥</span>
+                <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_06</span>
+                <span class="font-bold text-sm group-hover:underline">Perfis</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-12">
+        <!-- Main Content (Documentation) -->
+        <div class="lg:col-span-3 space-y-12">
+
+            <!-- Section 1: Acesso -->
+            <section id="acesso" class="scroll-mt-24">
+                <div class="border-l-4 border-black pl-4 mb-4">
+                    <h2 class="text-2xl font-bold uppercase tracking-tight">1. Acesso e Autenticação</h2>
+                    <p class="font-mono text-xs text-gray-500">LOGIN_METHODS</p>
+                </div>
+                <div
+                    class="prose prose-slate max-w-none prose-headings:font-bold prose-headings:uppercase prose-a:text-blue-600">
+                    <p>Existem duas formas de acessar o sistema:</p>
+                    <div class="grid md:grid-cols-2 gap-6 not-prose mt-4">
+                        <div class="bg-gray-50 p-6 border-2 border-gray-100">
+                            <h4 class="font-bold uppercase mb-2">Login Tradicional</h4>
+                            <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700">
+                                <li>Acesse a página de login (`/login`).</li>
+                                <li>Digite seu <strong>Email</strong> e <strong>Senha</strong>.</li>
+                                <li>Clique em <strong>Entrar</strong>.</li>
+                            </ol>
+                        </div>
+                        <div class="bg-gray-50 p-6 border-2 border-gray-100">
+                            <h4 class="font-bold uppercase mb-2">Login via QR Code</h4>
+                            <p class="text-xs text-gray-500 mb-2">Ideal para tablets e acesso rápido.</p>
+                            <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700">
+                                <li>Clique em <strong>"Login com QR Code"</strong>.</li>
+                                <li>Aponte a câmera para o <strong>Crachá Digital</strong>.</li>
+                                <li>Digite seu <strong>PIN</strong> (4-6 dígitos).</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: Dashboard -->
+            <section id="dashboard" class="scroll-mt-24">
+                <div class="border-l-4 border-blue-600 pl-4 mb-4">
+                    <h2 class="text-2xl font-bold uppercase tracking-tight">2. Painel Principal</h2>
+                    <p class="font-mono text-xs text-gray-500">OVERVIEW_CENTER</p>
+                </div>
+                <div class="bg-white border-2 border-gray-200 p-6">
+                    <ul class="space-y-4">
+                        <li class="flex gap-4">
+                            <span class="font-bold text-gray-400">01</span>
+                            <div>
+                                <strong class="block uppercase text-sm">Resumo Geral</strong>
+                                <span class="text-sm text-gray-600">Cards mostrando total de ativos, itens em uso, em
+                                    manutenção e disponíveis.</span>
+                            </div>
+                        </li>
+                        <li class="flex gap-4">
+                            <span class="font-bold text-gray-400">02</span>
+                            <div>
+                                <strong class="block uppercase text-sm">Ações Rápidas</strong>
+                                <span class="text-sm text-gray-600">Botões para as tarefas mais comuns, como "Novo
+                                    Ativo" ou "Solicitar Manutenção".</span>
+                            </div>
+                        </li>
+                        <li class="flex gap-4">
+                            <span class="font-bold text-gray-400">03</span>
+                            <div>
+                                <strong class="block uppercase text-sm">Solicitações Pendentes</strong>
+                                <span class="text-sm text-gray-600">Lista de pedidos que aguardam aprovação do
+                                    gestor.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Section 3: Ativos -->
+            <section id="ativos" class="scroll-mt-24">
+                <div class="border-l-4 border-green-600 pl-4 mb-4">
+                    <h2 class="text-2xl font-bold uppercase tracking-tight">3. Gestão de Ativos</h2>
+                    <p class="font-mono text-xs text-gray-500">ASSET_MANAGEMENT</p>
+                </div>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Consultar Ativos</h3>
+                        <p class="text-gray-700 mb-4">Acesse o menu <strong>"Ativos"</strong> para ver a listagem
+                            completa.</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-2 py-1 bg-gray-100 border border-gray-300 text-xs font-mono uppercase">Busca
+                                por Nome</span>
+                            <span
+                                class="px-2 py-1 bg-gray-100 border border-gray-300 text-xs font-mono uppercase">Filtro
+                                por Status</span>
+                            <span
+                                class="px-2 py-1 bg-gray-100 border border-gray-300 text-xs font-mono uppercase">Histórico
+                                Completo</span>
+                        </div>
+                    </div>
+                    <hr class="border-gray-200">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Transferência de Responsabilidade</h3>
+                        <div class="bg-green-50 border border-green-200 p-4 text-sm">
+                            <ol class="list-decimal list-inside space-y-2">
+                                <li>Vá nos detalhes do ativo e clique em <strong>"Transferir"</strong>.</li>
+                                <li>Selecione o <strong>Novo Responsável</strong>.</li>
+                                <li>O sistema gera uma solicitação pendente de aprovação.</li>
+                                <li>O novo usuário (ou admin) deve aceitar para concluir.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: Manutenção -->
+            <section id="manutencao" class="scroll-mt-24">
+                <div class="border-l-4 border-amber-500 pl-4 mb-4">
+                    <h2 class="text-2xl font-bold uppercase tracking-tight">4. Manutenção</h2>
+                    <p class="font-mono text-xs text-gray-500">WORKFLOW_TI</p>
+                </div>
+
+                <div class="relative border-l-2 border-gray-200 ml-4 space-y-8 pb-4">
+                    <div class="relative pl-8">
+                        <span
+                            class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 border-amber-500"></span>
+                        <h4 class="font-bold uppercase text-sm mb-1">Passo 1: Solicitação</h4>
+                        <p class="text-sm text-gray-600">Usuário reporta problema no ativo via menu "Solicitar
+                            Manutenção".</p>
+                    </div>
+                    <div class="relative pl-8">
+                        <span class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-gray-300"></span>
+                        <h4 class="font-bold uppercase text-sm mb-1">Passo 2: Triagem</h4>
+                        <p class="text-sm text-gray-600">Técnico visualiza fila e aceita o chamado.</p>
+                    </div>
+                    <div class="relative pl-8">
+                        <span class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-gray-300"></span>
+                        <h4 class="font-bold uppercase text-sm mb-1">Passo 3: Reparo</h4>
+                        <p class="text-sm text-gray-600">Técnico registra peças e serviços. Ativo fica em status
+                            "MANUTENCAO".</p>
+                    </div>
+                    <div class="relative pl-8">
+                        <span class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-gray-300"></span>
+                        <h4 class="font-bold uppercase text-sm mb-1">Passo 4: Entrega</h4>
+                        <p class="text-sm text-gray-600">Técnico conclui e usa o Scanner para devolver o ativo ao
+                            usuário.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 5: QR Code -->
+            <section id="qrcode" class="scroll-mt-24">
+                <div class="border-l-4 border-purple-600 pl-4 mb-4">
+                    <h2 class="text-2xl font-bold uppercase tracking-tight">5. Sistema QR Code</h2>
+                    <p class="font-mono text-xs text-gray-500">DIGITAL_ID</p>
+                </div>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="border-2 border-gray-200 p-4">
+                        <h4 class="font-bold uppercase text-xs mb-2">Configurar PIN</h4>
+                        <p class="text-xs text-gray-600">Defina uma senha numérica de 4-6 dígitos para autorizar ações
+                            via QR.</p>
+                    </div>
+                    <div class="border-2 border-gray-200 p-4">
+                        <h4 class="font-bold uppercase text-xs mb-2">Crachá Digital</h4>
+                        <p class="text-xs text-gray-600">Apresente seu QR Code para login rápido ou receber
+                            equipamentos.</p>
+                    </div>
+                    <div class="border-2 border-gray-200 p-4">
+                        <h4 class="font-bold uppercase text-xs mb-2">Scanner</h4>
+                        <p class="text-xs text-gray-600">Use a câmera do dispositivo para ler etiquetas de ativos ou
+                            crachás.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 6: Perfis -->
+            <section id="perfis" class="scroll-mt-24">
+                <div class="border-l-4 border-red-600 pl-4 mb-4">
+                    <h2 class="text-2xl font-bold uppercase tracking-tight">6. Perfis de Acesso</h2>
+                    <p class="font-mono text-xs text-gray-500">PERMISSIONS_MATRIX</p>
+                </div>
+                <div class="overflow-hidden border-2 border-gray-200">
+                    <table class="min-w-full text-sm text-left">
+                        <thead class="bg-gray-50 border-b-2 border-gray-200">
+                            <tr>
+                                <th class="px-4 py-3 font-bold uppercase text-xs">Perfil</th>
+                                <th class="px-4 py-3 font-bold uppercase text-xs">Permissões Principais</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <tr>
+                                <td class="px-4 py-3 font-mono font-bold text-xs bg-gray-50">USUARIO</td>
+                                <td class="px-4 py-3 text-xs">Ver seus ativos, abrir chamados.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono font-bold text-xs bg-gray-50">TECNICO</td>
+                                <td class="px-4 py-3 text-xs">Atender chamados, validar entregas via scanner.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono font-bold text-xs bg-gray-50">GERENTE_TI</td>
+                                <td class="px-4 py-3 text-xs">Gerenciar estoque, aprovar movimentações e usuários.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-mono font-bold text-xs bg-gray-50">ADMIN</td>
+                                <td class="px-4 py-3 text-xs">Controle total (System Owner).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- Sticky Sidebar -->
+        <div class="hidden lg:block col-span-1">
+            <div class="sticky top-8 border-l-2 border-gray-200 pl-6 space-y-4">
+                <h4 class="font-bold uppercase text-xs text-gray-500">Navegação</h4>
+                <nav class="flex flex-col space-y-2 text-sm">
+                    <a href="#acesso" class="hover:text-black hover:font-bold transition-all text-gray-600">1.
+                        Acesso</a>
+                    <a href="#dashboard" class="hover:text-blue-600 hover:font-bold transition-all text-gray-600">2.
+                        Dashboard</a>
+                    <a href="#ativos" class="hover:text-green-600 hover:font-bold transition-all text-gray-600">3.
+                        Ativos</a>
+                    <a href="#manutencao" class="hover:text-amber-500 hover:font-bold transition-all text-gray-600">4.
+                        Manutenção</a>
+                    <a href="#qrcode" class="hover:text-purple-600 hover:font-bold transition-all text-gray-600">5. QR
+                        Code</a>
+                    <a href="#perfis" class="hover:text-red-600 hover:font-bold transition-all text-gray-600">6.
+                        Perfis</a>
+                </nav>
+
+                <div class="pt-6 border-t border-gray-200 mt-6">
+                    <a href="#" onclick="window.print()"
+                        class="flex items-center gap-2 text-xs font-bold uppercase text-gray-500 hover:text-black transition">
+                        <span>🖨️ Imprimir Manual</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

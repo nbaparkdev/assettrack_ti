@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-12">
+    <!-- Header -->
+    <div class="flex items-end justify-between border-b-2 border-dashed border-gray-300 pb-6">
+        <div>
+            <h2 class="text-3xl font-bold text-black tracking-tighter uppercase">Central de Ajuda</h2>
+            <p class="font-mono text-xs text-gray-500 mt-1">user_manual_lite</p>
+        </div>
+        <div class="hidden sm:block text-right">
+            <span
+                class="inline-block bg-gray-100 border border-gray-200 px-2 py-1 text-xs font-bold uppercase tracking-wider">Perfil
+                Usuário</span>
+        </div>
+    </div>
+
+    <!-- Intro Card -->
+    <div class="bg-gray-50 border-2 border-black p-8 text-center">
+        <h3 class="text-2xl font-bold uppercase mb-2">Bem-vindo ao AssetTrack TI</h3>
+        <p class="text-gray-600 max-w-2xl mx-auto">Esta central foi desenhada para agilizar seu dia a dia. Aqui você
+            aprende como solicitar manutenção e usar seu crachá digital.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Card 1: Manutenção -->
+        <div class="border-2 border-gray-200 p-6 hover:border-black transition group relative bg-white">
+            <div class="absolute top-0 right-0 bg-blue-600 text-white text-[10px] uppercase font-bold px-2 py-1">
+                Prioridade</div>
+            <div class="text-4xl mb-4 text-blue-600">🛠️</div>
+            <h3 class="font-bold text-xl uppercase mb-2 group-hover:underline">Manutenção e Suporte</h3>
+            <p class="text-sm text-gray-500 mb-6">Seu equipamento quebrou? Veja como pedir ajuda.</p>
+
+            <div class="bg-gray-50 p-4 border border-gray-100 text-sm space-y-3">
+                <ol class="list-decimal list-inside space-y-2">
+                    <li>Acesse <strong>"Minhas Solicitações"</strong>.</li>
+                    <li>Clique em <strong>"Solicitar Manutenção"</strong>.</li>
+                    <li>Escolha o ativo e descreva o problema.</li>
+                </ol>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-dashed border-gray-200">
+                <p class="font-mono text-[10px] text-gray-400 uppercase mb-2">Entendendo os Status</p>
+                <div class="space-y-2 text-xs font-bold uppercase">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-yellow-400"></span> Pendente
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span> Em Andamento
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-green-600"></span> Concluído
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: QR Code -->
+        <div class="border-2 border-gray-200 p-6 hover:border-black transition group relative bg-white">
+            <div class="absolute top-0 right-0 bg-purple-600 text-white text-[10px] uppercase font-bold px-2 py-1">Novo
+            </div>
+            <div class="text-4xl mb-4 text-purple-600">📱</div>
+            <h3 class="font-bold text-xl uppercase mb-2 group-hover:underline">Crachá Digital</h3>
+            <p class="text-sm text-gray-500 mb-6">Use seu celular para login e retiradas.</p>
+
+            <div class="bg-gray-50 p-4 border border-gray-100 text-sm space-y-3">
+                <h4 class="font-bold uppercase text-xs">Configuração Rápida:</h4>
+                <ol class="list-decimal list-inside space-y-2">
+                    <li>Vá em <strong>"Meu QR Code"</strong>.</li>
+                    <li>Clique em <strong>"Configurar PIN"</strong>.</li>
+                    <li>Crie uma senha de 4 a 6 números.</li>
+                </ol>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-dashed border-gray-200">
+                <div class="bg-blue-50 border border-blue-100 p-3 flex gap-3">
+                    <span class="text-xl">💡</span>
+                    <p class="text-xs text-blue-800 leading-relaxed">
+                        <strong>DICA:</strong> Nunca compartilhe seu PIN. Se perder o acesso, use a opção "Regenerar
+                        Token" no seu perfil.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
