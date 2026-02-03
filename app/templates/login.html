@@ -4,10 +4,17 @@
 <div class="min-h-[85vh] flex items-center justify-center p-4">
     <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8">
 
-        <!-- Left Side: Visual/Brand -->
+        <!-- Left Side: Visual/Brand (Video Background) -->
         <div
-            class="hidden md:flex flex-col justify-between bg-black text-white p-12 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
-            <div>
+            class="hidden md:flex flex-col justify-between bg-black text-white p-12 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] relative overflow-hidden">
+            <!-- Video Background -->
+            <video autoplay loop muted playsinline
+                class="absolute top-0 left-0 w-full h-full object-cover opacity-60 z-0">
+                <source src="/static/videos/login_bg.mp4" type="video/mp4">
+            </video>
+
+            <!-- Overlay Content -->
+            <div class="relative z-10">
                 <div class="w-16 h-16 bg-amber-500 mb-8 flex items-center justify-center">
                     <svg class="w-10 h-10 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -15,18 +22,19 @@
                         </path>
                     </svg>
                 </div>
-                <h1 class="text-5xl font-black uppercase tracking-tighter leading-none mb-6">Asset<br>Track<br><span
-                        class="text-gray-500">Systems_V1</span></h1>
-                <p class="font-mono text-xs text-gray-400 max-w-xs leading-relaxed border-l-2 border-amber-500 pl-4">
+                <h1 class="text-5xl font-black uppercase tracking-tighter leading-none mb-6 drop-shadow-md">
+                    Asset<br>Track<br><span class="text-gray-300">Systems_V1</span></h1>
+                <p
+                    class="font-mono text-xs text-gray-200 max-w-xs leading-relaxed border-l-2 border-amber-500 pl-4 drop-shadow-sm">
                     // SISTEMA DE GESTÃO DE ATIVOS<br>
                     // CONTROLE TI & INFRAESTRUTURA<br>
                     // ACESSO RESTRITO
                 </p>
             </div>
 
-            <div class="space-y-4">
-                <div class="h-px bg-gray-800 w-full"></div>
-                <div class="flex justify-between font-mono text-[10px] text-gray-500 uppercase">
+            <div class="space-y-4 relative z-10">
+                <div class="h-px bg-gray-500 w-full"></div>
+                <div class="flex justify-between font-mono text-[10px] text-gray-300 uppercase drop-shadow-sm">
                     <span>Server Status: Online</span>
                     <span>v2.4.0-stable</span>
                 </div>
