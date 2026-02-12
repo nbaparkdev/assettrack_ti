@@ -82,6 +82,22 @@
                     </svg>
                 </button>
             </div>
+            <!-- Camera Selector -->
+            <div id="camera-selector-container" class="hidden bg-gray-900 px-4 py-2">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <select id="camera-select" onchange="switchCamera(this.value)"
+                        class="flex-1 text-xs border border-gray-600 bg-gray-800 text-white px-2 py-1 font-mono rounded">
+                        <option value="">Carregando câmeras...</option>
+                    </select>
+                </div>
+            </div>
             <div class="p-0 bg-black">
                 <div id="qr-reader-form" class="w-full"></div>
             </div>
@@ -146,11 +162,11 @@
 <script>
     let html5QrCode = null;
     let isScanning = false;
+    let availableCameras = [];
     const scannerModal = document.getElementById('scanner-modal');
     const serialInput = document.getElementById('serial_number');
 
     function openScanner() {
-        // Check for HTTPS/Localhost first
         const isSecure = window.isSecureContext ||
             (location.protocol === 'https:') ||
             (location.hostname === 'localhost') ||
@@ -162,7 +178,6 @@
         }
 
         scannerModal.classList.remove('hidden');
-        // Small delay to ensure modal is rendered
         setTimeout(startScanner, 100);
     }
 
@@ -181,18 +196,13 @@
 
     function onScanSuccess(decodedText) {
         if (isScanning) {
-            // Stop scanner
-            // Wait a moment before closing to show it worked (optional, but good UX)
-            // But we want to stop scanning immediately to avoid duplicate reads
             html5QrCode.stop().then(() => {
                 isScanning = false;
                 html5QrCode.clear();
                 closeScanner();
 
-                // Use the text
                 serialInput.value = decodedText;
 
-                // Visual feedback on input
                 serialInput.classList.add('bg-green-100', 'text-green-800', 'font-bold');
                 setTimeout(() => {
                     serialInput.classList.remove('bg-green-100', 'text-green-800', 'font-bold');
@@ -204,10 +214,35 @@
         }
     }
 
-    function startScanner() {
+    function populateCameraSelect(cameras) {
+        availableCameras = cameras;
+        const select = document.getElementById('camera-select');
+        const container = document.getElementById('camera-selector-container');
+
+        if (cameras.length >= 2) {
+            select.innerHTML = '';
+            cameras.forEach((camera, idx) => {
+                const option = document.createElement('option');
+                option.value = camera.id;
+                const label = camera.label || `Câmera ${idx + 1}`;
+                if (label.toLowerCase().includes('back') || label.toLowerCase().includes('traseira') || label.toLowerCase().includes('rear') || label.toLowerCase().includes('environment')) {
+                    option.textContent = `📷 ${label} (Traseira)`;
+                } else if (label.toLowerCase().includes('front') || label.toLowerCase().includes('frontal') || label.toLowerCase().includes('user')) {
+                    option.textContent = `🤳 ${label} (Frontal)`;
+                } else {
+                    option.textContent = `📷 ${label}`;
+                }
+                select.appendChild(option);
+            });
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+        }
+    }
+
+    function startScannerWithCamera(cameraId) {
         if (isScanning) return;
 
-        // Ensure the element exists and has dimensions
         const reader = document.getElementById("qr-reader-form");
         if (!reader) {
             console.error("QR Reader element not found");
@@ -221,13 +256,13 @@
             aspectRatio: 1.0
         };
 
-        // Try 'environment' (back camera) first
-        html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+        const cameraConfig = cameraId ? cameraId : { facingMode: "environment" };
+
+        html5QrCode.start(cameraConfig, config, onScanSuccess)
             .then(() => { isScanning = true; })
             .catch((err) => {
                 console.error('Camera start error:', err);
 
-                // Should handled detailed errors like scanner.html
                 let msg = 'Erro ao acessar a câmera.';
                 if (err.name === 'NotAllowedError') {
                     msg += ' Permissão negada.';
@@ -240,6 +275,47 @@
                 alert(msg);
                 closeScanner();
             });
+    }
+
+    function switchCamera(cameraId) {
+        if (html5QrCode && isScanning) {
+            html5QrCode.stop().then(() => {
+                isScanning = false;
+                html5QrCode.clear();
+                startScannerWithCamera(cameraId);
+            }).catch(err => {
+                console.log('Stop error:', err);
+                isScanning = false;
+                startScannerWithCamera(cameraId);
+            });
+        } else {
+            startScannerWithCamera(cameraId);
+        }
+    }
+
+    function startScanner() {
+        Html5Qrcode.getCameras().then(cameras => {
+            populateCameraSelect(cameras);
+
+            let backCamera = cameras.find(c =>
+                c.label && (c.label.toLowerCase().includes('back') ||
+                    c.label.toLowerCase().includes('rear') ||
+                    c.label.toLowerCase().includes('traseira') ||
+                    c.label.toLowerCase().includes('environment'))
+            );
+
+            if (backCamera) {
+                document.getElementById('camera-select').value = backCamera.id;
+                startScannerWithCamera(backCamera.id);
+            } else if (cameras.length > 0) {
+                startScannerWithCamera(cameras[0].id);
+            } else {
+                startScannerWithCamera(null);
+            }
+        }).catch(err => {
+            console.warn('Could not enumerate cameras:', err);
+            startScannerWithCamera(null);
+        });
     }
 
     // Close on click outside

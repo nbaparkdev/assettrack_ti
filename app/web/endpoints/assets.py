@@ -68,7 +68,7 @@ async def search_asset(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Search asset by serial number and redirect to detail page"""
-    from sqlalchemy import select
+    from sqlalchemy import select, func
     from app.models.asset import Asset
     
     result = await db.execute(
@@ -79,8 +79,26 @@ async def search_asset(
     if asset:
         return RedirectResponse(url=f"/assets/{asset.id}", status_code=303)
     
-    # If not found, redirect to list with error message
-    return RedirectResponse(url="/assets/?error=not_found", status_code=303)
+    # Asset not found — render a friendly not-found page
+    total_assets = await db.scalar(select(func.count(Asset.id)))
+    available_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.DISPONIVEL))
+    in_use_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.EM_USO))
+    maintenance_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.MANUTENCAO))
+
+    assets = await asset_crud.asset.get_multi(db)
+    return templates.TemplateResponse("assets/list.html", {
+        "request": request,
+        "user": current_user,
+        "assets": assets,
+        "stats": {
+            "total": total_assets or 0,
+            "available": available_assets or 0,
+            "in_use": in_use_assets or 0,
+            "maintenance": maintenance_assets or 0
+        },
+        "error": f"Ativo com serial '{serial}' não encontrado.",
+        "title": "Ativos"
+    })
 
 @router.get("/new", response_class=HTMLResponse)
 async def new_asset_form(
@@ -166,11 +184,26 @@ async def asset_detail(
 ):
     asset = await asset_crud.asset.get(db, id=asset_id)
     if not asset:
-         return templates.TemplateResponse("assets/list.html", {
+        from sqlalchemy import select, func
+        from app.models.asset import Asset
+
+        total_assets = await db.scalar(select(func.count(Asset.id)))
+        available_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.DISPONIVEL))
+        in_use_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.EM_USO))
+        maintenance_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.MANUTENCAO))
+
+        assets = await asset_crud.asset.get_multi(db)
+        return templates.TemplateResponse("assets/list.html", {
             "request": request,
             "user": current_user,
-            "error": "Ativo não encontrado.",
-             "assets": [],
+            "assets": assets,
+            "stats": {
+                "total": total_assets or 0,
+                "available": available_assets or 0,
+                "in_use": in_use_assets or 0,
+                "maintenance": maintenance_assets or 0
+            },
+            "error": f"Ativo com ID {asset_id} não encontrado.",
             "title": "Ativos"
         })
 

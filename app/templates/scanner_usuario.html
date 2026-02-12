@@ -16,6 +16,22 @@
         </div>
     </div>
 
+    <!-- Camera Selector -->
+    <div id="camera-selector-container" class="hidden bg-white border-b">
+        <div class="max-w-lg mx-auto px-4 py-2 flex items-center gap-2">
+            <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <select id="camera-select" onchange="switchCamera(this.value)"
+                class="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:border-blue-500 focus:ring-blue-500">
+                <option value="">Carregando câmeras...</option>
+            </select>
+        </div>
+    </div>
+
     <!-- Scanner Container -->
     <div class="max-w-lg mx-auto">
         <!-- Camera View -->
@@ -167,6 +183,7 @@
 <script>
     let html5QrCode = null;
     let isScanning = false;
+    let availableCameras = [];
 
     function isValidUUID(str) {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -174,23 +191,17 @@
     }
 
     function extractToken(decodedText) {
-        // Se for URL completa com /usuario/, extrai o token
         if (decodedText.includes('/usuario/')) {
             const match = decodedText.match(/\/usuario\/([0-9a-f-]{36})/i);
             if (match) return match[1];
         }
-
-        // Se for UUID puro
         if (isValidUUID(decodedText)) {
             return decodedText;
         }
-
-        // Se contiver UUID em qualquer parte
         const uuidMatch = decodedText.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
         if (uuidMatch) {
             return uuidMatch[0];
         }
-
         return null;
     }
 
@@ -200,27 +211,23 @@
 
             if (!token) {
                 console.log('QR não contém token de usuário válido:', decodedText);
-                return; // Continua escaneando
+                return;
             }
 
             isScanning = false;
 
-            // Show success state
             document.getElementById('scanner-status').classList.add('hidden');
             document.getElementById('scan-success').classList.remove('hidden');
             document.getElementById('scanning-overlay').classList.add('hidden');
 
-            // Stop scanner
             if (html5QrCode) {
                 html5QrCode.stop().catch(err => console.log('Stop error:', err));
             }
 
-            // Vibrate on success (mobile)
             if (navigator.vibrate) {
                 navigator.vibrate(200);
             }
 
-            // Redirect to user profile
             setTimeout(() => {
                 window.location.href = `/usuario/${token}`;
             }, 1000);
@@ -231,14 +238,38 @@
         // Ignore scan failures (continuous scanning)
     }
 
-    function startScanner() {
-        // Reset UI
+    function populateCameraSelect(cameras) {
+        availableCameras = cameras;
+        const select = document.getElementById('camera-select');
+        const container = document.getElementById('camera-selector-container');
+
+        if (cameras.length >= 2) {
+            select.innerHTML = '';
+            cameras.forEach((camera, idx) => {
+                const option = document.createElement('option');
+                option.value = camera.id;
+                const label = camera.label || `Câmera ${idx + 1}`;
+                if (label.toLowerCase().includes('back') || label.toLowerCase().includes('traseira') || label.toLowerCase().includes('rear') || label.toLowerCase().includes('environment')) {
+                    option.textContent = `📷 ${label} (Traseira)`;
+                } else if (label.toLowerCase().includes('front') || label.toLowerCase().includes('frontal') || label.toLowerCase().includes('user')) {
+                    option.textContent = `🤳 ${label} (Frontal)`;
+                } else {
+                    option.textContent = `📷 ${label}`;
+                }
+                select.appendChild(option);
+            });
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+        }
+    }
+
+    function startScannerWithCamera(cameraId) {
         document.getElementById('scanner-status').classList.remove('hidden');
         document.getElementById('scan-success').classList.add('hidden');
         document.getElementById('scan-error').classList.add('hidden');
         document.getElementById('scanning-overlay').classList.remove('hidden');
 
-        // Create scanner instance
         html5QrCode = new Html5Qrcode("qr-reader");
 
         const config = {
@@ -247,9 +278,10 @@
             aspectRatio: 1.0
         };
 
-        // Start with back camera (environment facing)
+        const cameraConfig = cameraId ? cameraId : { facingMode: "environment" };
+
         html5QrCode.start(
-            { facingMode: "environment" },
+            cameraConfig,
             config,
             onScanSuccess,
             onScanFailure
@@ -259,16 +291,13 @@
             console.error('Camera error:', err);
             const errStr = String(err);
 
-            // Show error state
             document.getElementById('scanner-status').classList.add('hidden');
             document.getElementById('scan-error').classList.remove('hidden');
             document.getElementById('scanning-overlay').classList.add('hidden');
 
-            // Check if it's a security/HTTPS issue
             const isInsecure = !window.isSecureContext ||
                 (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1');
 
-            // Set specific error message
             let errorMsg = 'Verifique as permissões do navegador';
             let showHttpsWarning = false;
 
@@ -289,13 +318,52 @@
 
             document.getElementById('error-message').textContent = errorMsg;
 
-            // Show/hide HTTPS warning
             const httpsWarning = document.getElementById('https-warning');
             if (showHttpsWarning) {
                 httpsWarning.classList.remove('hidden');
             } else {
                 httpsWarning.classList.add('hidden');
             }
+        });
+    }
+
+    function switchCamera(cameraId) {
+        if (html5QrCode && isScanning) {
+            html5QrCode.stop().then(() => {
+                isScanning = false;
+                startScannerWithCamera(cameraId);
+            }).catch(err => {
+                console.log('Stop error:', err);
+                isScanning = false;
+                startScannerWithCamera(cameraId);
+            });
+        } else {
+            startScannerWithCamera(cameraId);
+        }
+    }
+
+    function startScanner() {
+        Html5Qrcode.getCameras().then(cameras => {
+            populateCameraSelect(cameras);
+
+            let backCamera = cameras.find(c =>
+                c.label && (c.label.toLowerCase().includes('back') ||
+                    c.label.toLowerCase().includes('rear') ||
+                    c.label.toLowerCase().includes('traseira') ||
+                    c.label.toLowerCase().includes('environment'))
+            );
+
+            if (backCamera) {
+                document.getElementById('camera-select').value = backCamera.id;
+                startScannerWithCamera(backCamera.id);
+            } else if (cameras.length > 0) {
+                startScannerWithCamera(cameras[0].id);
+            } else {
+                startScannerWithCamera(null);
+            }
+        }).catch(err => {
+            console.warn('Could not enumerate cameras:', err);
+            startScannerWithCamera(null);
         });
     }
 
