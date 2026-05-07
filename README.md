@@ -27,7 +27,28 @@ Certifique-se de ter Docker e Docker Compose instalados.
 
 
 
-### Opção 2: Localmente (Sem Docker)
+### Opção 2: Localmente (Sem Docker) - Modo Automático (Recomendado)
+Scripts que automatizam a criação do ambiente, instalação de dependências e configuração do banco.
+
+**Windows (PowerShell):**
+1. Abra o terminal na pasta do projeto.
+2. Execute o script:
+   ```powershell
+   .\setup.ps1
+   ```
+
+**Linux / macOS:**
+1. Abra o terminal na pasta do projeto.
+2. Dê permissão de execução (apenas na primeira vez):
+   ```bash
+   chmod +x setup.sh
+   ```
+3. Execute o script:
+   ```bash
+   ./setup.sh
+   ```
+
+### Opção 3: Localmente (Sem Docker) - Modo Manual
 Requer Python 3.11+ e um banco de dados (PostgreSQL ou SQLite).
 
 1.  **Crie e ative o ambiente virtual (venv):**
@@ -73,12 +94,17 @@ Requer Python 3.11+ e um banco de dados (PostgreSQL ou SQLite).
     ```
     
     > **Acesso na Rede (Outros dispositivos):**
-    > Para permitir que outros computadores/celulares acessem, rode com `--host 0.0.0.0`:
-    > ```bash
-    > uvicorn app.main:app --reload --host 0.0.0.0
-    > ```
-    > O App estará acessível em `http://SEU_IP_NA_REDE:8000`
-    O servidor estará disponível em `http://localhost:8000`
+    > Para permitir que outros computadores/celulares acessem, os scripts já estão configurados com `--host 0.0.0.0`.
+    > 1. Descubra seu IP (No Windows: `ipconfig`, no Linux: `hostname -I`).
+    > 2. O App estará acessível em `http://SEU_IP_NA_REDE:8000`.
+     > *Certifique-se de que a porta 8000 está liberada no seu Firewall.*
+     >
+     > 📸 **Uso da Câmera (Scanner) via HTTP:**
+     > Por padrão, navegadores bloqueiam a câmera em conexões HTTP (não seguras). Para liberar o acesso em sua rede local:
+     > 1. No Chrome/Edge do celular/PC que vai escanear, acesse: `chrome://flags/#unsafely-treat-insecure-origin-as-secure`
+     > 2. No campo "Insecure origins treated as secure", digite o endereço do servidor: `http://SEU_IP_NA_REDE:8000`
+     > 3. Mude para **Enabled** e clique em **Relaunch**.
+     O servidor estará disponível em `http://localhost:8000`
 
 ### 🛠️ Solução de Problemas (Local)
 
