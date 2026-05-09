@@ -50,7 +50,7 @@ class Solicitacao(Base):
     __tablename__ = "solicitacoes"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    solicitante_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    solicitante_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     asset_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id"), nullable=True) # Pode solicitar um tipo, não necessariamente um asset específico, mas por enquanto linkamos direto se souber
     
     data_solicitacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)

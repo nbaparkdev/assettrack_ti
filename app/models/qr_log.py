@@ -27,10 +27,10 @@ class QRLog(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     
     # Usuário dono do QR (quem teve o QR escaneado/usado)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
     # Quem executou a ação (pode ser o próprio usuário ou admin)
-    actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
     action: Mapped[QRLogAction] = mapped_column(SAEnum(QRLogAction), nullable=False)
     
@@ -50,5 +50,5 @@ class QRLog(Base):
     )
     
     # Relationships
-    user = relationship("User", foreign_keys=[user_id])
-    actor = relationship("User", foreign_keys=[actor_id])
+    user = relationship("User", foreign_keys=[user_id], back_populates="qr_logs")
+    actor = relationship("User", foreign_keys=[actor_id], back_populates="qr_logs_actor")

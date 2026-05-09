@@ -33,7 +33,7 @@ class Manutencao(Base):
     asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), nullable=False)
     
     # Quem enviou para manutenção
-    responsavel_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    responsavel_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
     # Detalhes da manutenção
     motivo: Mapped[str] = mapped_column(Text, nullable=False)  # Descrição do problema

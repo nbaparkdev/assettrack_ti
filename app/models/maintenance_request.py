@@ -31,7 +31,7 @@ class SolicitacaoManutencao(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     
     # Quem solicitou
-    solicitante_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    solicitante_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
     # Ativo com problema
     asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), nullable=False)

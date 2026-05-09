@@ -50,3 +50,7 @@ class User(Base):
     solicitacoes_manutencao = relationship("SolicitacaoManutencao", foreign_keys="[SolicitacaoManutencao.solicitante_id]", back_populates="solicitante")
     solicitacoes_manutencao_responsavel = relationship("SolicitacaoManutencao", foreign_keys="[SolicitacaoManutencao.responsavel_id]", back_populates="responsavel")
 
+    # Logs de QR Code
+    qr_logs = relationship("QRLog", foreign_keys="[QRLog.user_id]", back_populates="user")
+    qr_logs_actor = relationship("QRLog", foreign_keys="[QRLog.actor_id]", back_populates="actor")
+
