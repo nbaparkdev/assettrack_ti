@@ -141,6 +141,21 @@ python3 create_admin.py
 python3 create_technician.py
 ```
 
+## 🎧 Service Desk (Help Desk)
+
+Módulo integrado para gestão de chamados de suporte técnico, solicitações de infraestrutura e atendimento ao usuário.
+
+### Funcionalidades
+
+| Recurso | Descrição |
+| :--- | :--- |
+| **Abertura de Chamados** | Usuários podem relatar problemas ou solicitar serviços de acordo com as categorias e setores |
+| **Filtros e Buscas Avançadas** | Filtre chamados por texto (código/título/descrição), categoria, status, prioridade e intervalo de datas |
+| **Dashboard e Estatísticas** | Painel em tempo real para Admins/Técnicos com contadores de chamados Abertos, Em Atendimento e Resolvidos |
+| **Gestão de Interações** | Inserção de comentários e histórico de comunicação entre técnicos e usuários dentro de cada chamado |
+| **Gestão de Categorias** | Painel administrativo exclusivo para gerenciar grupos de serviços, definições e prioridades padrão |
+| **Integração QR Code** | Cada chamado possui um QR Code único, facilitando leitura e acompanhamento ágil pelo celular |
+
 ## 📱 Sistema de QR Code
 
 O sistema inclui funcionalidades de QR Code para identificação e login rápido.

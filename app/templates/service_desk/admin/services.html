@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">CONFIGURAÇÃO_SERVIÇOS</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Gerenciamento de Tipos de Serviço</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <nav class="flex gap-4">
+                <a href="/servicos/admin/categorias" class="text-xs font-bold uppercase text-gray-400 hover:text-black hover:underline transition">Categorias</a>
+                <a href="/servicos/admin/servicos" class="text-xs font-bold uppercase text-black underline decoration-2 underline-offset-4">Serviços</a>
+            </nav>
+            <div class="h-4 w-[2px] bg-black hidden sm:block"></div>
+            <a href="/servicos" class="text-xs font-bold uppercase hover:underline">Voltar ao Painel</a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- New Service Form -->
+        <div class="lg:col-span-1">
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sticky top-8">
+                <h3 class="font-bold text-sm uppercase tracking-widest mb-6 border-b-2 border-black pb-2">Novo Tipo de Serviço</h3>
+                <form action="/servicos/admin/servicos" method="POST" class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Categoria</label>
+                        <select name="categoria_id" required
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                            <option value="">Selecione a Categoria</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.nome }} ({{ cat.setor }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Nome do Serviço</label>
+                        <input type="text" name="nome" required placeholder="Ex: Formatação, Troca de Toner, Reset de Senha"
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Prioridade Padrão</label>
+                        <select name="prioridade_padrao" required
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                            {% for p in priorities %}
+                            <option value="{{ p.value }}" {% if p.value == 'Média' %}selected{% endif %}>{{ p.value }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Tempo Estimado (Horas)</label>
+                        <input type="number" name="tempo_estimado_horas" step="0.5" min="0" placeholder="Ex: 2.5"
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Descrição</label>
+                        <textarea name="descricao" rows="3" placeholder="O que este serviço engloba?"
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500"></textarea>
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-black text-white font-bold uppercase text-xs py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition">
+                        Cadastrar Serviço
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Services List -->
+        <div class="lg:col-span-2">
+            <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-black text-white font-mono text-xs uppercase tracking-widest">
+                            <th class="px-6 py-4 border-b border-gray-800">Serviço</th>
+                            <th class="px-6 py-4 border-b border-gray-800">Categoria / Setor</th>
+                            <th class="px-6 py-4 border-b border-gray-800">Prioridade</th>
+                            <th class="px-6 py-4 border-b border-gray-800 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for srv in services %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4">
+                                <p class="font-bold text-sm uppercase">{{ srv.nome }}</p>
+                                <p class="text-[10px] text-gray-500 font-mono">{{ srv.descricao or 'Sem descrição' }}</p>
+                            </td>
+                            <td class="px-6 py-4">
+                                <p class="text-xs font-bold uppercase">{{ srv.categoria.nome }}</p>
+                                <p class="text-[10px] uppercase text-gray-400 font-mono">{{ srv.categoria.setor }}</p>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-[10px] font-bold uppercase bg-gray-100 px-2 py-1 border border-black">{{ srv.prioridade_padrao }}</span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <button class="text-red-600 hover:underline text-[10px] font-bold uppercase">Excluir</button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="px-6 py-8 text-center text-gray-400 font-mono text-xs uppercase">Nenhum serviço cadastrado</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

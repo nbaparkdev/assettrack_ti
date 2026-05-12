@@ -43,7 +43,50 @@
                 {% endif %}
             </div>
 
-            <!-- Historico/Logs (Opcional para o futuro) -->
+            <!-- Timeline / Interações -->
+            <div class="space-y-6">
+                <div class="flex items-center justify-between border-b-2 border-black pb-2">
+                    <h3 class="font-bold text-sm uppercase tracking-widest text-black">Linha do Tempo / Andamento</h3>
+                    <span class="text-[10px] font-mono text-gray-400 uppercase">{{ ticket.interacoes|length }} Interações</span>
+                </div>
+
+                <div class="space-y-8 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-gray-100">
+                    {% for interaction in ticket.interacoes %}
+                    <div class="relative pl-12">
+                        <!-- Dot -->
+                        <div class="absolute left-0 top-1 w-9 h-9 bg-white border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10">
+                            <span class="text-[10px] font-bold">{{ interaction.usuario.nome[:1] }}</span>
+                        </div>
+                        
+                        <div class="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-[10px] font-bold uppercase">{{ interaction.usuario.nome }}</span>
+                                <span class="text-[10px] font-mono text-gray-400">{{ interaction.data_criacao.strftime('%d/%m/%y %H:%M') }}</span>
+                            </div>
+                            <p class="text-sm text-gray-800 leading-relaxed">{{ interaction.mensagem }}</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="pl-12 py-4 italic text-gray-400 text-sm font-mono uppercase">Nenhuma atualização registrada ainda.</div>
+                    {% endfor %}
+                </div>
+
+                <!-- Input de Interação (Apenas Admin/Técnico ou Dono do Chamado) -->
+                {% if user.role.value|lower in ['admin', 'gerente', 'gerente_ti', 'tecnico', 'gerente_infra'] or ticket.solicitante_id == user.id %}
+                <div class="mt-8 bg-gray-50 border-2 border-black border-dashed p-6">
+                    <h4 class="font-bold text-xs uppercase mb-4 text-black">Adicionar Atualização</h4>
+                    <form action="/servicos/chamado/{{ ticket.id }}/interacao" method="POST" class="space-y-4">
+                        <textarea name="mensagem" required rows="3" placeholder="Descreva o que foi feito ou deixe um comentário..."
+                            class="w-full border-2 border-black p-4 text-sm font-mono focus:ring-0 focus:border-black placeholder:text-gray-300"></textarea>
+                        <div class="flex justify-end">
+                            <button type="submit" class="bg-black text-white px-6 py-2 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition">
+                                Postar Atualização
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
         </div>
 
         <!-- Sidebar -->

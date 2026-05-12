@@ -70,3 +70,21 @@ class ServiceTicket(Base):
     servico: Mapped[ServiceDefinition] = relationship("ServiceDefinition", back_populates="chamados")
     solicitante: Mapped["User"] = relationship("User", foreign_keys=[solicitante_id])
     tecnico: Mapped[Optional["User"]] = relationship("User", foreign_keys=[tecnico_id])
+    interacoes: Mapped[List["ServiceTicketInteraction"]] = relationship("ServiceTicketInteraction", back_populates="ticket", cascade="all, delete-orphan")
+
+class ServiceTicketInteraction(Base):
+    __tablename__ = "service_ticket_interactions"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("service_tickets.id"))
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    
+    mensagem: Mapped[str] = mapped_column(Text)
+    data_criacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    
+    # Tipo de interação: Comentário, Mudança de Status, etc.
+    tipo: Mapped[str] = mapped_column(String(50), default="Comentário")
+    
+    # Relacionamentos
+    ticket: Mapped["ServiceTicket"] = relationship("ServiceTicket", back_populates="interacoes")
+    usuario: Mapped["User"] = relationship("User")

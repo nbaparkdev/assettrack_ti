@@ -74,3 +74,19 @@ class ServiceTicketSchema(ServiceTicketBase):
     solucao: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
+
+# Interações (Timeline)
+class ServiceTicketInteractionBase(BaseModel):
+    mensagem: str
+    tipo: str = "Comentário"
+
+class ServiceTicketInteractionCreate(ServiceTicketInteractionBase):
+    ticket_id: int
+
+class ServiceTicketInteractionSchema(ServiceTicketInteractionBase):
+    id: int
+    ticket_id: int
+    usuario_id: int
+    data_criacao: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
