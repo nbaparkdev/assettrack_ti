@@ -118,17 +118,18 @@
 
                         <!-- Group: Services -->
                         <div class="h-4 w-px bg-gray-300 mx-2"></div>
-                        <a href="/minhas-solicitacoes-manutencao" class="{{ link_class }}">Suporte</a>
+                        <a href="/servicos" class="{{ link_class }}">Service Desk</a>
+                        <a href="/minhas-solicitacoes-manutencao" class="{{ link_class }}">Ativos</a>
 
                         <!-- Group: Admin/Tech -->
-                        {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+                        {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico', 'gerente_infra'] %}
                         <div class="h-4 w-px bg-black mx-2"></div>
                         <a href="/solicitacoes-manutencao"
                             class="text-sm font-bold uppercase tracking-wider text-blue-600 hover:text-blue-800 border-b-2 border-transparent hover:border-blue-800 py-1 transition-all">Painel
                             TI</a>
                         {% endif %}
 
-                        {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+                        {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
                         <a href="/setores" class="{{ link_class }}">Setores</a>
                         <a href="/admin/users" class="{{ link_class }}">Admin</a>
                         {% endif %}

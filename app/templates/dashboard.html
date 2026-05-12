@@ -46,6 +46,36 @@
     </div>
     {% endif %}
 
+    {% if stats.pending_tickets > 0 and user.role.value|lower in ['admin', 'gerente_ti', 'tecnico', 'gerente_infra'] %}
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <!-- Bell Icon -->
+                    <svg class="h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path
+                            d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-bold text-blue-700">
+                        SERVICE DESK: Existem {{ stats.pending_tickets }} chamado(s) aberto(s) aguardando atendimento.
+                    </p>
+                </div>
+            </div>
+            <div class="ml-auto pl-3">
+                <div class="-mx-1.5 -my-1.5">
+                    <a href="/servicos"
+                        class="inline-flex rounded-md p-1.5 text-blue-500 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 font-bold uppercase text-xs tracking-wider">
+                        Verificar &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Data Blocks (Stats) -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-0 border-2 border-black bg-black">
         <!-- Block 1: Total -->

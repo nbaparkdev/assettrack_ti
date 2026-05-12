@@ -10,6 +10,7 @@ class UserRole(str, Enum):
     ADMIN = "admin"
     GERENTE = "gerente_ti"
     TECNICO = "tecnico"
+    GERENTE_INFRA = "gerente_infra"
     USUARIO = "usuario_comum"
 
 class User(Base):

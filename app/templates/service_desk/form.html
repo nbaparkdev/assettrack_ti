@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <div class="border-b-2 border-black pb-4">
+        <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">NOVO_CHAMADO</h1>
+        <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Preencha os detalhes do serviço solicitado</p>
+    </div>
+
+    <form action="/servicos/novo" method="POST" class="space-y-6">
+        <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+            
+            <!-- Seleção de Categoria e Serviço -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Categoria</label>
+                    <select id="category_select" required
+                        class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm uppercase">
+                        <option value="">Selecione a Categoria</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.nome }} ({{ cat.setor }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Tipo de Serviço</label>
+                    <select name="servico_id" id="service_select" required disabled
+                        class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm uppercase bg-gray-50">
+                        <option value="">Selecione a Categoria Primeiro</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-xs font-bold uppercase tracking-widest text-black">Título do Chamado</label>
+                <input type="text" name="titulo" required
+                    placeholder="Ex: Problema com a rede no setor financeiro"
+                    class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm">
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-xs font-bold uppercase tracking-widest text-black">Prioridade Sugerida</label>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {% for p in priorities %}
+                    <label class="cursor-pointer">
+                        <input type="radio" name="prioridade" value="{{ p.value }}" {% if p.value == 'Média' %}checked{% endif %} class="peer sr-only">
+                        <div class="border-2 border-black p-3 text-center font-bold text-xs uppercase transition peer-checked:bg-black peer-checked:text-white hover:bg-gray-50">
+                            {{ p.value }}
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-xs font-bold uppercase tracking-widest text-black">Descrição do Problema / Solicitação</label>
+                <textarea name="descricao" rows="6" required
+                    placeholder="Descreva detalhadamente o que está acontecendo..."
+                    class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm"></textarea>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-end gap-4">
+            <a href="/servicos" class="font-bold text-xs uppercase tracking-widest text-gray-500 hover:text-black transition">
+                Cancelar
+            </a>
+            <button type="submit"
+                class="bg-black text-white px-10 py-4 rounded-none text-sm font-bold uppercase tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                Abrir Chamado
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Dados das categorias e serviços passados pelo backend
+    const categoriesData = {
+        {% for cat in categories %}
+        "{{ cat.id }}": [
+            {% for serv in cat.servicos %}
+            { id: "{{ serv.id }}", nome: "{{ serv.nome }}" },
+            {% endfor %}
+        ],
+        {% endfor %}
+    };
+
+    const categorySelect = document.getElementById('category_select');
+    const serviceSelect = document.getElementById('service_select');
+
+    categorySelect.addEventListener('change', function() {
+        const catId = this.value;
+        serviceSelect.innerHTML = '<option value="">Selecione o Serviço</option>';
+        
+        if (catId && categoriesData[catId]) {
+            categoriesData[catId].forEach(serv => {
+                const opt = document.createElement('option');
+                opt.value = serv.id;
+                opt.textContent = serv.nome;
+                serviceSelect.appendChild(opt);
+            });
+            serviceSelect.disabled = false;
+            serviceSelect.classList.remove('bg-gray-50');
+        } else {
+            serviceSelect.disabled = true;
+            serviceSelect.classList.add('bg-gray-50');
+        }
+    });
+</script>
+{% endblock %}

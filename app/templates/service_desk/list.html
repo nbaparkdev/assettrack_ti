@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">SERVICE_DESK</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Suporte e Infraestrutura // V1.0</p>
+        </div>
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+            <a href="/servicos/novo"
+                class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-black text-white px-6 py-3 rounded-none text-sm font-bold uppercase tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Novo Chamado
+            </a>
+            {% if user.role.value|lower in ['admin'] %}
+            <a href="/servicos/admin/categorias"
+                class="hidden md:flex items-center gap-2 bg-white border-2 border-black text-black px-4 py-3 rounded-none text-sm font-bold uppercase tracking-widest hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                Configurar
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if stats %}
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+            <p class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-1">Chamados Abertos</p>
+            <h3 class="text-4xl font-bold text-black">{{ stats.abertos }}</h3>
+        </div>
+        <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+            <p class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-1">Em Atendimento</p>
+            <h3 class="text-4xl font-bold text-brand-500">{{ stats.em_atendimento }}</h3>
+        </div>
+        <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+            <p class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-1">Resolvidos</p>
+            <h3 class="text-4xl font-bold text-green-600">{{ stats.resolvidos }}</h3>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tickets Table -->
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-black text-white font-mono text-xs uppercase tracking-widest">
+                        <th class="px-6 py-4 border-b border-gray-800">Código</th>
+                        <th class="px-6 py-4 border-b border-gray-800">Título / Serviço</th>
+                        <th class="px-6 py-4 border-b border-gray-800">Status</th>
+                        <th class="px-6 py-4 border-b border-gray-800">Prioridade</th>
+                        <th class="px-6 py-4 border-b border-gray-800">Abertura</th>
+                        <th class="px-6 py-4 border-b border-gray-800 text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for ticket in tickets %}
+                    <tr class="hover:bg-gray-50 transition group cursor-pointer"
+                        onclick="window.location='/servicos/chamado/{{ ticket.id }}'">
+                        <td class="px-6 py-4">
+                            <span class="font-mono text-xs font-bold bg-gray-100 px-2 py-1 border border-black">{{ ticket.codigo }}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="font-bold text-sm text-black uppercase">{{ ticket.titulo }}</p>
+                            <p class="text-xs text-gray-500 font-mono">{{ ticket.servico.nome }}</p>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% set status_class = {
+                                'Aberto': 'bg-blue-50 text-blue-700 border-blue-200',
+                                'Em Atendimento': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                                'Resolvido': 'bg-green-50 text-green-700 border-green-200',
+                                'Cancelado': 'bg-gray-50 text-gray-700 border-gray-200'
+                            }.get(ticket.status, 'bg-gray-50 text-gray-700 border-gray-200') %}
+                            <span class="px-2 py-1 text-[10px] font-bold uppercase tracking-tighter border {{ status_class }}">
+                                {{ ticket.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% set priority_class = {
+                                'Urgente': 'text-red-600',
+                                'Alta': 'text-orange-600',
+                                'Média': 'text-blue-600',
+                                'Baixa': 'text-gray-600'
+                            }.get(ticket.prioridade, 'text-gray-600') %}
+                            <span class="text-xs font-bold uppercase {{ priority_class }}">
+                                {{ ticket.prioridade }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="text-xs text-gray-500 font-mono">{{ ticket.data_abertura.strftime('%d/%m/%y %H:%M') }}</p>
+                        </td>
+                        <td class="px-6 py-4 text-right" onclick="event.stopPropagation()">
+                            <a href="/servicos/chamado/{{ ticket.id }}"
+                                class="text-xs font-bold uppercase text-black hover:underline tracking-wider">
+                                VER DETALHES
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center">
+                                <svg class="w-12 h-12 text-gray-200 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                                </svg>
+                                <p class="text-gray-500 font-mono text-sm uppercase tracking-widest">Nenhum chamado registrado</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

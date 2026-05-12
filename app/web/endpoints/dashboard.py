@@ -38,13 +38,24 @@ async def dashboard(
     # Pending Solicitations (Tickets)
     pending_solicitations = await db.scalar(select(func.count(Solicitacao.id)).filter(Solicitacao.status == StatusSolicitacao.PENDENTE))
 
+    user_role = str(current_user.role.value).lower()
+
     # Pending Maintenance Requests (for alert)
     pending_maintenance_count = 0
-    if current_user.role.value.lower() in ["admin", "gerente_ti", "tecnico"]:
+    pending_tickets_count = 0
+    # Maintenance and Tickets alerts for staff
+    if user_role in ["admin", "gerente_ti", "tecnico", "gerente_infra"]:
         from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
+        from app.models.service_desk import ServiceTicket, ServiceStatus
+        
         pending_maintenance_count = await db.scalar(
             select(func.count(SolicitacaoManutencao.id))
             .filter(SolicitacaoManutencao.status == StatusSolicitacaoManutencao.PENDENTE)
+        )
+        
+        pending_tickets_count = await db.scalar(
+            select(func.count(ServiceTicket.id))
+            .filter(ServiceTicket.status == ServiceStatus.ABERTO)
         )
 
     # Context data
@@ -57,13 +68,14 @@ async def dashboard(
             "in_use_assets": in_use_assets or 0,
             "maintenance_assets": maintenance_assets or 0,
             "pending_solicitations": pending_solicitations or 0,
-            "pending_maintenance": pending_maintenance_count or 0
+            "pending_maintenance": pending_maintenance_count or 0,
+            "pending_tickets": pending_tickets_count or 0
         },
         "title": "Dashboard"
     }
 
     # Admin and Manager specific data (Users & Recent Deliveries)
-    if current_user.role.value.lower() in ["admin", "gerente_ti"]:
+    if user_role in ["admin", "gerente_ti", "gerente_infra"]:
         # Pending Users to Approve
         pending_users_result = await db.execute(select(User).filter(User.is_active == False))
         context["pending_users_list"] = pending_users_result.scalars().all()
@@ -87,7 +99,7 @@ async def dashboard(
         context["recent_deliveries"] = recent_deliveries_result.scalars().all()
 
     # Admin, Manager AND Technician (Solicitations of Assets)
-    if current_user.role.value.lower() in ["admin", "gerente_ti", "tecnico"]:
+    if user_role in ["admin", "gerente_ti", "tecnico", "gerente_infra"]:
         # Pending Solicitations (Full details for table) - with eager loading
         pending_solicitations_result = await db.execute(
             select(Solicitacao)

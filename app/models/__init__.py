@@ -7,5 +7,6 @@ from app.models.transaction import Movimentacao, Solicitacao, TipoMovimentacao, 
 from app.models.maintenance import Manutencao, TipoManutencao, StatusManutencao, DestinoManutencao
 from app.models.maintenance_request import SolicitacaoManutencao, PrioridadeSolicitacao, StatusSolicitacaoManutencao
 from app.models.qr_log import QRLog, QRLogAction
+from app.models.service_desk import ServiceCategory, ServiceDefinition, ServiceTicket, ServiceStatus, ServicePriority
 from app.database import Base
 

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <div class="flex items-center gap-3 mb-2">
+                <span class="font-mono text-xs font-bold bg-black text-white px-2 py-1">{{ ticket.codigo }}</span>
+                <span class="text-xs font-mono text-gray-500 uppercase tracking-widest">{{ ticket.servico.categoria.setor }} // {{ ticket.servico.categoria.nome }}</span>
+            </div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-tight">{{ ticket.titulo }}</h1>
+        </div>
+        <div class="flex items-center gap-3">
+            {% set status_class = {
+                'Aberto': 'bg-blue-50 text-blue-700 border-blue-500',
+                'Em Atendimento': 'bg-yellow-50 text-yellow-700 border-yellow-500',
+                'Resolvido': 'bg-green-50 text-green-700 border-green-500',
+                'Cancelado': 'bg-gray-50 text-gray-700 border-gray-500'
+            }.get(ticket.status, 'bg-gray-50 text-gray-700 border-gray-500') %}
+            <div class="border-2 {{ status_class }} px-4 py-2 text-sm font-bold uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+                {{ ticket.status }}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-8">
+            <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <h3 class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-4 border-b pb-2">Descrição do Chamado</h3>
+                <div class="prose max-w-none">
+                    <p class="text-black font-medium leading-relaxed">{{ ticket.descricao }}</p>
+                </div>
+                
+                {% if ticket.solucao %}
+                <div class="mt-8 pt-6 border-t-2 border-dashed border-gray-200">
+                    <h3 class="font-mono text-xs text-green-600 uppercase tracking-widest mb-4">Resolução / Solução</h3>
+                    <div class="bg-green-50 border border-green-200 p-4 font-mono text-sm text-green-800">
+                        {{ ticket.solucao }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Historico/Logs (Opcional para o futuro) -->
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- QR Code -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center">
+                <h3 class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-4">Acesso Rápido</h3>
+                <div class="bg-gray-50 p-4 inline-block border border-black mb-4">
+                    <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code" class="w-32 h-32 mx-auto">
+                </div>
+                <p class="text-[10px] font-mono text-gray-400 uppercase">Escaneie para ver este chamado em outro dispositivo</p>
+            </div>
+
+            <!-- Details Card -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+                <h3 class="font-mono text-xs text-gray-500 uppercase tracking-widest border-b pb-2">Informações</h3>
+                
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Solicitante</p>
+                    <p class="text-sm font-bold text-black">{{ ticket.solicitante.nome }}</p>
+                </div>
+
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Prioridade</p>
+                    <p class="text-sm font-bold text-black uppercase">{{ ticket.prioridade }}</p>
+                </div>
+
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Aberto em</p>
+                    <p class="text-sm font-mono text-black">{{ ticket.data_abertura.strftime('%d/%m/%Y %H:%M') }}</p>
+                </div>
+
+                {% if ticket.tecnico %}
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Técnico Responsável</p>
+                    <p class="text-sm font-bold text-black">{{ ticket.tecnico.nome }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Actions (Admin/Tecnico Only) -->
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+            <div class="bg-black text-white p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] space-y-4">
+                <h3 class="font-mono text-[10px] text-gray-400 uppercase tracking-widest border-b border-gray-800 pb-2">Ações de Gestão</h3>
+                
+                <form action="/servicos/chamado/{{ ticket.id }}/update" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase mb-1">Alterar Status</label>
+                        <select name="status" class="w-full bg-gray-900 border border-gray-700 text-white text-xs p-2 focus:ring-0">
+                            {% for s in statuses %}
+                            <option value="{{ s.value }}" {% if ticket.status == s.value %}selected{% endif %}>{{ s.value }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-white text-black font-bold uppercase text-[10px] py-3 hover:bg-gray-200 transition">
+                        Atualizar Chamado
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

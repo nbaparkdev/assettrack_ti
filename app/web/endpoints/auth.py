@@ -143,6 +143,7 @@ async def register_submit(
     nome: Annotated[str, Form()],
     email: Annotated[str, Form()],
     password: Annotated[str, Form()],
+    role: Annotated[str, Form()],
     matricula: Annotated[str, Form()] = None,
     cargo: Annotated[str, Form()] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
@@ -154,12 +155,15 @@ async def register_submit(
 
     try:
         from app.schemas.user import UserCreate
+        from app.models.user import UserRole
+        
         user_in = UserCreate(
             nome=nome,
             email=email,
             password=password,
             matricula=matricula,
-            cargo=cargo
+            cargo=cargo,
+            role=UserRole(role)
         )
         await user_crud.user.create(db, obj_in=user_in)
         # Login automatically or redirect to login? Let's redirect to login.

@@ -15,7 +15,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 # Dependency to check admin/manager role
 async def require_admin(current_user: Annotated[User, Depends(get_active_user_web)]):
-    if current_user.role.value.lower() not in ["admin", "gerente_ti"]:
+    if str(current_user.role.value).lower() not in ["admin", "gerente_ti", "gerente_infra"]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     return current_user
 
