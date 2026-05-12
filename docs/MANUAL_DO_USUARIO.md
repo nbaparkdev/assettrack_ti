@@ -15,11 +15,12 @@ Bem-vindo ao manual oficial do **AssetTrack TI**, o sistema completo para gerenc
     - [Solicitar Manutenção](#solicitar-manutenção)
     - [Acompanhar Solicitações](#acompanhar-solicitações)
     - [Fluxo do Técnico](#fluxo-do-técnico)
-5. [Sistema QR Code](#5-sistema-qr-code)
+5. [Service Desk (Chamados)](#5-service-desk-chamados)
+6. [Sistema QR Code](#6-sistema-qr-code)
     - [Configurar PIN](#configurar-pin)
     - [Meu Crachá Digital](#meu-crachá-digital)
     - [Scanner](#scanner)
-6. [Perfis de Acesso](#6-perfis-de-acesso)
+7. [Perfis de Acesso](#7-perfis-de-acesso)
 
 ---
 
@@ -101,7 +102,37 @@ Em **"Minhas Solicitações"**, você pode ver o status de todos os seus pedidos
 
 ---
 
-## 5. 📱 Sistema QR Code
+## 5. 🎧 Service Desk (Chamados)
+
+O módulo de **Service Desk** permite que usuários abram chamados para suporte técnico e infraestrutura.
+
+### Abrir um Novo Chamado
+1. No menu lateral ou superior, acesse **"Service Desk"**.
+2. Clique em **"Novo Chamado"**.
+3. Escolha o **Título**, selecione o **Serviço** desejado e a **Prioridade**.
+4. Descreva o problema ou solicitação e clique em **Criar Chamado**.
+
+### Buscar e Filtrar Chamados
+Na tela principal do Service Desk (`/servicos/`), você pode usar a barra de filtros para localizar chamados rapidamente:
+- **Buscar**: Digite o código do chamado (ex: CH-2024-0001), título ou parte da descrição.
+- **Categoria/Setor**: Filtre por tipos específicos de serviço.
+- **Status e Prioridade**: Localize chamados abertos, em atendimento ou resolvidos.
+- **Data**: Defina um intervalo de datas (Início e Fim) para ver chamados abertos naquele período.
+
+### Interagir em um Chamado
+1. Clique em **"Ver Detalhes"** em qualquer chamado da lista.
+2. Você verá o histórico completo de mensagens.
+3. No campo de **Mensagem**, digite sua atualização ou dúvida e clique em **Enviar**.
+4. Técnicos e administradores também usarão este campo para responder a você.
+
+### QR Code do Chamado
+Cada chamado possui um QR Code na página de detalhes.
+- Técnicos podem escanear o QR Code impresso ou na tela do usuário para acessar o chamado e atualizar o status rapidamente.
+- Usuários podem escanear para acompanhar o andamento pelo celular.
+
+---
+
+## 6. 📱 Sistema QR Code
 
 O sistema possui uma forte integração com QR Codes para agilizar processos.
 
@@ -129,7 +160,7 @@ O sistema possui um leitor de QR Code integrado, acessível via:
 
 ---
 
-## 6. 👥 Perfis de Acesso
+## 7. 👥 Perfis de Acesso
 
 Entenda o que cada função pode fazer:
 

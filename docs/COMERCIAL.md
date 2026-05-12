@@ -81,6 +81,7 @@ Solicite equipamentos e acompanhe suas solicitações com transparência.
 - 🏢 **Setores** — Organize por departamentos
 - 👥 **Usuários** — Controle de acesso por perfil
 - 🛠️ **Manutenções** — Ciclo de vida do equipamento
+- 🎧 **Service Desk** — Central de chamados e suporte integrada
 - 📊 **Dashboard** — Métricas em tempo real
 
 ---

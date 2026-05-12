@@ -113,6 +113,38 @@
 
 ---
 
+## 🎧 Service Desk (Help Desk)
+
+| Funcionalidade | Rota | Permissão |
+|----------------|------|-----------|
+| **Home Service Desk** | `/servicos/` | Todos |
+| **Novo Chamado** | `/servicos/novo` | Todos |
+| **Detalhes do Chamado** | `/servicos/chamado/{id}` | Todos |
+| **Busca e Filtros** | `/servicos/` (GET Params) | Todos |
+| **Gerenciar Categorias** | `/servicos/admin/categorias` | Admin, Gerente |
+| **Gerenciar Serviços** | `/servicos/admin/servicos` | Admin, Gerente |
+| **Atualizar Status** | `/servicos/chamado/{id}/update` | Técnico, Admin, Gerente |
+| **Nova Interação** | `/servicos/chamado/{id}/interacao` | Todos |
+
+### Filtros de Busca Avançados
+- **Texto**: Busca por código (CH-YYYY-XXXX), título ou descrição.
+- **Categoria**: Filtragem por grupo de serviço/setor.
+- **Status**: Aberto, Em Atendimento, Resolvido, Cancelado.
+- **Prioridade**: Baixa, Média, Alta, Urgente.
+- **Intervalo de Datas**: Filtragem por data de abertura (Início e Fim).
+
+### QR Code no Chamado
+- Cada chamado gera um **QR Code único**.
+- Facilita o acesso rápido ao histórico de interações pelo celular.
+- Permite que o usuário ou técnico verifique o status instantaneamente.
+
+### Estatísticas (Dashboard Service Desk)
+- Contador de chamados **Abertos**.
+- Contador de chamados **Em Atendimento**.
+- Contador de chamados **Resolvidos**.
+
+---
+
 ## 🏢 Setores (Departamentos)
 
 | Funcionalidade | Rota | Permissão |

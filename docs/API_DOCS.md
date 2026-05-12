@@ -150,6 +150,46 @@ Histórico de movimentações de ativos.
 
 ---
 
+---
+
+## 🎧 Service Desk (`/servicos`)
+
+### GET `/servicos/` (HTML)
+Lista chamados com filtros.
+
+**Query Parameters:**
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| query | string | Busca por código, título ou descrição |
+| status | string | Filtro por status (Aberto, Em Atendimento, Resolvido, Cancelado) |
+| prioridade | string | Filtro por prioridade (Baixa, Média, Alta, Urgente) |
+| categoria_id | int | ID da categoria de serviço |
+| data_inicio | string | Data inicial (YYYY-MM-DD) |
+| data_fim | string | Data final (YYYY-MM-DD) |
+
+### POST `/servicos/novo` (Form)
+Cria um novo chamado.
+
+**Form Parameters:**
+- `titulo`: string
+- `servico_id`: int
+- `prioridade`: string (Enum ServicePriority)
+- `descricao`: string
+
+### POST `/servicos/chamado/{id}/update` (Form)
+Atualiza status de um chamado. (Técnico/Admin)
+
+**Form Parameters:**
+- `status`: string (Enum ServiceStatus)
+
+### POST `/servicos/chamado/{id}/interacao` (Form)
+Adiciona um comentário ao chamado.
+
+**Form Parameters:**
+- `mensagem`: string
+
+---
+
 ## 🛠️ Status Codes Comuns
 
 - **200 OK**: Sucesso.
