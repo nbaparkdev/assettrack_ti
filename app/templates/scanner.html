@@ -134,9 +134,9 @@
         <!-- Manual Entry -->
         <div class="px-6 pb-6">
             <div class="border-t pt-6">
-                <p class="text-sm text-gray-500 text-center mb-4">Ou digite o código manualmente:</p>
+                <p class="text-sm text-gray-500 text-center mb-4">Ou busque por nome ou S/N:</p>
                 <form action="/assets/search" method="GET" class="flex gap-2">
-                    <input type="text" name="serial" placeholder="Número de série do ativo"
+                    <input type="text" name="q" placeholder="Nome ou Número de Série (S/N)"
                         class="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500">
                     <button type="submit" class="btn btn-primary">
                         Buscar
@@ -225,31 +225,22 @@
             if (uuidMatch) {
                 redirectUrl = `/usuario/${uuidMatch[0]}`;
             }
-            // 2. If it's just a number, assume it's an Asset ID
-            else if (/^\d+$/.test(decodedText)) {
-                redirectUrl = `/assets/${decodedText}`;
+            // 2. If it's a path starting with /assets/sn/, use as-is
+            else if (decodedText.includes('/assets/sn/')) {
+                const match = decodedText.match(/\/assets\/sn\/[^\/\s?#]+/);
+                if (match) {
+                    redirectUrl = match[0];
+                } else {
+                    redirectUrl = decodedText;
+                }
             }
-            // 3. If it's a relative path starting with /assets/, use as-is
+            // 3. If it's a relative path starting with /assets/ (but not /sn/), use as-is
             else if (decodedText.startsWith('/assets/')) {
                 redirectUrl = decodedText;
             }
-            // 4. If it's a full URL containing /assets/, extract the path
-            else if (decodedText.includes('/assets/')) {
-                const match = decodedText.match(/\/assets\/\d+/);
-                if (match) {
-                    redirectUrl = match[0];
-                }
-            }
-            // 5. If it contains asset_id parameter
-            else if (decodedText.includes('asset_id=')) {
-                const match = decodedText.match(/asset_id=(\d+)/);
-                if (match) {
-                    redirectUrl = `/assets/${match[1]}`;
-                }
-            }
-            // 6. Fallback: search by serial number
+            // 4. Fallback: search by generic query (likely Serial Number)
             else {
-                redirectUrl = `/assets/search?serial=${encodeURIComponent(decodedText)}`;
+                redirectUrl = `/assets/search?q=${encodeURIComponent(decodedText)}`;
             }
 
             // Redirect after a short delay

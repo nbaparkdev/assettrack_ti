@@ -63,41 +63,50 @@ async def scanner_page(
 @router.get("/search", response_class=HTMLResponse)
 async def search_asset(
     request: Request,
-    serial: str,
-    current_user: Annotated[User, Depends(get_active_user_web)],
-    db: Annotated[AsyncSession, Depends(get_db)]
+    q: Optional[str] = None, # Alterado para 'q' para ser mais genérico (nome ou serial)
+    current_user: Annotated[User, Depends(get_active_user_web)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
-    """Search asset by serial number and redirect to detail page"""
-    from sqlalchemy import select, func
+    """Search asset by name or serial number and redirect to detail page"""
+    from sqlalchemy import select, func, or_
     from app.models.asset import Asset
     
+    if not q:
+        return RedirectResponse(url="/assets", status_code=303)
+
     result = await db.execute(
-        select(Asset).where(Asset.serial_number.ilike(f"%{serial}%"))
+        select(Asset).where(
+            or_(
+                Asset.serial_number.ilike(f"%{q}%"),
+                Asset.nome.ilike(f"%{q}%")
+            )
+        )
     )
-    asset = result.scalar_one_or_none()
+    assets_found = result.scalars().all()
     
-    if asset:
-        return RedirectResponse(url=f"/assets/{asset.id}", status_code=303)
+    # Se encontrou exatamente um, vai direto para o detalhe
+    if len(assets_found) == 1:
+        asset = assets_found[0]
+        return RedirectResponse(url=f"/assets/sn/{asset.serial_number}", status_code=303)
     
-    # Asset not found — render a friendly not-found page
+    # Se encontrou vários ou nenhum, mostra a lista filtrada
     total_assets = await db.scalar(select(func.count(Asset.id)))
     available_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.DISPONIVEL))
     in_use_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.EM_USO))
     maintenance_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.MANUTENCAO))
 
-    assets = await asset_crud.asset.get_multi(db)
     return templates.TemplateResponse("assets/list.html", {
         "request": request,
         "user": current_user,
-        "assets": assets,
+        "assets": assets_found,
         "stats": {
             "total": total_assets or 0,
             "available": available_assets or 0,
             "in_use": in_use_assets or 0,
             "maintenance": maintenance_assets or 0
         },
-        "error": f"Ativo com serial '{serial}' não encontrado.",
-        "title": "Ativos"
+        "query": q,
+        "title": f"Busca: {q}"
     })
 
 @router.get("/new", response_class=HTMLResponse)
@@ -160,6 +169,7 @@ async def create_asset(
 
 @router.get("/qrcode/{asset_id}")
 async def get_asset_qrcode_web(
+    request: Request,
     asset_id: int,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
@@ -169,11 +179,28 @@ async def get_asset_qrcode_web(
     if not asset:
         return Response(content=b"", status_code=404)
     
-    # URL completa para acessar o ativo
-    qr_content = f"http://localhost:8000/assets/{asset.id}"
+    # URL completa para acessar o ativo via Serial Number
+    # Usando o host configurado ou localhost como padrão
+    base_url = str(request.base_url).rstrip('/')
+    qr_content = f"{base_url}/assets/sn/{asset.serial_number}"
     img_io = QRService.generate_qr_code(qr_content)
     
     return Response(content=img_io.getvalue(), media_type="image/png")
+
+@router.get("/sn/{serial_number}", response_class=HTMLResponse)
+async def asset_detail_by_serial(
+    request: Request,
+    serial_number: str,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """Visualiza detalhes do ativo buscando pelo Serial Number (S/N)"""
+    asset = await asset_crud.asset.get_by_serial(db, serial_number=serial_number)
+    if not asset:
+        return RedirectResponse(url="/assets?error=Ativo+nao+encontrado", status_code=303)
+    
+    # Reutiliza a lógica de detalhe
+    return await asset_detail(request, asset.id, current_user, db)
 
 @router.get("/{asset_id}", response_class=HTMLResponse)
 async def asset_detail(
@@ -248,6 +275,20 @@ async def asset_detail(
         "history_manutencoes": history_manutencoes,
         "title": f"Ativo: {asset.nome}"
     })
+
+@router.get("/sn/{serial_number}/edit", response_class=HTMLResponse)
+async def edit_asset_form_by_serial(
+    request: Request,
+    serial_number: str,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """Acessa formulário de edição buscando pelo Serial Number (S/N)"""
+    asset = await asset_crud.asset.get_by_serial(db, serial_number=serial_number)
+    if not asset:
+        return RedirectResponse(url="/assets?error=Ativo+nao+encontrado", status_code=303)
+    
+    return await edit_asset_form(request, asset.id, current_user, db)
 
 @router.get("/{asset_id}/edit", response_class=HTMLResponse)
 async def edit_asset_form(

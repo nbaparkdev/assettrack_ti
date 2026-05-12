@@ -72,8 +72,8 @@ async def get_asset_qrcode(
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     
-    # Conteúdo do QR Code: pode ser a URL do frontend para visualizar o asset
-    qr_content = f"assettrack://assets/{asset.id}" # ou url web
+    # Conteúdo do QR Code: agora usando o Serial Number para busca
+    qr_content = f"assettrack://assets/sn/{asset.serial_number}"
     img_io = QRService.generate_qr_code(qr_content)
     
     return Response(content=img_io.getvalue(), media_type="image/png")
@@ -93,16 +93,24 @@ async def scan_qr_code(
     if not decoded:
         raise HTTPException(status_code=400, detail="Could not decode QR code")
     
-    # Supondo que o QR tenha formato "assettrack://assets/{id}"
+    # Supondo que o QR tenha formato "assettrack://assets/sn/{serial}" ou "assettrack://assets/{id}"
     try:
-        if "assets/" in decoded:
+        if "assets/sn/" in decoded:
+            serial = decoded.split("assets/sn/")[-1]
+            asset = await asset_crud.asset.get_by_serial(db, serial_number=serial)
+            if not asset:
+                raise HTTPException(status_code=404, detail=f"Asset with serial {serial} not found")
+            return asset
+        elif "assets/" in decoded:
             asset_id = int(decoded.split("assets/")[-1])
+            asset = await asset_crud.asset.get(db, id=asset_id)
         else:
-            asset_id = int(decoded) # Tenta cast direto se for só ID
+            # Tenta ID direto como fallback
+            asset_id = int(decoded)
+            asset = await asset_crud.asset.get(db, id=asset_id)
 
-        asset = await asset_crud.asset.get(db, id=asset_id)
         if not asset:
-            raise HTTPException(status_code=404, detail=f"Asset from QR not found (ID: {asset_id})")
+            raise HTTPException(status_code=404, detail="Asset not found")
         return asset
     except Exception:
         raise HTTPException(status_code=400, detail=f"Invalid QR code content: {decoded}")

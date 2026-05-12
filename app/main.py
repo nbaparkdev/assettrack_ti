@@ -1,5 +1,5 @@
-
 # app/main.py
+import os
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
@@ -14,12 +14,15 @@ from app.web.endpoints import admin
 from app.core.rate_limit import limiter
 from slowapi.errors import RateLimitExceeded
 
-# Função para criar tabelas no startup (apenas para dev rápido se não usar alembic)
+# Base directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+
+# Função para criar tabelas no startup
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     async with engine.begin() as conn:
-        # await conn.run_sync(Base.metadata.drop_all) # CUIDADO: Limpa banco
         await conn.run_sync(Base.metadata.create_all)
     yield
     # Shutdown
@@ -30,6 +33,13 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan
 )
+
+# Templates instantiation
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+# Mount static files
+if os.path.exists(os.path.join(PROJECT_ROOT, "static")):
+    app.mount("/static", StaticFiles(directory=os.path.join(PROJECT_ROOT, "static")), name="static")
 
 # Rate Limiter
 app.state.limiter = limiter
@@ -57,20 +67,12 @@ async def custom_500_handler(request: Request, exc):
         "title": "Erro Interno"
     }, status_code=500)
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Templates instantiation (global access if needed, or per file)
-templates = Jinja2Templates(directory="app/templates")
-
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(web_router)
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
-
-# O root "/" será servido pelo web.router depois
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

@@ -107,7 +107,7 @@
                 <tbody class="divide-y divide-gray-200">
                     {% for asset in assets %}
                     <tr class="hover:bg-gray-50 transition group cursor-pointer"
-                        onclick="window.location='/assets/{{ asset.id }}'">
+                        onclick="window.location='/assets/sn/{{ asset.serial_number }}'">
                         <td class="px-6 py-4">
                             <div class="flex flex-col">
                                 <span class="font-bold text-sm text-gray-900 group-hover:text-amber-600 transition">{{
@@ -157,7 +157,7 @@
                         </td>
                         <td class="px-6 py-4 text-right" onclick="event.stopPropagation()">
                             <div class="flex items-center justify-end gap-3">
-                                <a href="/assets/{{ asset.id }}"
+                                <a href="/assets/sn/{{ asset.serial_number }}"
                                     class="text-xs font-bold uppercase text-black hover:underline tracking-wider">
                                     DETALHES
                                 </a>

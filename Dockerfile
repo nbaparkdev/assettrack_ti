@@ -1,4 +1,3 @@
-
 FROM python:3.11-slim
 
 WORKDIR /code
@@ -15,8 +14,8 @@ COPY ./requirements.txt /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 COPY ./app /code/app
-COPY ./alembic /code/alembic
-# COPY ./alembic.ini /code/alembic.ini 
-# (Se tivesse alembic.ini, mas não criamos o arquivo de conf do alembic explícito, pode ser gerado depois com `alembic init`)
+COPY ./create_admin.py /code/create_admin.py
+COPY ./create_technician.py /code/create_technician.py
+COPY ./activate_user_admin.py /code/activate_user_admin.py
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
