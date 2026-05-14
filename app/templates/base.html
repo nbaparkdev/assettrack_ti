@@ -105,36 +105,63 @@
                         </div>
                     </a>
 
-                    <!-- DESKTOP MENU -->
-                    {% set link_class = "text-sm font-bold uppercase tracking-wider text-gray-500 hover:text-black
-                    border-b-2 border-transparent hover:border-black py-1 transition-all" %}
-                    <div class="hidden md:flex items-center space-x-6">
+<!-- DESKTOP MENU -->
+                    {% set link_class = "text-sm font-bold uppercase tracking-wider text-gray-500 hover:text-black border-b-2 border-transparent hover:border-black py-1 transition-all" %}
+                    <div class="hidden md:flex items-center space-x-1">
                         <a href="/" class="{{ link_class }}">Dashboard</a>
 
-                        <!-- Group: Assets -->
-                        <div class="h-4 w-px bg-gray-300 mx-2"></div>
+                        <!-- Separator -->
+                        <div class="h-4 w-px bg-gray-300 mx-3"></div>
+
+                        <!-- Group: Ativos -->
                         <a href="/assets" class="{{ link_class }}">Ativos</a>
-                        <a href="/movimentacoes" class="{{ link_class }}">Log</a>
+                        <a href="/movimentacoes" class="{{ link_class }}">Movimentações</a>
 
-                        <!-- Group: Services -->
-                        <div class="h-4 w-px bg-gray-300 mx-2"></div>
-                        <a href="/servicos" class="{{ link_class }}">Service Desk</a>
-                        <a href="/minhas-solicitacoes-manutencao" class="{{ link_class }}">Ativos</a>
+                        <!-- Separator -->
+                        <div class="h-4 w-px bg-gray-300 mx-3"></div>
 
-                        <!-- Group: Admin/Tech -->
+                        <!-- Group: Suporte (Dropdown) -->
+                        <div class="relative group">
+                            <button class="{{ link_class }} flex items-center gap-1">
+                                Suporte
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div class="absolute left-0 mt-2 w-56 bg-white border-2 border-black shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                <a href="/servicos" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100 border-b border-gray-100">Service Desk</a>
+                                <a href="/minhas-solicitacoes-manutencao" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100 border-b border-gray-100">Minhas Solicitações</a>
+                                <a href="/assets/scanner" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Scanner de Ativos</a>
+                            </div>
+                        </div>
+
+                        <!-- Group: Área Técnica -->
                         {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico', 'gerente_infra'] %}
-                        <div class="h-4 w-px bg-black mx-2"></div>
+                        <div class="h-4 w-px bg-black mx-3"></div>
                         <a href="/solicitacoes-manutencao"
-                            class="text-sm font-bold uppercase tracking-wider text-blue-600 hover:text-blue-800 border-b-2 border-transparent hover:border-blue-800 py-1 transition-all">Painel
-                            TI</a>
+                            class="text-sm font-bold uppercase tracking-wider text-blue-600 hover:text-blue-800 border-b-2 border-transparent hover:border-blue-800 py-1 transition-all">Painel TI</a>
+                        <a href="/maintenance/tech" class="{{ link_class }}">Manutenção</a>
                         {% endif %}
 
+                        <!-- Group: Administração -->
                         {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
-                        <a href="/setores" class="{{ link_class }}">Setores</a>
-                        <a href="/admin/users" class="{{ link_class }}">Admin</a>
+                        <div class="relative group">
+                            <button class="{{ link_class }} flex items-center gap-1">
+                                Admin
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div class="absolute left-0 mt-2 w-48 bg-white border-2 border-black shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                <a href="/admin/users" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100 border-b border-gray-100">Usuários</a>
+                                <a href="/setores" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Setores</a>
+                            </div>
+                        </div>
                         {% endif %}
 
-                        <div class="h-4 w-px bg-gray-300 mx-2"></div>
+                        <!-- Separator -->
+                        <div class="h-4 w-px bg-gray-300 mx-3"></div>
+
                         <a href="/help" class="{{ link_class }}">Ajuda</a>
                     </div>
                 </div>
@@ -142,37 +169,40 @@
                 <!-- TRAILING SECTION: ICONS + PROFILE + MOBILE TOGGLE -->
                 <div class="flex items-center gap-4">
                     <!-- Desktop Icons -->
-                    <div class="hidden md:flex items-center gap-4 pl-6 border-l-2 border-gray-200">
-                        <!-- QR Code -->
-                        <a href="/meu-qrcode" class="text-gray-400 hover:text-black transition p-1" title="Meu QR Code">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
-                                </path>
-                            </svg>
-                        </a>
-                        <!-- Asset Scanner (All Auth Users) -->
-                        <a href="/assets/scanner" class="text-gray-400 hover:text-black transition p-1"
-                            title="Scanner de Ativos">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
-                                </path>
-                            </svg>
-                        </a>
-                        <!-- Scanner (Admin) -->
-                        {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
-                        <a href="/scanner/usuario" class="text-gray-400 hover:text-blue-600 transition p-1"
-                            title="Escanear Usuário">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z">
-                                </path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
-                        </a>
-                        {% endif %}
+                    <div class="hidden md:flex items-center gap-2 pl-4 border-l-2 border-gray-200">
+                        <!-- Ferramentas Dropdown -->
+                        <div class="relative group">
+                            <button class="flex items-center gap-2 text-gray-400 hover:text-black transition p-2" title="Ferramentas">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                <span class="text-xs font-bold uppercase">Ferramentas</span>
+                            </button>
+                            <div class="absolute right-0 mt-2 w-56 bg-white border-2 border-black shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                <a href="/meu-qrcode" class="flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100 border-b border-gray-100">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                                    </svg>
+                                    Meu QR Code
+                                </a>
+                                <a href="/assets/scanner" class="flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100 border-b border-gray-100">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                                    </svg>
+                                    Scanner Ativos
+                                </a>
+                                {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+                                <a href="/scanner/usuario" class="flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    Scanner Usuário
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Profile (Always Visible) -->
@@ -208,57 +238,50 @@
             </div>
         </div>
 
-        <!-- MOBILE MENU (Hidden by default) -->
+<!-- MOBILE MENU (Hidden by default) -->
         <div id="mobile-menu"
-            class="hidden md:hidden bg-white border-t-2 border-black px-4 pt-4 pb-6 space-y-2 shadow-xl">
-            {% set mobile_link = "block px-4 py-3 border-2 border-gray-100 hover:border-black hover:bg-gray-50 text-base
-            font-bold uppercase tracking-wider text-gray-700 hover:text-black transition-all" %}
+            class="hidden md:hidden bg-white border-t-2 border-black px-4 pt-4 pb-6 shadow-xl">
+            {% set mobile_link = "block px-4 py-3 border-2 border-gray-100 hover:border-black hover:bg-gray-50 text-base font-bold uppercase tracking-wider text-gray-700 hover:text-black transition-all" %}
+            {% set section_title = "pt-4 pb-2 text-xs font-mono uppercase text-gray-400 px-1" %}
 
             <a href="/" class="{{ mobile_link }}">Dashboard</a>
-            <a href="/assets" class="{{ mobile_link }}">Ativos</a>
-            <a href="/minhas-solicitacoes-manutencao" class="{{ mobile_link }}">Suporte / Manutenção</a>
 
-            {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
-            <div class="pt-2 pb-1 text-xs font-mono uppercase text-gray-400 px-1">Área Técnica</div>
-            <a href="/solicitacoes-manutencao"
-                class="{{ mobile_link }} text-blue-600 border-blue-100 hover:border-blue-600 hover:bg-blue-50">Painel
-                TI</a>
-            {% endif %}
-
-            {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
-            <a href="/movimentacoes" class="{{ mobile_link }}">Logs de Movimentação</a>
-            <a href="/setores" class="{{ mobile_link }}">Setores</a>
-            <a href="/admin/users" class="{{ mobile_link }}">Administração</a>
-            {% endif %}
-
-            <div class="border-t border-gray-200 my-4"></div>
-
-            <a href="/meu-qrcode" class="{{ mobile_link }} flex items-center justify-between">
-                Meu QR Code
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
-                    </path>
+            <!-- Seção: Ativos -->
+            <div class="{{ section_title }}">Ativos</div>
+            <a href="/assets" class="{{ mobile_link }} ml-2">Lista de Ativos</a>
+            <a href="/movimentacoes" class="{{ mobile_link }} ml-2">Movimentações</a>
+            <a href="/assets/scanner" class="{{ mobile_link }} ml-2 flex items-center justify-between">
+                Scanner
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
                 </svg>
             </a>
 
-            <a href="/help" class="{{ mobile_link }}">
-                Central de Ajuda
-            </a>
+            <!-- Seção: Suporte -->
+            <div class="{{ section_title }}">Suporte</div>
+            <a href="/servicos" class="{{ mobile_link }} ml-2">Service Desk</a>
+            <a href="/minhas-solicitacoes-manutencao" class="{{ mobile_link }} ml-2">Minhas Solicitações</a>
 
-            <a href="/assets/scanner"
-                class="{{ mobile_link }} flex items-center justify-between border-black bg-gray-50">
-                <span class="flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z">
-                        </path>
-                    </svg>
-                    SCANNER ATIVOS
-                </span>
-                <span>&rarr;</span>
-            </a>
+            <!-- Seção: Área Técnica -->
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico', 'gerente_infra'] %}
+            <div class="{{ section_title }}">Área Técnica</div>
+            <a href="/solicitacoes-manutencao" class="{{ mobile_link }} ml-2 text-blue-600 border-blue-100 hover:border-blue-600 hover:bg-blue-50">Painel TI</a>
+            <a href="/maintenance/tech" class="{{ mobile_link }} ml-2">Manutenção</a>
+            {% endif %}
 
+            <!-- Seção: Administração -->
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
+            <div class="{{ section_title }}">Administração</div>
+            <a href="/admin/users" class="{{ mobile_link }} ml-2">Usuários</a>
+            <a href="/setores" class="{{ mobile_link }} ml-2">Setores</a>
+            {% endif %}
+
+            <!-- Seção: Pessoal -->
+            <div class="{{ section_title }}">Pessoal</div>
+            <a href="/meu-qrcode" class="{{ mobile_link }} ml-2">Meu QR Code</a>
+            <a href="/help" class="{{ mobile_link }} ml-2">Ajuda</a>
+
+            <!-- Logout -->
             <a href="/logout"
                 class="block px-4 py-3 bg-red-50 border-2 border-red-100 hover:border-red-600 text-red-600 text-base font-bold uppercase tracking-wider transition-all text-center mt-4">
                 Sair do Sistema

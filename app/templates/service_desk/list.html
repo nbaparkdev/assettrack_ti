@@ -105,6 +105,7 @@
                 <thead>
                     <tr class="bg-black text-white font-mono text-xs uppercase tracking-widest">
                         <th class="px-6 py-4 border-b border-gray-800">Código</th>
+                        <th class="px-6 py-4 border-b border-gray-800">Solicitante</th>
                         <th class="px-6 py-4 border-b border-gray-800">Título / Serviço</th>
                         <th class="px-6 py-4 border-b border-gray-800">Status</th>
                         <th class="px-6 py-4 border-b border-gray-800">Prioridade</th>
@@ -118,6 +119,10 @@
                         onclick="window.location='/servicos/chamado/{{ ticket.id }}'">
                         <td class="px-6 py-4">
                             <span class="font-mono text-xs font-bold bg-gray-100 px-2 py-1 border border-black">{{ ticket.codigo }}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="font-bold text-sm text-black">{{ ticket.solicitante.nome }}</p>
+                            <p class="text-xs text-gray-500 font-mono">{{ ticket.solicitante.departamento.nome if ticket.solicitante.departamento else '-' }}</p>
                         </td>
                         <td class="px-6 py-4">
                             <p class="font-bold text-sm text-black uppercase">{{ ticket.titulo }}</p>
@@ -157,7 +162,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="px-6 py-12 text-center">
+                        <td colspan="7" class="px-6 py-12 text-center">
                             <div class="flex flex-col items-center">
                                 <svg class="w-12 h-12 text-gray-200 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
