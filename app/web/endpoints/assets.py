@@ -77,7 +77,7 @@ async def search_asset(
     result = await db.execute(
         select(Asset).where(
             or_(
-                Asset.serial_number.ilike(f"%{q}%"),
+                Asset.e_patrimonio.ilike(f"%{q}%"),
                 Asset.nome.ilike(f"%{q}%")
             )
         )
@@ -87,7 +87,7 @@ async def search_asset(
     # Se encontrou exatamente um, vai direto para o detalhe
     if len(assets_found) == 1:
         asset = assets_found[0]
-        return RedirectResponse(url=f"/assets/sn/{asset.serial_number}", status_code=303)
+        return RedirectResponse(url=f"/assets/ep/{asset.e_patrimonio}", status_code=303)
     
     # Se encontrou vários ou nenhum, mostra a lista filtrada
     total_assets = await db.scalar(select(func.count(Asset.id)))
@@ -125,7 +125,7 @@ async def create_asset(
     request: Request,
     nome: Annotated[str, Form()],
     modelo: Annotated[str, Form()],
-    serial_number: Annotated[str, Form()],
+    e_patrimonio: Annotated[str, Form()],
     descricao: Annotated[Optional[str], Form()] = None,
     data_aquisicao: Annotated[Optional[str], Form()] = None, # Changed to str to handle empty form input
     valor_aquisicao: Annotated[Optional[str], Form()] = None, # Changed to str to handle empty form input
@@ -151,7 +151,7 @@ async def create_asset(
         asset_in = AssetCreate(
             nome=nome,
             modelo=modelo,
-            serial_number=serial_number,
+            e_patrimonio=e_patrimonio,
             descricao=descricao,
             data_aquisicao=dt_aquisicao,
             valor=val_aquisicao,
@@ -182,20 +182,20 @@ async def get_asset_qrcode_web(
     # URL completa para acessar o ativo via Serial Number
     # Usando o host configurado ou localhost como padrão
     base_url = str(request.base_url).rstrip('/')
-    qr_content = f"{base_url}/assets/sn/{asset.serial_number}"
+    qr_content = f"{base_url}/assets/ep/{asset.e_patrimonio}"
     img_io = QRService.generate_qr_code(qr_content)
     
     return Response(content=img_io.getvalue(), media_type="image/png")
 
-@router.get("/sn/{serial_number}", response_class=HTMLResponse)
+@router.get("/ep/{e_patrimonio}", response_class=HTMLResponse)
 async def asset_detail_by_serial(
     request: Request,
-    serial_number: str,
+    e_patrimonio: str,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Visualiza detalhes do ativo buscando pelo Serial Number (S/N)"""
-    asset = await asset_crud.asset.get_by_serial(db, serial_number=serial_number)
+    asset = await asset_crud.asset.get_by_e_patrimonio(db, e_patrimonio=e_patrimonio)
     if not asset:
         return RedirectResponse(url="/assets?error=Ativo+nao+encontrado", status_code=303)
     
@@ -276,15 +276,15 @@ async def asset_detail(
         "title": f"Ativo: {asset.nome}"
     })
 
-@router.get("/sn/{serial_number}/edit", response_class=HTMLResponse)
+@router.get("/ep/{e_patrimonio}/edit", response_class=HTMLResponse)
 async def edit_asset_form_by_serial(
     request: Request,
-    serial_number: str,
+    e_patrimonio: str,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Acessa formulário de edição buscando pelo Serial Number (S/N)"""
-    asset = await asset_crud.asset.get_by_serial(db, serial_number=serial_number)
+    asset = await asset_crud.asset.get_by_e_patrimonio(db, e_patrimonio=e_patrimonio)
     if not asset:
         return RedirectResponse(url="/assets?error=Ativo+nao+encontrado", status_code=303)
     
@@ -318,7 +318,7 @@ async def update_asset(
     asset_id: int,
     nome: Annotated[str, Form()],
     modelo: Annotated[str, Form()],
-    serial_number: Annotated[str, Form()],
+    e_patrimonio: Annotated[str, Form()],
     descricao: Annotated[Optional[str], Form()] = None,
     data_aquisicao: Annotated[Optional[str], Form()] = None,
     valor_aquisicao: Annotated[Optional[str], Form()] = None,
@@ -350,7 +350,7 @@ async def update_asset(
         asset_update = AssetUpdate(
             nome=nome,
             modelo=modelo,
-            serial_number=serial_number,
+            e_patrimonio=e_patrimonio,
             descricao=descricao if descricao else None,
             data_aquisicao=dt_aquisicao,
             valor=val_aquisicao

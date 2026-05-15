@@ -132,13 +132,17 @@ O sistema possui scripts para criar usuários iniciais. Credenciais sugeridas pa
 | **Técnico** | `tecnico@example.com` | `123` | Operacional (Manutenções e Devoluções) |
 
 ### Criar usuários via terminal
-Se os usuários não existirem, rode:
+Se os usuários não existirem, rode os comandos diretamente no container:
+
 ```bash
 # Criar Admin
-python3 create_admin.py
+sudo docker-compose exec web python create_admin.py
+
+# Ativar Admin (Obrigatório para login)
+sudo docker-compose exec web python activate_user_admin.py
 
 # Criar Técnico
-python3 create_technician.py
+sudo docker-compose exec web python create_technician.py
 ```
 
 ## 🎧 Service Desk (Help Desk)
@@ -167,7 +171,8 @@ O sistema inclui funcionalidades de QR Code para identificação e login rápido
 | **Crachá Digital** | Cada usuário tem um QR Code único para identificação |
 | **Login via QR** | Login rápido escaneando QR + PIN de 4-6 dígitos |
 | **Confirmação de Entrega** | Valida entregas de ativos via QR do usuário |
-| **Histórico de Ativos** | Scanner revela histórico completo (movimentações, manutenções, solicitações) |
+| **Histórico de Ativos** | Scanner revela histórico completo (movimentações, manutenções, solicitações). Suporta o novo padrão `/ep/` (E-Patrimonio) e o legado `/sn/` (Serial Number). |
+| **E-Patrimonio** | Substitui o antigo "Número de Série" (Serial Number) em todo o sistema, utilizando o prefixo `/assets/ep/` nas rotas. |
 | **Central de Ajuda** | Manuais integrados ao sistema (`/help`) para usuários e admins |
 | **Logs de Auditoria** | Todas as ações de QR são registradas |
 

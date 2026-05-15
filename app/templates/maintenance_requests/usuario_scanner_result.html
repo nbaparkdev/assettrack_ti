@@ -64,7 +64,7 @@
                                 class="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded">MANUTENÇÃO</span>
                         </div>
                         <div class="text-sm text-gray-600">
-                            <span class="font-mono">{{ sol.asset.serial_number or 'S/N' }}</span>
+                            <span class="font-mono">{{ sol.asset.e_patrimonio or 'E-Patrimonio' }}</span>
                             {% if sol.data_conclusao_tecnico %}
                             <span class="text-gray-400 ml-3">Concluído: {{ sol.data_conclusao_tecnico.strftime('%d/%m/%Y
                                 %H:%M') }}</span>
@@ -104,7 +104,7 @@
                                 class="text-xs font-bold bg-green-100 text-green-800 px-2 py-1 rounded">SOLICITAÇÃO</span>
                         </div>
                         <div class="text-sm text-gray-600">
-                            <span class="font-mono">{{ sol.asset.serial_number or 'S/N' }}</span>
+                            <span class="font-mono">{{ sol.asset.e_patrimonio or 'E-Patrimonio' }}</span>
                             {% if sol.data_aprovacao %}
                             <span class="text-gray-400 ml-3">Aprovado: {{ sol.data_aprovacao.strftime('%d/%m/%Y
                                 %H:%M') }}</span>

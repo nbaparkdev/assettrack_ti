@@ -93,7 +93,7 @@
                     <tr>
                         <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">ID Ativo /
                             Modelo</th>
-                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">Serial S/N
+                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">E-Patrimonio
                         </th>
                         <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">Status
                         </th>
@@ -107,7 +107,7 @@
                 <tbody class="divide-y divide-gray-200">
                     {% for asset in assets %}
                     <tr class="hover:bg-gray-50 transition group cursor-pointer"
-                        onclick="window.location='/assets/sn/{{ asset.serial_number }}'">
+                        onclick="window.location='/assets/ep/{{ asset.e_patrimonio }}'">
                         <td class="px-6 py-4">
                             <div class="flex flex-col">
                                 <span class="font-bold text-sm text-gray-900 group-hover:text-amber-600 transition">{{
@@ -118,7 +118,7 @@
                         <td class="px-6 py-4">
                             <span
                                 class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-1 border border-gray-200">{{
-                                asset.serial_number }}</span>
+                                asset.e_patrimonio }}</span>
                         </td>
                         <td class="px-6 py-4">
                             {% if asset.status.value == 'disponivel' %}
@@ -157,7 +157,7 @@
                         </td>
                         <td class="px-6 py-4 text-right" onclick="event.stopPropagation()">
                             <div class="flex items-center justify-end gap-3">
-                                <a href="/assets/sn/{{ asset.serial_number }}"
+                                <a href="/assets/ep/{{ asset.e_patrimonio }}"
                                     class="text-xs font-bold uppercase text-black hover:underline tracking-wider">
                                     DETALHES
                                 </a>

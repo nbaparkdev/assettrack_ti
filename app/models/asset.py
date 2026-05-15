@@ -18,7 +18,7 @@ class Asset(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     nome: Mapped[str] = mapped_column(String, index=True, nullable=False)
-    serial_number: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    e_patrimonio: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     modelo: Mapped[str] = mapped_column(String, nullable=True)
     descricao: Mapped[str | None] = mapped_column(String, nullable=True)
     data_aquisicao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

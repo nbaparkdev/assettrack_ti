@@ -10,7 +10,7 @@ from app.schemas.user import UserResponse
 
 class AssetBase(BaseModel):
     nome: str
-    serial_number: str
+    e_patrimonio: str
     modelo: Optional[str] = None
     descricao: Optional[str] = None
     data_aquisicao: Optional[datetime] = None
@@ -29,7 +29,7 @@ class AssetCreate(AssetBase):
 
 class AssetUpdate(BaseModel):
     nome: Optional[str] = None
-    serial_number: Optional[str] = None
+    e_patrimonio: Optional[str] = None
     modelo: Optional[str] = None
     descricao: Optional[str] = None
     data_aquisicao: Optional[datetime] = None

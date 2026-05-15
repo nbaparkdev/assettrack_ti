@@ -39,7 +39,7 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
         )
         return result.scalars().all()
 
-    async def get_by_serial(self, db: AsyncSession, *, serial_number: str) -> Optional[Asset]:
+    async def get_by_e_patrimonio(self, db: AsyncSession, *, e_patrimonio: str) -> Optional[Asset]:
         from sqlalchemy.orm import selectinload
         result = await db.execute(
             select(Asset)
@@ -49,7 +49,7 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
                 selectinload(Asset.current_local),
                 selectinload(Asset.current_armazenamento)
             )
-            .filter(Asset.serial_number == serial_number)
+            .filter(Asset.e_patrimonio == e_patrimonio)
         )
         return result.scalars().first()
 

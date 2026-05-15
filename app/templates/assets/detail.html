@@ -55,7 +55,7 @@
                 <h1 class="text-4xl font-black text-black uppercase tracking-tighter leading-none mb-2">{{ asset.nome }}
                 </h1>
                 <div class="flex items-center gap-4">
-                    <span class="font-mono text-sm bg-black text-white px-2 py-0.5">S/N: {{ asset.serial_number
+                    <span class="font-mono text-sm bg-black text-white px-2 py-0.5">E-Patrimonio: {{ asset.e_patrimonio
                         }}</span>
                     <span class="font-mono text-sm text-gray-500 uppercase">Modelo: {{ asset.modelo }}</span>
                 </div>
@@ -143,7 +143,7 @@
                     <h3 class="font-mono text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Centro de
                         Comando</h3>
                     <div class="space-y-3">
-                        <a href="/assets/sn/{{ asset.serial_number }}/edit"
+                        <a href="/assets/ep/{{ asset.e_patrimonio }}/edit"
                             class="w-full block bg-white border-2 border-black text-black font-bold uppercase text-xs py-3 px-4 hover:bg-black hover:text-white transition text-center">
                             Editar Especificações
                         </a>

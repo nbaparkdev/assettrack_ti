@@ -11,7 +11,7 @@
         <div class="mb-8 p-4 bg-gray-50 border border-gray-200">
             <span class="font-mono text-xs text-gray-400 uppercase tracking-widest block mb-1">Ativo Selecionado</span>
             <h2 class="font-bold text-lg uppercase">{{ asset.nome }}</h2>
-            <p class="font-mono text-sm">S/N: {{ asset.serial_number }}</p>
+            <p class="font-mono text-sm">E-Patrimonio: {{ asset.e_patrimonio }}</p>
         </div>
 
         <form action="/assets/{{ asset.id }}/transfer" method="POST" class="space-y-6">

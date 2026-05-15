@@ -11,7 +11,7 @@
                 {% if asset %}Editar Especificações{% else %}Novo Registro de Ativo{% endif %}
             </h2>
             {% if asset %}
-            <p class="text-gray-400 font-mono text-xs mt-1 ml-6">ID: {{ asset.id }} // REF: {{ asset.serial_number }}
+            <p class="text-gray-400 font-mono text-xs mt-1 ml-6">ID: {{ asset.id }} // REF: {{ asset.e_patrimonio }}
             </p>
             {% endif %}
         </div>
@@ -48,11 +48,10 @@
                             placeholder="ex: A2992">
                     </div>
 
-                    <label for="serial_number" class="block text-xs font-bold uppercase text-gray-900 mb-2">Número
-                        de Série (S/N) *</label>
+                    <label for="e_patrimonio" class="block text-xs font-bold uppercase text-gray-900 mb-2">E-Patrimonio *</label>
                     <div class="flex gap-2">
-                        <input type="text" name="serial_number" id="serial_number" required
-                            value="{{ asset.serial_number if asset else '' }}"
+                        <input type="text" name="e_patrimonio" id="e_patrimonio" required
+                            value="{{ asset.e_patrimonio if asset else '' }}"
                             class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition font-mono uppercase"
                             placeholder="XXXX-YYYY-ZZZZ">
                         <button type="button" onclick="openScanner()"
@@ -74,7 +73,7 @@
         class="fixed inset-0 z-50 hidden bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white w-full max-w-md border-2 border-gray-900 shadow-2xl relative">
             <div class="p-4 bg-black text-white flex justify-between items-center border-b-2 border-gray-900">
-                <h3 class="font-bold uppercase text-xs tracking-widest">Scanner de S/N</h3>
+                <h3 class="font-bold uppercase text-xs tracking-widest">Scanner de E-Patrimonio</h3>
                 <button type="button" onclick="closeScanner()" class="text-white hover:text-gray-300">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
@@ -164,7 +163,7 @@
     let isScanning = false;
     let availableCameras = [];
     const scannerModal = document.getElementById('scanner-modal');
-    const serialInput = document.getElementById('serial_number');
+    const serialInput = document.getElementById('e_patrimonio');
 
     function openScanner() {
         const isSecure = window.isSecureContext ||

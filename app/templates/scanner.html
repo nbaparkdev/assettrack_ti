@@ -134,9 +134,9 @@
         <!-- Manual Entry -->
         <div class="px-6 pb-6">
             <div class="border-t pt-6">
-                <p class="text-sm text-gray-500 text-center mb-4">Ou busque por nome ou S/N:</p>
+                <p class="text-sm text-gray-500 text-center mb-4">Ou busque por nome ou E-Patrimonio:</p>
                 <form action="/assets/search" method="GET" class="flex gap-2">
-                    <input type="text" name="q" placeholder="Nome ou Número de Série (S/N)"
+                    <input type="text" name="q" placeholder="Nome ou E-Patrimonio (E-Patrimonio)"
                         class="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500">
                     <button type="submit" class="btn btn-primary">
                         Buscar
@@ -225,8 +225,8 @@
             if (uuidMatch) {
                 redirectUrl = `/usuario/${uuidMatch[0]}`;
             }
-            // 2. If it's a path starting with /assets/sn/, use as-is
-            else if (decodedText.includes('/assets/sn/')) {
+            // 2. If it's a path starting with /assets/ep/, use as-is
+            else if (decodedText.includes('/assets/ep/')) {
                 const match = decodedText.match(/\/assets\/sn\/[^\/\s?#]+/);
                 if (match) {
                     redirectUrl = match[0];
@@ -234,7 +234,7 @@
                     redirectUrl = decodedText;
                 }
             }
-            // 3. If it's a relative path starting with /assets/ (but not /sn/), use as-is
+            // 3. If it's a relative path starting with /assets/ (but not /ep/), use as-is
             else if (decodedText.startsWith('/assets/')) {
                 redirectUrl = decodedText;
             }

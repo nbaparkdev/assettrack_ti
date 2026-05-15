@@ -246,7 +246,7 @@ async def get_user_by_qr(
     pending_items = []
     
     for s in solicitacoes:
-        asset_tag = s.asset.serial_number if s.asset else "N/A"
+        asset_tag = s.asset.e_patrimonio if s.asset else "N/A"
         asset_nome = s.asset.nome if s.asset else "Ativo Solicitado"
         pending_items.append(PendingDeliveryItem(
             id=s.id,
@@ -258,7 +258,7 @@ async def get_user_by_qr(
         ))
 
     for m in manutencoes:
-        asset_tag = m.asset.serial_number if m.asset else "N/A"
+        asset_tag = m.asset.e_patrimonio if m.asset else "N/A"
         asset_nome = m.asset.nome if m.asset else "Ativo em Manutenção"
         pending_items.append(PendingDeliveryItem(
             id=m.id,

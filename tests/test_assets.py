@@ -33,7 +33,7 @@ async def test_create_asset(admin_client: AsyncClient, db_session: AsyncSession)
     payload = {
         "nome": "Notebook Dell",
         "modelo": "Latitude 5420",
-        "serial_number": "ABC12345",
+        "e_patrimonio": "ABC12345",
         "descricao": "Laptop corporativo",
         "data_aquisicao": "2024-01-01",
         "valor_aquisicao": "5000.00"
@@ -55,7 +55,7 @@ async def test_create_asset_optional_fields_empty(admin_client: AsyncClient, db_
     payload = {
         "nome": "Mouse Logi",
         "modelo": "M100",
-        "serial_number": "MOUSE999",
+        "e_patrimonio": "MOUSE999",
         "descricao": "",
         "data_aquisicao": "",
         "valor_aquisicao": ""
@@ -79,7 +79,7 @@ async def test_maintenance_workflow(admin_client: AsyncClient, db_session: Async
     asset_in = AssetCreate(
         nome="Servidor",
         modelo="HP Proliant",
-        serial_number="SRV001",
+        e_patrimonio="SRV001",
         status=AssetStatus.DISPONIVEL,
         data_aquisicao=date(2023, 1, 1),
         valor_aquisicao=10000.0

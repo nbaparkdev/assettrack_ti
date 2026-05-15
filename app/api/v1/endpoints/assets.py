@@ -18,10 +18,10 @@ async def read_assets(
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],
     skip: int = 0,
     limit: int = 100,
-    serial_number: Optional[str] = None
+    e_patrimonio: Optional[str] = None
 ):
-    if serial_number:
-        asset = await asset_crud.asset.get_by_serial(db, serial_number=serial_number)
+    if e_patrimonio:
+        asset = await asset_crud.asset.get_by_e_patrimonio(db, e_patrimonio=e_patrimonio)
         return [asset] if asset else []
     return await asset_crud.asset.get_multi(db, skip=skip, limit=limit)
 
@@ -31,9 +31,9 @@ async def create_asset(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_manager_or_superuser)]
 ):
-    asset = await asset_crud.asset.get_by_serial(db, serial_number=asset_in.serial_number)
+    asset = await asset_crud.asset.get_by_e_patrimonio(db, e_patrimonio=asset_in.e_patrimonio)
     if asset:
-        raise HTTPException(status_code=400, detail="Asset with this serial number already exists")
+        raise HTTPException(status_code=400, detail="Asset with this E-Patrimonio already exists")
         
     created_asset = await asset_crud.asset.create(db, obj_in=asset_in)
     
@@ -72,8 +72,8 @@ async def get_asset_qrcode(
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     
-    # Conteúdo do QR Code: agora usando o Serial Number para busca
-    qr_content = f"assettrack://assets/sn/{asset.serial_number}"
+    # Conteúdo do QR Code: agora usando o E-Patrimonio para busca
+    qr_content = f"assettrack://assets/ep/{asset.e_patrimonio}"
     img_io = QRService.generate_qr_code(qr_content)
     
     return Response(content=img_io.getvalue(), media_type="image/png")
@@ -93,13 +93,20 @@ async def scan_qr_code(
     if not decoded:
         raise HTTPException(status_code=400, detail="Could not decode QR code")
     
-    # Supondo que o QR tenha formato "assettrack://assets/sn/{serial}" ou "assettrack://assets/{id}"
+    # Supondo que o QR tenha formato "assettrack://assets/ep/{patrimonio}" ou "assettrack://assets/{id}"
     try:
-        if "assets/sn/" in decoded:
-            serial = decoded.split("assets/sn/")[-1]
-            asset = await asset_crud.asset.get_by_serial(db, serial_number=serial)
+        if "assets/ep/" in decoded:
+            patrimonio = decoded.split("assets/ep/")[-1]
+            asset = await asset_crud.asset.get_by_e_patrimonio(db, e_patrimonio=patrimonio)
             if not asset:
-                raise HTTPException(status_code=404, detail=f"Asset with serial {serial} not found")
+                raise HTTPException(status_code=404, detail=f"Asset with E-Patrimonio {patrimonio} not found")
+            return asset
+        elif "assets/sn/" in decoded:
+            # Fallback for old QR codes
+            serial = decoded.split("assets/sn/")[-1]
+            asset = await asset_crud.asset.get_by_e_patrimonio(db, e_patrimonio=serial)
+            if not asset:
+                raise HTTPException(status_code=404, detail=f"Asset with former serial {serial} not found")
             return asset
         elif "assets/" in decoded:
             asset_id = int(decoded.split("assets/")[-1])

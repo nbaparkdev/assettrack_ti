@@ -9,7 +9,7 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=assettrack
     ports:
-      - "5432:5432"
+      - "5454:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -19,7 +19,7 @@ services:
     volumes:
       - ./app:/code/app
     ports:
-      - "8000:8000"
+      - "8080:8000"
     depends_on:
       - db
     environment:
