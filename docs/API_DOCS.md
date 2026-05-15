@@ -28,20 +28,6 @@ Obtém o token JWT para acesso.
 ### GET `/auth/me`
 Retorna os dados do usuário autenticado.
 
-**Headers:**
-`Authorization: Bearer <token>`
-
-**Response (200 OK):**
-```json
-{
-  "id": 1,
-  "email": "admin@example.com",
-  "nome": "Administrador",
-  "role": "admin",
-  "is_active": true
-}
-```
-
 ---
 
 ## 📦 Ativos (`/assets`)
@@ -54,7 +40,7 @@ Lista todos os ativos cadastrados.
 |-------|------|-----------|
 | skip | int | Pular N registros (paginação) |
 | limit | int | Limite de registros (default: 100) |
-| serial_number | string | Filtrar por Serial Number exato |
+| e_patrimonio | string | Filtrar por Número de Patrimônio exato |
 
 **Response (200 OK):**
 ```json
@@ -62,8 +48,9 @@ Lista todos os ativos cadastrados.
   {
     "id": 1,
     "nome": "Notebook Dell",
-    "serial_number": "XYZ123",
-    "status": "DISPONIVEL",
+    "e_patrimonio": "EP-0001",
+    "numero_serie": "XYZ123",
+    "status": "Disponível",
     "modelo": "Latitude 5420",
     "created_at": "2024-01-01T12:00:00"
   }
@@ -77,45 +64,19 @@ Cria um novo ativo. (Requer permissão Gerente/Admin)
 ```json
 {
   "nome": "Monitor LG 24",
-  "serial_number": "MON12345",
+  "e_patrimonio": "EP-1234",
+  "numero_serie": "MON12345",
   "modelo": "24MK600",
-  "status": "DISPONIVEL",
-  "custo": 800.00,
+  "status": "Disponível",
+  "valor": 800.00,
   "data_aquisicao": "2024-01-01",
-  "departamento_id": 2
+  "fornecedor_id": 2
 }
 ```
-
-### GET `/assets/{id}/qrcode`
-Gera a imagem do QR Code para o ativo.
-
-**Response (200 OK):**
-`image/png` (Binário da imagem)
-
-### POST `/assets/scan-qr`
-Decodifica uma imagem de QR Code enviada por upload.
-
-**Body (Multipart):**
-`file`: Arquivo de imagem (png/jpg).
-
-**Response (200 OK):**
-Objeto `Asset` encontrado.
 
 ---
 
 ## 📝 Solicitações (`/solicitacoes`)
-
-### GET `/solicitacoes/`
-Lista solicitações de ativos.
-
-**Query Parameters:**
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| pending_only | bool | Se `true`, retorna apenas pendentes (Gerente) |
-
-**Comportamento:**
-- **Usuário Comum**: Vê apenas suas próprias solicitações.
-- **Gerente/Admin**: Vê todas (padrão) ou filtra pendentes.
 
 ### POST `/solicitacoes/`
 Cria uma solicitação de ativo.
@@ -129,64 +90,23 @@ Cria uma solicitação de ativo.
 }
 ```
 
-### PUT `/solicitacoes/{id}/approve`
-Aprova uma solicitação pendente. (Gerente/Admin)
-*Gera automaticamente movimentação e atualiza status do ativo para `EM_USO`.*
-
-### PUT `/solicitacoes/{id}/reject`
-Rejeita uma solicitação pendente.
-
 ---
 
-## 🔄 Movimentações (`/movimentacoes`)
+## 📱 QR Code (`/qr`)
 
-### GET `/movimentacoes/`
-Histórico de movimentações de ativos.
+### GET `/qr/me`
+Retorna o token QR do usuário logado.
 
-**Query Parameters:**
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| asset_id | int | Filtrar histórico de um ativo específico |
+### POST `/qr/login`
+Autenticação via QR Code.
 
----
-
----
-
-## 🎧 Service Desk (`/servicos`)
-
-### GET `/servicos/` (HTML)
-Lista chamados com filtros.
-
-**Query Parameters:**
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| query | string | Busca por código, título ou descrição |
-| status | string | Filtro por status (Aberto, Em Atendimento, Resolvido, Cancelado) |
-| prioridade | string | Filtro por prioridade (Baixa, Média, Alta, Urgente) |
-| categoria_id | int | ID da categoria de serviço |
-| data_inicio | string | Data inicial (YYYY-MM-DD) |
-| data_fim | string | Data final (YYYY-MM-DD) |
-
-### POST `/servicos/novo` (Form)
-Cria um novo chamado.
-
-**Form Parameters:**
-- `titulo`: string
-- `servico_id`: int
-- `prioridade`: string (Enum ServicePriority)
-- `descricao`: string
-
-### POST `/servicos/chamado/{id}/update` (Form)
-Atualiza status de um chamado. (Técnico/Admin)
-
-**Form Parameters:**
-- `status`: string (Enum ServiceStatus)
-
-### POST `/servicos/chamado/{id}/interacao` (Form)
-Adiciona um comentário ao chamado.
-
-**Form Parameters:**
-- `mensagem`: string
+**Body (JSON):**
+```json
+{
+  "token": "token-do-qr",
+  "pin": "123456"
+}
+```
 
 ---
 
@@ -194,7 +114,7 @@ Adiciona um comentário ao chamado.
 
 - **200 OK**: Sucesso.
 - **201 Created**: Recurso criado.
-- **400 Bad Request**: Erro de validação ou regra de negócio (ex: ativo já em uso).
-- **401 Unauthorized**: Falha na autenticação (token ausente/inválido).
-- **403 Forbidden**: Sem permissão para esta ação.
+- **400 Bad Request**: Erro de validação ou regra de negócio.
+- **401 Unauthorized**: Falha na autenticação.
+- **403 Forbidden**: Sem permissão.
 - **404 Not Found**: Recurso não encontrado.

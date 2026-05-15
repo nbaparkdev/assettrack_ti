@@ -23,7 +23,7 @@ Uma **plataforma web moderna** que centraliza toda a gestão de ativos de TI em 
 
 ### ✅ Controle Total do Inventário
 
-Cadastre, rastreie e gerencie todos os equipamentos da empresa com informações completas: número de série, patrimônio, localização, responsável atual e histórico.
+Cadastre, rastreie e gerencie todos os equipamentos da empresa com o sistema de **E-Patrimônio**: identificação única, número de série, localização, responsável atual e histórico completo.
 
 ### ✅ QR Code Integrado
 
