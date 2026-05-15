@@ -3,214 +3,122 @@
 
 Sistema de Controle de Ativos de TI completo em Python (FastAPI).
 
+[Consulte os Requisitos do Sistema aqui](./REQUIREMENTS.md) | [Política de Segurança](./SECURITY.md) | [Licença](./LICENSE)
+
 ## Estrutura
 - **app/models**: Modelos do Banco de Dados (SQLAlchemy)
 - **app/schemas**: Schemas de Validação (Pydantic)
 - **app/api**: Endpoints da API REST
 - **app/services**: Serviços de QR Code e Email
 
-## Como Rodar
+## 🚀 Como Rodar (Recomendado: Docker)
 
-### Opção 1: Docker (Recomendado)
 Certifique-se de ter Docker e Docker Compose instalados.
 
-1.  Crie o arquivo `.env` (opcional, pois o docker-compose já define defaults principais):
+### 1. Inicialização Rápida (Automação)
+O projeto inclui um script que configura o ambiente, sobe os containers e inicializa o usuário administrador automaticamente:
+
+```bash
+chmod +x init_docker.sh
+./init_docker.sh
+```
+
+### ⚙️ Utilitários de Gestão
+Para facilitar a manutenção, você pode usar os seguintes scripts:
+
+*   **Parar aplicação:**
+    ```bash
+    ./stop_docker.sh
+    ```
+*   **Atualizar aplicação (Git Pull + Rebuild):**
+    ```bash
+    ./update_docker.sh
+    ```
+
+### 2. Inicialização Manual
+Caso prefira rodar os comandos passo a passo:
+
+1.  **Configurar ambiente:**
     ```bash
     cp .env.example .env
     ```
-2.  Suba os containers:
+2.  **Subir os containers:**
     ```bash
-    docker-compose up --build
+    docker-compose up -d --build
     ```
-3.**  **Acesse a documentação interativa (Swagger UI):
-    [http://localhost:8000/docs](http://localhost:8000/docs)
+3.  **Acesse o sistema:**
+    - App: [http://localhost:8000](http://localhost:8000)
+    - Documentação (Swagger UI): [http://localhost:8000/docs](http://localhost:8000/docs)
 
-
-
-### Opção 2: Localmente (Sem Docker) - Modo Automático (Recomendado)
-Scripts que automatizam a criação do ambiente, instalação de dependências e configuração do banco.
-
-**Windows (PowerShell):**
-1. Abra o terminal na pasta do projeto.
-2. Execute o script:
-   ```powershell
-   .\setup.ps1
-   ```
-
-**Linux / macOS:**
-1. Abra o terminal na pasta do projeto.
-2. Dê permissão de execução (apenas na primeira vez):
-   ```bash
-   chmod +x setup.sh
-   ```
-3. Execute o script:
-   ```bash
-   ./setup.sh
-   ```
-
-### Opção 3: Localmente (Sem Docker) - Modo Manual
-Requer Python 3.11+ e um banco de dados (PostgreSQL ou SQLite).
-
-1.  **Crie e ative o ambiente virtual (venv):**
-    ```bash
-    # Criar venv (se ainda não existir)
-    python3 -m venv venv
-
-    # Ativar venv (Linux/macOS)
-    source venv/bin/activate
-
-    # Ativar venv (Windows PowerShell)
-    .\venv\Scripts\Activate.ps1
-    ```
-
-2.  **Instale as dependências (dentro do venv):**
-    ```bash
-    pip install -r requirements.txt
-
-3.   DATABASE_URL=sqlite+aiosqlite:///./assettrack.db ./venv/bin/uvicorn app.main:app --reload --host 0.0.0.0
-    ```
-
-    > ⚠️ **Erro `externally-managed-environment`?**  
-    > Em sistemas Linux modernos (Debian 12+, Ubuntu 23.04+), o pip do sistema é bloqueado (PEP 668).  
-    > **Solução:** Certifique-se de ter ativado o venv antes de rodar `pip install`. Se o erro persistir, use o pip do venv explicitamente:
-    > ```bash
-    > ./venv/bin/pip install -r requirements.txt
-    > ```
-
-    *Nota: Você precisará da lib `zbar` instalada no sistema para o QR Code funcionar:*
-    ```bash
-    sudo apt-get install libzbar0  # Linux
-    ```
-
-3.  **Configure o banco no `.env`** (exemplo SQLite):
-    ```env
-    DATABASE_URL=sqlite+aiosqlite:///./assettrack.db
-    # Remova as variáveis POSTGRES_* se for usar SQLite
-    ```
-
-4.  **Inicie o servidor:**
-    ```bash
-    uvicorn app.main:app --reload
-    ```
-    
-    > **Acesso na Rede (Outros dispositivos):**
-    > Para permitir que outros computadores/celulares acessem, os scripts já estão configurados com `--host 0.0.0.0`.
-    > 1. Descubra seu IP (No Windows: `ipconfig`, no Linux: `hostname -I`).
-    > 2. O App estará acessível em `http://SEU_IP_NA_REDE:8000`.
-     > *Certifique-se de que a porta 8000 está liberada no seu Firewall.*
-     >
-     > 📸 **Uso da Câmera (Scanner) via HTTP:**
-     > Por padrão, navegadores bloqueiam a câmera em conexões HTTP (não seguras). Para liberar o acesso em sua rede local:
-     > 1. No Chrome/Edge do celular/PC que vai escanear, acesse: `chrome://flags/#unsafely-treat-insecure-origin-as-secure`
-     > 2. No campo "Insecure origins treated as secure", digite o endereço do servidor: `http://SEU_IP_NA_REDE:8000`
-     > 3. Mude para **Enabled** e clique em **Relaunch**.
-     O servidor estará disponível em `http://localhost:8000`
-
-### 🛠️ Solução de Problemas (Local)
-
-**Se tiver erros estranhos com pip ou imports:**
-Às vezes o `venv` quebra se a pasta for movida ou renomeada. Para consertar radicalmente:
-
-1. Apague a pasta `venv` antiga:
-   ```bash
-   rm -rf venv
-   ```
-2. Crie e instale tudo do zero:
-   ```bash
-   python3 -m venv venv
-   ./venv/bin/pip install -r requirements.txt
-   ```
-3. Tente rodar novamente.
+---
 
 ## 🔑 Usuários Padrão
 
-O sistema possui scripts para criar usuários iniciais. Credenciais sugeridas para teste:
+Credenciais sugeridas para teste:
 
 | Perfil | Email | Senha | Acesso |
 | :--- | :--- | :--- | :--- |
 | **Admin** | `admin@example.com` | `admin` | Total (Configurações, Usuários, Ativos) |
 | **Técnico** | `tecnico@example.com` | `123` | Operacional (Manutenções e Devoluções) |
 
-### Criar usuários via terminal
-Se os usuários não existirem, rode os comandos diretamente no container:
+### Gerenciar usuários via terminal (Docker)
+Se precisar criar ou ativar usuários manualmente:
 
 ```bash
-# Criar Admin
-sudo docker-compose exec web python create_admin.py
-
-# Ativar Admin (Obrigatório para login)
-sudo docker-compose exec web python activate_user_admin.py
+# Criar/Ativar Admin
+docker-compose exec web python create_admin.py
+docker-compose exec web python activate_user_admin.py
 
 # Criar Técnico
-sudo docker-compose exec web python create_technician.py
+docker-compose exec web python create_technician.py
 ```
+
+---
 
 ## 🏢 Gestão de Fornecedores e Notas Fiscais
 
 O sistema possui um módulo completo para controle e relacionamento de Fornecedores e Notas Fiscais de Ativos.
 
-### Funcionalidades
-
 | Recurso | Descrição |
 | :--- | :--- |
 | **Cadastro de Fornecedores** | Registro de dados (Razão Social, CNPJ, Contato, Endereço e Tipo) |
-| **Integração XML** | Opção para realizar upload de arquivos de Nota Fiscal em formato `.xml` associados a um fornecedor |
-| **Vínculo com Ativos** | No ato do cadastro de um novo ativo (`/assets/new`), é possível selecionar um fornecedor do sistema |
-| **Rastreabilidade** | Ao fornecer um número de Nota Fiscal no cadastro do ativo, o sistema cria/vincula a nota automaticamente ao fornecedor |
-| **Upload de Imagens** | Cada ativo cadastrado permite o upload direto da foto/comprovante do equipamento no servidor |
-| **Auditoria de Cadastro** | O sistema armazena de forma automática qual usuário/técnico registrou o ativo no sistema |
+| **Integração XML** | Upload de Notas Fiscais em formato `.xml` |
+| **Vínculo com Ativos** | Seleção de fornecedor no cadastro de novos ativos |
+| **Rastreabilidade** | Vínculo automático de Nota Fiscal ao fornecedor |
+| **Upload de Imagens** | Foto/comprovante do equipamento no servidor |
 
 ## 🎧 Service Desk (Help Desk)
 
-Módulo integrado para gestão de chamados de suporte técnico, solicitações de infraestrutura e atendimento ao usuário.
-
-### Funcionalidades
+Módulo integrado para gestão de chamados de suporte técnico.
 
 | Recurso | Descrição |
 | :--- | :--- |
-| **Abertura de Chamados** | Usuários podem relatar problemas ou solicitar serviços de acordo com as categorias e setores |
-| **Filtros e Buscas Avançadas** | Filtre chamados por texto (código/título/descrição), categoria, status, prioridade e intervalo de datas |
-| **Dashboard e Estatísticas** | Painel em tempo real para Admins/Técnicos com contadores de chamados Abertos, Em Atendimento e Resolvidos |
-| **Gestão de Interações** | Inserção de comentários e histórico de comunicação entre técnicos e usuários dentro de cada chamado |
-| **Gestão de Categorias** | Painel administrativo exclusivo para gerenciar grupos de serviços, definições e prioridades padrão |
-| **Integração QR Code** | Cada chamado possui um QR Code único, facilitando leitura e acompanhamento ágil pelo celular |
+| **Abertura de Chamados** | Relato de problemas por categorias e setores |
+| **Dashboard e Estatísticas** | Painel em tempo real (Abertos, Em Atendimento, Resolvidos) |
+| **Gestão de Interações** | Histórico de comunicação entre técnicos e usuários |
+| **Integração QR Code** | QR Code único por chamado para acompanhamento ágil |
 
 ## 📱 Sistema de QR Code
 
-O sistema inclui funcionalidades de QR Code para identificação e login rápido.
-
-### Funcionalidades
+Funcionalidades de identificação e login rápido.
 
 | Recurso | Descrição |
 | :--- | :--- |
-| **Crachá Digital** | Cada usuário tem um QR Code único para identificação |
-| **Login via QR** | Login rápido escaneando QR + PIN de 4-6 dígitos |
-| **Confirmação de Entrega** | Valida entregas de ativos via QR do usuário |
-| **Histórico de Ativos** | Scanner revela histórico completo (movimentações, manutenções, solicitações). Suporta o novo padrão `/ep/` (E-Patrimonio) e o legado `/sn/` (Serial Number). |
-| **E-Patrimonio** | Substitui o antigo "Número de Série" (Serial Number) em todo o sistema, utilizando o prefixo `/assets/ep/` nas rotas. |
-| **Central de Ajuda** | Manuais integrados ao sistema (`/help`) para usuários e admins |
-| **Logs de Auditoria** | Todas as ações de QR são registradas |
+| **Crachá Digital** | QR Code único por usuário |
+| **Login via QR** | Login rápido via QR + PIN |
+| **Histórico de Ativos** | Scanner revela histórico completo (E-Patrimonio) |
 
-### Segurança
+> 📸 **Nota sobre Scanner via Rede Local (HTTP):**
+> Navegadores bloqueiam a câmera em conexões HTTP. Para liberar em sua rede local:
+> 1. No Chrome/Edge, acesse: `chrome://flags/#unsafely-treat-insecure-origin-as-secure`
+> 2. Em "Insecure origins treated as secure", adicione o endereço: `http://SEU_IP:8000`
+> 3. Mude para **Enabled** e reinicie o navegador.
 
-- 🔒 **Rate Limiting**: 10 tentativas de login/minuto, 3 regenerações/hora
-- ⏰ **Expiração**: Tokens QR expiram após 90 dias (configurável)
-- 🔐 **PIN obrigatório**: Login QR requer PIN de 4-6 dígitos
-- 📝 **Auditoria**: Todas as ações de QR são logadas (logins, regenerações, confirmações)
+---
 
-### Acessar QR Code
+## 🛠️ Segurança e Auditoria
 
-1. Faça login normalmente
-2. Clique em **"Meu QR Code"** no menu
-3. Configure seu PIN (primeira vez)
-4. Compartilhe o QR para identificação
-
-### Endpoints da API
-
-```
-POST /api/v1/qr/login          # Login via QR + PIN
-POST /api/v1/qr/me/generate    # Regenerar token QR
-POST /api/v1/qr/me/pin         # Configurar PIN
-GET  /api/v1/qr/me             # Obter QR Code atual
-GET  /api/v1/qr/user/{token}   # Consulta perfil (Admin/Gerente)
-```
+- 🔒 **Rate Limiting**: Proteção contra força bruta nos logins.
+- ⏰ **Expiração**: Tokens QR configuráveis.
+- 🔐 **PIN**: Obrigatório para ações via QR Code.
+- 📝 **Logs**: Registro completo de movimentações e logins.
