@@ -12,6 +12,7 @@ from app.database import engine, Base
 from app.web import web_router
 from app.web.endpoints import admin 
 from app.core.rate_limit import limiter
+import app.models
 from slowapi.errors import RateLimitExceeded
 
 # Base directory

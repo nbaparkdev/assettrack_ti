@@ -23,4 +23,5 @@ from app.web.endpoints import help
 web_router.include_router(help.router, tags=["web_help"])
 from app.web.endpoints import service_desk
 web_router.include_router(service_desk.router, prefix="/servicos", tags=["web_service_desk"])
-
+from app.web.endpoints import suppliers
+web_router.include_router(suppliers.router, prefix="/suppliers", tags=["web_suppliers"])

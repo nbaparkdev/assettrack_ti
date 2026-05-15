@@ -18,6 +18,11 @@ class AssetBase(BaseModel):
     status: AssetStatus = AssetStatus.DISPONIVEL
     qr_code_path: Optional[str] = None
     foto_path: Optional[str] = None
+    numero_serie: Optional[str] = None
+    
+    created_by_id: Optional[int] = None
+    fornecedor_id: Optional[int] = None
+    nota_fiscal_id: Optional[int] = None
     
     current_user_id: Optional[int] = None
     current_departamento_id: Optional[int] = None
@@ -35,6 +40,10 @@ class AssetUpdate(BaseModel):
     data_aquisicao: Optional[datetime] = None
     valor: Optional[Decimal] = None
     status: Optional[AssetStatus] = None
+    numero_serie: Optional[str] = None
+    fornecedor_id: Optional[int] = None
+    nota_fiscal_id: Optional[int] = None
+    foto_path: Optional[str] = None
     
     current_user_id: Optional[int] = None
     current_departamento_id: Optional[int] = None

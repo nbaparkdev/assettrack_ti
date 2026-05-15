@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto fade-in">
+    <!-- Form Container -->
+    <div class="bg-white border-2 border-black p-0 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
+        <!-- Header -->
+        <div class="bg-black p-6 border-b-2 border-black">
+            <h2 class="text-2xl font-bold text-white uppercase tracking-wider flex items-center gap-3">
+                <span class="w-3 h-3 bg-amber-500 inline-block"></span>
+                {% if fornecedor %}Editar Fornecedor{% else %}Novo Fornecedor{% endif %}
+            </h2>
+            {% if fornecedor %}
+            <p class="text-gray-400 font-mono text-xs mt-1 ml-6">ID: {{ fornecedor.id }}</p>
+            {% endif %}
+        </div>
+
+        {% if error %}
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-6 mb-0" role="alert">
+            <span class="font-bold block uppercase text-xs mb-1">Erro Encontrado</span>
+            <span class="block text-sm">{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form action="{% if fornecedor %}/suppliers/{{ fornecedor.id }}/edit{% else %}/suppliers/new{% endif %}" method="post" enctype="multipart/form-data" class="p-8 space-y-8">
+            <!-- Section 1: Identification -->
+            <div>
+                <h3 class="font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-200 pb-2">
+                    Dados Cadastrais</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="nome" class="block text-xs font-bold uppercase text-gray-900 mb-2">Nome Fantasia *</label>
+                        <input type="text" name="nome" id="nome" required value="{{ fornecedor.nome if fornecedor else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition"
+                            placeholder="Nome comercial">
+                    </div>
+
+                    <div>
+                        <label for="razao_social" class="block text-xs font-bold uppercase text-gray-900 mb-2">Razão Social</label>
+                        <input type="text" name="razao_social" id="razao_social" value="{{ fornecedor.razao_social if fornecedor else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition"
+                            placeholder="Razão Social completa">
+                    </div>
+
+                    <div>
+                        <label for="cnpj" class="block text-xs font-bold uppercase text-gray-900 mb-2">CNPJ</label>
+                        <input type="text" name="cnpj" id="cnpj" value="{{ fornecedor.cnpj if fornecedor else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition font-mono"
+                            placeholder="00.000.000/0001-00">
+                    </div>
+
+                    <div>
+                        <label for="tipo_fornecedor" class="block text-xs font-bold uppercase text-gray-900 mb-2">Tipo</label>
+                        <input type="text" name="tipo_fornecedor" id="tipo_fornecedor" value="{{ fornecedor.tipo_fornecedor if fornecedor else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition"
+                            placeholder="Ex: Hardware, Software, Serviços...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Contato & Endereço -->
+            <div>
+                <h3 class="font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-200 pb-2">
+                    Contato e Endereço</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="email" class="block text-xs font-bold uppercase text-gray-900 mb-2">E-mail</label>
+                        <input type="email" name="email" id="email" value="{{ fornecedor.email if fornecedor else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition"
+                            placeholder="contato@empresa.com.br">
+                    </div>
+                    <div>
+                        <label for="telefone" class="block text-xs font-bold uppercase text-gray-900 mb-2">Telefone</label>
+                        <input type="text" name="telefone" id="telefone" value="{{ fornecedor.telefone if fornecedor else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition"
+                            placeholder="(11) 90000-0000">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="endereco" class="block text-xs font-bold uppercase text-gray-900 mb-2">Endereço</label>
+                        <input type="text" name="endereco" id="endereco" value="{{ fornecedor.endereco if fornecedor else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition"
+                            placeholder="Rua, Número, Bairro">
+                    </div>
+                    <div>
+                        <label for="cidade" class="block text-xs font-bold uppercase text-gray-900 mb-2">Cidade</label>
+                        <input type="text" name="cidade" id="cidade" value="{{ fornecedor.cidade if fornecedor else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition">
+                    </div>
+                    <div>
+                        <label for="estado" class="block text-xs font-bold uppercase text-gray-900 mb-2">Estado</label>
+                        <input type="text" name="estado" id="estado" value="{{ fornecedor.estado if fornecedor else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition"
+                            placeholder="UF">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: Importar Nota Fiscal -->
+            <div>
+                <h3 class="font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-200 pb-2">
+                    {% if fornecedor %}Adicionar Nova Nota Fiscal (XML){% else %}Anexar Primeira Nota Fiscal (XML - Opcional){% endif %}</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label for="xml_file" class="block text-xs font-bold uppercase text-gray-900 mb-2">Upload de XML (Opcional)</label>
+                        <input type="file" name="xml_file" id="xml_file" accept=".xml"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition file:mr-4 file:py-2 file:px-4 file:rounded-none file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800">
+                    </div>
+                </div>
+            </div>
+
+            {% if fornecedor and fornecedor.notas_fiscais %}
+            <!-- Section 4: Notas Fiscais Existentes -->
+            <div>
+                <h3 class="font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-200 pb-2">
+                    Notas Fiscais Emitidas</h3>
+                <div class="bg-gray-50 border-2 border-gray-200 p-0">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-100 border-b border-gray-200 font-mono text-[10px] uppercase">
+                            <tr>
+                                <th class="p-3">Número</th>
+                                <th class="p-3">Data/Hora de Emissão</th>
+                                <th class="p-3">Nome do Arquivo</th>
+                                <th class="p-3">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for nf in fornecedor.notas_fiscais %}
+                            <tr>
+                                <td class="p-3 font-mono font-bold">{{ nf.numero_nota }}</td>
+                                <td class="p-3 text-gray-500">{{ nf.data_emissao.strftime('%d/%m/%Y %H:%M') if nf.data_emissao else 'N/A' }}</td>
+                                <td class="p-3">
+                                    {% if nf.xml_path %}
+                                        <a href="{{ nf.xml_path }}" target="_blank" class="text-blue-600 hover:underline flex items-center gap-1" title="{{ nf.xml_path.split('/')[-1] }}">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            {{ nf.xml_path.split('/')[-1] }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-gray-400">Nenhum</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 flex items-center gap-3">
+                                    <button type="button" class="text-black font-bold uppercase text-[10px] hover:underline"
+                                        onclick='openInvoiceModal("{{ nf.numero_nota }}", "{{ nf.data_emissao.strftime("%d/%m/%Y %H:%M") if nf.data_emissao else "N/A" }}", "{{ nf.natureza_operacao or "N/A" }}", "{{ nf.valor_total or 0 }}", "{{ nf.emitente_nome or "N/A" }}", "{{ nf.destinatario_nome or "N/A" }}", {{ (nf.itens or []) | tojson | safe }})'>
+                                        Detalhes
+                                    </button>
+                                    <span class="text-gray-300">|</span>
+                                    <button type="button" class="text-red-600 font-bold uppercase text-[10px] hover:underline"
+                                        onclick="confirmDeleteInvoice('{{ fornecedor.id }}', '{{ nf.id }}', '{{ nf.numero_nota }}')">
+                                        Excluir
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Actions -->
+            <div class="border-t-2 border-gray-100 pt-6 flex items-center justify-end gap-4">
+                <a href="/suppliers"
+                    class="px-6 py-3 border-2 border-transparent text-gray-500 font-bold uppercase text-sm hover:text-black hover:border-black transition rounded-none">
+                    Cancelar
+                </a>
+                <button type="submit"
+                    class="bg-black border-2 border-black text-white px-8 py-3 font-bold uppercase text-sm tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] rounded-none">
+                    Salvar Fornecedor
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Invoice Details Modal -->
+<div id="invoiceModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border-2 border-black w-full max-w-2xl shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] flex flex-col max-h-[90vh]">
+        <div class="bg-black p-4 border-b-2 border-black flex justify-between items-center shrink-0">
+            <h3 class="text-xl font-bold text-white uppercase tracking-wider">Detalhes da Nota Fiscal</h3>
+            <button type="button" onclick="closeInvoiceModal()" class="text-white hover:text-gray-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="p-6 space-y-4 font-mono text-sm overflow-y-auto">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <span class="block text-gray-500 uppercase text-[10px] font-bold">Número da Nota</span>
+                    <span id="modal-nnf" class="font-bold text-lg text-black"></span>
+                </div>
+                <div>
+                    <span class="block text-gray-500 uppercase text-[10px] font-bold">Data/Hora de Emissão</span>
+                    <span id="modal-dhemi" class="text-black"></span>
+                </div>
+                <div class="col-span-2 border-t pt-4">
+                    <span class="block text-gray-500 uppercase text-[10px] font-bold">Natureza da Operação</span>
+                    <span id="modal-natop" class="text-black"></span>
+                </div>
+                <div class="col-span-2 border-t pt-4">
+                    <span class="block text-gray-500 uppercase text-[10px] font-bold">Emitente</span>
+                    <span id="modal-emit" class="font-bold text-black"></span>
+                </div>
+                <div class="col-span-2 border-t pt-4">
+                    <span class="block text-gray-500 uppercase text-[10px] font-bold">Destinatário</span>
+                    <span id="modal-dest" class="font-bold text-black"></span>
+                </div>
+                <div class="col-span-2 border-t pt-4">
+                    <span class="block text-gray-500 uppercase text-[10px] font-bold">Valor Total (R$)</span>
+                    <span id="modal-vNF" class="font-bold text-green-600 text-lg"></span>
+                </div>
+                
+                <!-- Products Table -->
+                <div class="col-span-2 border-t pt-4">
+                    <span class="block text-gray-500 uppercase text-[10px] font-bold mb-2">Produtos da Nota</span>
+                    <div class="border-2 border-gray-100 overflow-hidden">
+                        <table class="w-full text-left text-[11px]">
+                            <thead class="bg-gray-50 border-b border-gray-200 font-bold uppercase">
+                                <tr>
+                                    <th class="p-2">Cód.</th>
+                                    <th class="p-2">Descrição</th>
+                                    <th class="p-2">Qtd.</th>
+                                    <th class="p-2 text-right">Unit. (R$)</th>
+                                    <th class="p-2 text-right">Total (R$)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-items-body" class="divide-y divide-gray-100 font-mono text-black">
+                                <!-- Items will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="border-t-2 border-gray-100 p-4 bg-gray-50 flex justify-end shrink-0">
+            <button type="button" onclick="closeInvoiceModal()" class="px-6 py-2 border-2 border-black font-bold uppercase text-sm hover:bg-black hover:text-white transition">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const modal = document.getElementById('invoiceModal');
+
+    function openInvoiceModal(nNF, dhEmi, natOp, vNF, emit, dest, itens) {
+        document.getElementById('modal-nnf').textContent = nNF;
+        document.getElementById('modal-dhemi').textContent = dhEmi;
+        document.getElementById('modal-natop').textContent = natOp;
+        document.getElementById('modal-emit').textContent = emit;
+        document.getElementById('modal-dest').textContent = dest;
+        document.getElementById('modal-vNF').textContent = parseFloat(vNF).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        
+        const itemsBody = document.getElementById('modal-items-body');
+        itemsBody.innerHTML = '';
+        
+        if (itens && itens.length > 0) {
+            itens.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="p-2 text-gray-500">${item.codigo || '-'}</td>
+                    <td class="p-2 font-bold">${item.descricao || 'N/A'}</td>
+                    <td class="p-2">${parseFloat(item.quantidade || 0).toLocaleString('pt-BR')}</td>
+                    <td class="p-2 text-right">${parseFloat(item.valor_unitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td class="p-2 text-right font-bold">${parseFloat(item.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                `;
+                itemsBody.appendChild(row);
+            });
+        } else {
+            itemsBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400 italic">Nenhum item listado ou XML sem detalhes de produtos.</td></tr>';
+        }
+        
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // Prevent background scroll
+    }
+
+    function closeInvoiceModal() {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+
+    // Close on click outside
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeInvoiceModal();
+    });
+    function confirmDeleteInvoice(fornecedorId, invoiceId, numeroNota) {
+        if (confirm(`Tem certeza que deseja excluir a Nota Fiscal nº ${numeroNota}? Esta ação não pode ser desfeita.`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/suppliers/${fornecedorId}/invoices/${invoiceId}/delete`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+</script>
+
+{% endblock %}

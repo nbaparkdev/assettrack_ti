@@ -16,7 +16,9 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
                 selectinload(Asset.current_user),
                 selectinload(Asset.current_departamento),
                 selectinload(Asset.current_local),
-                selectinload(Asset.current_armazenamento)
+                selectinload(Asset.current_armazenamento),
+                selectinload(Asset.fornecedor),
+                selectinload(Asset.nota_fiscal)
             )
             .filter(Asset.id == id)
         )
@@ -32,7 +34,9 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
                 selectinload(Asset.current_user),
                 selectinload(Asset.current_departamento),
                 selectinload(Asset.current_local),
-                selectinload(Asset.current_armazenamento)
+                selectinload(Asset.current_armazenamento),
+                selectinload(Asset.fornecedor),
+                selectinload(Asset.nota_fiscal)
             )
             .offset(skip)
             .limit(limit)
@@ -47,7 +51,9 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
                 selectinload(Asset.current_user),
                 selectinload(Asset.current_departamento),
                 selectinload(Asset.current_local),
-                selectinload(Asset.current_armazenamento)
+                selectinload(Asset.current_armazenamento),
+                selectinload(Asset.fornecedor),
+                selectinload(Asset.nota_fiscal)
             )
             .filter(Asset.e_patrimonio == e_patrimonio)
         )
@@ -61,7 +67,9 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
                 selectinload(Asset.current_user),
                 selectinload(Asset.current_departamento),
                 selectinload(Asset.current_local),
-                selectinload(Asset.current_armazenamento)
+                selectinload(Asset.current_armazenamento),
+                selectinload(Asset.fornecedor),
+                selectinload(Asset.nota_fiscal)
             )
             .filter(Asset.current_user_id == user_id)
         )

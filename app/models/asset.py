@@ -27,6 +27,12 @@ class Asset(Base):
     
     qr_code_path: Mapped[str | None] = mapped_column(String, nullable=True)
     foto_path: Mapped[str | None] = mapped_column(String, nullable=True)
+    numero_serie: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
+
+    # Identificação de Cadastro
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    fornecedor_id: Mapped[int | None] = mapped_column(ForeignKey("fornecedores.id"), nullable=True)
+    nota_fiscal_id: Mapped[int | None] = mapped_column(ForeignKey("notas_fiscais.id"), nullable=True)
 
     # Localização Atual / Responsabilidade
     current_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
@@ -35,7 +41,7 @@ class Asset(Base):
     current_armazenamento_id: Mapped[int | None] = mapped_column(ForeignKey("armazenamentos.id"), nullable=True)
 
     # Relacionamentos
-    current_user = relationship("User", back_populates="assets")
+    current_user = relationship("User", back_populates="assets", foreign_keys=[current_user_id])
     current_departamento = relationship("Departamento", back_populates="assets")
     current_local = relationship("Localizacao", back_populates="assets")
     current_armazenamento = relationship("Armazenamento", back_populates="assets")
@@ -44,4 +50,9 @@ class Asset(Base):
     solicitacoes = relationship("Solicitacao", back_populates="asset", cascade="all, delete-orphan")
     manutencoes = relationship("Manutencao", back_populates="asset", cascade="all, delete-orphan")
     solicitacoes_manutencao = relationship("SolicitacaoManutencao", back_populates="asset", cascade="all, delete-orphan")
+    
+    created_by = relationship("User", foreign_keys=[created_by_id], back_populates="assets_created")
+    fornecedor = relationship("Fornecedor", back_populates="assets")
+    nota_fiscal = relationship("NotaFiscal", back_populates="assets")
+
 

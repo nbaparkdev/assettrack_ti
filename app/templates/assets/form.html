@@ -23,8 +23,9 @@
         </div>
         {% endif %}
 
-        <form action="{% if asset %}/assets/{{ asset.id }}/edit{% else %}/assets/new{% endif %}" method="post"
+        <form action="{% if asset %}/assets/{{ asset.id }}/edit{% else %}/assets/new{% endif %}" method="post" enctype="multipart/form-data"
             class="p-8 space-y-8">
+
             <!-- Section 1: Identification -->
             <div>
                 <h3
@@ -64,8 +65,17 @@
                             </svg>
                         </button>
                     </div>
+
+                    <div>
+                        <label for="numero_serie" class="block text-xs font-bold uppercase text-gray-900 mb-2">Número de Série (N/S)</label>
+                        <input type="text" name="numero_serie" id="numero_serie"
+                            value="{{ asset.numero_serie if asset else '' }}"
+                            class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition"
+                            placeholder="ex: SN123456789">
+                    </div>
                 </div>
             </div>
+
     </div>
 
     <!-- Scanner Modal -->
@@ -113,7 +123,7 @@
                 <label for="data_aquisicao" class="block text-xs font-bold uppercase text-gray-900 mb-2">Data de
                     Aquisição</label>
                 <input type="date" name="data_aquisicao" id="data_aquisicao"
-                    value="{{ asset.data_aquisicao if asset else '' }}"
+                    value="{{ asset.data_aquisicao.strftime('%Y-%m-%d') if asset and asset.data_aquisicao else '' }}"
                     class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition">
             </div>
             <div>
@@ -137,6 +147,53 @@
             </div>
         </div>
     </div>
+
+    <!-- Section 3: Fornecedor e NF -->
+    <div>
+        <h3 class="font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-200 pb-2">
+            Fornecedor & Nota Fiscal</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="fornecedor_id" class="block text-xs font-bold uppercase text-gray-900 mb-2">Fornecedor</label>
+                <select name="fornecedor_id" id="fornecedor_id"
+                    class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition">
+                    <option value="">Selecione um fornecedor...</option>
+                    {% for f in fornecedores %}
+                    <option value="{{ f.id }}" {% if asset and asset.fornecedor_id == f.id %}selected{% endif %}>{{ f.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="nota_fiscal_id" class="block text-xs font-bold uppercase text-gray-900 mb-2">Nota Fiscal</label>
+                <div class="relative">
+                    <select name="nota_fiscal_id" id="nota_fiscal_id"
+                        class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition font-mono">
+                        <option value="">Selecione um fornecedor primeiro...</option>
+                        {% if asset and asset.nota_fiscal %}
+                        <option value="{{ asset.nota_fiscal.id }}" selected>{{ asset.nota_fiscal.numero_nota }}</option>
+                        {% endif %}
+                    </select>
+                    <div id="loading-notes" class="hidden absolute right-10 top-3">
+                        <svg class="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-1 uppercase font-mono">Para cadastrar uma nova nota, vá em Editar Fornecedor.</p>
+            </div>
+            
+            <div class="md:col-span-2">
+                <label for="foto" class="block text-xs font-bold uppercase text-gray-900 mb-2">Foto do Ativo</label>
+                <input type="file" name="foto" id="foto" accept="image/*"
+                    class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition file:mr-4 file:py-2 file:px-4 file:rounded-none file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800">
+                {% if asset and asset.foto_path %}
+                <p class="text-xs text-gray-500 mt-2">Imagem atual: <a href="{{ asset.foto_path }}" target="_blank" class="text-blue-500 underline">Ver</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
 
     <!-- Actions -->
     <div class="border-t-2 border-gray-100 pt-6 flex items-center justify-end gap-4">
@@ -321,5 +378,56 @@
     scannerModal.addEventListener('click', (e) => {
         if (e.target === scannerModal) closeScanner();
     });
+
+    // Dynamic Invoice Filtering
+    const supplierSelect = document.getElementById('fornecedor_id');
+    const invoiceSelect = document.getElementById('nota_fiscal_id');
+    const loadingNotes = document.getElementById('loading-notes');
+
+    async function updateInvoices(supplierId, currentInvoiceId = null) {
+        if (!supplierId) {
+            invoiceSelect.innerHTML = '<option value="">Selecione um fornecedor primeiro...</option>';
+            return;
+        }
+
+        loadingNotes.classList.remove('hidden');
+        try {
+            const response = await fetch(`/suppliers/${supplierId}/invoices`);
+            const invoices = await response.json();
+            
+            invoiceSelect.innerHTML = '<option value="">Selecione a Nota Fiscal...</option>';
+            
+            if (invoices.length === 0) {
+                invoiceSelect.innerHTML = '<option value="">Nenhuma nota encontrada para este fornecedor</option>';
+            } else {
+                invoices.forEach(nf => {
+                    const option = document.createElement('option');
+                    option.value = nf.id;
+                    option.textContent = nf.numero_nota;
+                    if (currentInvoiceId && String(nf.id) === String(currentInvoiceId)) {
+                        option.selected = true;
+                    }
+                    invoiceSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching invoices:', error);
+            invoiceSelect.innerHTML = '<option value="">Erro ao carregar notas</option>';
+        } finally {
+            loadingNotes.classList.add('hidden');
+        }
+    }
+
+    if (supplierSelect) {
+        supplierSelect.addEventListener('change', (e) => {
+            updateInvoices(e.target.value);
+        });
+
+        // Initialize if already has a value
+        if (supplierSelect.value) {
+            const currentInvoiceId = "{{ asset.nota_fiscal_id if asset and asset.nota_fiscal_id else '' }}";
+            updateInvoices(supplierSelect.value, currentInvoiceId);
+        }
+    }
 </script>
 {% endblock %}

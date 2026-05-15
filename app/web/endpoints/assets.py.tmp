@@ -1,0 +1,69 @@
+
+@router.post("/new", response_class=HTMLResponse)
+async def create_asset(
+    request: Request,
+    nome: Annotated[str, Form()],
+    modelo: Annotated[str, Form()],
+    e_patrimonio: Annotated[str, Form()],
+    descricao: Annotated[Optional[str], Form()] = None,
+    data_aquisicao: Annotated[Optional[str], Form()] = None,
+    valor_aquisicao: Annotated[Optional[str], Form()] = None,
+    numero_serie: Annotated[Optional[str], Form()] = None,
+    fornecedor_id: Annotated[Optional[int], Form()] = None,
+    nota_fiscal_id: Annotated[Optional[int], Form()] = None,
+    foto: Annotated[Optional[UploadFile], File()] = None,
+    current_user: Annotated[User, Depends(get_active_user_web)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None
+):
+    try:
+        # Handle empty strings from form
+        dt_aquisicao = None
+        if data_aquisicao:
+            try:
+                dt_aquisicao = datetime.strptime(data_aquisicao, "%Y-%m-%d")
+            except ValueError:
+                dt_aquisicao = None
+        
+        val_aquisicao = None
+        if valor_aquisicao and valor_aquisicao.strip():
+            try:
+                # Handle Brazilian currency format (1.200,50 -> 1200.50)
+                clean_value = valor_aquisicao.replace('.', '').replace(',', '.') if ',' in valor_aquisicao and '.' in valor_aquisicao else valor_aquisicao.replace(',', '.')
+                val_aquisicao = float(clean_value)
+            except ValueError:
+                raise ValueError(f"Valor inválido: {valor_aquisicao}")
+
+        foto_path = None
+        if foto and foto.filename:
+            upload_dir = "static/uploads"
+            os.makedirs(upload_dir, exist_ok=True)
+            file_path = os.path.join(upload_dir, f"{e_patrimonio}_{foto.filename}")
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(foto.file, buffer)
+            foto_path = f"/{file_path}"
+
+        asset_in = AssetCreate(
+            nome=nome,
+            modelo=modelo,
+            e_patrimonio=e_patrimonio,
+            descricao=descricao,
+            data_aquisicao=dt_aquisicao,
+            valor=val_aquisicao,
+            numero_serie=numero_serie,
+            fornecedor_id=fornecedor_id,
+            nota_fiscal_id=nota_fiscal_id,
+            foto_path=foto_path,
+            created_by_id=current_user.id if current_user else None,
+            status=AssetStatus.DISPONIVEL
+        )
+        await asset_crud.asset.create(db, obj_in=asset_in)
+        return RedirectResponse(url="/assets", status_code=303)
+    except Exception as e:
+        fornecedores = await crud_supplier.get_fornecedores(db)
+        return templates.TemplateResponse("assets/form.html", {
+            "request": request,
+            "user": current_user,
+            "fornecedores": fornecedores,
+            "error": f"Erro ao criar ativo: {str(e)}",
+            "title": "Novo Ativo"
+        })

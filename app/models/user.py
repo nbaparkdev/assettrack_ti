@@ -35,7 +35,8 @@ class User(Base):
 
     # Relacionamentos
     departamento = relationship("Departamento", back_populates="usuarios", foreign_keys=[departamento_id])
-    assets = relationship("Asset", back_populates="current_user")
+    assets = relationship("Asset", foreign_keys="[Asset.current_user_id]", back_populates="current_user")
+    assets_created = relationship("Asset", foreign_keys="[Asset.created_by_id]", back_populates="created_by")
     solicitacoes = relationship("Solicitacao", foreign_keys="[Solicitacao.solicitante_id]", back_populates="solicitante")
     aprovacoes = relationship("Solicitacao", foreign_keys="[Solicitacao.aprovador_id]", back_populates="aprovador")
     

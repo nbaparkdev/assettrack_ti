@@ -8,5 +8,6 @@ from app.models.maintenance import Manutencao, TipoManutencao, StatusManutencao,
 from app.models.maintenance_request import SolicitacaoManutencao, PrioridadeSolicitacao, StatusSolicitacaoManutencao
 from app.models.qr_log import QRLog, QRLogAction
 from app.models.service_desk import ServiceCategory, ServiceDefinition, ServiceTicket, ServiceStatus, ServicePriority
+from app.models.supplier import Fornecedor
+from app.models.invoice import NotaFiscal
 from app.database import Base
-

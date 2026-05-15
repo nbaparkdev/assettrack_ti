@@ -9,7 +9,7 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=assettrack
     ports:
-      - "5454:5432"
+      - "5455:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -19,11 +19,11 @@ services:
     volumes:
       - ./app:/code/app
     ports:
-      - "8080:8000"
+      - "8000:8000"
     depends_on:
       - db
     environment:
-      - DATABASE_URL=postgresql+asyncpg://user:password@db/assettrack
+      - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/assettrack
       - SECRET_KEY=changethis_to_something_secure
       - ALLOW_ORIGINS=["*"]
 

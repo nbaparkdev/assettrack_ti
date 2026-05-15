@@ -145,6 +145,21 @@ sudo docker-compose exec web python activate_user_admin.py
 sudo docker-compose exec web python create_technician.py
 ```
 
+## 🏢 Gestão de Fornecedores e Notas Fiscais
+
+O sistema possui um módulo completo para controle e relacionamento de Fornecedores e Notas Fiscais de Ativos.
+
+### Funcionalidades
+
+| Recurso | Descrição |
+| :--- | :--- |
+| **Cadastro de Fornecedores** | Registro de dados (Razão Social, CNPJ, Contato, Endereço e Tipo) |
+| **Integração XML** | Opção para realizar upload de arquivos de Nota Fiscal em formato `.xml` associados a um fornecedor |
+| **Vínculo com Ativos** | No ato do cadastro de um novo ativo (`/assets/new`), é possível selecionar um fornecedor do sistema |
+| **Rastreabilidade** | Ao fornecer um número de Nota Fiscal no cadastro do ativo, o sistema cria/vincula a nota automaticamente ao fornecedor |
+| **Upload de Imagens** | Cada ativo cadastrado permite o upload direto da foto/comprovante do equipamento no servidor |
+| **Auditoria de Cadastro** | O sistema armazena de forma automática qual usuário/técnico registrou o ativo no sistema |
+
 ## 🎧 Service Desk (Help Desk)
 
 Módulo integrado para gestão de chamados de suporte técnico, solicitações de infraestrutura e atendimento ao usuário.

@@ -120,11 +120,26 @@
                         </dd>
                     </div>
 
-                    <div class="sm:col-span-2 pt-2">
-                        <dt class="font-mono text-[10px] text-gray-400 uppercase tracking-widest mb-1">Descrição / Notas
-                        </dt>
-                        <dd class="text-sm text-gray-700 leading-relaxed font-mono">
-                            {{ asset.descricao or 'SEM_NOTAS_ADICIONAIS' }}
+                    <div>
+                        <dt class="font-mono text-[10px] text-gray-400 uppercase tracking-widest mb-1">Fornecedor</dt>
+                        <dd class="font-bold text-gray-900">
+                            {% if asset.fornecedor %}
+                            <a href="/suppliers/{{ asset.fornecedor.id }}/edit" class="hover:underline">
+                                {{ asset.fornecedor.nome }}
+                            </a>
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="font-mono text-[10px] text-gray-400 uppercase tracking-widest mb-1">Nota Fiscal</dt>
+                        <dd class="font-bold text-gray-900">
+                            {% if asset.nota_fiscal %}
+                            <span class="font-mono">{{ asset.nota_fiscal.numero_nota }}</span>
+                            {% else %}
+                            N/A
+                            {% endif %}
                         </dd>
                     </div>
                 </dl>

@@ -1,9 +1,11 @@
 
 # app/web/endpoints/assets.py
 from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, Form
+from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+import os
+import shutil
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, datetime
 
@@ -15,6 +17,8 @@ from app.models.transaction import Movimentacao, TipoMovimentacao, Solicitacao, 
 from app.database import get_db
 from app.crud import transaction as transaction_crud
 from app.crud import asset as asset_crud
+from app.crud import crud_supplier, crud_invoice
+from app.schemas.invoice import NotaFiscalCreate
 from app.services.qr_service import QRService
 
 router = APIRouter()
@@ -112,11 +116,14 @@ async def search_asset(
 @router.get("/new", response_class=HTMLResponse)
 async def new_asset_form(
     request: Request,
-    current_user: Annotated[User, Depends(get_active_user_web)]
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
 ):
+    fornecedores = await crud_supplier.get_fornecedores(db)
     return templates.TemplateResponse("assets/form.html", {
         "request": request,
         "user": current_user,
+        "fornecedores": fornecedores,
         "title": "Novo Ativo"
     })
 
@@ -127,8 +134,12 @@ async def create_asset(
     modelo: Annotated[str, Form()],
     e_patrimonio: Annotated[str, Form()],
     descricao: Annotated[Optional[str], Form()] = None,
-    data_aquisicao: Annotated[Optional[str], Form()] = None, # Changed to str to handle empty form input
-    valor_aquisicao: Annotated[Optional[str], Form()] = None, # Changed to str to handle empty form input
+    data_aquisicao: Annotated[Optional[str], Form()] = None,
+    valor_aquisicao: Annotated[Optional[str], Form()] = None,
+    numero_serie: Annotated[Optional[str], Form()] = None,
+    fornecedor_id: Annotated[Optional[int], Form()] = None,
+    nota_fiscal_id: Annotated[Optional[int], Form()] = None,
+    foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -136,17 +147,28 @@ async def create_asset(
         # Handle empty strings from form
         dt_aquisicao = None
         if data_aquisicao:
-            dt_aquisicao = datetime.strptime(data_aquisicao, "%Y-%m-%d").date()
+            try:
+                dt_aquisicao = datetime.strptime(data_aquisicao, "%Y-%m-%d")
+            except ValueError:
+                dt_aquisicao = None
         
         val_aquisicao = None
-        if valor_aquisicao:
+        if valor_aquisicao and valor_aquisicao.strip():
             try:
                 # Handle Brazilian currency format (1.200,50 -> 1200.50)
                 clean_value = valor_aquisicao.replace('.', '').replace(',', '.') if ',' in valor_aquisicao and '.' in valor_aquisicao else valor_aquisicao.replace(',', '.')
                 val_aquisicao = float(clean_value)
             except ValueError:
-                # If conversion fails but user provided input, raise error to notify user
                 raise ValueError(f"Valor inválido: {valor_aquisicao}")
+
+        foto_path = None
+        if foto and foto.filename:
+            upload_dir = "static/uploads"
+            os.makedirs(upload_dir, exist_ok=True)
+            file_path = os.path.join(upload_dir, f"{e_patrimonio}_{foto.filename}")
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(foto.file, buffer)
+            foto_path = f"/{file_path}"
 
         asset_in = AssetCreate(
             nome=nome,
@@ -155,14 +177,21 @@ async def create_asset(
             descricao=descricao,
             data_aquisicao=dt_aquisicao,
             valor=val_aquisicao,
+            numero_serie=numero_serie,
+            fornecedor_id=fornecedor_id,
+            nota_fiscal_id=nota_fiscal_id,
+            foto_path=foto_path,
+            created_by_id=current_user.id if current_user else None,
             status=AssetStatus.DISPONIVEL
         )
         await asset_crud.asset.create(db, obj_in=asset_in)
         return RedirectResponse(url="/assets", status_code=303)
     except Exception as e:
+        fornecedores = await crud_supplier.get_fornecedores(db)
         return templates.TemplateResponse("assets/form.html", {
             "request": request,
             "user": current_user,
+            "fornecedores": fornecedores,
             "error": f"Erro ao criar ativo: {str(e)}",
             "title": "Novo Ativo"
         })
@@ -305,10 +334,13 @@ async def edit_asset_form(
     if not asset:
         return RedirectResponse(url="/assets", status_code=303)
 
+    fornecedores = await crud_supplier.get_fornecedores(db)
+
     return templates.TemplateResponse("assets/form.html", {
         "request": request,
         "user": current_user,
         "asset": asset,
+        "fornecedores": fornecedores,
         "title": f"Editar Ativo: {asset.nome}"
     })
 
@@ -322,6 +354,10 @@ async def update_asset(
     descricao: Annotated[Optional[str], Form()] = None,
     data_aquisicao: Annotated[Optional[str], Form()] = None,
     valor_aquisicao: Annotated[Optional[str], Form()] = None,
+    numero_serie: Annotated[Optional[str], Form()] = None,
+    fornecedor_id: Annotated[Optional[int], Form()] = None,
+    nota_fiscal_id: Annotated[Optional[int], Form()] = None,
+    foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -336,16 +372,29 @@ async def update_asset(
         # Handle empty strings from form
         dt_aquisicao = None
         if data_aquisicao:
-            dt_aquisicao = datetime.strptime(data_aquisicao, "%Y-%m-%d").date()
+            try:
+                dt_aquisicao = datetime.strptime(data_aquisicao, "%Y-%m-%d")
+            except ValueError:
+                dt_aquisicao = None
         
         val_aquisicao = None
-        if valor_aquisicao:
+        if valor_aquisicao and valor_aquisicao.strip():
             try:
-                # Handle Brazilian currency format (1.200,50 -> 1200.50)
                 clean_value = valor_aquisicao.replace('.', '').replace(',', '.') if ',' in valor_aquisicao and '.' in valor_aquisicao else valor_aquisicao.replace(',', '.')
                 val_aquisicao = float(clean_value)
             except ValueError:
                 raise ValueError(f"Valor inválido: {valor_aquisicao}")
+
+        # nota_fiscal_id is now passed directly from the form select
+        
+        foto_path = asset.foto_path
+        if foto and foto.filename:
+            upload_dir = "static/uploads"
+            os.makedirs(upload_dir, exist_ok=True)
+            file_path = os.path.join(upload_dir, f"{e_patrimonio}_{foto.filename}")
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(foto.file, buffer)
+            foto_path = f"/{file_path}"
 
         asset_update = AssetUpdate(
             nome=nome,
@@ -353,15 +402,21 @@ async def update_asset(
             e_patrimonio=e_patrimonio,
             descricao=descricao if descricao else None,
             data_aquisicao=dt_aquisicao,
-            valor=val_aquisicao
+            valor=val_aquisicao,
+            numero_serie=numero_serie,
+            fornecedor_id=fornecedor_id,
+            nota_fiscal_id=nota_fiscal_id,
+            foto_path=foto_path
         )
         await asset_crud.asset.update(db, db_obj=asset, obj_in=asset_update)
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
     except Exception as e:
+        fornecedores = await crud_supplier.get_fornecedores(db)
         return templates.TemplateResponse("assets/form.html", {
             "request": request,
             "user": current_user,
             "asset": asset,
+            "fornecedores": fornecedores,
             "error": f"Erro ao atualizar ativo: {str(e)}",
             "title": f"Editar Ativo: {asset.nome}"
         })

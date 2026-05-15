@@ -11,3 +11,5 @@ from app.schemas.transaction import (
     MovimentacaoCreate, MovimentacaoResponse,
     SolicitacaoCreate, SolicitacaoUpdate, SolicitacaoResponse
 )
+from app.schemas.supplier import FornecedorCreate, FornecedorUpdate, FornecedorResponse
+from app.schemas.invoice import NotaFiscalCreate, NotaFiscalUpdate, NotaFiscalResponse
