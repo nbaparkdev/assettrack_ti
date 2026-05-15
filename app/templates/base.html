@@ -125,9 +125,11 @@
                                 <a href="/movimentacoes" class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black hover:bg-gray-50 transition-all border border-transparent hover:border-gray-200">
                                     Log
                                 </a>
+                                {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
                                 <a href="/suppliers" class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black hover:bg-gray-50 transition-all border border-transparent hover:border-gray-200">
                                     Fornecedores
                                 </a>
+                                {% endif %}
                             </div>
                         </div>
 

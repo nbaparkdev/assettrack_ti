@@ -11,7 +11,7 @@ from datetime import datetime
 import json
 
 from app.web.dependencies import get_active_user_web
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.database import get_db
 from app.crud import crud_supplier, crud_invoice
 from app.schemas.supplier import FornecedorCreate
@@ -111,6 +111,10 @@ async def list_suppliers(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
+    from app.models.user import UserRole
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return RedirectResponse(url="/", status_code=303)
+        
     fornecedores = await crud_supplier.get_fornecedores(db)
     return templates.TemplateResponse("suppliers/list.html", {
         "request": request,
@@ -124,6 +128,10 @@ async def new_supplier_form(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)]
 ):
+    from app.models.user import UserRole
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return RedirectResponse(url="/", status_code=303)
+        
     return templates.TemplateResponse("suppliers/form.html", {
         "request": request,
         "user": current_user,
@@ -141,6 +149,10 @@ async def create_supplier(
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
+    from app.models.user import UserRole
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return RedirectResponse(url="/", status_code=303)
+        
     try:
         supplier_in = FornecedorCreate(
             nome=nome,
@@ -166,6 +178,10 @@ async def edit_supplier_form(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
+    from app.models.user import UserRole
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return RedirectResponse(url="/", status_code=303)
+        
     fornecedor = await crud_supplier.get_fornecedor(db, fornecedor_id)
     if not fornecedor:
         return RedirectResponse(url="/suppliers", status_code=303)
@@ -194,6 +210,10 @@ async def update_supplier(
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
+    from app.models.user import UserRole
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return RedirectResponse(url="/", status_code=303)
+        
     fornecedor = await crud_supplier.get_fornecedor(db, fornecedor_id)
     if not fornecedor:
         return RedirectResponse(url="/suppliers", status_code=303)
@@ -250,8 +270,13 @@ async def update_supplier(
 @router.get("/{fornecedor_id}/invoices")
 async def get_supplier_invoices(
     fornecedor_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
+    from app.models.user import UserRole
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return []
+        
     fornecedor = await crud_supplier.get_fornecedor(db, fornecedor_id)
     if not fornecedor:
         return []

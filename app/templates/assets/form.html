@@ -180,7 +180,9 @@
                         </svg>
                     </div>
                 </div>
+                {% if user.role.value in ['admin', 'gerente_ti'] %}
                 <p class="text-[10px] text-gray-400 mt-1 uppercase font-mono">Para cadastrar uma nova nota, vá em Editar Fornecedor.</p>
+                {% endif %}
             </div>
             
             <div class="md:col-span-2">

@@ -124,9 +124,13 @@
                         <dt class="font-mono text-[10px] text-gray-400 uppercase tracking-widest mb-1">Fornecedor</dt>
                         <dd class="font-bold text-gray-900">
                             {% if asset.fornecedor %}
-                            <a href="/suppliers/{{ asset.fornecedor.id }}/edit" class="hover:underline">
+                                {% if user.role.value in ['admin', 'gerente_ti'] %}
+                                <a href="/suppliers/{{ asset.fornecedor.id }}/edit" class="hover:underline">
+                                    {{ asset.fornecedor.nome }}
+                                </a>
+                                {% else %}
                                 {{ asset.fornecedor.nome }}
-                            </a>
+                                {% endif %}
                             {% else %}
                             N/A
                             {% endif %}
