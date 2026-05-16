@@ -93,12 +93,14 @@ def parse_nfe_xml(file_path: str):
                 dt = datetime.fromisoformat(data["data_emissao"])
                 data["data_emissao"] = dt.replace(tzinfo=None)
             except Exception as e:
-                print(f"Erro ao converter data do XML: {e}")
+                logger.error(f"Erro ao converter data do XML ({data['data_emissao']}): {e}")
                 pass
                 
         return data
     except Exception as e:
-        print(f"Erro ao processar XML: {e}")
+        logger.error(f"Erro ao processar XML em {file_path}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return {}
 
 router = APIRouter()
@@ -142,10 +144,14 @@ async def new_supplier_form(
 async def create_supplier(
     request: Request,
     nome: Annotated[str, Form()],
+    razao_social: Annotated[Optional[str], Form()] = None,
     cnpj: Annotated[Optional[str], Form()] = None,
-    contato: Annotated[Optional[str], Form()] = None,
     telefone: Annotated[Optional[str], Form()] = None,
     email: Annotated[Optional[str], Form()] = None,
+    endereco: Annotated[Optional[str], Form()] = None,
+    cidade: Annotated[Optional[str], Form()] = None,
+    estado: Annotated[Optional[str], Form()] = None,
+    tipo_fornecedor: Annotated[Optional[str], Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -156,10 +162,14 @@ async def create_supplier(
     try:
         supplier_in = FornecedorCreate(
             nome=nome,
+            razao_social=razao_social,
             cnpj=cnpj,
-            contato=contato,
             telefone=telefone,
-            email=email
+            email=email,
+            endereco=endereco,
+            cidade=cidade,
+            estado=estado,
+            tipo_fornecedor=tipo_fornecedor
         )
         await crud_supplier.create_fornecedor(db, supplier_in)
         return RedirectResponse(url="/suppliers", status_code=303)
@@ -202,10 +212,14 @@ async def update_supplier(
     fornecedor_id: int,
     request: Request,
     nome: Annotated[str, Form()],
+    razao_social: Annotated[Optional[str], Form()] = None,
     cnpj: Annotated[Optional[str], Form()] = None,
-    contato: Annotated[Optional[str], Form()] = None,
     telefone: Annotated[Optional[str], Form()] = None,
     email: Annotated[Optional[str], Form()] = None,
+    endereco: Annotated[Optional[str], Form()] = None,
+    cidade: Annotated[Optional[str], Form()] = None,
+    estado: Annotated[Optional[str], Form()] = None,
+    tipo_fornecedor: Annotated[Optional[str], Form()] = None,
     xml_file: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
@@ -221,10 +235,15 @@ async def update_supplier(
     try:
         # Atualizar dados básicos
         fornecedor.nome = nome
+        fornecedor.razao_social = razao_social
         fornecedor.cnpj = cnpj
-        fornecedor.contato = contato
         fornecedor.telefone = telefone
         fornecedor.email = email
+        fornecedor.endereco = endereco
+        fornecedor.cidade = cidade
+        fornecedor.estado = estado
+        fornecedor.tipo_fornecedor = tipo_fornecedor
+        
         db.add(fornecedor)
         await db.commit()
 
@@ -282,6 +301,33 @@ async def get_supplier_invoices(
         return []
     
     return [{"id": nf.id, "numero_nota": nf.numero_nota} for nf in fornecedor.notas_fiscais]
+
+@router.get("/invoices/{invoice_id}")
+async def get_invoice_details(
+    invoice_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    from app.models.user import UserRole
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return {}
+        
+    invoice = await crud_invoice.get_nota_fiscal(db, invoice_id)
+    if not invoice:
+        return {}
+    
+    return {
+        "id": invoice.id,
+        "numero_nota": invoice.numero_nota,
+        "data_emissao": invoice.data_emissao.strftime('%d/%m/%Y %H:%M') if invoice.data_emissao else "N/A",
+        "data_emissao_iso": invoice.data_emissao.strftime('%Y-%m-%d') if invoice.data_emissao else "",
+        "natureza_operacao": invoice.natureza_operacao or "N/A",
+        "valor_total": float(invoice.valor_total) if invoice.valor_total else 0,
+        "emitente_nome": invoice.emitente_nome or "N/A",
+        "destinatario_nome": invoice.destinatario_nome or "N/A",
+        "itens": invoice.itens or []
+    }
+
 
 @router.post("/{fornecedor_id}/invoices/{invoice_id}/delete")
 async def delete_invoice(
