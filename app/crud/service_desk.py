@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from app.core.datetime_utils import now_sp
 from app.crud.base import CRUDBase
 from app.models.service_desk import ServiceCategory, ServiceDefinition, ServiceTicket, ServiceStatus
 from app.schemas.service_desk import (
@@ -30,7 +31,7 @@ class CRUDServiceDefinition(CRUDBase[ServiceDefinition, ServiceDefinitionCreate,
 
 class CRUDServiceTicket(CRUDBase[ServiceTicket, ServiceTicketCreate, ServiceTicketUpdate]):
     async def generate_codigo(self, db: AsyncSession) -> str:
-        year = datetime.now().year
+        year = now_sp().year
         count_query = select(func.count()).select_from(ServiceTicket).filter(
             ServiceTicket.data_abertura >= datetime(year, 1, 1)
         )
@@ -46,7 +47,7 @@ class CRUDServiceTicket(CRUDBase[ServiceTicket, ServiceTicketCreate, ServiceTick
             **obj_data,
             codigo=codigo,
             solicitante_id=solicitante_id,
-            data_abertura=datetime.now()
+            data_abertura=now_sp()
         )
         db.add(db_obj)
         await db.commit()
@@ -130,7 +131,7 @@ class CRUDServiceTicketInteraction(CRUDBase[ServiceTicketInteraction, ServiceTic
         db_obj = ServiceTicketInteraction(
             **obj_in.model_dump(),
             usuario_id=usuario_id,
-            data_criacao=datetime.now()
+            data_criacao=now_sp()
         )
         db.add(db_obj)
         await db.commit()

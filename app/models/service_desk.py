@@ -5,6 +5,7 @@ from typing import Optional, List
 from sqlalchemy import String, ForeignKey, DateTime, Text, Float, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
+from app.core.datetime_utils import now_sp
 
 class ServiceStatus(str, Enum):
     ABERTO = "Aberto"
@@ -57,9 +58,10 @@ class ServiceTicket(Base):
     descricao: Mapped[str] = mapped_column(Text)
     status: Mapped[ServiceStatus] = mapped_column(String(30), default=ServiceStatus.ABERTO)
     prioridade: Mapped[ServicePriority] = mapped_column(String(20))
+    foto: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
-    data_abertura: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
-    data_atualizacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+    data_abertura: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
+    data_atualizacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp, onupdate=now_sp)
     data_fechamento: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
     solucao: Mapped[Optional[str]] = mapped_column(Text)
@@ -80,7 +82,8 @@ class ServiceTicketInteraction(Base):
     usuario_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     
     mensagem: Mapped[str] = mapped_column(Text)
-    data_criacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    foto: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    data_criacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
     
     # Tipo de interação: Comentário, Mudança de Status, etc.
     tipo: Mapped[str] = mapped_column(String(50), default="Comentário")

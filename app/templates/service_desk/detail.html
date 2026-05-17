@@ -33,6 +33,12 @@
                     <p class="text-black font-medium leading-relaxed">{{ ticket.descricao }}</p>
                 </div>
                 
+                {% if ticket.foto %}
+                <div class="mt-6 border-2 border-black p-2 bg-gray-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <img src="{{ ticket.foto }}" alt="Imagem do chamado" class="w-full max-h-[400px] object-contain cursor-zoom-in" onclick="window.open(this.src)">
+                </div>
+                {% endif %}
+                
                 {% if ticket.solucao %}
                 <div class="mt-8 pt-6 border-t-2 border-dashed border-gray-200">
                     <h3 class="font-mono text-xs text-green-600 uppercase tracking-widest mb-4">Resolução / Solução</h3>
@@ -64,6 +70,11 @@
                                 <span class="text-[10px] font-mono text-gray-400">{{ interaction.data_criacao.strftime('%d/%m/%y %H:%M') }}</span>
                             </div>
                             <p class="text-sm text-gray-800 leading-relaxed">{{ interaction.mensagem }}</p>
+                            {% if interaction.foto %}
+                            <div class="mt-3 border-2 border-black p-1 bg-gray-50 max-w-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                <img src="{{ interaction.foto }}" alt="Imagem da interação" class="w-full max-h-[200px] object-contain cursor-zoom-in" onclick="window.open(this.src)">
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                     {% else %}
@@ -75,11 +86,16 @@
                 {% if user.role.value|lower in ['admin', 'gerente', 'gerente_ti', 'tecnico', 'gerente_infra'] or ticket.solicitante_id == user.id %}
                 <div class="mt-8 bg-gray-50 border-2 border-black border-dashed p-6">
                     <h4 class="font-bold text-xs uppercase mb-4 text-black">Adicionar Atualização</h4>
-                    <form action="/servicos/chamado/{{ ticket.id }}/interacao" method="POST" class="space-y-4">
+                    <form action="/servicos/chamado/{{ ticket.codigo }}/interacao" method="POST" enctype="multipart/form-data" class="space-y-4">
                         <textarea name="mensagem" required rows="3" placeholder="Descreva o que foi feito ou deixe um comentário..."
                             class="w-full border-2 border-black p-4 text-sm font-mono focus:ring-0 focus:border-black placeholder:text-gray-300"></textarea>
-                        <div class="flex justify-end">
-                            <button type="submit" class="bg-black text-white px-6 py-2 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition">
+                        
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div class="flex-1">
+                                <label class="block text-[10px] font-mono text-gray-500 uppercase mb-1">ANEXAR IMAGEM (OPCIONAL)</label>
+                                <input type="file" name="foto" accept="image/*" class="w-full text-xs font-mono border-2 border-black p-2 bg-white cursor-pointer file:mr-2 file:py-1 file:px-2 file:border-2 file:border-black file:text-[10px] file:font-bold file:uppercase file:bg-white file:text-black hover:file:bg-gray-100">
+                            </div>
+                            <button type="submit" class="bg-black text-white px-6 py-3 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition self-end">
                                 Postar Atualização
                             </button>
                         </div>
@@ -94,10 +110,13 @@
             <!-- QR Code -->
             <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center">
                 <h3 class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-4">Acesso Rápido</h3>
-                <div class="bg-gray-50 p-4 inline-block border border-black mb-4">
+                <div class="bg-gray-50 p-4 inline-block border border-black mb-2">
                     <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code" class="w-32 h-32 mx-auto">
                 </div>
-                <p class="text-[10px] font-mono text-gray-400 uppercase">Escaneie para ver este chamado em outro dispositivo</p>
+                <div class="mb-4">
+                    <span class="font-mono text-xs font-bold bg-black text-white px-3 py-1 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]">{{ ticket.codigo }}</span>
+                </div>
+                <p class="text-[10px] font-mono text-gray-400 uppercase">Escaneie para acessar o link direto deste chamado</p>
             </div>
 
             <!-- Details Card -->
@@ -132,7 +151,7 @@
             <div class="bg-black text-white p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] space-y-4">
                 <h3 class="font-mono text-[10px] text-gray-400 uppercase tracking-widest border-b border-gray-800 pb-2">Ações de Gestão</h3>
                 
-                <form action="/servicos/chamado/{{ ticket.id }}/update" method="POST" class="space-y-4">
+                <form action="/servicos/chamado/{{ ticket.codigo }}/update" method="POST" class="space-y-4">
                     <div>
                         <label class="block text-[10px] font-bold uppercase mb-1">Alterar Status</label>
                         <select name="status" class="w-full bg-gray-900 border border-gray-700 text-white text-xs p-2 focus:ring-0">

@@ -14,6 +14,7 @@ COPY ./requirements.txt /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 COPY ./app /code/app
+COPY ./static /code/static
 COPY ./create_admin.py /code/create_admin.py
 COPY ./create_technician.py /code/create_technician.py
 COPY ./activate_user_admin.py /code/activate_user_admin.py

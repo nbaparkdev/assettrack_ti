@@ -1,60 +1,111 @@
 #!/bin/bash
 
-# init_docker.sh - Automação para inicializar AssetTrack TI via Docker/Podman no Ubuntu
+# ==========================================
+# AssetTrack TI - Inicialização Docker
+# ==========================================
+
 set -e
 
 echo "------------------------------------------------"
-echo "🚀 Iniciando Automação AssetTrack TI (Docker)"
+echo "🚀 Iniciando AssetTrack TI"
 echo "------------------------------------------------"
 
-# 1. Verificar se Docker ou Podman está instalado
-if command -v docker &> /dev/null; then
-    DOCKER_CMD="docker"
-elif command -v podman &> /dev/null; then
-    DOCKER_CMD="podman"
-else
-    echo "❌ Erro: Docker ou Podman não encontrado. Por favor, instale um deles."
+# Ir para pasta do projeto
+cd "$(dirname "$0")"
+
+# ==========================================
+# Verificar Docker
+# ==========================================
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker não encontrado."
+    echo "Instale com:"
+    echo "apt install docker.io docker-compose-plugin -y"
     exit 1
 fi
 
-# 2. Verificar Docker Compose
-if $DOCKER_CMD compose version &> /dev/null; then
-    COMPOSE_CMD="$DOCKER_CMD compose"
-elif command -v docker-compose &> /dev/null; then
-    COMPOSE_CMD="docker-compose"
-else
-    echo "❌ Erro: Docker Compose não encontrado."
+# ==========================================
+# Verificar serviço Docker
+# ==========================================
+if ! systemctl is-active --quiet docker; then
+    echo "⚙️ Iniciando serviço Docker..."
+    systemctl start docker
+fi
+
+# ==========================================
+# Verificar Docker Compose
+# ==========================================
+if ! docker compose version &> /dev/null; then
+    echo "❌ Docker Compose não encontrado."
     exit 1
 fi
 
-echo "✅ Utilizando: $COMPOSE_CMD"
+COMPOSE_CMD="docker compose"
 
-# 3. Configurar .env se não existir
+echo "✅ Docker OK"
+echo "✅ Docker Compose OK"
+
+# ==========================================
+# Criar .env se não existir
+# ==========================================
 if [ ! -f ".env" ]; then
-    echo "⚙️  Configurando arquivo .env a partir do exemplo..."
-    cp .env.example .env
+    echo "⚙️ Criando arquivo .env..."
+    
+    if [ -f ".env.example" ]; then
+        cp .env.example .env
+    else
+        touch .env
+    fi
 else
-    echo "✅ Arquivo .env já existe."
+    echo "✅ Arquivo .env encontrado"
 fi
 
-# 4. Subir containers
-echo "🏗️  Construindo e subindo os containers..."
+# ==========================================
+# Derrubar ambiente antigo
+# ==========================================
+echo "🧹 Limpando containers antigos..."
+$COMPOSE_CMD down --remove-orphans || true
+
+# ==========================================
+# Build e Start
+# ==========================================
+echo "🏗️ Construindo containers..."
 $COMPOSE_CMD up -d --build
 
-# 5. Aguardar o banco de dados inicializar
-echo "⏳ Aguardando o banco de dados estar pronto..."
-sleep 10
+# ==========================================
+# Aguardar inicialização
+# ==========================================
+echo "⏳ Aguardando containers iniciarem..."
+sleep 20
 
-# 6. Inicializar Usuários (Admin)
-echo "👤 Inicializando usuário Administrador..."
-$COMPOSE_CMD exec web python create_admin.py || echo "⚠️ Usuário admin já pode existir ou erro na criação."
-$COMPOSE_CMD exec web python activate_user_admin.py
+# ==========================================
+# Status
+# ==========================================
+echo "📦 Containers ativos:"
+docker ps
 
-# 7. Finalização
+# ==========================================
+# Criar Admin
+# ==========================================
+echo "👤 Configurando usuário administrador..."
+
+$COMPOSE_CMD exec -T web python create_admin.py || true
+$COMPOSE_CMD exec -T web python activate_user_admin.py || true
+
+# ==========================================
+# Informações finais
+# ==========================================
+IP=$(hostname -I | awk '{print $1}')
+
+echo ""
 echo "------------------------------------------------"
-echo "✅ Aplicação inicializada com sucesso!"
-echo "🌐 Acesse em: http://localhost:8000"
-echo "📖 Documentação: http://localhost:8000/docs"
-echo "👤 Admin: admin@example.com / admin"
+echo "✅ AssetTrack TI iniciado com sucesso!"
 echo "------------------------------------------------"
-echo "Para ver os logs, use: $COMPOSE_CMD logs -f"
+echo "🌐 Local:    http://localhost:8000"
+echo "🌐 Rede:     http://$IP:8000"
+echo "📖 Swagger:  http://$IP:8000/docs"
+echo "👤 Admin:    admin@example.com"
+echo "🔑 Senha:    admin"
+echo "------------------------------------------------"
+echo "📜 Logs:"
+echo "$COMPOSE_CMD logs -f"
+echo "------------------------------------------------"

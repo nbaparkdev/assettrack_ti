@@ -38,12 +38,26 @@ Se o seu equipamento apresentar defeito:
 
 ---
 
-## 🎧 4. Service Desk (Chamados)
+## 🎧 4. Service Desk (Chamados e Suporte)
 
-Para solicitações de suporte que não envolvem reparo físico de hardware:
-1. Acesse o **Service Desk**.
+Para solicitações de suporte que não envolvem reparo físico de hardware (ex: configuração de software, acessos, redes):
+
+### Abertura de Novo Chamado
+1. Acesse o menu **Service Desk**.
 2. Clique em **Novo Chamado**.
-3. Acompanhe as interações do técnico diretamente na página do chamado.
+3. Selecione o serviço, defina o nível de prioridade e descreva a solicitação.
+4. **Anexo de Imagem (Opcional):** Você pode anexar um print ou foto do erro para facilitar o diagnóstico da equipe de TI.
+5. Ao criar, o sistema gerará um código profissional estruturado único (Ex: `CH-2026-0001`).
+
+### Acompanhamento e Timeline de Interações
+* O chamado exibe um **histórico cronológico interativo** (Timeline).
+* Tanto os usuários solicitantes quanto a equipe técnica podem enviar mensagens de texto e **anexar imagens complementares** (evidências físicas ou prints) no decorrer do atendimento.
+* No topo do chamado, é exibido um **QR Code individual**. Aponte a câmera do seu smartphone para o QR Code para acessar o link direto do chamado de forma ágil (`/servicos/chamado/CH-2026-0001`).
+
+### Painel Gerencial (Apenas Administradores e Gerentes)
+* Administradores e Gerentes contam com um **Dashboard Gerencial Analítico** moderno no topo da página.
+* O painel apresenta **gráficos dinâmicos (ApexCharts)** da distribuição dos chamados por estágio, prioridades, principais categorias e ranking de usuários atendidos.
+* **Filtros Avançados:** Posicionados de forma inteligente logo abaixo dos gráficos, permitem pesquisar e filtrar a lista de chamados instantaneamente por código, categoria, status, prioridade e intervalo de datas.
 
 ---
 

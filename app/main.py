@@ -25,6 +25,18 @@ async def lifespan(app: FastAPI):
     # Startup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Auto-migration de colunas para o Service Desk
+        from sqlalchemy import text
+        try:
+            await conn.execute(text("ALTER TABLE service_tickets ADD COLUMN foto VARCHAR(255)"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE service_ticket_interactions ADD COLUMN foto VARCHAR(255)"))
+        except Exception:
+            pass
+            
     yield
     # Shutdown
     await engine.dispose()
@@ -38,9 +50,10 @@ app = FastAPI(
 # Templates instantiation
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# Mount static files
-if os.path.exists(os.path.join(PROJECT_ROOT, "static")):
-    app.mount("/static", StaticFiles(directory=os.path.join(PROJECT_ROOT, "static")), name="static")
+# Mount static files (always create directory first if not present to ensure mount is active)
+static_dir = os.path.join(PROJECT_ROOT, "static")
+os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Rate Limiter
 app.state.limiter = limiter

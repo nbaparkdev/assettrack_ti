@@ -1,8 +1,9 @@
 # app/web/endpoints/service_desk.py
 import os
+import shutil
 from typing import Annotated, Optional
 from datetime import datetime
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ from app.schemas.service_desk import (
     ServiceDefinitionCreate, ServiceTicketInteractionCreate
 )
 from app.services.qr_service import QRService
+from app.core.datetime_utils import now_sp
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -82,6 +84,56 @@ async def service_desk_home(
     else:
         stats = None
 
+    dashboard_data = None
+    if user_role in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        # Tickets by status
+        status_counts = await db.execute(
+            select(ServiceTicket.status, func.count(ServiceTicket.id))
+            .group_by(ServiceTicket.status)
+        )
+        status_data = {}
+        for row in status_counts.all():
+            if row[0]:
+                val = row[0].value if hasattr(row[0], 'value') else row[0]
+                status_data[str(val)] = row[1]
+
+        # Tickets by priority
+        priority_counts = await db.execute(
+            select(ServiceTicket.prioridade, func.count(ServiceTicket.id))
+            .group_by(ServiceTicket.prioridade)
+        )
+        priority_data = {}
+        for row in priority_counts.all():
+            if row[0]:
+                val = row[0].value if hasattr(row[0], 'value') else row[0]
+                priority_data[str(val)] = row[1]
+
+        # Tickets by category
+        category_counts = await db.execute(
+            select(ServiceCategory.nome, func.count(ServiceTicket.id))
+            .join(ServiceDefinition, ServiceDefinition.categoria_id == ServiceCategory.id)
+            .join(ServiceTicket, ServiceTicket.servico_id == ServiceDefinition.id)
+            .group_by(ServiceCategory.nome)
+        )
+        category_data = {row[0]: row[1] for row in category_counts.all()}
+
+        # Top users (solicitantes)
+        user_counts = await db.execute(
+            select(User.nome, func.count(ServiceTicket.id))
+            .join(ServiceTicket, ServiceTicket.solicitante_id == User.id)
+            .group_by(User.nome)
+            .order_by(func.count(ServiceTicket.id).desc())
+            .limit(5)
+        )
+        user_data = {row[0]: row[1] for row in user_counts.all()}
+
+        dashboard_data = {
+            "status": status_data,
+            "priority": priority_data,
+            "category": category_data,
+            "users": user_data
+        }
+
     categories = await service_desk_crud.category.get_multi(db)
 
     return templates.TemplateResponse("service_desk/list.html", {
@@ -89,6 +141,7 @@ async def service_desk_home(
         "user": current_user,
         "tickets": tickets,
         "stats": stats,
+        "dashboard_data": dashboard_data,
         "title": "Service Desk",
         "categories": categories,
         "filters": {
@@ -127,16 +180,28 @@ async def create_ticket(
     prioridade: Annotated[str, Form()],
     descricao: Annotated[str, Form()],
     current_user: Annotated[User, Depends(get_active_user_web)],
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: Annotated[AsyncSession, Depends(get_db)],
+    foto: Annotated[Optional[UploadFile], File()] = None
 ):
+    foto_path = None
+    if foto and foto.filename:
+        upload_dir = "static/uploads/tickets"
+        os.makedirs(upload_dir, exist_ok=True)
+        unique_filename = f"{int(now_sp().timestamp())}_{foto.filename}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(foto.file, buffer)
+        foto_path = f"/{file_path}"
+
     ticket_in = ServiceTicketCreate(
         titulo=titulo,
         servico_id=servico_id,
         prioridade=ServicePriority(prioridade),
-        descricao=descricao
+        descricao=descricao,
+        foto=foto_path
     )
     ticket = await service_desk_crud.ticket.create_with_codigo(db, obj_in=ticket_in, solicitante_id=current_user.id)
-    return RedirectResponse(url=f"/servicos/chamado/{ticket.id}", status_code=303)
+    return RedirectResponse(url=f"/servicos/chamado/{ticket.codigo}", status_code=303)
 
 @router.get("/chamado/{ticket_id}", response_class=HTMLResponse)
 async def ticket_detail(
@@ -201,38 +266,50 @@ async def update_ticket_status(
         
     ticket.status = ServiceStatus(status)
     if ticket.status == ServiceStatus.RESOLVIDO:
-        ticket.data_fechamento = datetime.now()
+        ticket.data_fechamento = now_sp()
         
     if not ticket.tecnico_id:
         ticket.tecnico_id = current_user.id
         
     await db.commit()
-    return RedirectResponse(url=f"/servicos/chamado/{ticket.id}", status_code=303)
+    return RedirectResponse(url=f"/servicos/chamado/{ticket.codigo}", status_code=303)
 
 @router.post("/chamado/{ticket_id}/interacao")
 async def create_interaction(
     ticket_id: str,
     mensagem: Annotated[str, Form()],
     current_user: Annotated[User, Depends(get_active_user_web)],
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: Annotated[AsyncSession, Depends(get_db)],
+    foto: Annotated[Optional[UploadFile], File()] = None
 ):
     """Adiciona um comentário/interação no chamado"""
     ticket = await service_desk_crud.ticket.get_full(db, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404)
         
+    foto_path = None
+    if foto and foto.filename:
+        upload_dir = "static/uploads/tickets"
+        os.makedirs(upload_dir, exist_ok=True)
+        unique_filename = f"{int(now_sp().timestamp())}_{foto.filename}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(foto.file, buffer)
+        foto_path = f"/{file_path}"
+
     obj_in = ServiceTicketInteractionCreate(
         ticket_id=ticket.id,
         mensagem=mensagem,
-        tipo="Comentário"
+        tipo="Comentário",
+        foto=foto_path
     )
     await service_desk_crud.interaction.create_with_user(db, obj_in=obj_in, usuario_id=current_user.id)
     
     # Atualiza a data de atualização do chamado
-    ticket.data_atualizacao = datetime.now()
+    ticket.data_atualizacao = now_sp()
     await db.commit()
     
-    return RedirectResponse(url=f"/servicos/chamado/{ticket.id}", status_code=303)
+    return RedirectResponse(url=f"/servicos/chamado/{ticket.codigo}", status_code=303)
 
 @router.post("/admin/categorias")
 async def create_category(

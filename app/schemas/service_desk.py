@@ -52,7 +52,7 @@ class ServiceTicketBase(BaseModel):
     prioridade: ServicePriority
 
 class ServiceTicketCreate(ServiceTicketBase):
-    pass
+    foto: Optional[str] = None
 
 class ServiceTicketUpdate(BaseModel):
     status: Optional[ServiceStatus] = None
@@ -68,6 +68,7 @@ class ServiceTicketSchema(ServiceTicketBase):
     solicitante_id: int
     tecnico_id: Optional[int] = None
     status: ServiceStatus
+    foto: Optional[str] = None
     data_abertura: datetime
     data_atualizacao: datetime
     data_fechamento: Optional[datetime] = None
@@ -82,11 +83,13 @@ class ServiceTicketInteractionBase(BaseModel):
 
 class ServiceTicketInteractionCreate(ServiceTicketInteractionBase):
     ticket_id: int
+    foto: Optional[str] = None
 
 class ServiceTicketInteractionSchema(ServiceTicketInteractionBase):
     id: int
     ticket_id: int
     usuario_id: int
+    foto: Optional[str] = None
     data_criacao: datetime
     
     model_config = ConfigDict(from_attributes=True)

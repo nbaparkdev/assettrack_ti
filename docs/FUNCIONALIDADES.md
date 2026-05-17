@@ -32,12 +32,14 @@ O sistema utiliza o conceito de **E-Patrimônio** para identificação única do
 
 ## 🎧 Service Desk (Help Desk)
 
-Módulo integrado para suporte técnico aos usuários.
+Módulo integrado e profissional de suporte técnico para agilização operacional.
 
-- **Abertura de Chamados:** Categorias, setores e níveis de prioridade.
-- **Interações:** Histórico de mensagens entre técnico e usuário.
-- **Status:** Acompanhamento em tempo real (Aberto, Em Atendimento, Resolvido).
-- **QR de Chamado:** Cada ticket possui um QR único para acesso rápido.
+- **Abertura de Chamados:** Solicitação rápida por categorias e setores com suporte opcional a uploads de imagem para identificação visual inicial.
+- **Timeline de Interações com Fotos:** Histórico dinâmico cronológico em formato de linha do tempo com suporte a envio de imagens/fotos por usuários e técnicos para evidenciar o andamento.
+- **Dashboard Gerencial Premium:** Gráficos interativos (ApexCharts) com análise de status, prioridade de urgência, distribuição de categorias e ranking de usuários (exclusivo para Admins e Gerentes).
+- **Filtros Inteligentes de Pesquisa:** Painel de filtros avançados estrategicamente posicionado abaixo dos gráficos para buscas por texto, status, categoria, prioridade e intervalo de datas.
+- **Código e QR Rastreável:** Geração de códigos em formato estruturado (ex: `CH-2026-0001`) associados a um QR Code individual de visualização rápida no topo do chamado.
+- **Fuso Horário Local (America/Sao_Paulo):** Registro rigoroso de abertura e atualizações no horário do servidor local.
 
 ---
 

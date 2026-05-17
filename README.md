@@ -89,24 +89,28 @@ O sistema possui um módulo completo para controle e relacionamento de Fornecedo
 
 ## 🎧 Service Desk (Help Desk)
 
-Módulo integrado para gestão de chamados de suporte técnico.
+Módulo integrado e moderno para gestão de chamados de suporte técnico.
 
 | Recurso | Descrição |
 | :--- | :--- |
-| **Abertura de Chamados** | Relato de problemas por categorias e setores |
-| **Dashboard e Estatísticas** | Painel em tempo real (Abertos, Em Atendimento, Resolvidos) |
-| **Gestão de Interações** | Histórico de comunicação entre técnicos e usuários |
-| **Integração QR Code** | QR Code único por chamado para acompanhamento ágil |
+| **Abertura de Chamados** | Relato de problemas por categorias e setores com suporte a upload de imagens de identificação. |
+| **Painel de Gráficos (ApexCharts)** | Dashboard analítico premium (distribuição por status, prioridades, categorias e top solicitantes) restrito a Administradores e Gerentes. |
+| **Filtros Avançados de Busca** | Filtros posicionados estrategicamente abaixo dos gráficos para pesquisa refinada por texto, status, categoria, prioridade e intervalo de datas. |
+| **Timeline Interativa** | Histórico cronológico completo de interações com suporte a fotos tanto para técnicos quanto para solicitantes (reforço visual dos serviços). |
+| **Formato Profissional de Código** | Chamados gerados em formato estruturado (Ex: `CH-2026-0001`), com links permanentes amigáveis para organização. |
+| **QR Code do Chamado** | Código QR gerado automaticamente e impresso acima do código do chamado para acesso e acompanhamento mobile rápido. |
+| **Fuso Horário Local Preciso** | Registro de abertura e interações ajustado perfeitamente ao fuso horário `America/Sao_Paulo` (UTC-3). |
 
 ## 📱 Sistema de QR Code
 
-Funcionalidades de identificação e login rápido.
+Funcionalidades de identificação, login rápido e acompanhamento ágil.
 
 | Recurso | Descrição |
 | :--- | :--- |
-| **Crachá Digital** | QR Code único por usuário |
-| **Login via QR** | Login rápido via QR + PIN |
-| **Histórico de Ativos** | Scanner revela histórico completo (E-Patrimonio) |
+| **Crachá Digital** | QR Code único por usuário. |
+| **Login via QR** | Login rápido via QR + PIN. |
+| **Acompanhamento de Chamados** | QR Code impresso nos chamados vinculando ao link direto de atendimento mobile (`/servicos/chamado/CH-2026-0001`). |
+| **Histórico de Ativos** | Scanner revela histórico completo de movimentação (E-Patrimonio). |
 
 > 📸 **Nota sobre Scanner via Rede Local (HTTP):**
 > Navegadores bloqueiam a câmera em conexões HTTP. Para liberar em sua rede local:

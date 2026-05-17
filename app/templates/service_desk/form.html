@@ -8,7 +8,7 @@
         <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Preencha os detalhes do serviço solicitado</p>
     </div>
 
-    <form action="/servicos/novo" method="POST" class="space-y-6">
+    <form action="/servicos/novo" method="POST" enctype="multipart/form-data" class="space-y-6">
         <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
             
             <!-- Seleção de Categoria e Serviço -->
@@ -59,6 +59,12 @@
                 <textarea name="descricao" rows="6" required
                     placeholder="Descreva detalhadamente o que está acontecendo..."
                     class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm"></textarea>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-xs font-bold uppercase tracking-widest text-black">Anexar Imagem (Opcional)</label>
+                <input type="file" name="foto" accept="image/*"
+                    class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-none file:border-2 file:border-black file:text-xs file:font-bold file:uppercase file:bg-white file:text-black hover:file:bg-gray-100 cursor-pointer">
             </div>
         </div>
 

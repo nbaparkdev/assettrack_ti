@@ -1,41 +1,89 @@
 #!/bin/bash
 
-# update_docker.sh - Atualiza e reinicia a aplicação AssetTrack TI
+# ==========================================
+# AssetTrack TI - Update/Rebuild Docker
+# ==========================================
+
 set -e
 
-# Detectar comando (docker ou podman)
-if command -v docker &> /dev/null; then
-    DOCKER_CMD="docker"
-elif command -v podman &> /dev/null; then
-    DOCKER_CMD="podman"
-else
-    echo "❌ Docker/Podman não encontrado."
+echo "------------------------------------------------"
+echo "🔄 Atualizando AssetTrack TI"
+echo "------------------------------------------------"
+
+# Ir para pasta do script
+cd "$(dirname "$0")"
+
+# ==========================================
+# Verificar Docker
+# ==========================================
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker não encontrado."
     exit 1
 fi
 
-if $DOCKER_CMD compose version &> /dev/null; then
-    COMPOSE_CMD="$DOCKER_CMD compose"
-else
-    COMPOSE_CMD="docker-compose"
+# ==========================================
+# Garantir Docker ativo
+# ==========================================
+if ! systemctl is-active --quiet docker; then
+    echo "⚙️ Iniciando Docker..."
+    systemctl start docker
 fi
 
-echo "🔄 Atualizando AssetTrack TI..."
+COMPOSE_CMD="docker compose"
 
-# 1. Pull changes (opcional, se estiver usando git)
+echo "✅ Docker OK"
+
+# ==========================================
+# Atualizar Git
+# ==========================================
 if [ -d ".git" ]; then
-    echo "📥 Baixando últimas alterações do Git..."
-    git pull
+    echo "📥 Atualizando repositório..."
+    git pull || true
 fi
 
-# 2. Reconstruir e subir
-echo "🏗️  Reconstruindo containers..."
+# ==========================================
+# Mostrar containers atuais
+# ==========================================
+echo "📦 Containers atuais:"
+docker ps || true
+
+# ==========================================
+# Rebuild e Restart
+# ==========================================
+echo "🏗️ Reconstruindo aplicação..."
+
 $COMPOSE_CMD up -d --build
 
-# 3. Limpar imagens órfãs/não utilizadas (opcional para economizar espaço)
-echo "🧹 Limpando imagens antigas..."
-$DOCKER_CMD image prune -f
+# ==========================================
+# Aguardar estabilização
+# ==========================================
+echo "⏳ Aguardando containers..."
+sleep 15
 
+# ==========================================
+# Limpeza segura
+# ==========================================
+echo "🧹 Limpando imagens antigas..."
+docker image prune -f
+
+# ==========================================
+# Status final
+# ==========================================
+echo "📦 Containers ativos:"
+docker ps
+
+# ==========================================
+# Informações
+# ==========================================
+IP=$(hostname -I | awk '{print $1}')
+
+echo ""
 echo "------------------------------------------------"
-echo "✅ Aplicação atualizada e reiniciada com sucesso!"
-echo "🌐 Acesse em: http://localhost:8000"
+echo "✅ AssetTrack TI atualizado com sucesso!"
 echo "------------------------------------------------"
+echo "🌐 Local:    http://localhost:8000"
+echo "🌐 Rede:     http://$IP:8000"
+echo "📖 Swagger:  http://$IP:8000/docs"
+echo "------------------------------------------------"
+echo "📜 Logs:"
+echo "docker compose logs -f"
