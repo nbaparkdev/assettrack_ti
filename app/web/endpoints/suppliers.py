@@ -43,6 +43,22 @@ def parse_nfe_xml(file_path: str):
         emit = infNFe.find(f"{ns}emit")
         dest = infNFe.find(f"{ns}dest")
         total_node = infNFe.find(f"{ns}total/{ns}ICMSTot")
+
+        # Extrair endereço do emitente (fornecedor)
+        enderEmit = emit.find(f"{ns}enderEmit") if emit is not None else None
+        emitente_endereco = None
+        emitente_cidade = None
+        emitente_estado = None
+        emitente_telefone = None
+        if enderEmit is not None:
+            logr = enderEmit.findtext(f"{ns}xLgr") or ""
+            nro = enderEmit.findtext(f"{ns}nro") or ""
+            bairro = enderEmit.findtext(f"{ns}xBairro") or ""
+            partes = [p for p in [logr, nro, bairro] if p]
+            emitente_endereco = ", ".join(partes) if partes else None
+            emitente_cidade = enderEmit.findtext(f"{ns}xMun")
+            emitente_estado = enderEmit.findtext(f"{ns}UF")
+            emitente_telefone = enderEmit.findtext(f"{ns}fone")
         
         # Extrair itens
         itens = []
@@ -81,6 +97,10 @@ def parse_nfe_xml(file_path: str):
             "valor_total": valor_total,
             "emitente_nome": emit.findtext(f"{ns}xNome") if emit is not None else None,
             "emitente_cnpj": emit.findtext(f"{ns}CNPJ") if emit is not None else None,
+            "emitente_endereco": emitente_endereco,
+            "emitente_cidade": emitente_cidade,
+            "emitente_estado": emitente_estado,
+            "emitente_telefone": emitente_telefone,
             "destinatario_nome": dest.findtext(f"{ns}xNome") if dest is not None else None,
             "destinatario_cnpj": dest.findtext(f"{ns}CNPJ") if dest is not None else None,
             "itens": itens
@@ -152,13 +172,14 @@ async def create_supplier(
     cidade: Annotated[Optional[str], Form()] = None,
     estado: Annotated[Optional[str], Form()] = None,
     tipo_fornecedor: Annotated[Optional[str], Form()] = None,
+    xml_file: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     from app.models.user import UserRole
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
         return RedirectResponse(url="/", status_code=303)
-        
+
     try:
         supplier_in = FornecedorCreate(
             nome=nome,
@@ -171,7 +192,32 @@ async def create_supplier(
             estado=estado,
             tipo_fornecedor=tipo_fornecedor
         )
-        await crud_supplier.create_fornecedor(db, supplier_in)
+        fornecedor = await crud_supplier.create_fornecedor(db, supplier_in)
+
+        # Processar XML se enviado
+        if xml_file and xml_file.filename:
+            upload_dir = "static/uploads/xml"
+            os.makedirs(upload_dir, exist_ok=True)
+            file_path = os.path.join(upload_dir, f"{fornecedor.id}_{xml_file.filename}")
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(xml_file.file, buffer)
+            xml_data = parse_nfe_xml(file_path)
+            if xml_data.get("numero_nota"):
+                nf_in = NotaFiscalCreate(
+                    numero_nota=xml_data["numero_nota"],
+                    fornecedor_id=fornecedor.id,
+                    xml_path=f"/{file_path}",
+                    data_emissao=xml_data.get("data_emissao"),
+                    valor_total=xml_data.get("valor_total"),
+                    natureza_operacao=xml_data.get("natureza_operacao"),
+                    emitente_nome=xml_data.get("emitente_nome"),
+                    emitente_cnpj=xml_data.get("emitente_cnpj"),
+                    destinatario_nome=xml_data.get("destinatario_nome"),
+                    destinatario_cnpj=xml_data.get("destinatario_cnpj"),
+                    itens=xml_data.get("itens")
+                )
+                await crud_invoice.create_nota_fiscal(db, nf_in)
+
         return RedirectResponse(url="/suppliers", status_code=303)
     except Exception as e:
         return templates.TemplateResponse("suppliers/form.html", {
@@ -180,6 +226,47 @@ async def create_supplier(
             "error": f"Erro ao criar fornecedor: {str(e)}",
             "title": "Novo Fornecedor"
         })
+
+@router.post("/parse-xml")
+async def parse_xml_for_supplier_form(
+    xml_file: Annotated[UploadFile, File()],
+    current_user: Annotated[User, Depends(get_active_user_web)],
+):
+    """Recebe um XML de NF-e e retorna os dados do emitente para preenchimento automático do formulário."""
+    from app.models.user import UserRole
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return {}
+    if not xml_file or not xml_file.filename:
+        return {}
+
+    upload_dir = "static/uploads/xml/temp"
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, f"temp_{current_user.id}_{xml_file.filename}")
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(xml_file.file, buffer)
+
+        xml_data = parse_nfe_xml(file_path)
+
+        return {
+            "nome": xml_data.get("emitente_nome"),
+            "cnpj": xml_data.get("emitente_cnpj"),
+            "endereco": xml_data.get("emitente_endereco"),
+            "cidade": xml_data.get("emitente_cidade"),
+            "estado": xml_data.get("emitente_estado"),
+            "telefone": xml_data.get("emitente_telefone"),
+            "razao_social": xml_data.get("emitente_nome"),
+        }
+    except Exception as e:
+        logger.error(f"Erro ao parsear XML para auto-preenchimento: {e}")
+        return {}
+    finally:
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+
 
 @router.get("/{fornecedor_id}/edit", response_class=HTMLResponse)
 async def edit_supplier_form(

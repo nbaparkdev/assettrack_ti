@@ -22,6 +22,13 @@
         </div>
         {% endif %}
 
+        {% if not fornecedor %}
+        <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mx-6 mt-6 mb-0 text-amber-800 text-sm flex items-start gap-3">
+            <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span><strong class="font-bold uppercase text-xs">Novo:</strong> Ao carregar um arquivo <strong>XML de NF-e</strong> no campo abaixo, os dados do emitente (nome, CNPJ, endereço, telefone) serão preenchidos automaticamente nos campos vazios do formulário.</span>
+        </div>
+        {% endif %}
+
         <form action="{% if fornecedor %}/suppliers/{{ fornecedor.id }}/edit{% else %}/suppliers/new{% endif %}" method="post" enctype="multipart/form-data" class="p-8 space-y-8">
             <!-- Section 1: Identification -->
             <div>
@@ -104,6 +111,10 @@
                         <label for="xml_file" class="block text-xs font-bold uppercase text-gray-900 mb-2">Upload de XML (Opcional)</label>
                         <input type="file" name="xml_file" id="xml_file" accept=".xml"
                             class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition file:mr-4 file:py-2 file:px-4 file:rounded-none file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800">
+                        <p id="xml_fill_status" class="hidden text-xs text-green-600 font-mono mt-2 flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span id="xml_fill_text"></span>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -243,6 +254,74 @@
 </div>
 
 <script>
+    // Auto-fill supplier form from XML upload
+    const xmlFileInput = document.getElementById('xml_file');
+    const xmlFillStatus = document.getElementById('xml_fill_status');
+    const xmlFillText = document.getElementById('xml_fill_text');
+
+    // Map XML field names to form input IDs
+    const fieldMap = {
+        'nome': 'nome',
+        'razao_social': 'razao_social',
+        'cnpj': 'cnpj',
+        'endereco': 'endereco',
+        'cidade': 'cidade',
+        'estado': 'estado',
+        'telefone': 'telefone'
+    };
+
+    xmlFileInput.addEventListener('change', async function() {
+        const file = this.files[0];
+        if (!file) return;
+
+        xmlFillStatus.classList.add('hidden');
+
+        const formData = new FormData();
+        formData.append('xml_file', file);
+
+        try {
+            const resp = await fetch('/suppliers/parse-xml', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await resp.json();
+            if (!data || Object.keys(data).length === 0) {
+                xmlFillText.textContent = 'Nenhum dado identificado no XML.';
+                xmlFillStatus.classList.remove('hidden');
+                xmlFillStatus.classList.add('text-amber-600');
+                xmlFillStatus.classList.remove('text-green-600');
+                return;
+            }
+
+            let filledCount = 0;
+            for (const [xmlKey, inputId] of Object.entries(fieldMap)) {
+                const input = document.getElementById(inputId);
+                const value = data[xmlKey];
+                if (input && value && !input.value.trim()) {
+                    input.value = value;
+                    filledCount++;
+                    // Trigger a subtle highlight animation
+                    input.classList.add('bg-amber-50', 'border-amber-400');
+                    setTimeout(() => input.classList.remove('bg-amber-50', 'border-amber-400'), 1500);
+                }
+            }
+
+            if (filledCount > 0) {
+                xmlFillText.textContent = `${filledCount} campo(s) preenchido(s) automaticamente com os dados do emitente.`;
+                xmlFillStatus.classList.remove('hidden', 'text-amber-600');
+                xmlFillStatus.classList.add('text-green-600');
+            } else {
+                xmlFillText.textContent = 'Todos os campos já estavam preenchidos.';
+                xmlFillStatus.classList.remove('hidden', 'text-green-600');
+                xmlFillStatus.classList.add('text-amber-600');
+            }
+        } catch (err) {
+            xmlFillText.textContent = 'Erro ao processar o XML. Verifique o arquivo.';
+            xmlFillStatus.classList.remove('hidden', 'text-green-600');
+            xmlFillStatus.classList.add('text-red-600');
+        }
+    });
+
     const modal = document.getElementById('invoiceModal');
 
     function openInvoiceModal(nNF, dhEmi, natOp, vNF, emit, dest, itens) {
