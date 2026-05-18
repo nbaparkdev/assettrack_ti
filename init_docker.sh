@@ -26,9 +26,16 @@ fi
 # ==========================================
 # Verificar serviço Docker
 # ==========================================
-if ! systemctl is-active --quiet docker; then
-    echo "⚙️ Iniciando serviço Docker..."
-    systemctl start docker
+if command -v systemctl &> /dev/null; then
+    if ! systemctl is-active --quiet docker; then
+        echo "⚙️ Iniciando serviço Docker..."
+        systemctl start docker
+    fi
+elif command -v service &> /dev/null; then
+    if ! service docker status &> /dev/null; then
+        echo "⚙️ Iniciando serviço Docker..."
+        service docker start
+    fi
 fi
 
 # ==========================================
@@ -74,8 +81,30 @@ $COMPOSE_CMD up -d --build
 # ==========================================
 # Aguardar inicialização
 # ==========================================
-echo "⏳ Aguardando containers iniciarem..."
-sleep 20
+echo "⏳ Aguardando container web iniciar..."
+MAX_WAIT=120
+WAITED=0
+while [ $WAITED -lt $MAX_WAIT ]; do
+    STATUS=$($COMPOSE_CMD ps --format json 2>/dev/null | python3 -c "
+import sys, json
+for line in sys.stdin:
+    s = json.loads(line)
+    if s.get('Service') == 'web' and s.get('State') == 'running':
+        health = s.get('Health', '')
+        if health == 'healthy' or health == '':
+            print('ready')
+            break
+" 2>/dev/null)
+    if [ "$STATUS" = "ready" ]; then
+        echo "✅ Container web pronto"
+        break
+    fi
+    sleep 3
+    WAITED=$((WAITED + 3))
+done
+if [ $WAITED -ge $MAX_WAIT ]; then
+    echo "⚠️ Timeout aguardando container web. Tentando prosseguir mesmo assim..."
+fi
 
 # ==========================================
 # Status
@@ -88,13 +117,14 @@ docker ps
 # ==========================================
 echo "👤 Configurando usuário administrador..."
 
-$COMPOSE_CMD exec -T web python create_admin.py || true
-$COMPOSE_CMD exec -T web python activate_user_admin.py || true
-
+ADMIN_OK=true
+$COMPOSE_CMD exec -T web python create_admin.py || ADMIN_OK=false
+$COMPOSE_CMD exec -T web python activate_user_admin.py || ADMIN_OK=false
 # ==========================================
 # Informações finais
 # ==========================================
 IP=$(hostname -I | awk '{print $1}')
+[ -z "$IP" ] && IP="<IP da máquina>"
 
 echo ""
 echo "------------------------------------------------"
@@ -102,9 +132,16 @@ echo "✅ AssetTrack TI iniciado com sucesso!"
 echo "------------------------------------------------"
 echo "🌐 Local:    http://localhost:8000"
 echo "🌐 Rede:     http://$IP:8000"
-echo "📖 Swagger:  http://$IP:8000/docs"
-echo "👤 Admin:    admin@example.com"
-echo "🔑 Senha:    admin"
+if [ "$IP" != "<IP da máquina>" ]; then
+    echo "📖 Swagger:  http://$IP:8000/docs"
+fi
+if [ "$ADMIN_OK" = true ]; then
+    echo "👤 Admin:    admin@example.com"
+    echo "🔑 Senha:    admin"
+else
+    echo "⚠️  Admin não pôde ser criado. Verifique:"
+    echo "   $COMPOSE_CMD exec web python create_admin.py"
+fi
 echo "------------------------------------------------"
 echo "📜 Logs:"
 echo "$COMPOSE_CMD logs -f"
