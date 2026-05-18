@@ -22,21 +22,23 @@ PROJECT_ROOT = os.path.dirname(BASE_DIR)
 # Função para criar tabelas no startup
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup — cria tabelas
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
-        # Auto-migration de colunas para o Service Desk
-        from sqlalchemy import text
+
+    # Auto-migration de colunas para o Service Desk (transações isoladas)
+    from sqlalchemy import text
+    async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE service_tickets ADD COLUMN foto VARCHAR(255)"))
         except Exception:
             pass
+    async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE service_ticket_interactions ADD COLUMN foto VARCHAR(255)"))
         except Exception:
             pass
-            
+
     yield
     # Shutdown
     await engine.dispose()
