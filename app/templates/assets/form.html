@@ -72,6 +72,17 @@
                     </div>
 
                     <div class="md:col-span-2">
+                        <label for="categoria_id" class="block text-xs font-bold uppercase text-gray-900 mb-2">Categoria</label>
+                        <select name="categoria_id" id="categoria_id"
+                            class="block w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition">
+                            <option value="">Sem categoria</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if asset and asset.categoria_id == cat.id %}selected{% endif %}>{{ cat.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="md:col-span-2">
                         <label for="nome" class="block text-xs font-bold uppercase text-gray-900 mb-2">Nome do Ativo *</label>
                         <div class="flex gap-2">
                             <input type="text" name="nome" id="nome" required value="{{ asset.nome if asset else '' }}"
@@ -211,10 +222,17 @@
             <div class="md:col-span-2">
                 <label for="foto" class="block text-xs font-bold uppercase text-gray-900 mb-2">Foto do Ativo</label>
                 <div class="flex flex-col md:flex-row gap-6 items-start">
-                    <div class="flex-1 w-full">
+                    <div class="flex-1 w-full space-y-3">
                         <input type="file" name="foto" id="foto" accept="image/*" onchange="previewImage(this)"
                             class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition file:mr-4 file:py-2 file:px-4 file:rounded-none file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800">
-                        <p class="text-[10px] text-gray-400 mt-2 uppercase font-mono">Formatos aceitos: JPG, PNG, WEBP. Máx: 5MB.</p>
+
+                        <!-- Paste Area -->
+                        <div class="paste-image-area border-2 border-dashed border-gray-300 p-4 text-center cursor-pointer hover:border-gray-500 transition bg-gray-50"
+                            data-target-input="foto" data-preview="image-preview-element" data-preview-container="image-preview-container">
+                            <p class="text-xs font-mono text-gray-400 uppercase paste-message">Ou cole uma imagem aqui (Ctrl+V) / arraste e solte</p>
+                        </div>
+
+                        <p class="text-[10px] text-gray-400 uppercase font-mono">Formatos aceitos: JPG, PNG, WEBP. Máx: 5MB.</p>
                     </div>
                     
                     <div id="image-preview-container" class="shrink-0 {% if not (asset and asset.foto_path) %}hidden{% endif %}">
@@ -597,6 +615,10 @@
                 if (currentNfData.dateIso) {
                     document.getElementById('data_aquisicao').value = currentNfData.dateIso;
                 }
+                // Auto-fill unit value
+                if (item.valor_unitario) {
+                    document.getElementById('valor_aquisicao').value = parseFloat(item.valor_unitario).toFixed(2);
+                }
                 listContainer.classList.add('hidden');
             };
             listContainer.appendChild(btn);
@@ -692,4 +714,6 @@
         }
     }
 </script>
+
+<script src="/static/js/paste-image.js"></script>
 {% endblock %}

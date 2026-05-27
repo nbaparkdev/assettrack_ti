@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">RELATORIO_ATIVOS</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Geracao de Relatorios e Exportacao</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="/assets" class="text-xs font-bold uppercase hover:underline">Voltar para Ativos</a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <h3 class="font-bold text-sm uppercase tracking-widest mb-4 border-b-2 border-black pb-2">Filtros</h3>
+        <form method="GET" action="/assets/reports" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Data Inicio</label>
+                    <input type="date" name="data_inicio" value="{{ filtros.data_inicio }}"
+                        class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Data Fim</label>
+                    <input type="date" name="data_fim" value="{{ filtros.data_fim }}"
+                        class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Nome do Ativo</label>
+                    <input type="text" name="nome" value="{{ filtros.nome }}" placeholder="Buscar por nome..."
+                        class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Categoria</label>
+                    <select name="categoria_id" class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                        <option value="">Todas</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if filtros.categoria_id == cat.id|string %}selected{% endif %}>{{ cat.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Fornecedor</label>
+                    <select name="fornecedor_id" class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                        <option value="">Todos</option>
+                        {% for f in fornecedores %}
+                        <option value="{{ f.id }}" {% if filtros.fornecedor_id == f.id|string %}selected{% endif %}>{{ f.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Numero NFe</label>
+                    <input type="text" name="nfe" value="{{ filtros.nfe }}" placeholder="Numero da Nota Fiscal..."
+                        class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">E-Patrimonio</label>
+                    <input type="text" name="patrimonio" value="{{ filtros.patrimonio }}" placeholder="Numero de Patrimonio..."
+                        class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                </div>
+                <div class="flex items-end gap-2">
+                    <button type="submit"
+                        class="bg-black text-white px-8 py-2 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition">
+                        Filtrar
+                    </button>
+                    <a href="/assets/reports" class="text-xs font-bold uppercase text-gray-500 hover:text-black border border-transparent hover:border-black px-4 py-2 transition">
+                        Limpar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results -->
+    {% if assets is not none %}
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <div class="flex items-center justify-between px-6 py-4 border-b-2 border-black">
+            <h3 class="font-bold text-sm uppercase tracking-widest">Resultados ({{ assets|length }} ativos)</h3>
+            {% if assets|length > 0 %}
+            <a href="/assets/reports/pdf?{{ request.query_params }}" target="_blank"
+                class="bg-red-600 text-white px-6 py-2 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-red-700 transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                </svg>
+                Exportar PDF
+            </a>
+            {% endif %}
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-black text-white font-mono text-xs uppercase tracking-widest">
+                        <th class="px-6 py-3 border-b border-gray-800">Nome</th>
+                        <th class="px-6 py-3 border-b border-gray-800">Patrimonio</th>
+                        <th class="px-6 py-3 border-b border-gray-800">Categoria</th>
+                        <th class="px-6 py-3 border-b border-gray-800">Fornecedor</th>
+                        <th class="px-6 py-3 border-b border-gray-800">NFe</th>
+                        <th class="px-6 py-3 border-b border-gray-800">Aquisicao</th>
+                        <th class="px-6 py-3 border-b border-gray-800 text-right">Valor</th>
+                        <th class="px-6 py-3 border-b border-gray-800">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for asset in assets %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-3 font-bold text-sm">{{ asset.nome }}</td>
+                        <td class="px-6 py-3">
+                            <span class="font-mono text-xs bg-gray-100 px-2 py-1 border border-gray-200">{{ asset.e_patrimonio }}</span>
+                        </td>
+                        <td class="px-6 py-3 text-xs uppercase">{{ asset.categoria.nome if asset.categoria else '-' }}</td>
+                        <td class="px-6 py-3 text-xs">{{ asset.fornecedor.nome if asset.fornecedor else '-' }}</td>
+                        <td class="px-6 py-3 font-mono text-xs">{{ asset.nota_fiscal.numero_nota if asset.nota_fiscal else '-' }}</td>
+                        <td class="px-6 py-3 font-mono text-xs">{{ asset.data_aquisicao.strftime('%d/%m/%Y') if asset.data_aquisicao else '-' }}</td>
+                        <td class="px-6 py-3 text-right font-mono text-xs">{{ "R$ %.2f"|format(asset.valor) if asset.valor else '-' }}</td>
+                        <td class="px-6 py-3">
+                            <span class="text-[10px] font-bold uppercase px-2 py-0.5 border
+                                {% if asset.status.value == 'disponivel' %}bg-green-100 text-green-800 border-green-200
+                                {% elif asset.status.value == 'em_uso' %}bg-blue-100 text-blue-800 border-blue-200
+                                {% elif asset.status.value == 'manutencao' %}bg-amber-100 text-amber-800 border-amber-200
+                                {% else %}bg-gray-100 text-gray-800 border-gray-200{% endif %}">
+                                {{ asset.status.value }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center text-gray-400 font-mono text-xs uppercase">
+                            {% if has_filters %}Nenhum ativo encontrado com os filtros aplicados.{% else %}Use os filtros acima para buscar ativos.{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

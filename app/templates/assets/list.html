@@ -21,6 +21,16 @@
                 SCANNER
             </a>
 
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
+            <a href="/assets/admin/categorias"
+                class="hidden md:flex items-center gap-2 bg-white border-2 border-black text-black px-4 py-3 rounded-none text-sm font-bold uppercase tracking-widest hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                Categorias
+            </a>
+            {% endif %}
+            <a href="/assets/reports"
+                class="hidden md:flex items-center gap-2 bg-white border-2 border-black text-black px-4 py-3 rounded-none text-sm font-bold uppercase tracking-widest hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                Relatorios
+            </a>
             {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
             <a href="/assets/new"
                 class="hidden md:flex items-center gap-2 bg-black text-white px-6 py-3 rounded-none text-sm font-bold uppercase tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
@@ -85,6 +95,29 @@
         </div>
     </div>
 
+    <!-- Filters -->
+    {% if categories %}
+    <div class="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <form method="GET" action="/assets" class="flex flex-wrap items-end gap-4">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Filtrar por Categoria</label>
+                <select name="categoria_id" class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0"
+                    onchange="this.form.submit()">
+                    <option value="">Todas as Categorias</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if filters and filters.categoria_id|string == cat.id|string %}selected{% endif %}>{{ cat.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if filters and filters.categoria_id %}
+            <a href="/assets" class="text-xs font-bold uppercase text-gray-500 hover:text-black border-b-2 border-transparent hover:border-black pb-1">
+                Limpar Filtro
+            </a>
+            {% endif %}
+        </form>
+    </div>
+    {% endif %}
+
     <!-- Table Container -->
     <div class="border-2 border-gray-200 bg-white">
         <div class="overflow-x-auto">
@@ -94,6 +127,8 @@
                         <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">ID Ativo /
                             Modelo</th>
                         <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">E-Patrimonio
+                        </th>
+                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">Categoria
                         </th>
                         <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">Status
                         </th>
@@ -119,6 +154,13 @@
                             <span
                                 class="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-1 border border-gray-200">{{
                                 asset.e_patrimonio }}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if asset.categoria %}
+                            <span class="text-xs font-bold uppercase text-gray-700">{{ asset.categoria.nome }}</span>
+                            {% else %}
+                            <span class="text-gray-300 font-mono text-xs">-</span>
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4">
                             {% if asset.status.value == 'disponivel' %}
@@ -175,7 +217,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="px-6 py-12 text-center">
+                        <td colspan="6" class="px-6 py-12 text-center">
                             <p class="font-mono text-gray-400 mb-2">BASE_DADOS_VAZIA</p>
                             {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
                             <a href="/assets/new"

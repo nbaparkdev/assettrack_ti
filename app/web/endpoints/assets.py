@@ -1,7 +1,7 @@
 
 # app/web/endpoints/assets.py
 from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
+from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 import os
@@ -18,6 +18,7 @@ from app.database import get_db
 from app.crud import transaction as transaction_crud
 from app.crud import asset as asset_crud
 from app.crud import crud_supplier, crud_invoice
+from app.crud import asset_category as asset_category_crud
 from app.schemas.invoice import NotaFiscalCreate
 from app.services.qr_service import QRService
 
@@ -28,21 +29,48 @@ templates = Jinja2Templates(directory="app/templates")
 async def list_assets(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: Annotated[AsyncSession, Depends(get_db)],
+    categoria_id: Optional[str] = None
 ):
     # Calculate stats for the header
     from sqlalchemy import func, select
-    
+
+    cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+
     total_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)))
     available_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.DISPONIVEL))
     in_use_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.EM_USO))
     maintenance_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.MANUTENCAO))
 
-    assets = await asset_crud.asset.get_multi(db)
+    if cat_id:
+        from sqlalchemy.orm import selectinload
+        result = await db.execute(
+            select(asset_crud.asset.model)
+            .options(
+                selectinload(asset_crud.asset.model.current_user),
+                selectinload(asset_crud.asset.model.current_departamento),
+                selectinload(asset_crud.asset.model.current_local),
+                selectinload(asset_crud.asset.model.current_armazenamento),
+                selectinload(asset_crud.asset.model.fornecedor),
+                selectinload(asset_crud.asset.model.nota_fiscal),
+                selectinload(asset_crud.asset.model.categoria)
+            )
+            .filter(asset_crud.asset.model.categoria_id == cat_id)
+        )
+        assets = result.scalars().all()
+    else:
+        assets = await asset_crud.asset.get_multi(db)
+
+    categories = await asset_category_crud.category.get_multi(db)
+
     return templates.TemplateResponse("assets/list.html", {
         "request": request,
         "user": current_user,
         "assets": assets,
+        "categories": categories,
+        "filters": {
+            "categoria_id": str(cat_id) if cat_id else ""
+        },
         "stats": {
             "total": total_assets or 0,
             "available": available_assets or 0,
@@ -87,22 +115,25 @@ async def search_asset(
         )
     )
     assets_found = result.scalars().all()
-    
+
     # Se encontrou exatamente um, vai direto para o detalhe
     if len(assets_found) == 1:
         asset = assets_found[0]
         return RedirectResponse(url=f"/assets/ep/{asset.e_patrimonio}", status_code=303)
-    
-    # Se encontrou vários ou nenhum, mostra a lista filtrada
+
+    # Se encontrou varios ou nenhum, mostra a lista filtrada
     total_assets = await db.scalar(select(func.count(Asset.id)))
     available_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.DISPONIVEL))
     in_use_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.EM_USO))
     maintenance_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.MANUTENCAO))
 
+    categories = await asset_category_crud.category.get_multi(db)
+
     return templates.TemplateResponse("assets/list.html", {
         "request": request,
         "user": current_user,
         "assets": assets_found,
+        "categories": categories,
         "stats": {
             "total": total_assets or 0,
             "available": available_assets or 0,
@@ -120,10 +151,12 @@ async def new_asset_form(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     fornecedores = await crud_supplier.get_fornecedores(db)
+    categories = await asset_category_crud.category.get_multi(db)
     return templates.TemplateResponse("assets/form.html", {
         "request": request,
         "user": current_user,
         "fornecedores": fornecedores,
+        "categories": categories,
         "title": "Novo Ativo"
     })
 
@@ -139,6 +172,7 @@ async def create_asset(
     numero_serie: Annotated[Optional[str], Form()] = None,
     fornecedor_id: Annotated[Optional[int], Form()] = None,
     nota_fiscal_id: Annotated[Optional[int], Form()] = None,
+    categoria_id: Annotated[Optional[int], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
@@ -151,7 +185,7 @@ async def create_asset(
                 dt_aquisicao = datetime.strptime(data_aquisicao, "%Y-%m-%d")
             except ValueError:
                 dt_aquisicao = None
-        
+
         val_aquisicao = None
         if valor_aquisicao and valor_aquisicao.strip():
             try:
@@ -180,6 +214,7 @@ async def create_asset(
             numero_serie=numero_serie,
             fornecedor_id=fornecedor_id,
             nota_fiscal_id=nota_fiscal_id,
+            categoria_id=categoria_id,
             foto_path=foto_path,
             created_by_id=current_user.id if current_user else None,
             status=AssetStatus.DISPONIVEL
@@ -188,13 +223,263 @@ async def create_asset(
         return RedirectResponse(url="/assets", status_code=303)
     except Exception as e:
         fornecedores = await crud_supplier.get_fornecedores(db)
+        categories = await asset_category_crud.category.get_multi(db)
         return templates.TemplateResponse("assets/form.html", {
             "request": request,
             "user": current_user,
             "fornecedores": fornecedores,
+            "categories": categories,
             "error": f"Erro ao criar ativo: {str(e)}",
             "title": "Novo Ativo"
         })
+
+
+# --- Asset Categories Admin ---
+
+@router.get("/admin/categorias", response_class=HTMLResponse)
+async def list_categories(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    user_role = str(current_user.role.value).lower()
+    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        return RedirectResponse(url="/assets", status_code=303)
+
+    categories = await asset_category_crud.category.get_multi(db)
+    return templates.TemplateResponse("assets/admin/categories.html", {
+        "request": request,
+        "user": current_user,
+        "categories": categories,
+        "title": "Categorias de Ativos"
+    })
+
+
+@router.post("/admin/categorias")
+async def create_category(
+    nome: Annotated[str, Form()],
+    descricao: Annotated[Optional[str], Form()] = None,
+    current_user: Annotated[User, Depends(get_active_user_web)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None
+):
+    user_role = str(current_user.role.value).lower()
+    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        raise HTTPException(status_code=403)
+
+    from app.schemas.asset_category import AssetCategoryCreate
+    cat_in = AssetCategoryCreate(nome=nome, descricao=descricao)
+    await asset_category_crud.category.create(db, obj_in=cat_in)
+    return RedirectResponse(url="/assets/admin/categorias", status_code=303)
+
+
+@router.post("/admin/categorias/{cat_id}/delete")
+async def delete_category(
+    cat_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    user_role = str(current_user.role.value).lower()
+    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        raise HTTPException(status_code=403)
+
+    await asset_category_crud.category.remove(db, id=cat_id)
+    return RedirectResponse(url="/assets/admin/categorias", status_code=303)
+
+
+# --- Asset Reports ---
+
+@router.get("/reports", response_class=HTMLResponse)
+async def reports_page(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    data_inicio: Optional[str] = None,
+    data_fim: Optional[str] = None,
+    nome: Optional[str] = None,
+    categoria_id: Optional[str] = None,
+    fornecedor_id: Optional[str] = None,
+    nfe: Optional[str] = None,
+    patrimonio: Optional[str] = None
+):
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models.invoice import NotaFiscal
+
+    # Convert empty string params to int
+    cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+    forn_id = int(fornecedor_id) if fornecedor_id and fornecedor_id.strip() else None
+
+    categories = await asset_category_crud.category.get_multi(db)
+    fornecedores = await crud_supplier.get_fornecedores(db)
+
+    query = select(asset_crud.asset.model).options(
+        selectinload(asset_crud.asset.model.categoria),
+        selectinload(asset_crud.asset.model.fornecedor),
+        selectinload(asset_crud.asset.model.nota_fiscal)
+    )
+
+    has_filters = False
+    active_filters = []
+
+    if data_inicio:
+        try:
+            dt = datetime.strptime(data_inicio, "%Y-%m-%d")
+            query = query.filter(asset_crud.asset.model.data_aquisicao >= dt)
+            has_filters = True
+            active_filters.append(f"Data inicio: {data_inicio}")
+        except ValueError:
+            pass
+
+    if data_fim:
+        try:
+            dt = datetime.strptime(data_fim, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            query = query.filter(asset_crud.asset.model.data_aquisicao <= dt)
+            has_filters = True
+            active_filters.append(f"Data fim: {data_fim}")
+        except ValueError:
+            pass
+
+    if nome:
+        query = query.filter(asset_crud.asset.model.nome.ilike(f"%{nome}%"))
+        has_filters = True
+        active_filters.append(f"Nome: {nome}")
+
+    if cat_id:
+        query = query.filter(asset_crud.asset.model.categoria_id == cat_id)
+        has_filters = True
+        cat = next((c for c in categories if c.id == cat_id), None)
+        active_filters.append(f"Categoria: {cat.nome if cat else cat_id}")
+
+    if forn_id:
+        query = query.filter(asset_crud.asset.model.fornecedor_id == forn_id)
+        has_filters = True
+        fornecedor = next((f for f in fornecedores if f.id == forn_id), None)
+        active_filters.append(f"Fornecedor: {fornecedor.nome if fornecedor else forn_id}")
+
+    if nfe:
+        query = query.join(NotaFiscal).filter(NotaFiscal.numero_nota.ilike(f"%{nfe}%"))
+        has_filters = True
+        active_filters.append(f"NFe: {nfe}")
+
+    if patrimonio:
+        query = query.filter(asset_crud.asset.model.e_patrimonio.ilike(f"%{patrimonio}%"))
+        has_filters = True
+        active_filters.append(f"Patrimonio: {patrimonio}")
+
+    result = await db.execute(query)
+    assets = result.scalars().all()
+
+    return templates.TemplateResponse("assets/reports.html", {
+        "request": request,
+        "user": current_user,
+        "assets": assets,
+        "categories": categories,
+        "fornecedores": fornecedores,
+        "has_filters": has_filters,
+        "filtros": {
+            "data_inicio": data_inicio or "",
+            "data_fim": data_fim or "",
+            "nome": nome or "",
+            "categoria_id": cat_id or "",
+            "fornecedor_id": forn_id or "",
+            "nfe": nfe or "",
+            "patrimonio": patrimonio or ""
+        },
+        "title": "Relatorio de Ativos"
+    })
+
+
+@router.get("/reports/pdf")
+async def reports_pdf(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    data_inicio: Optional[str] = None,
+    data_fim: Optional[str] = None,
+    nome: Optional[str] = None,
+    categoria_id: Optional[str] = None,
+    fornecedor_id: Optional[str] = None,
+    nfe: Optional[str] = None,
+    patrimonio: Optional[str] = None
+):
+    from weasyprint import HTML
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models.invoice import NotaFiscal
+
+    cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+    forn_id = int(fornecedor_id) if fornecedor_id and fornecedor_id.strip() else None
+
+    query = select(asset_crud.asset.model).options(
+        selectinload(asset_crud.asset.model.categoria),
+        selectinload(asset_crud.asset.model.fornecedor),
+        selectinload(asset_crud.asset.model.nota_fiscal)
+    )
+
+    has_filters = False
+    active_filters = []
+
+    if data_inicio:
+        try:
+            dt = datetime.strptime(data_inicio, "%Y-%m-%d")
+            query = query.filter(asset_crud.asset.model.data_aquisicao >= dt)
+            has_filters = True
+            active_filters.append(f"Data inicio: {data_inicio}")
+        except ValueError:
+            pass
+
+    if data_fim:
+        try:
+            dt = datetime.strptime(data_fim, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            query = query.filter(asset_crud.asset.model.data_aquisicao <= dt)
+            has_filters = True
+            active_filters.append(f"Data fim: {data_fim}")
+        except ValueError:
+            pass
+
+    if nome:
+        query = query.filter(asset_crud.asset.model.nome.ilike(f"%{nome}%"))
+        has_filters = True
+        active_filters.append(f"Nome: {nome}")
+
+    if cat_id:
+        query = query.filter(asset_crud.asset.model.categoria_id == cat_id)
+        has_filters = True
+
+    if forn_id:
+        query = query.filter(asset_crud.asset.model.fornecedor_id == forn_id)
+        has_filters = True
+
+    if nfe:
+        query = query.join(NotaFiscal).filter(NotaFiscal.numero_nota.ilike(f"%{nfe}%"))
+        has_filters = True
+        active_filters.append(f"NFe: {nfe}")
+
+    if patrimonio:
+        query = query.filter(asset_crud.asset.model.e_patrimonio.ilike(f"%{patrimonio}%"))
+        has_filters = True
+        active_filters.append(f"Patrimonio: {patrimonio}")
+
+    result = await db.execute(query)
+    assets = result.scalars().all()
+
+    html_content = templates.get_template("assets/reports_pdf.html").render({
+        "request": request,
+        "assets": assets,
+        "has_filters": has_filters,
+        "active_filters": " | ".join(active_filters) if active_filters else "",
+        "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M")
+    })
+
+    pdf_bytes = HTML(string=html_content).write_pdf()
+
+    filename = f"relatorio_ativos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 
 @router.get("/qrcode/{asset_id}")
 async def get_asset_qrcode_web(
@@ -335,12 +620,14 @@ async def edit_asset_form(
         return RedirectResponse(url="/assets", status_code=303)
 
     fornecedores = await crud_supplier.get_fornecedores(db)
+    categories = await asset_category_crud.category.get_multi(db)
 
     return templates.TemplateResponse("assets/form.html", {
         "request": request,
         "user": current_user,
         "asset": asset,
         "fornecedores": fornecedores,
+        "categories": categories,
         "title": f"Editar Ativo: {asset.nome}"
     })
 
@@ -357,6 +644,7 @@ async def update_asset(
     numero_serie: Annotated[Optional[str], Form()] = None,
     fornecedor_id: Annotated[Optional[int], Form()] = None,
     nota_fiscal_id: Annotated[Optional[int], Form()] = None,
+    categoria_id: Annotated[Optional[int], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
@@ -406,17 +694,20 @@ async def update_asset(
             numero_serie=numero_serie,
             fornecedor_id=fornecedor_id,
             nota_fiscal_id=nota_fiscal_id,
+            categoria_id=categoria_id,
             foto_path=foto_path
         )
         await asset_crud.asset.update(db, db_obj=asset, obj_in=asset_update)
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
     except Exception as e:
         fornecedores = await crud_supplier.get_fornecedores(db)
+        categories = await asset_category_crud.category.get_multi(db)
         return templates.TemplateResponse("assets/form.html", {
             "request": request,
             "user": current_user,
             "asset": asset,
             "fornecedores": fornecedores,
+            "categories": categories,
             "error": f"Erro ao atualizar ativo: {str(e)}",
             "title": f"Editar Ativo: {asset.nome}"
         })
@@ -833,8 +1124,8 @@ async def write_off_asset(
         observacao=f"Baixa efetuada por {current_user.nome}"
     )
     db.add(movimentacao)
-    
+
     await db.commit()
-    
+
     return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
 

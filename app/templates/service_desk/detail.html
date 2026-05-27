@@ -91,9 +91,20 @@
                             class="w-full border-2 border-black p-4 text-sm font-mono focus:ring-0 focus:border-black placeholder:text-gray-300"></textarea>
                         
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div class="flex-1">
+                            <div class="flex-1 space-y-2">
                                 <label class="block text-[10px] font-mono text-gray-500 uppercase mb-1">ANEXAR IMAGEM (OPCIONAL)</label>
-                                <input type="file" name="foto" accept="image/*" class="w-full text-xs font-mono border-2 border-black p-2 bg-white cursor-pointer file:mr-2 file:py-1 file:px-2 file:border-2 file:border-black file:text-[10px] file:font-bold file:uppercase file:bg-white file:text-black hover:file:bg-gray-100">
+                                <input type="file" id="interacao_foto_input" name="foto" accept="image/*" class="w-full text-xs font-mono border-2 border-black p-2 bg-white cursor-pointer file:mr-2 file:py-1 file:px-2 file:border-2 file:border-black file:text-[10px] file:font-bold file:uppercase file:bg-white file:text-black hover:file:bg-gray-100">
+
+                                <!-- Paste Area -->
+                                <div class="paste-image-area border-2 border-dashed border-gray-300 p-3 text-center cursor-pointer hover:border-gray-500 transition bg-gray-50"
+                                    data-target-input="interacao_foto_input" data-preview="interacao_foto_preview">
+                                    <p class="text-[10px] font-mono text-gray-400 uppercase paste-message">Ou cole uma imagem aqui (Ctrl+V) / arraste e solte</p>
+                                </div>
+
+                                <!-- Preview -->
+                                <div id="interacao_foto_preview_container" class="hidden border-2 border-black p-1 bg-gray-50 max-w-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                    <img id="interacao_foto_preview" class="w-full max-h-[150px] object-contain cursor-zoom-in" src="" alt="Preview" onclick="window.open(this.src)">
+                                </div>
                             </div>
                             <button type="submit" class="bg-black text-white px-6 py-3 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition self-end">
                                 Postar Atualização
@@ -170,4 +181,8 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/paste-image.js"></script>
 {% endblock %}

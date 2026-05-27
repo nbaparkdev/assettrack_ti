@@ -39,6 +39,13 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
+    # Asset Categories - FK column
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE assets ADD COLUMN categoria_id INTEGER REFERENCES asset_categories(id)"))
+        except Exception:
+            pass
+
     yield
     # Shutdown
     await engine.dispose()

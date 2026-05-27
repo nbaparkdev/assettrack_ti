@@ -18,7 +18,8 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
                 selectinload(Asset.current_local),
                 selectinload(Asset.current_armazenamento),
                 selectinload(Asset.fornecedor),
-                selectinload(Asset.nota_fiscal)
+                selectinload(Asset.nota_fiscal),
+                selectinload(Asset.categoria)
             )
             .filter(Asset.id == id)
         )
@@ -36,7 +37,8 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
                 selectinload(Asset.current_local),
                 selectinload(Asset.current_armazenamento),
                 selectinload(Asset.fornecedor),
-                selectinload(Asset.nota_fiscal)
+                selectinload(Asset.nota_fiscal),
+                selectinload(Asset.categoria)
             )
             .offset(skip)
             .limit(limit)
@@ -53,7 +55,8 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
                 selectinload(Asset.current_local),
                 selectinload(Asset.current_armazenamento),
                 selectinload(Asset.fornecedor),
-                selectinload(Asset.nota_fiscal)
+                selectinload(Asset.nota_fiscal),
+                selectinload(Asset.categoria)
             )
             .filter(Asset.e_patrimonio == e_patrimonio)
         )
@@ -69,7 +72,8 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
                 selectinload(Asset.current_local),
                 selectinload(Asset.current_armazenamento),
                 selectinload(Asset.fornecedor),
-                selectinload(Asset.nota_fiscal)
+                selectinload(Asset.nota_fiscal),
+                selectinload(Asset.categoria)
             )
             .filter(Asset.current_user_id == user_id)
         )

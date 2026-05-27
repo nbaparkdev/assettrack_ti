@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatorio de Ativos - AssetTrack TI</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 1.5cm;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 10px;
+            color: #1a1a1a;
+        }
+        .header {
+            border-bottom: 3px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+        .header h1 {
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+        .header p {
+            font-size: 9px;
+            color: #666;
+            margin: 4px 0 0 0;
+        }
+        .filters {
+            font-size: 8px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9px;
+        }
+        thead th {
+            background: #000;
+            color: #fff;
+            text-transform: uppercase;
+            font-size: 8px;
+            letter-spacing: 1px;
+            padding: 6px 8px;
+            text-align: left;
+            border: 1px solid #000;
+        }
+        thead th.right {
+            text-align: right;
+        }
+        tbody td {
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+        }
+        tbody td.right {
+            text-align: right;
+        }
+        tbody tr:nth-child(even) {
+            background: #f5f5f5;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 7px;
+            color: #999;
+            text-align: center;
+            border-top: 1px solid #ccc;
+            padding-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Relatorio de Ativos</h1>
+        <p>Gerado em {{ generated_at }} | AssetTrack TI</p>
+    </div>
+
+    {% if has_filters %}
+    <div class="filters">
+        Filtros aplicados: {{ active_filters }}
+    </div>
+    {% endif %}
+
+    <table>
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Patrimonio</th>
+                <th>Categoria</th>
+                <th>Fornecedor</th>
+                <th>NFe</th>
+                <th>Aquisicao</th>
+                <th class="right">Valor</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for asset in assets %}
+            <tr>
+                <td>{{ asset.nome }}</td>
+                <td>{{ asset.e_patrimonio }}</td>
+                <td>{{ asset.categoria.nome if asset.categoria else '-' }}</td>
+                <td>{{ asset.fornecedor.nome if asset.fornecedor else '-' }}</td>
+                <td>{{ asset.nota_fiscal.numero_nota if asset.nota_fiscal else '-' }}</td>
+                <td>{{ asset.data_aquisicao.strftime('%d/%m/%Y') if asset.data_aquisicao else '-' }}</td>
+                <td class="right">{{ "R$ %.2f"|format(asset.valor) if asset.valor else '-' }}</td>
+                <td>{{ asset.status.value }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        AssetTrack TI - Sistema de Gestao de Inventario | Total de ativos listados: {{ assets|length }}
+    </div>
+</body>
+</html>

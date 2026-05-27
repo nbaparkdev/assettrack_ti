@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">CATEGORIAS_ATIVOS</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Gerenciamento de Categorias de Ativos</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="/assets" class="text-xs font-bold uppercase hover:underline">Voltar para Ativos</a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- New Category Form -->
+        <div class="lg:col-span-1">
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sticky top-8">
+                <h3 class="font-bold text-sm uppercase tracking-widest mb-6 border-b-2 border-black pb-2">Nova Categoria</h3>
+                <form action="/assets/admin/categorias" method="POST" class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Nome da Categoria</label>
+                        <input type="text" name="nome" required placeholder="Ex: Notebook, Monitor, Impressora"
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Descricao (Opcional)</label>
+                        <textarea name="descricao" rows="3"
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500"></textarea>
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-black text-white font-bold uppercase text-xs py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition">
+                        Cadastrar Categoria
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Categories List -->
+        <div class="lg:col-span-2">
+            <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-black text-white font-mono text-xs uppercase tracking-widest">
+                            <th class="px-6 py-4 border-b border-gray-800">Categoria</th>
+                            <th class="px-6 py-4 border-b border-gray-800">Descricao</th>
+                            <th class="px-6 py-4 border-b border-gray-800 text-right">Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for cat in categories %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 font-bold text-sm uppercase">{{ cat.nome }}</td>
+                            <td class="px-6 py-4 text-xs text-gray-500">{{ cat.descricao or '-' }}</td>
+                            <td class="px-6 py-4 text-right">
+                                <form action="/assets/admin/categorias/{{ cat.id }}/delete" method="POST" onsubmit="return confirm('Excluir categoria {{ cat.nome }}?')">
+                                    <button type="submit" class="text-red-600 hover:underline text-[10px] font-bold uppercase">Excluir</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="px-6 py-8 text-center text-gray-400 font-mono text-xs uppercase">Nenhuma categoria cadastrada</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

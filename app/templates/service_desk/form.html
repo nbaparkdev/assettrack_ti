@@ -63,8 +63,19 @@
 
             <div class="space-y-2">
                 <label class="block text-xs font-bold uppercase tracking-widest text-black">Anexar Imagem (Opcional)</label>
-                <input type="file" name="foto" accept="image/*"
+                <input type="file" id="foto_input" name="foto" accept="image/*"
                     class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-none file:border-2 file:border-black file:text-xs file:font-bold file:uppercase file:bg-white file:text-black hover:file:bg-gray-100 cursor-pointer">
+
+                <!-- Paste Area -->
+                <div class="paste-image-area border-2 border-dashed border-gray-300 p-4 text-center cursor-pointer hover:border-gray-500 transition bg-gray-50"
+                    data-target-input="foto_input" data-preview="foto_preview">
+                    <p class="text-xs font-mono text-gray-400 uppercase paste-message">Ou cole uma imagem aqui (Ctrl+V) / arraste e solte</p>
+                </div>
+
+                <!-- Preview -->
+                <div id="foto_preview_container" class="hidden border-2 border-black p-2 bg-gray-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <img id="foto_preview" class="w-full max-h-[200px] object-contain cursor-zoom-in" src="" alt="Preview" onclick="window.open(this.src)">
+                </div>
             </div>
         </div>
 
@@ -115,4 +126,6 @@
         }
     });
 </script>
+
+<script src="/static/js/paste-image.js"></script>
 {% endblock %}

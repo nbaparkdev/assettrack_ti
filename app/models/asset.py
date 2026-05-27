@@ -29,6 +29,9 @@ class Asset(Base):
     foto_path: Mapped[str | None] = mapped_column(String, nullable=True)
     numero_serie: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
 
+    # Categoria
+    categoria_id: Mapped[int | None] = mapped_column(ForeignKey("asset_categories.id"), nullable=True)
+
     # Identificação de Cadastro
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     fornecedor_id: Mapped[int | None] = mapped_column(ForeignKey("fornecedores.id"), nullable=True)
@@ -54,5 +57,6 @@ class Asset(Base):
     created_by = relationship("User", foreign_keys=[created_by_id], back_populates="assets_created")
     fornecedor = relationship("Fornecedor", back_populates="assets")
     nota_fiscal = relationship("NotaFiscal", back_populates="assets")
+    categoria = relationship("AssetCategory", back_populates="assets")
 
 
