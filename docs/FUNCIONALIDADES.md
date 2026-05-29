@@ -11,7 +11,7 @@
 | **Login Tradicional** | Autenticação com email/senha e JWT. |
 | **Login via QR** | Autenticação rápida com Crachá Digital + PIN. |
 | **Meu QR Code** | Cada usuário possui um QR Code único para identificação e login. |
-| **Níveis de Acesso** | `ADMIN`, `GERENTE_TI`, `TECNICO`, `USUARIO`. |
+| **Níveis de Acesso** | `ADMIN`, `GERENTE_TI`, `GERENTE_INFRA`, `TECNICO`, `USUARIO`. |
 
 ---
 
@@ -27,6 +27,17 @@ O sistema utiliza o conceito de **E-Patrimônio** para identificação única do
 | **Scanner QR** | Leitura instantânea de etiquetas para abrir detalhes do ativo. |
 | **Movimentações** | Histórico completo de quem usou o ativo e por onde ele passou. |
 | **Baixa de Ativos** | Registro de saída definitiva do inventário. |
+| **Categorias de Ativos** | Organização por categorias customizáveis (ex: Notebook, Monitor, Switch). |
+| **Relatórios** | Filtros avançados por data, categoria, fornecedor, NF-e e exportação em PDF. |
+
+---
+## 🏢 Fornecedores
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| **Cadastro** | Registro completo de fornecedores com CNPJ, contato e endereço. |
+| **Upload NF-e XML** | Upload de arquivo XML de Nota Fiscal para auto-preenchimento dos dados do fornecedor. |
+| **Histórico de Notas** | Visualização das notas fiscais vinculadas a cada fornecedor. |
 
 ---
 
@@ -40,6 +51,7 @@ Módulo integrado e profissional de suporte técnico para agilização operacion
 - **Filtros Inteligentes de Pesquisa:** Painel de filtros avançados estrategicamente posicionado abaixo dos gráficos para buscas por texto, status, categoria, prioridade e intervalo de datas.
 - **Código e QR Rastreável:** Geração de códigos em formato estruturado (ex: `CH-2026-0001`) associados a um QR Code individual de visualização rápida no topo do chamado.
 - **Fuso Horário Local (America/Sao_Paulo):** Registro rigoroso de abertura e atualizações no horário do servidor local.
+- **Upload de Imagens via Clipboard:** Suporte a colar imagens diretamente do clipboard (Ctrl+V) nos formulários de chamados.
 
 ---
 

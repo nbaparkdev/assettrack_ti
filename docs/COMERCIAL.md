@@ -75,6 +75,9 @@ Solicite equipamentos e acompanhe suas solicitações com transparência.
 ## Funcionalidades Principais
 
 - 📦 **Gestão de Ativos** — Cadastro completo com campos customizáveis
+- 📂 **Categorias** — Organize ativos por categorias (Notebook, Monitor, etc.)
+- 📊 **Relatórios** — Filtros avançados e exportação PDF
+- 🏢 **Fornecedores** — Cadastro com auto-preenchimento via NF-e XML
 - 📱 **Scanner QR** — Escaneie e acesse informações instantâneas
 - 📋 **Solicitações** — Workflow de aprovação integrado
 - 🔄 **Movimentações** — Log detalhado de todas as ações

@@ -72,8 +72,41 @@ Seu **Crachá Digital** serve para:
 
 ---
 
-## 👥 6. Perfis de Acesso
+## 📂 6. Categorias de Ativos
 
-- **USUÁRIO:** Consulta seus ativos e abre chamados.
-- **TÉCNICO:** Gerencia manutenções e chamados técnicos.
-- **ADMIN/GERENTE:** Gestão total do inventário, usuários e configurações.
+Os administradores podem organizar os ativos em categorias customizáveis para facilitar a gestão.
+
+1. Acesse **Ativos > Categorias** (apenas Admin/Gerente).
+2. Cadastre categorias como Notebook, Monitor, Switch, etc.
+3. Ao cadastrar ou editar um ativo, selecione a categoria correspondente.
+
+---
+
+## 📊 7. Relatórios de Ativos
+
+O sistema oferece relatórios gerenciais com filtros avançados.
+
+1. Acesse **Ativos > Relatórios**.
+2. Utilize os filtros por data de aquisição, categoria, fornecedor, NF-e ou E-Patrimônio.
+3. Visualize os resultados na tela ou exporte para **PDF** com um clique.
+
+---
+
+## 🏢 8. Fornecedores
+
+Mantenha o cadastro de fornecedores organizado e vinculado aos ativos.
+
+1. Acesse o menu **Fornecedores** (Admin/Gerente).
+2. Cadastre dados como CNPJ, contato, telefone e endereço.
+3. **Auto-preenchimento via NF-e:** Faça upload de um arquivo XML de Nota Fiscal e o sistema preencherá automaticamente os campos do fornecedor.
+4. Visualize o histórico de notas fiscais vinculadas a cada fornecedor.
+
+---
+
+## 👥 9. Perfis de Acesso
+
+- **USUARIO:** Consulta seus ativos, abre chamados e solicita manutenções.
+- **TECNICO:** Atende chamados, gerencia manutenções e valida entregas via scanner QR.
+- **GERENTE_TI:** Aprova solicitações, gerencia inventário e usuários.
+- **GERENTE_INFRA:** Gestão de infraestrutura, fornecedores e categorias de ativos.
+- **ADMIN:** Controle total do sistema (System Owner).

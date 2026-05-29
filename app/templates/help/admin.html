@@ -7,7 +7,7 @@
         <div>
             <h2 class="text-3xl font-bold text-black tracking-tighter uppercase">Manual do Sistema</h2>
             <p class="font-mono text-xs text-gray-500 mt-1">DOC_VERSION: <span
-                    class="text-blue-600 font-bold">V1.0</span></p>
+                    class="text-blue-600 font-bold">V2.0</span></p>
         </div>
         <div class="hidden sm:block text-right">
             <p class="font-mono text-xs text-gray-400">PERFIL_ACESSO</p>
@@ -57,6 +57,24 @@
                 <span class="text-2xl mb-2 block">👥</span>
                 <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_06</span>
                 <span class="font-bold text-sm group-hover:underline">Perfis</span>
+            </a>
+            <a href="#servicedesk"
+                class="border-2 border-gray-200 p-4 hover:border-black hover:bg-gray-50 transition group text-center">
+                <span class="text-2xl mb-2 block">🎧</span>
+                <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_07</span>
+                <span class="font-bold text-sm group-hover:underline">Service Desk</span>
+            </a>
+            <a href="#fornecedores"
+                class="border-2 border-gray-200 p-4 hover:border-black hover:bg-gray-50 transition group text-center">
+                <span class="text-2xl mb-2 block">🏢</span>
+                <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_08</span>
+                <span class="font-bold text-sm group-hover:underline">Fornecedores</span>
+            </a>
+            <a href="#relatorios"
+                class="border-2 border-gray-200 p-4 hover:border-black hover:bg-gray-50 transition group text-center">
+                <span class="text-2xl mb-2 block">📊</span>
+                <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_09</span>
+                <span class="font-bold text-sm group-hover:underline">Relatórios</span>
             </a>
         </div>
     </div>
@@ -246,7 +264,7 @@
                         <tbody class="divide-y divide-gray-200">
                             <tr>
                                 <td class="px-4 py-3 font-mono font-bold text-xs bg-gray-50">USUARIO</td>
-                                <td class="px-4 py-3 text-xs">Ver seus ativos, abrir chamados.</td>
+                                <td class="px-4 py-3 text-xs">Ver seus ativos, abrir chamados e solicitar manutenções.</td>
                             </tr>
                             <tr>
                                 <td class="px-4 py-3 font-mono font-bold text-xs bg-gray-50">TECNICO</td>
@@ -257,11 +275,124 @@
                                 <td class="px-4 py-3 text-xs">Gerenciar estoque, aprovar movimentações e usuários.</td>
                             </tr>
                             <tr>
+                                <td class="px-4 py-3 font-mono font-bold text-xs bg-gray-50">GERENTE_INFRA</td>
+                                <td class="px-4 py-3 text-xs">Gestão de fornecedores, categorias e infraestrutura.</td>
+                            </tr>
+                            <tr>
                                 <td class="px-4 py-3 font-mono font-bold text-xs bg-gray-50">ADMIN</td>
                                 <td class="px-4 py-3 text-xs">Controle total (System Owner).</td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </section>
+
+            <!-- Section 7: Service Desk -->
+            <section id="servicedesk" class="scroll-mt-24">
+                <div class="border-l-4 border-cyan-500 pl-4 mb-4">
+                    <h2 class="text-2xl font-bold uppercase tracking-tight">7. Service Desk</h2>
+                    <p class="font-mono text-xs text-gray-500">HELP_DESK_TICKETS</p>
+                </div>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Abertura de Chamados</h3>
+                        <p class="text-gray-700 mb-4">Para solicitações de suporte que não envolvem reparo físico:</p>
+                        <div class="bg-gray-50 p-6 border-2 border-gray-100 text-sm">
+                            <ol class="list-decimal list-inside space-y-2">
+                                <li>Acesse <strong>"Service Desk"</strong> no menu principal.</li>
+                                <li>Clique em <strong>"Novo Chamado"</strong>.</li>
+                                <li>Selecione o serviço, defina a prioridade e descreva a solicitação.</li>
+                                <li>Opcional: anexe imagens como print de erro (suporte a Ctrl+V para colar).</li>
+                                <li>O sistema gera um código rastreável no formato <strong>CH-2026-XXXX</strong>.</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <hr class="border-gray-200">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Acompanhamento e Timeline</h3>
+                        <ul class="space-y-2 text-sm text-gray-700">
+                            <li class="flex gap-2"><span class="font-bold text-cyan-500">→</span> Cada chamado possui uma <strong>timeline cronológica</strong> com todas as interações.</li>
+                            <li class="flex gap-2"><span class="font-bold text-cyan-500">→</span> Técnicos e usuários podem enviar mensagens e <strong>anexar fotos</strong>.</li>
+                            <li class="flex gap-2"><span class="font-bold text-cyan-500">→</span> QR Code individual no topo do chamado para acesso rápido via celular.</li>
+                        </ul>
+                    </div>
+                    <hr class="border-gray-200">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Dashboard Gerencial</h3>
+                        <p class="text-sm text-gray-600">Admins e Gerentes têm acesso a gráficos interativos com análise de status, prioridades, categorias e ranking de usuários. Filtros avançados permitem pesquisar por código, status, categoria e intervalo de datas.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 8: Fornecedores -->
+            <section id="fornecedores" class="scroll-mt-24">
+                <div class="border-l-4 border-orange-500 pl-4 mb-4">
+                    <h2 class="text-2xl font-bold uppercase tracking-tight">8. Fornecedores</h2>
+                    <p class="font-mono text-xs text-gray-500">SUPPLIER_MANAGEMENT</p>
+                </div>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Cadastro de Fornecedores</h3>
+                        <p class="text-gray-700 mb-4">Gerencie os fornecedores vinculados aos ativos do inventário.</p>
+                        <div class="bg-gray-50 p-6 border-2 border-gray-100 text-sm">
+                            <ol class="list-decimal list-inside space-y-2">
+                                <li>Acesse <strong>"Fornecedores"</strong> no menu (Admin/Gerente).</li>
+                                <li>Clique em <strong>"Novo Fornecedor"</strong>.</li>
+                                <li>Preencha CNPJ, contato, telefone e endereço.</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <hr class="border-gray-200">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Auto-Preenchimento via NF-e XML</h3>
+                        <div class="bg-orange-50 border border-orange-200 p-4 text-sm">
+                            <p class="mb-2">Para agilizar o cadastro, faça upload do arquivo XML da Nota Fiscal:</p>
+                            <ol class="list-decimal list-inside space-y-1">
+                                <li>No formulário de novo fornecedor, clique em <strong>"Upload NF-e XML"</strong>.</li>
+                                <li>Selecione o arquivo XML da nota fiscal.</li>
+                                <li>O sistema extrai automaticamente: razão social, CNPJ, endereço, itens e valores.</li>
+                                <li>Confira os dados e salve.</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <hr class="border-gray-200">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Histórico de Notas Fiscais</h3>
+                        <p class="text-sm text-gray-600">Cada fornecedor mantém um histórico de notas fiscais vinculadas. Acesse os detalhes do fornecedor para visualizar e gerenciar as NF-es associadas.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 9: Relatórios -->
+            <section id="relatorios" class="scroll-mt-24">
+                <div class="border-l-4 border-emerald-500 pl-4 mb-4">
+                    <h2 class="text-2xl font-bold uppercase tracking-tight">9. Relatórios de Ativos</h2>
+                    <p class="font-mono text-xs text-gray-500">ASSET_REPORTS</p>
+                </div>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Relatórios Gerenciais</h3>
+                        <p class="text-gray-700 mb-4">Acesse <strong>"Ativos > Relatórios"</strong> para gerar relatórios completos do inventário.</p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="px-2 py-1 bg-gray-100 border border-gray-300 text-xs font-mono uppercase">Data Início/Fim</span>
+                            <span class="px-2 py-1 bg-gray-100 border border-gray-300 text-xs font-mono uppercase">Categoria</span>
+                            <span class="px-2 py-1 bg-gray-100 border border-gray-300 text-xs font-mono uppercase">Fornecedor</span>
+                            <span class="px-2 py-1 bg-gray-100 border border-gray-300 text-xs font-mono uppercase">NF-e</span>
+                            <span class="px-2 py-1 bg-gray-100 border border-gray-300 text-xs font-mono uppercase">E-Patrimônio</span>
+                        </div>
+                    </div>
+                    <hr class="border-gray-200">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Exportação PDF</h3>
+                        <div class="bg-emerald-50 border border-emerald-200 p-4 text-sm">
+                            <p>Após aplicar os filtros desejados, clique em <strong>"Exportar PDF"</strong> para baixar o relatório formatado. O PDF inclui tabela de ativos com E-Patrimônio, categoria, fornecedor e NF-e.</p>
+                        </div>
+                    </div>
+                    <hr class="border-gray-200">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Categorias de Ativos</h3>
+                        <p class="text-sm text-gray-600">Admins e Gerentes podem gerenciar categorias em <strong>"Ativos > Categorias"</strong>. Crie categorias como Notebook, Monitor, Switch para organizar o inventário. As categorias ficam disponíveis como filtro nos relatórios e no cadastro de ativos.</p>
+                    </div>
                 </div>
             </section>
 
@@ -284,6 +415,12 @@
                         Code</a>
                     <a href="#perfis" class="hover:text-red-600 hover:font-bold transition-all text-gray-600">6.
                         Perfis</a>
+                    <a href="#servicedesk" class="hover:text-cyan-500 hover:font-bold transition-all text-gray-600">7.
+                        Service Desk</a>
+                    <a href="#fornecedores" class="hover:text-orange-500 hover:font-bold transition-all text-gray-600">8.
+                        Fornecedores</a>
+                    <a href="#relatorios" class="hover:text-emerald-500 hover:font-bold transition-all text-gray-600">9.
+                        Relatórios</a>
                 </nav>
 
                 <div class="pt-6 border-t border-gray-200 mt-6">

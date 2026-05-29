@@ -56,3 +56,32 @@ Como o banco é novo, você precisa criar e ativar o admin manualmente no consol
     ```
 
 Seu deploy está concluído! ✅
+
+---
+
+## 7. Scripts de Manutenção
+
+### Reset do Ambiente Docker
+Para reiniciar o ambiente Docker:
+
+```bash
+# Apenas para e remove containers e volumes (dados do banco são perdidos)
+./reset_docker.sh
+
+# Para também recriar o ambiente do zero após o reset
+./reset_docker.sh --reinit
+```
+
+O script sem flags apenas para os containers e remove os volumes. Com a flag `--reinit`, ele também executa o `init_docker.sh` ao final para recriar o ambiente automaticamente. Use com cautela — **todos os dados do banco local serão perdidos**.
+
+### Atualização do Ambiente
+Após fazer pull de novas alterações do repositório, execute:
+
+```bash
+./update_docker.sh
+```
+
+Este script reconstrói as imagens e sobe os containers com as últimas mudanças.
+
+### Auto-Migration no Startup
+O sistema agora executa migrações automáticas de colunas no banco de dados durante a inicialização (lifespan do FastAPI). Novas colunas como `categoria_id` em ativos e `foto` em chamados são adicionadas automaticamente, sem necessidade de migrações manuais.
