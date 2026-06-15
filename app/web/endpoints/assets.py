@@ -222,7 +222,7 @@ async def create_asset(
             nota_fiscal_id=nota_fiscal_id,
             categoria_id=categoria_id,
             current_local_id=current_local_id,
-            em_posse_de=em_posse_de,
+            em_posse_de=em_posse_de if em_posse_de else None,
             foto_path=foto_path,
             created_by_id=current_user.id if current_user else None,
             status=AssetStatus.DISPONIVEL
