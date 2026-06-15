@@ -28,6 +28,7 @@ class Asset(Base):
     qr_code_path: Mapped[str | None] = mapped_column(String, nullable=True)
     foto_path: Mapped[str | None] = mapped_column(String, nullable=True)
     numero_serie: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
+    em_posse_de: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Categoria
     categoria_id: Mapped[int | None] = mapped_column(ForeignKey("asset_categories.id"), nullable=True)

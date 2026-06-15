@@ -46,6 +46,13 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
+    # Asset - em_posse_de column
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE assets ADD COLUMN em_posse_de VARCHAR(255)"))
+        except Exception:
+            pass
+
     yield
     # Shutdown
     await engine.dispose()
