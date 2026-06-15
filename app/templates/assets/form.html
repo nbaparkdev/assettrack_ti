@@ -23,6 +23,11 @@
         </div>
         {% endif %}
 
+        <div class="bg-amber-50 border-l-4 border-amber-500 text-amber-800 p-4 m-6 mb-0" role="alert">
+            <span class="font-bold block uppercase text-xs mb-1">Aviso</span>
+            <span class="block text-xs">Fornecedor e Nota Fiscal são recomendados para rastreabilidade fiscal, mas não são obrigatórios.</span>
+        </div>
+
         <form action="{% if asset %}/assets/{{ asset.id }}/edit{% else %}/assets/new{% endif %}" method="post" enctype="multipart/form-data"
             class="p-8 space-y-8">
 
@@ -34,7 +39,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 border-2 border-dashed border-gray-200 mb-4">
                         <div>
-                            <label for="fornecedor_id" class="block text-xs font-bold uppercase text-gray-900 mb-2 text-blue-600">1. Selecione o Fornecedor</label>
+                            <label for="fornecedor_id" class="block text-xs font-bold uppercase text-gray-900 mb-2">Fornecedor</label>
                             <select name="fornecedor_id" id="fornecedor_id"
                                 class="block w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition">
                                 <option value="">Selecione...</option>
@@ -44,7 +49,7 @@
                             </select>
                         </div>
                         <div>
-                            <label for="nota_fiscal_id" class="block text-xs font-bold uppercase text-gray-900 mb-2 text-blue-600">2. Vincule a Nota Fiscal</label>
+                            <label for="nota_fiscal_id" class="block text-xs font-bold uppercase text-gray-900 mb-2">Nota Fiscal</label>
                             <div class="flex gap-2 relative">
                                 <select name="nota_fiscal_id" id="nota_fiscal_id"
                                     class="block w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition font-mono">
@@ -246,6 +251,40 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Location & Responsibility -->
+    <div>
+        <h3 class="font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-200 pb-2">
+            Localização & Responsabilidade</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="current_local_id" class="block text-xs font-bold uppercase text-gray-900 mb-2">Localização do Equipamento</label>
+                <div class="flex gap-2">
+                    <select name="current_local_id" id="current_local_id"
+                        class="block w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition">
+                        <option value="">Não definida</option>
+                        {% for local in locais %}
+                        <option value="{{ local.id }}" {% if asset and asset.current_local_id == local.id %}selected{% endif %}>{{ local.nome }}</option>
+                        {% endfor %}
+                    </select>
+                    <a href="/assets/admin/localizacoes" target="_blank"
+                        class="bg-white border-2 border-gray-200 hover:border-black hover:bg-black hover:text-white px-3 transition rounded-none flex items-center justify-center"
+                        title="Gerenciar localizações">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+            <div>
+                <label for="em_posse_de" class="block text-xs font-bold uppercase text-gray-900 mb-2">Em Posse de</label>
+                <input type="text" name="em_posse_de" id="em_posse_de"
+                    value="{{ asset.em_posse_de if asset and asset.em_posse_de else '' }}"
+                    class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition"
+                    placeholder="Nome da pessoa utilizando este equipamento">
             </div>
         </div>
     </div>
