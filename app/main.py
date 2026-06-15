@@ -56,7 +56,7 @@ async def lifespan(app: FastAPI):
     # Asset - bloqueado column
     async with engine.begin() as conn:
         try:
-            await conn.execute(text("ALTER TABLE assets ADD COLUMN bloqueado BOOLEAN DEFAULT 0"))
+            await conn.execute(text("ALTER TABLE assets ADD COLUMN bloqueado BOOLEAN DEFAULT FALSE"))
         except Exception:
             pass
 
