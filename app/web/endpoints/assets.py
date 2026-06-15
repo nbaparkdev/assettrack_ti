@@ -19,6 +19,7 @@ from app.crud import transaction as transaction_crud
 from app.crud import asset as asset_crud
 from app.crud import crud_supplier, crud_invoice
 from app.crud import asset_category as asset_category_crud
+from app.crud import location
 from app.schemas.invoice import NotaFiscalCreate
 from app.services.qr_service import QRService
 
@@ -152,11 +153,13 @@ async def new_asset_form(
 ):
     fornecedores = await crud_supplier.get_fornecedores(db)
     categories = await asset_category_crud.category.get_multi(db)
+    locais = await location.localizacao.get_multi(db)
     return templates.TemplateResponse("assets/form.html", {
         "request": request,
         "user": current_user,
         "fornecedores": fornecedores,
         "categories": categories,
+        "locais": locais,
         "title": "Novo Ativo"
     })
 
@@ -173,6 +176,8 @@ async def create_asset(
     fornecedor_id: Annotated[Optional[int], Form()] = None,
     nota_fiscal_id: Annotated[Optional[int], Form()] = None,
     categoria_id: Annotated[Optional[int], Form()] = None,
+    current_local_id: Annotated[Optional[int], Form()] = None,
+    em_posse_de: Annotated[Optional[str], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
@@ -215,6 +220,8 @@ async def create_asset(
             fornecedor_id=fornecedor_id,
             nota_fiscal_id=nota_fiscal_id,
             categoria_id=categoria_id,
+            current_local_id=current_local_id,
+            em_posse_de=em_posse_de,
             foto_path=foto_path,
             created_by_id=current_user.id if current_user else None,
             status=AssetStatus.DISPONIVEL
@@ -224,11 +231,13 @@ async def create_asset(
     except Exception as e:
         fornecedores = await crud_supplier.get_fornecedores(db)
         categories = await asset_category_crud.category.get_multi(db)
+        locais = await location.localizacao.get_multi(db)
         return templates.TemplateResponse("assets/form.html", {
             "request": request,
             "user": current_user,
             "fornecedores": fornecedores,
             "categories": categories,
+            "locais": locais,
             "error": f"Erro ao criar ativo: {str(e)}",
             "title": "Novo Ativo"
         })
@@ -621,6 +630,7 @@ async def edit_asset_form(
 
     fornecedores = await crud_supplier.get_fornecedores(db)
     categories = await asset_category_crud.category.get_multi(db)
+    locais = await location.localizacao.get_multi(db)
 
     return templates.TemplateResponse("assets/form.html", {
         "request": request,
@@ -628,6 +638,7 @@ async def edit_asset_form(
         "asset": asset,
         "fornecedores": fornecedores,
         "categories": categories,
+        "locais": locais,
         "title": f"Editar Ativo: {asset.nome}"
     })
 
@@ -645,6 +656,8 @@ async def update_asset(
     fornecedor_id: Annotated[Optional[int], Form()] = None,
     nota_fiscal_id: Annotated[Optional[int], Form()] = None,
     categoria_id: Annotated[Optional[int], Form()] = None,
+    current_local_id: Annotated[Optional[int], Form()] = None,
+    em_posse_de: Annotated[Optional[str], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
@@ -695,6 +708,8 @@ async def update_asset(
             fornecedor_id=fornecedor_id,
             nota_fiscal_id=nota_fiscal_id,
             categoria_id=categoria_id,
+            current_local_id=current_local_id,
+            em_posse_de=em_posse_de if em_posse_de else None,
             foto_path=foto_path
         )
         await asset_crud.asset.update(db, db_obj=asset, obj_in=asset_update)
@@ -702,12 +717,14 @@ async def update_asset(
     except Exception as e:
         fornecedores = await crud_supplier.get_fornecedores(db)
         categories = await asset_category_crud.category.get_multi(db)
+        locais = await location.localizacao.get_multi(db)
         return templates.TemplateResponse("assets/form.html", {
             "request": request,
             "user": current_user,
             "asset": asset,
             "fornecedores": fornecedores,
             "categories": categories,
+            "locais": locais,
             "error": f"Erro ao atualizar ativo: {str(e)}",
             "title": f"Editar Ativo: {asset.nome}"
         })
