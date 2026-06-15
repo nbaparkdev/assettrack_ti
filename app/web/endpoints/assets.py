@@ -177,13 +177,16 @@ async def create_asset(
     fornecedor_id: Annotated[Optional[int], Form()] = None,
     nota_fiscal_id: Annotated[Optional[int], Form()] = None,
     categoria_id: Annotated[Optional[int], Form()] = None,
-    current_local_id: Annotated[Optional[int], Form()] = None,
+    current_local_id: Annotated[Optional[str], Form()] = None,
     em_posse_de: Annotated[Optional[str], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     try:
+        # Convert empty string form values to proper types
+        local_id = int(current_local_id) if current_local_id and current_local_id.strip() else None
+
         # Handle empty strings from form
         dt_aquisicao = None
         if data_aquisicao:
@@ -221,7 +224,7 @@ async def create_asset(
             fornecedor_id=fornecedor_id,
             nota_fiscal_id=nota_fiscal_id,
             categoria_id=categoria_id,
-            current_local_id=current_local_id,
+            current_local_id=local_id,
             em_posse_de=em_posse_de if em_posse_de else None,
             foto_path=foto_path,
             created_by_id=current_user.id if current_user else None,
@@ -657,7 +660,7 @@ async def update_asset(
     fornecedor_id: Annotated[Optional[int], Form()] = None,
     nota_fiscal_id: Annotated[Optional[int], Form()] = None,
     categoria_id: Annotated[Optional[int], Form()] = None,
-    current_local_id: Annotated[Optional[int], Form()] = None,
+    current_local_id: Annotated[Optional[str], Form()] = None,
     em_posse_de: Annotated[Optional[str], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
@@ -671,6 +674,9 @@ async def update_asset(
          return RedirectResponse(url="/assets", status_code=303)
 
     try:
+        # Convert empty string form values to proper types
+        local_id = int(current_local_id) if current_local_id and current_local_id.strip() else None
+
         # Handle empty strings from form
         dt_aquisicao = None
         if data_aquisicao:
@@ -709,7 +715,7 @@ async def update_asset(
             fornecedor_id=fornecedor_id,
             nota_fiscal_id=nota_fiscal_id,
             categoria_id=categoria_id,
-            current_local_id=current_local_id,
+            current_local_id=local_id,
             em_posse_de=em_posse_de if em_posse_de else None,
             foto_path=foto_path
         )
