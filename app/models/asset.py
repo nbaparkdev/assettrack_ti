@@ -1,6 +1,6 @@
 
 # app/models/asset.py
-from sqlalchemy import String, Float, DateTime, Enum as SAEnum, ForeignKey, Numeric
+from sqlalchemy import String, Float, DateTime, Enum as SAEnum, ForeignKey, Numeric, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from enum import Enum
 from datetime import datetime
@@ -29,6 +29,7 @@ class Asset(Base):
     foto_path: Mapped[str | None] = mapped_column(String, nullable=True)
     numero_serie: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
     em_posse_de: Mapped[str | None] = mapped_column(String, nullable=True)
+    bloqueado: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Categoria
     categoria_id: Mapped[int | None] = mapped_column(ForeignKey("asset_categories.id"), nullable=True)

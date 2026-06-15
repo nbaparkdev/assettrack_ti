@@ -179,6 +179,7 @@ async def create_asset(
     categoria_id: Annotated[Optional[str], Form()] = None,
     current_local_id: Annotated[Optional[str], Form()] = None,
     em_posse_de: Annotated[Optional[str], Form()] = None,
+    bloqueado: Annotated[Optional[str], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
@@ -187,6 +188,7 @@ async def create_asset(
         # Helper to convert empty-string form values to int or None
         def to_int(v: str | None) -> int | None:
             return int(v) if v and v.strip() else None
+        bloqueado_flag = bloqueado is not None and bloqueado.strip() == 'true'
 
         # Handle empty strings from form
         dt_aquisicao = None
@@ -227,6 +229,7 @@ async def create_asset(
             categoria_id=to_int(categoria_id),
             current_local_id=to_int(current_local_id),
             em_posse_de=em_posse_de if em_posse_de else None,
+            bloqueado=bloqueado_flag,
             foto_path=foto_path,
             created_by_id=current_user.id if current_user else None,
             status=AssetStatus.DISPONIVEL
@@ -663,6 +666,7 @@ async def update_asset(
     categoria_id: Annotated[Optional[str], Form()] = None,
     current_local_id: Annotated[Optional[str], Form()] = None,
     em_posse_de: Annotated[Optional[str], Form()] = None,
+    bloqueado: Annotated[Optional[str], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
@@ -678,6 +682,7 @@ async def update_asset(
         # Helper to convert empty-string form values to int or None
         def to_int(v: str | None) -> int | None:
             return int(v) if v and v.strip() else None
+        bloqueado_flag = bloqueado is not None and bloqueado.strip() == 'true'
 
         # Handle empty strings from form
         dt_aquisicao = None
@@ -719,6 +724,7 @@ async def update_asset(
             categoria_id=to_int(categoria_id),
             current_local_id=to_int(current_local_id),
             em_posse_de=em_posse_de if em_posse_de else None,
+            bloqueado=bloqueado_flag,
             foto_path=foto_path
         )
         await asset_crud.asset.update(db, db_obj=asset, obj_in=asset_update)
@@ -1151,6 +1157,27 @@ async def write_off_asset(
     )
     db.add(movimentacao)
 
+    await db.commit()
+
+    return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
+
+
+@router.post("/{asset_id}/toggle-bloqueio", response_class=HTMLResponse)
+async def toggle_bloqueio(
+    request: Request,
+    asset_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
+        return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
+
+    asset = await asset_crud.asset.get(db, id=asset_id)
+    if not asset:
+        return RedirectResponse(url="/assets", status_code=303)
+
+    asset.bloqueado = not asset.bloqueado
+    db.add(asset)
     await db.commit()
 
     return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)

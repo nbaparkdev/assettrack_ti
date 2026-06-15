@@ -45,10 +45,10 @@ async def new_solicitacao_form(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    # Only fetch AVAILABLE assets
+    # Only fetch AVAILABLE assets that are not blocked
     result = await db.execute(
         select(Asset)
-        .filter(Asset.status == AssetStatus.DISPONIVEL)
+        .filter(Asset.status == AssetStatus.DISPONIVEL, Asset.bloqueado == False)
         .order_by(Asset.nome)
     )
     assets = result.scalars().all()
@@ -81,10 +81,13 @@ async def create_solicitacao(
         # Check if asset is actually available (concurrency check)
         asset_result = await db.execute(select(Asset).filter(Asset.id == asset_id))
         target_asset = asset_result.scalar_one_or_none()
-        
+
         if not target_asset:
             raise Exception("Ativo não encontrado.")
-            
+
+        if target_asset.bloqueado:
+            raise Exception("Este ativo é fixo da empresa e não pode ser solicitado para empréstimo.")
+
         if target_asset.status != AssetStatus.DISPONIVEL:
             # Check reasons for unavailability
             msg = "Ativo indisponível para solicitação."

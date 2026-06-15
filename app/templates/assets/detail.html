@@ -120,6 +120,20 @@
                         </dd>
                     </div>
 
+                    {% if asset.current_local or asset.em_posse_de %}
+                    <div>
+                        <dt class="font-mono text-[10px] text-gray-400 uppercase tracking-widest mb-1">Localização do Equipamento</dt>
+                        <dd class="font-bold text-gray-900">
+                            {{ asset.current_local.nome if asset.current_local else 'Não definida' }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="font-mono text-[10px] text-gray-400 uppercase tracking-widest mb-1">Em Posse de</dt>
+                        <dd class="font-bold text-gray-900">
+                            {{ asset.em_posse_de if asset.em_posse_de else '-' }}
+                        </dd>
+                    </div>
+                    {% endif %}
                     <div>
                         <dt class="font-mono text-[10px] text-gray-400 uppercase tracking-widest mb-1">Fornecedor</dt>
                         <dd class="font-bold text-gray-900">
@@ -201,6 +215,16 @@
                             class="w-full block bg-white border-2 border-black text-black font-bold uppercase text-xs py-3 px-4 hover:bg-black hover:text-white transition text-center">
                             Editar Especificações
                         </a>
+
+                        <!-- Block/Unblock Toggle -->
+                        {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+                        <form action="/assets/{{ asset.id }}/toggle-bloqueio" method="post">
+                            <button type="submit"
+                                class="w-full block {% if asset.bloqueado %}bg-red-600 border-2 border-red-600 text-white{% else %}bg-white border-2 border-gray-400 text-gray-600{% endif %} font-bold uppercase text-xs py-3 px-4 hover:opacity-80 transition text-center">
+                                {% if asset.bloqueado %}🔒 Desbloquear Ativo (Fixo){% else %}🔓 Bloquear para Empréstimos{% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
 
                         <!-- Transfer Action -->
                         <a href="/assets/{{ asset.id }}/transfer"

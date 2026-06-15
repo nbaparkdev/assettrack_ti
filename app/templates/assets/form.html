@@ -209,8 +209,7 @@
             </div>
 
             <div class="md:col-span-2">
-                <label for="descricao" class="block text-xs font-bold uppercase text-gray-900 mb-2">Descrição /
-                    Notas</label>
+                <label for="descricao" class="block text-xs font-bold uppercase text-gray-900 mb-2">Descrição</label>
                 <textarea name="descricao" id="descricao" rows="4"
                     class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition font-mono text-sm"
                     placeholder="Especificações adicionais ou observações...">{{ asset.descricao if asset else '' }}</textarea>
@@ -287,6 +286,20 @@
                     placeholder="Nome da pessoa utilizando este equipamento">
             </div>
         </div>
+        {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+        <div class="mt-4 p-4 bg-gray-50 border-2 border-dashed border-gray-300">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="hidden" name="bloqueado" value="false">
+                <input type="checkbox" name="bloqueado" value="true"
+                    {% if asset and asset.bloqueado %}checked{% endif %}
+                    class="w-5 h-5 border-2 border-black rounded-none focus:ring-0">
+                <div>
+                    <span class="block text-xs font-bold uppercase text-gray-900">🔒 Bloquear para Empréstimos</span>
+                    <span class="block text-[10px] text-gray-500">Ativo fixo da empresa — não pode ser solicitado por usuários comuns</span>
+                </div>
+            </label>
+        </div>
+        {% endif %}
     </div>
 
 
