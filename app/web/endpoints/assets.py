@@ -12,6 +12,7 @@ from datetime import date, datetime
 from app.web.dependencies import get_active_user_web
 from app.models.user import User, UserRole
 from app.models.asset import AssetStatus
+from app.models.location import Localizacao
 from app.schemas.asset import AssetCreate, AssetUpdate
 from app.models.transaction import Movimentacao, TipoMovimentacao, Solicitacao, StatusSolicitacao
 from app.database import get_db
@@ -1146,3 +1147,85 @@ async def write_off_asset(
 
     return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
 
+
+# --- Location Management ---
+
+@router.get("/admin/localizacoes", response_class=HTMLResponse)
+async def list_locais(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    user_role = str(current_user.role.value).lower()
+    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        return RedirectResponse(url="/assets", status_code=303)
+
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
+    result = await db.execute(
+        select(Localizacao).options(selectinload(Localizacao.assets), selectinload(Localizacao.departamento))
+    )
+    locais_list = result.scalars().all()
+    departamentos_list = await location.departamento.get_multi(db)
+
+    return templates.TemplateResponse("assets/admin/locais.html", {
+        "request": request,
+        "user": current_user,
+        "locais": locais_list,
+        "departamentos": departamentos_list,
+        "title": "Localizações"
+    })
+
+
+@router.post("/admin/localizacoes")
+async def create_local(
+    nome: Annotated[str, Form()],
+    departamento_id: Annotated[Optional[int], Form()] = None,
+    current_user: Annotated[User, Depends(get_active_user_web)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None
+):
+    user_role = str(current_user.role.value).lower()
+    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        return RedirectResponse(url="/assets", status_code=303)
+
+    from app.schemas.location import LocalizacaoCreate
+    local_in = LocalizacaoCreate(nome=nome, departamento_id=departamento_id)
+    await location.localizacao.create(db, obj_in=local_in)
+    return RedirectResponse(url="/assets/admin/localizacoes", status_code=303)
+
+
+@router.post("/admin/localizacoes/{local_id}/delete")
+async def delete_local(
+    local_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    user_role = str(current_user.role.value).lower()
+    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        return RedirectResponse(url="/assets", status_code=303)
+
+    try:
+        await location.localizacao.remove(db, id=local_id)
+        return RedirectResponse(url="/assets/admin/localizacoes", status_code=303)
+    except Exception as e:
+        await db.rollback()
+        from sqlalchemy.orm import selectinload
+        from sqlalchemy import select
+        result = await db.execute(
+            select(Localizacao).options(selectinload(Localizacao.assets), selectinload(Localizacao.departamento))
+        )
+        locais_list = result.scalars().all()
+        departamentos_list = await location.departamento.get_multi(db)
+
+        error_msg = f"Erro ao excluir: {str(e)}"
+        if "constraint" in str(e).lower() or "foreign" in str(e).lower():
+            error_msg = "Não é possível excluir esta localização pois há ativos vinculados a ela."
+
+        return templates.TemplateResponse("assets/admin/locais.html", {
+            "request": request,
+            "user": current_user,
+            "locais": locais_list,
+            "departamentos": departamentos_list,
+            "error": error_msg,
+            "title": "Localizações"
+        })
