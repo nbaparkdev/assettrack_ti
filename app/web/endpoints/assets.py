@@ -174,9 +174,9 @@ async def create_asset(
     data_aquisicao: Annotated[Optional[str], Form()] = None,
     valor_aquisicao: Annotated[Optional[str], Form()] = None,
     numero_serie: Annotated[Optional[str], Form()] = None,
-    fornecedor_id: Annotated[Optional[int], Form()] = None,
-    nota_fiscal_id: Annotated[Optional[int], Form()] = None,
-    categoria_id: Annotated[Optional[int], Form()] = None,
+    fornecedor_id: Annotated[Optional[str], Form()] = None,
+    nota_fiscal_id: Annotated[Optional[str], Form()] = None,
+    categoria_id: Annotated[Optional[str], Form()] = None,
     current_local_id: Annotated[Optional[str], Form()] = None,
     em_posse_de: Annotated[Optional[str], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
@@ -184,8 +184,9 @@ async def create_asset(
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     try:
-        # Convert empty string form values to proper types
-        local_id = int(current_local_id) if current_local_id and current_local_id.strip() else None
+        # Helper to convert empty-string form values to int or None
+        def to_int(v: str | None) -> int | None:
+            return int(v) if v and v.strip() else None
 
         # Handle empty strings from form
         dt_aquisicao = None
@@ -221,10 +222,10 @@ async def create_asset(
             data_aquisicao=dt_aquisicao,
             valor=val_aquisicao,
             numero_serie=numero_serie,
-            fornecedor_id=fornecedor_id,
-            nota_fiscal_id=nota_fiscal_id,
-            categoria_id=categoria_id,
-            current_local_id=local_id,
+            fornecedor_id=to_int(fornecedor_id),
+            nota_fiscal_id=to_int(nota_fiscal_id),
+            categoria_id=to_int(categoria_id),
+            current_local_id=to_int(current_local_id),
             em_posse_de=em_posse_de if em_posse_de else None,
             foto_path=foto_path,
             created_by_id=current_user.id if current_user else None,
@@ -657,9 +658,9 @@ async def update_asset(
     data_aquisicao: Annotated[Optional[str], Form()] = None,
     valor_aquisicao: Annotated[Optional[str], Form()] = None,
     numero_serie: Annotated[Optional[str], Form()] = None,
-    fornecedor_id: Annotated[Optional[int], Form()] = None,
-    nota_fiscal_id: Annotated[Optional[int], Form()] = None,
-    categoria_id: Annotated[Optional[int], Form()] = None,
+    fornecedor_id: Annotated[Optional[str], Form()] = None,
+    nota_fiscal_id: Annotated[Optional[str], Form()] = None,
+    categoria_id: Annotated[Optional[str], Form()] = None,
     current_local_id: Annotated[Optional[str], Form()] = None,
     em_posse_de: Annotated[Optional[str], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
@@ -674,8 +675,9 @@ async def update_asset(
          return RedirectResponse(url="/assets", status_code=303)
 
     try:
-        # Convert empty string form values to proper types
-        local_id = int(current_local_id) if current_local_id and current_local_id.strip() else None
+        # Helper to convert empty-string form values to int or None
+        def to_int(v: str | None) -> int | None:
+            return int(v) if v and v.strip() else None
 
         # Handle empty strings from form
         dt_aquisicao = None
@@ -712,10 +714,10 @@ async def update_asset(
             data_aquisicao=dt_aquisicao,
             valor=val_aquisicao,
             numero_serie=numero_serie,
-            fornecedor_id=fornecedor_id,
-            nota_fiscal_id=nota_fiscal_id,
-            categoria_id=categoria_id,
-            current_local_id=local_id,
+            fornecedor_id=to_int(fornecedor_id),
+            nota_fiscal_id=to_int(nota_fiscal_id),
+            categoria_id=to_int(categoria_id),
+            current_local_id=to_int(current_local_id),
             em_posse_de=em_posse_de if em_posse_de else None,
             foto_path=foto_path
         )
