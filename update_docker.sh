@@ -24,9 +24,9 @@ fi
 # ==========================================
 # Garantir Docker ativo
 # ==========================================
-if ! systemctl is-active --quiet docker; then
+if command -v systemctl &> /dev/null && ! systemctl is-active --quiet docker 2>/dev/null; then
     echo "⚙️ Iniciando Docker..."
-    systemctl start docker
+    systemctl start docker 2>/dev/null || true
 fi
 
 COMPOSE_CMD="docker compose"
@@ -45,17 +45,71 @@ fi
 # Mostrar containers atuais
 # ==========================================
 echo "📦 Containers atuais:"
-docker ps || true
+docker ps --format "table {{.Names}}\t{{.Status}}" || true
+
+# ==========================================
+# Force stop web container (AppArmor-safe)
+# ==========================================
+force_stop_web() {
+    local WEB_CONTAINER
+    WEB_CONTAINER=$(docker ps -a --filter "name=^assettrack_ti-web" --format "{{.Names}}" 2>/dev/null | head -1)
+    if [ -z "$WEB_CONTAINER" ]; then
+        return 0
+    fi
+
+    # Tentar stop normal primeiro
+    if docker stop "$WEB_CONTAINER" 2>/dev/null; then
+        docker rm "$WEB_CONTAINER" 2>/dev/null || true
+        return 0
+    fi
+
+    echo "⚠️ Container preso (AppArmor/snap). Usando metodo alternativo..."
+
+    # Renomear para liberar o nome no compose
+    local OLD_NAME="${WEB_CONTAINER}-old-$(date +%Y%m%d%H%M%S)"
+    docker rename "$WEB_CONTAINER" "$OLD_NAME" 2>/dev/null || true
+
+    # Matar uvicorn de dentro do container via Python
+    docker exec "$OLD_NAME" python3 -c "
+import os, signal
+for pid in [int(p) for p in os.listdir('/proc') if p.isdigit()]:
+    try:
+        with open(f'/proc/{pid}/cmdline', 'rb') as f:
+            cmd = f.read().decode()
+        if 'python' in cmd and 'uvicorn' in cmd and 'app.main' in cmd:
+            os.kill(pid, signal.SIGTERM)
+            break
+    except:
+        pass
+" 2>/dev/null || true
+
+    # Aguardar container sair
+    for i in $(seq 1 15); do
+        if ! docker ps --filter "name=$OLD_NAME" --format "{{.Names}}" 2>/dev/null | grep -q .; then
+            break
+        fi
+        sleep 1
+    done
+
+    # Remover containers antigos
+    docker rm -f "$OLD_NAME" 2>/dev/null || true
+    for c in $(docker ps -a --filter "name=assettrack_ti-web" --format "{{.Names}}" 2>/dev/null); do
+        docker rm -f "$c" 2>/dev/null || true
+    done
+    echo "✅ Container antigo removido"
+}
+
+echo "🛑 Parando container web..."
+force_stop_web
 
 # ==========================================
 # Rebuild e Restart
 # ==========================================
-echo "🏗️ Reconstruindo aplicação..."
-
+echo "🏗️ Reconstruindo aplicacao..."
 $COMPOSE_CMD up -d --build
 
 # ==========================================
-# Aguardar estabilização
+# Aguardar estabilizacao
 # ==========================================
 echo "⏳ Aguardando containers..."
 sleep 15
@@ -64,18 +118,19 @@ sleep 15
 # Limpeza segura
 # ==========================================
 echo "🧹 Limpando imagens antigas..."
-docker image prune -f
+docker image prune -f 2>/dev/null || true
 
 # ==========================================
 # Status final
 # ==========================================
 echo "📦 Containers ativos:"
-docker ps
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || docker ps
 
 # ==========================================
-# Informações
+# Informacoes
 # ==========================================
-IP=$(hostname -I | awk '{print $1}')
+IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+[ -z "$IP" ] && IP="<IP da maquina>"
 
 echo ""
 echo "------------------------------------------------"
