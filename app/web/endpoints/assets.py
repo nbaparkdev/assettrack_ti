@@ -232,7 +232,7 @@ async def create_asset(
             bloqueado=bloqueado_flag,
             foto_path=foto_path,
             created_by_id=current_user.id if current_user else None,
-            status=AssetStatus.DISPONIVEL
+            status=AssetStatus.EM_USO if bloqueado_flag else AssetStatus.DISPONIVEL
         )
         await asset_crud.asset.create(db, obj_in=asset_in)
         return RedirectResponse(url="/assets", status_code=303)
@@ -711,6 +711,14 @@ async def update_asset(
                 shutil.copyfileobj(foto.file, buffer)
             foto_path = f"/{file_path}"
 
+        # Determine status based on bloqueado flag
+        if bloqueado_flag:
+            novo_status = AssetStatus.EM_USO
+        elif asset.status == AssetStatus.EM_USO:
+            novo_status = AssetStatus.DISPONIVEL
+        else:
+            novo_status = asset.status
+
         asset_update = AssetUpdate(
             nome=nome,
             modelo=modelo,
@@ -725,6 +733,7 @@ async def update_asset(
             current_local_id=to_int(current_local_id),
             em_posse_de=em_posse_de if em_posse_de else None,
             bloqueado=bloqueado_flag,
+            status=novo_status,
             foto_path=foto_path
         )
         await asset_crud.asset.update(db, db_obj=asset, obj_in=asset_update)

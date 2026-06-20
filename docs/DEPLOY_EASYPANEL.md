@@ -65,14 +65,23 @@ Seu deploy está concluído! ✅
 Para reiniciar o ambiente Docker:
 
 ```bash
-# Apenas para e remove containers e volumes (dados do banco são perdidos)
+# Apenas para containers e redes (banco preservado)
 ./reset_docker.sh
 
-# Para também recriar o ambiente do zero após o reset
-./reset_docker.sh --reinit
+# Remove volumes, imagens e build cache (banco destruído)
+./reset_docker.sh --full
+
+# Reset full + sobe ambiente limpo em seguida
+./reset_docker.sh --full --reinit
 ```
 
-O script sem flags apenas para os containers e remove os volumes. Com a flag `--reinit`, ele também executa o `init_docker.sh` ao final para recriar o ambiente automaticamente. Use com cautela — **todos os dados do banco local serão perdidos**.
+| Flag | Efeito |
+|------|--------|
+| *(sem flags)* | Para containers e redes. Volume `postgres_data` é **preservado**. |
+| `--full` | Remove volumes (banco PostgreSQL), imagens do projeto e build cache. Pede confirmação. |
+| `--reinit` | Após o reset, executa `init_docker.sh` para subir o ambiente do zero. |
+
+Use `--full` com cautela — **todos os dados do banco local serão perdidos**.
 
 ### Atualização do Ambiente
 Após fazer pull de novas alterações do repositório, execute:

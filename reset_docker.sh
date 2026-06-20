@@ -73,7 +73,7 @@ fi
 # Derrubar containers
 # ==========================================
 echo "🛑 Parando containers..."
-$COMPOSE_CMD down --remove-orphans --volumes 2>/dev/null || true
+$COMPOSE_CMD down --remove-orphans 2>/dev/null || true
 echo "✅ Containers parados"
 
 # ==========================================
@@ -86,8 +86,8 @@ if [ "$FULL_RESET" = true ]; then
     echo "🗑️  Removendo imagens do projeto..."
     docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep -E 'assettrack' | awk '{print $2}' | xargs -r docker rmi 2>/dev/null || true
 
-    echo "🧹 Limpando recursos não utilizados..."
-    docker system prune -f 2>/dev/null || true
+    echo "🧹 Limpando build cache..."
+    docker builder prune -f 2>/dev/null || true
 
     echo "✅ Reset full concluído"
 fi

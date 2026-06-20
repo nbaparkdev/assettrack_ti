@@ -287,17 +287,36 @@
             </div>
         </div>
         {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
-        <div class="mt-4 p-4 bg-gray-50 border-2 border-dashed border-gray-300">
-            <label class="flex items-center gap-3 cursor-pointer">
-                <input type="hidden" name="bloqueado" value="false">
-                <input type="checkbox" name="bloqueado" value="true"
-                    {% if asset and asset.bloqueado %}checked{% endif %}
-                    class="w-5 h-5 border-2 border-black rounded-none focus:ring-0">
-                <div>
-                    <span class="block text-xs font-bold uppercase text-gray-900">🔒 Bloquear para Empréstimos</span>
-                    <span class="block text-[10px] text-gray-500">Ativo fixo da empresa — não pode ser solicitado por usuários comuns</span>
-                </div>
-            </label>
+        <div class="mt-4 p-4 bg-amber-50 border-2 border-amber-300">
+            <label class="block text-xs font-bold uppercase text-gray-900 mb-3">Disponibilidade do Ativo</label>
+            <input type="hidden" name="bloqueado" id="bloqueado-input" value="{{ 'true' if asset and asset.bloqueado else 'false' }}">
+            <div class="flex gap-0">
+                <button type="button" id="btn-disponivel"
+                    class="flex-1 px-4 py-3 border-2 border-black font-bold uppercase text-sm transition rounded-none flex items-center justify-center gap-2
+                    {% if asset and asset.bloqueado %}bg-white text-gray-500{% else %}bg-green-500 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]{% endif %}"
+                    onclick="setDisponibilidade(false)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Disponível
+                </button>
+                <button type="button" id="btn-bloqueado"
+                    class="flex-1 px-4 py-3 border-2 border-black border-l-0 font-bold uppercase text-sm transition rounded-none flex items-center justify-center gap-2
+                    {% if asset and asset.bloqueado %}bg-red-500 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]{% else %}bg-white text-gray-500{% endif %}"
+                    onclick="setDisponibilidade(true)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                    Ativo Fixo
+                </button>
+            </div>
+            <p id="disponibilidade-desc" class="text-[10px] text-gray-500 mt-2">
+                {% if asset and asset.bloqueado %}
+                Ativo fixo da empresa — não pode ser solicitado por usuários comuns.
+                {% else %}
+                Ativo disponível para empréstimo — usuários podem solicitar.
+                {% endif %}
+            </p>
         </div>
         {% endif %}
     </div>
@@ -400,6 +419,27 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <script>
+    // Toggle Disponibilidade
+    function setDisponibilidade(bloqueado) {
+        document.getElementById('bloqueado-input').value = bloqueado ? 'true' : 'false';
+        const btnDisp = document.getElementById('btn-disponivel');
+        const btnBloq = document.getElementById('btn-bloqueado');
+        const desc = document.getElementById('disponibilidade-desc');
+        if (bloqueado) {
+            btnDisp.classList.remove('bg-green-500', 'text-white', 'shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]');
+            btnDisp.classList.add('bg-white', 'text-gray-500');
+            btnBloq.classList.remove('bg-white', 'text-gray-500');
+            btnBloq.classList.add('bg-red-500', 'text-white', 'shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]');
+            desc.textContent = 'Ativo fixo da empresa — não pode ser solicitado por usuários comuns.';
+        } else {
+            btnDisp.classList.remove('bg-white', 'text-gray-500');
+            btnDisp.classList.add('bg-green-500', 'text-white', 'shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]');
+            btnBloq.classList.remove('bg-red-500', 'text-white', 'shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]');
+            btnBloq.classList.add('bg-white', 'text-gray-500');
+            desc.textContent = 'Ativo disponível para empréstimo — usuários podem solicitar.';
+        }
+    }
+
     let html5QrCode = null;
     let isScanning = false;
     let availableCameras = [];
