@@ -25,3 +25,5 @@ from app.web.endpoints import service_desk
 web_router.include_router(service_desk.router, prefix="/servicos", tags=["web_service_desk"])
 from app.web.endpoints import suppliers
 web_router.include_router(suppliers.router, prefix="/suppliers", tags=["web_suppliers"])
+from app.web.endpoints import backup
+web_router.include_router(backup.router, tags=["web_backup"])
