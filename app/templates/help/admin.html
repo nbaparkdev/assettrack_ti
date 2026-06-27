@@ -7,7 +7,7 @@
         <div>
             <h2 class="text-3xl font-bold text-black tracking-tighter uppercase">Manual do Sistema</h2>
             <p class="font-mono text-xs text-gray-500 mt-1">DOC_VERSION: <span
-                    class="text-blue-600 font-bold">V2.0</span></p>
+                    class="text-blue-600 font-bold">V2.1</span></p>
         </div>
         <div class="hidden sm:block text-right">
             <p class="font-mono text-xs text-gray-400">PERFIL_ACESSO</p>
@@ -75,6 +75,12 @@
                 <span class="text-2xl mb-2 block">📊</span>
                 <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_09</span>
                 <span class="font-bold text-sm group-hover:underline">Relatórios</span>
+            </a>
+            <a href="#compras"
+                class="border-2 border-gray-200 p-4 hover:border-black hover:bg-gray-50 transition group text-center">
+                <span class="text-2xl mb-2 block">🛒</span>
+                <span class="font-mono text-[10px] text-gray-400 block uppercase mb-1">CAP_10</span>
+                <span class="font-bold text-sm group-hover:underline">Compras</span>
             </a>
         </div>
     </div>
@@ -200,7 +206,7 @@
                             class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 border-amber-500"></span>
                         <h4 class="font-bold uppercase text-sm mb-1">Passo 1: Solicitação</h4>
                         <p class="text-sm text-gray-600">Usuário reporta problema no ativo via menu "Solicitar
-                            Manutenção".</p>
+                            Manutenção". O botão "Solicitar Compra" também está disponível em Ordens de Serviço.</p>
                     </div>
                     <div class="relative pl-8">
                         <span class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-gray-300"></span>
@@ -209,8 +215,8 @@
                     </div>
                     <div class="relative pl-8">
                         <span class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-gray-300"></span>
-                        <h4 class="font-bold uppercase text-sm mb-1">Passo 3: Reparo</h4>
-                        <p class="text-sm text-gray-600">Técnico registra peças e serviços. Ativo fica em status
+                        <h4 class="font-bold uppercase text-sm mb-1">Passo 3: Reparo & Checklists</h4>
+                        <p class="text-sm text-gray-600">Técnico registra peças, serviços e executa os itens de <strong>Checklist</strong> obrigatórios associados ao plano. Ativo fica em status
                             "MANUTENCAO".</p>
                     </div>
                     <div class="relative pl-8">
@@ -397,6 +403,36 @@
             </section>
 
         </div>
+        
+            <!-- Section 10: Compras -->
+            <section id="compras" class="scroll-mt-24">
+                <div class="border-l-4 border-indigo-600 pl-4 mb-4 mt-12">
+                    <h2 class="text-2xl font-bold uppercase tracking-tight">10. Módulo de Compras</h2>
+                    <p class="font-mono text-xs text-gray-500">PROCUREMENT_CYCLE</p>
+                </div>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Ciclo de Aquisição</h3>
+                        <p class="text-gray-700 mb-4">O ciclo de compras acompanha o suprimento de ponta a ponta:</p>
+                        <ul class="list-disc list-inside space-y-2 text-sm text-gray-700">
+                            <li><strong>Solicitações (SC):</strong> Pedidos de compra que passam por triagem e orçamentação.</li>
+                            <li><strong>Cotações:</strong> Comparativo de fornecedores com indicação do vencedor.</li>
+                            <li><strong>Ordens (PO):</strong> Emissão do pedido oficial após aprovação gerencial.</li>
+                            <li><strong>Recebimento:</strong> Entrada de NF, atualização de estoque e cadastro no patrimônio.</li>
+                            <li><strong>Contratos:</strong> Gestão de SLA, aditivos, vigência e alertas (90/60/30/15/7 dias).</li>
+                        </ul>
+                    </div>
+                    <hr class="border-gray-200">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Relatórios e Exportação</h3>
+                        <div class="bg-indigo-50 border border-indigo-200 p-4 text-sm">
+                            <p>As métricas gerenciais ficam disponíveis em <strong>"Compras > Relatórios"</strong>. Você pode exportar Solicitações e Contratos para formato CSV usando os botões na parte superior do Dashboard.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
 
         <!-- Sticky Sidebar -->
         <div class="hidden lg:block col-span-1">
@@ -421,12 +457,18 @@
                         Fornecedores</a>
                     <a href="#relatorios" class="hover:text-emerald-500 hover:font-bold transition-all text-gray-600">9.
                         Relatórios</a>
+                    <a href="#compras" class="hover:text-indigo-600 hover:font-bold transition-all text-gray-600">10.
+                        Compras</a>
                 </nav>
 
-                <div class="pt-6 border-t border-gray-200 mt-6">
+                <div class="pt-6 border-t border-gray-200 mt-6 space-y-3">
                     <a href="#" onclick="window.print()"
                         class="flex items-center gap-2 text-xs font-bold uppercase text-gray-500 hover:text-black transition">
                         <span>🖨️ Imprimir Manual</span>
+                    </a>
+                    <a href="/help/export"
+                        class="flex items-center gap-2 text-xs font-bold uppercase text-blue-600 hover:text-blue-800 transition">
+                        <span>📄 Baixar PDF Completo</span>
                     </a>
                 </div>
             </div>

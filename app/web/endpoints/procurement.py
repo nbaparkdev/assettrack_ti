@@ -27,7 +27,8 @@ from app.schemas.procurement import (
     PurchaseRequestCreate, PurchaseRequestItemCreate,
     PurchaseOrderCreate, PurchaseOrderItemCreate,
     PurchaseReceivingCreate, PurchaseReceivingItemCreate,
-    PurchaseProductCreate, CostCenterCreate, PurchaseContractCreate
+    PurchaseProductCreate, CostCenterCreate, PurchaseContractCreate,
+    PurchaseCategoryCreate
 )
 
 router = APIRouter(dependencies=[Depends(check_purchases_enabled)])
@@ -98,6 +99,8 @@ async def new_request_form(
     products = await crud_proc.get_products(db, limit=500)
     cost_centers = await crud_proc.get_cost_centers(db, limit=100)
     suppliers = (await db.execute(select(Fornecedor))).scalars().all()
+    categories = await crud_proc.get_categories(db, limit=100)
+    units = await crud_proc.get_units(db)
 
     # Pre-fill justification when coming from another module
     justificativa_prefill = ""
@@ -117,6 +120,8 @@ async def new_request_form(
         "products": products,
         "cost_centers": cost_centers,
         "suppliers": suppliers,
+        "categories": categories,
+        "units": units,
         "origem_tipo": origem_tipo,
         "origem_id": origem_id,
         "justificativa_prefill": justificativa_prefill,
@@ -674,12 +679,97 @@ async def new_product_form(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     categories = await crud_proc.get_categories(db, limit=100)
+    units = await crud_proc.get_units(db)
+    
+    # If no units exist, create some defaults
+    if not units:
+        defaults = [("UN", "Unidade"), ("CX", "Caixa"), ("PC", "Pacote"), ("MT", "Metros"), ("JG", "Jogo"), ("SV", "Serviço")]
+        for s, d in defaults:
+            await crud_proc.create_unit(db, s, d)
+        units = await crud_proc.get_units(db)
+
     return templates.TemplateResponse("procurement/product_form.html", {
         "request": request,
         "user": current_user,
         "categories": categories,
+        "units": units,
         "title": "Novo Produto"
     })
+
+# --- AJAX Endpoints for Dynamic Creation ---
+
+@router.post("/api/categorias")
+async def api_create_category(
+    nome: str = Form(...),
+    descricao: Optional[str] = Form(None),
+    current_user: User = Depends(get_active_user_web),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    
+    cat_in = PurchaseCategoryCreate(nome=nome, descricao=descricao)
+    try:
+        new_cat = await crud_proc.create_category(db, cat_in)
+        return {"success": True, "id": new_cat.id, "nome": new_cat.nome}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.post("/api/unidades")
+async def api_create_unit(
+    sigla: str = Form(...),
+    descricao: Optional[str] = Form(None),
+    current_user: User = Depends(get_active_user_web),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    
+    try:
+        new_unit = await crud_proc.create_unit(db, sigla=sigla, descricao=descricao)
+        return {"success": True, "sigla": new_unit.sigla, "descricao": new_unit.descricao}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.post("/api/produtos")
+async def api_create_product(
+    codigo: str = Form(...),
+    nome: str = Form(...),
+    categoria_id: int = Form(...),
+    unidade: str = Form(...),
+    tipo: str = Form(...),
+    marca: Optional[str] = Form(None),
+    modelo: Optional[str] = Form(None),
+    fabricante: Optional[str] = Form(None),
+    descricao: Optional[str] = Form(None),
+    current_user: User = Depends(get_active_user_web),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    
+    try:
+        existing = await crud_proc.get_product_by_codigo(db, codigo)
+        if existing:
+            return {"success": False, "error": "Já existe um produto com este código."}
+            
+        product_in = PurchaseProductCreate(
+            codigo=codigo,
+            nome=nome,
+            categoria_id=categoria_id,
+            unidade=unidade,
+            tipo=ProductType(tipo),
+            marca=marca,
+            modelo=modelo,
+            fabricante=fabricante,
+            descricao=descricao,
+            ativo=True
+        )
+        new_prod = await crud_proc.create_product(db, product_in)
+        return {"success": True, "id": new_prod.id, "nome": new_prod.nome, "unidade": new_prod.unidade}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 
 
 @router.post("/produtos/new")

@@ -5,18 +5,214 @@
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
         <div>
-            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">CHECKLISTS</h1>
-            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Gerenciamento de checklists de manutenção // V1.0</p>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Checklists de Manutenção</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Gerenciamento de etapas e verificações por plano</p>
+        </div>
+        <a href="/manutencao-preventiva/planos" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            &larr; Ver Planos
+        </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white border-2 border-black p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <span class="font-mono text-[10px] text-gray-400 uppercase block font-bold">Total Checklists</span>
+            <span class="text-3xl font-black font-mono">{{ checklists|length }}</span>
+        </div>
+        <div class="bg-white border-2 border-black p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <span class="font-mono text-[10px] text-gray-400 uppercase block font-bold">Total de Itens</span>
+            <span class="text-3xl font-black font-mono">{{ total_items }}</span>
+        </div>
+        <div class="bg-white border-2 border-black p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <span class="font-mono text-[10px] text-gray-400 uppercase block font-bold">Itens Obrigatórios</span>
+            <span class="text-3xl font-black font-mono text-red-600">{{ total_obrigatorios }}</span>
         </div>
     </div>
 
-    <!-- Checklists Placeholder -->
-    <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center">
+    <!-- Filter by Plan -->
+    <form method="GET" action="/manutencao-preventiva/checklists" class="flex items-end gap-3">
+        <div class="flex-1">
+            <label class="block font-mono text-[10px] uppercase font-bold text-gray-500 mb-1">Filtrar por Plano</label>
+            <select name="plan_id" onchange="this.form.submit()" class="w-full border-2 border-black p-2.5 text-sm font-mono focus:outline-none bg-white">
+                <option value="">Todos os Planos</option>
+                {% for plan in all_plans %}
+                <option value="{{ plan.id }}" {% if plan_id_filter == plan.id %}selected{% endif %}>
+                    {{ plan.codigo }} — {{ plan.nome }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if plan_id_filter %}
+        <a href="/manutencao-preventiva/checklists" class="font-mono text-xs font-bold bg-white border-2 border-black px-4 py-2.5 hover:bg-gray-100 transition">
+            Limpar
+        </a>
+        {% endif %}
+    </form>
+
+    <!-- Checklists List -->
+    {% if checklists %}
+    <div class="space-y-6">
+        {% for checklist in checklists %}
+        <div class="bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <!-- Checklist Header -->
+            <div class="flex items-center justify-between p-5 border-b-2 border-black bg-gray-50">
+                <div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-mono text-[10px] font-bold bg-black text-white px-2 py-0.5">{{ checklist.ordem + 1 }}</span>
+                        <h3 class="font-bold text-base uppercase tracking-tight text-black">{{ checklist.nome }}</h3>
+                    </div>
+                    <a href="/manutencao-preventiva/planos/{{ checklist.plan_id }}" class="font-mono text-xs text-gray-500 hover:text-black hover:underline mt-1 block">
+                        Plano: {{ checklist.plan.codigo }} — {{ checklist.plan.nome }}
+                    </a>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="font-mono text-xs border-2 border-black px-3 py-1 font-bold">
+                        {{ checklist.items|length }} item(s)
+                    </span>
+                    {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
+                    <form action="/manutencao-preventiva/planos/{{ checklist.plan_id }}/checklists/{{ checklist.id }}/delete" method="POST"
+                          onsubmit="return confirm('Excluir o checklist \'{{ checklist.nome }}\' e todos os seus itens?')">
+                        <button type="submit" class="font-mono text-xs font-bold text-red-600 border-2 border-red-200 px-3 py-1 hover:bg-red-50 transition">
+                            ✕ Excluir
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Items -->
+            <div class="p-5 space-y-2">
+                {% if checklist.items %}
+                    {% for item in checklist.items|sort(attribute='ordem') %}
+                    <div class="flex items-start gap-3 p-3 border border-gray-100 hover:bg-gray-50 transition">
+                        <span class="font-mono text-[10px] text-gray-400 w-6 mt-0.5 flex-shrink-0">{{ loop.index }}</span>
+                        <div class="flex-1">
+                            <p class="text-sm text-black font-medium">{{ item.descricao }}</p>
+                            <div class="flex items-center gap-3 mt-1">
+                                {% if item.obrigatorio %}
+                                <span class="font-mono text-[9px] font-bold text-red-600 uppercase border border-red-200 px-1.5 py-0.5">Obrigatório</span>
+                                {% else %}
+                                <span class="font-mono text-[9px] text-gray-400 uppercase">Opcional</span>
+                                {% endif %}
+                                {% if item.requer_foto %}
+                                <span class="font-mono text-[9px] font-bold text-blue-600 uppercase border border-blue-200 px-1.5 py-0.5">Requer Foto</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
+                        <form action="/manutencao-preventiva/planos/{{ checklist.plan_id }}/checklists/{{ checklist.id }}/items/{{ item.id }}/delete" method="POST"
+                              onsubmit="return confirm('Excluir este item?')">
+                            <button type="submit" class="text-red-400 hover:text-red-700 text-xs p-1 transition" title="Excluir item">✕</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <p class="font-mono text-xs text-gray-400 text-center py-4">Nenhum item neste checklist.</p>
+                {% endif %}
+
+                <!-- Add Item Form (admin/manager only) -->
+                {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] %}
+                <details class="mt-4">
+                    <summary class="cursor-pointer font-mono text-xs font-bold uppercase text-gray-500 hover:text-black transition select-none">
+                        + Adicionar Item
+                    </summary>
+                    <form action="/manutencao-preventiva/planos/{{ checklist.plan_id }}/checklists/{{ checklist.id }}/items" method="POST"
+                          class="mt-3 border-2 border-dashed border-gray-300 p-4 space-y-3">
+                        <input type="hidden" name="redirect_to" value="checklists">
+                        <div>
+                            <label class="block font-mono text-[10px] font-bold uppercase text-gray-500 mb-1">Descrição do Item *</label>
+                            <textarea name="descricao" required rows="2"
+                                class="w-full border-2 border-black p-2 text-sm font-mono focus:outline-none"
+                                placeholder="Ex: Verificar tensão da correia, Checar nível de óleo..."></textarea>
+                        </div>
+                        <div class="flex items-center gap-6">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="obrigatorio" value="on" checked
+                                    class="w-4 h-4 border-2 border-black accent-black">
+                                <span class="font-mono text-xs font-bold uppercase">Obrigatório</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="requer_foto" value="on"
+                                    class="w-4 h-4 border-2 border-black accent-black">
+                                <span class="font-mono text-xs font-bold uppercase">Requer Foto</span>
+                            </label>
+                        </div>
+                        <button type="submit" class="bg-black text-white font-mono text-xs font-bold uppercase px-4 py-2 hover:bg-gray-800 transition">
+                            Salvar Item
+                        </button>
+                    </form>
+                </details>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="bg-white border-2 border-black p-12 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center">
         <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
         </svg>
-        <p class="font-mono text-gray-500 mb-2">CHECKLISTS_EM_DESENVOLVIMENTO</p>
-        <p class="text-sm text-gray-400">Esta funcionalidade estará disponível em breve</p>
+        <p class="font-mono font-bold uppercase text-gray-500 mb-1">Nenhum checklist encontrado</p>
+        <p class="text-sm text-gray-400 mb-6">Checklists são criados dentro dos Planos de Manutenção.</p>
+        <a href="/manutencao-preventiva/planos"
+           class="inline-block bg-black text-white font-mono text-xs font-bold uppercase px-6 py-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-white hover:text-black transition">
+            &rarr; Ir para Planos
+        </a>
     </div>
+    {% endif %}
+
+    <!-- Create New Checklist Panel (admin only) -->
+    {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] and all_plans %}
+    <div class="bg-gray-50 border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+        <h3 class="font-bold text-sm uppercase tracking-wider mb-4 border-b-2 border-black pb-2">Criar Novo Checklist em um Plano</h3>
+        <form method="POST" id="form-new-checklist" class="flex flex-col sm:flex-row gap-4 items-end">
+            <div class="flex-1">
+                <label class="block font-mono text-[10px] font-bold uppercase text-gray-500 mb-1">Plano *</label>
+                <select name="plan_target" id="plan-target-select" required class="w-full border-2 border-black p-2.5 text-sm font-mono focus:outline-none bg-white">
+                    <option value="">Selecione o Plano...</option>
+                    {% for plan in all_plans %}
+                    <option value="{{ plan.id }}">{{ plan.codigo }} — {{ plan.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex-1">
+                <label class="block font-mono text-[10px] font-bold uppercase text-gray-500 mb-1">Nome do Checklist *</label>
+                <input type="text" name="nome_checklist" required
+                    class="w-full border-2 border-black p-2.5 text-sm font-mono focus:outline-none"
+                    placeholder="Ex: Inspeção Visual, Verificação Mecânica...">
+            </div>
+            <button type="button" onclick="submitNewChecklist()"
+                class="bg-black text-white font-mono text-xs font-bold uppercase px-5 py-2.5 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-white hover:text-black hover:shadow-none transition">
+                Criar Checklist
+            </button>
+        </form>
+    </div>
+    {% endif %}
 </div>
+
+<script>
+function submitNewChecklist() {
+    const form = document.getElementById('form-new-checklist');
+    const planId = document.getElementById('plan-target-select').value;
+    const nome = form.querySelector('[name="nome_checklist"]').value.trim();
+    if (!planId || !nome) {
+        alert('Selecione um plano e informe o nome do checklist.');
+        return;
+    }
+    // Redirect to plan detail to create the checklist via existing route
+    const actualForm = document.createElement('form');
+    actualForm.method = 'POST';
+    actualForm.action = `/manutencao-preventiva/planos/${planId}/checklists`;
+    const field = document.createElement('input');
+    field.type = 'hidden';
+    field.name = 'nome';
+    field.value = nome;
+    actualForm.appendChild(field);
+    document.body.appendChild(actualForm);
+    actualForm.submit();
+}
+</script>
 {% endblock %}

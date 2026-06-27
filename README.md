@@ -135,6 +135,32 @@ Módulo completo para gestão de manutenção preventiva, corretiva e periódica
 | **Integração com Ativos** | Vinculação de ativos aos planos e ordens, com histórico completo. |
 | **Segurança por Permissões** | Acesso controlado por perfis: Admin, Gerente, Técnico, Usuário. |
 
+## 🛒 Módulo de Compras (Procurement)
+
+Sistema completo de suprimentos integrado ao AssetTrack TI, permitindo ciclo ponta a ponta desde a requisição até o recebimento.
+
+| Recurso | Descrição |
+| :--- | :--- |
+| **Solicitações de Compra (SC)** | Geração de requisições com status dinâmicos, suporte a pré-preenchimento via integrações e aprovação de gerência. |
+| **Cotações e Fornecedores** | Lançamento de comparativos de preço, escolha do vencedor e integração direta com o módulo de Fornecedores. |
+| **Ordens de Compra (PO)** | Emissão de Pedidos de Compra oficiais, controle de orçamento por Centro de Custo e acompanhamento de status. |
+| **Recebimento e Estoque** | Entrada de notas fiscais, atualização automática de estoque de peças e inserção automatizada de novos Ativos no patrimônio. |
+| **Gestão de Contratos** | Controle de vigência, alertas visuais (30/60/90 dias) e upload de PDFs e aditivos contratuais. |
+| **Integrações (Atalhos)** | Botão "Solicitar Compra" disponível diretamente nas interfaces de Manutenção Preventiva e Service Desk. |
+| **Exportação CSV** | Download de relatórios gerenciais e dados do módulo diretamente em formato CSV. |
+
+---
+
+## 🎛️ Gerenciador de Módulos (Feature Toggles)
+
+O sistema possui uma arquitetura modular que permite habilitar ou desabilitar grandes funcionalidades sob demanda, sem necessidade de reiniciar a aplicação:
+
+- **Manutenção Preventiva:** Pode ser ligada/desligada via painel (rotas protegidas e menu dinâmico).
+- **Módulo de Compras:** Pode ser ligado/desligado, ajustando a interface globalmente.
+- **Acesso:** Somente administradores através do menu `Configurações > Módulos` (`/admin/modulos`).
+
+---
+
 ## 🛠️ Segurança e Auditoria
 
 - 🔒 **Rate Limiting**: Proteção contra força bruta nos logins.

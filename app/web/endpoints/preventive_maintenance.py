@@ -340,13 +340,47 @@ async def maintenance_calendar(
 async def checklists_page(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: Annotated[AsyncSession, Depends(get_db)],
+    plan_id: Optional[int] = None,
 ):
-    """Página de checklists"""
+    """Gerenciamento global de checklists de manutenção"""
+    from app.models.preventive_maintenance import MaintenanceChecklistItem
+
+    # Buscar todos os planos para o filtro
+    plans_res = await db.execute(select(MaintenancePlan).order_by(MaintenancePlan.codigo))
+    all_plans = plans_res.scalars().all()
+
+    # Buscar checklists (com filtro por plano se solicitado)
+    stmt = (
+        select(MaintenanceChecklist)
+        .options(
+            selectinload(MaintenanceChecklist.plan),
+            selectinload(MaintenanceChecklist.items)
+        )
+        .join(MaintenancePlan, MaintenanceChecklist.plan_id == MaintenancePlan.id)
+        .order_by(MaintenancePlan.codigo, MaintenanceChecklist.ordem)
+    )
+    if plan_id:
+        stmt = stmt.filter(MaintenanceChecklist.plan_id == plan_id)
+
+    result = await db.execute(stmt)
+    checklists = result.scalars().all()
+
+    # Totais
+    total_items = sum(len(cl.items) for cl in checklists)
+    total_obrigatorios = sum(
+        sum(1 for it in cl.items if it.obrigatorio) for cl in checklists
+    )
+
     return templates.TemplateResponse("preventive_maintenance/checklists.html", {
         "request": request,
         "user": current_user,
-        "title": "Checklists"
+        "checklists": checklists,
+        "all_plans": all_plans,
+        "plan_id_filter": plan_id,
+        "total_items": total_items,
+        "total_obrigatorios": total_obrigatorios,
+        "title": "Checklists de Manutenção"
     })
 
 
@@ -1003,6 +1037,8 @@ async def add_checklist_item(
     checklist_id: int,
     descricao: Annotated[str, Form()],
     obrigatorio: Annotated[Optional[str], Form()] = None,
+    requer_foto: Annotated[Optional[str], Form()] = None,
+    redirect_to: Annotated[Optional[str], Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -1020,11 +1056,15 @@ async def add_checklist_item(
         checklist_id=checklist_id,
         descricao=descricao,
         obrigatorio=obrigatorio == "on",
+        requer_foto=requer_foto == "on",
         ordem=next_order
     )
     db.add(item)
     await db.commit()
 
+    # Redirecionar para a tela de origem (checklists global ou detalhe do plano)
+    if redirect_to == "checklists":
+        return RedirectResponse(url=f"/manutencao-preventiva/checklists?plan_id={plan_id}", status_code=303)
     return RedirectResponse(url=f"/manutencao-preventiva/planos/{plan_id}", status_code=303)
 
 

@@ -26,3 +26,28 @@ async def help_page(
         "help/admin.html", 
         {"request": request, "user": current_user, "title": "Manual do Sistema"}
     )
+
+@router.get("/help/export", include_in_schema=False)
+async def export_help_pdf(
+    request: Request,
+    current_user: User = Depends(get_active_user_web)
+):
+    from weasyprint import HTML
+    from datetime import datetime
+    from fastapi.responses import Response
+
+    html_content = templates.get_template("help/pdf.html").render({
+        "request": request,
+        "user": current_user,
+        "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M")
+    })
+
+    pdf_bytes = HTML(string=html_content).write_pdf()
+
+    filename = f"Manual_AssetTrack_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+

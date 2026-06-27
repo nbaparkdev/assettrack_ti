@@ -8,10 +8,14 @@
             <h2 class="text-3xl font-bold text-black tracking-tighter uppercase">Central de Ajuda</h2>
             <p class="font-mono text-xs text-gray-500 mt-1">user_manual_lite</p>
         </div>
-        <div class="hidden sm:block text-right">
+        <div class="hidden sm:flex flex-col items-end gap-2 text-right">
             <span
                 class="inline-block bg-gray-100 border border-gray-200 px-2 py-1 text-xs font-bold uppercase tracking-wider">Perfil
                 Usuário</span>
+            <a href="/help/export"
+                class="inline-block bg-black text-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider hover:bg-gray-800 transition">
+                📄 Baixar PDF Completo
+            </a>
         </div>
     </div>
 
@@ -105,6 +109,30 @@
                         <strong>DICA:</strong> Nunca compartilhe seu PIN. Se perder o acesso, use a opção "Regenerar
                         Token" no seu perfil.
                     </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Compras -->
+        <div class="border-2 border-gray-200 p-6 hover:border-black transition group relative bg-white">
+            <div class="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] uppercase font-bold px-2 py-1">Suprimentos
+            </div>
+            <div class="text-4xl mb-4 text-indigo-600">🛒</div>
+            <h3 class="font-bold text-xl uppercase mb-2 group-hover:underline">Solicitar Compra</h3>
+            <p class="text-sm text-gray-500 mb-6">Precisa de novos equipamentos, licenças ou peças?</p>
+
+            <div class="bg-gray-50 p-4 border border-gray-100 text-sm space-y-3">
+                <ol class="list-decimal list-inside space-y-2">
+                    <li>Acesse <strong>"Compras > Solicitações"</strong>.</li>
+                    <li>Clique em <strong>"Nova Solicitação"</strong>.</li>
+                    <li>Preencha a justificativa e os itens desejados.</li>
+                </ol>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-dashed border-gray-200">
+                <p class="font-mono text-[10px] text-gray-400 uppercase mb-2">Integração</p>
+                <div class="space-y-2 text-xs text-gray-600">
+                    <p>O botão <strong>"Solicitar Compra"</strong> também está disponível dentro de Ordens de Manutenção e Chamados, preenchendo automaticamente a origem do pedido.</p>
                 </div>
             </div>
         </div>

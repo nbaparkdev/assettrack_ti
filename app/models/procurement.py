@@ -44,6 +44,13 @@ class PurchaseCategory(Base):
 
     products = relationship("PurchaseProduct", back_populates="categoria")
 
+class PurchaseUnit(Base):
+    __tablename__ = "purchase_units"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    sigla: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
+    descricao: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
 class PurchaseProduct(Base):
     __tablename__ = "purchase_products"
 

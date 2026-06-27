@@ -8,7 +8,7 @@ from app.models.procurement import (
     PurchaseApproval, PurchaseQuotation, PurchaseQuotationSupplier, PurchaseQuotationItem,
     PurchaseOrder, PurchaseOrderItem, PurchaseReceiving, PurchaseReceivingItem,
     PurchaseContract, MaterialStock, MaterialStockTransaction, PurchaseHistory,
-    PurchaseRequestStatus, PurchaseOrderStatus
+    PurchaseRequestStatus, PurchaseOrderStatus, PurchaseUnit
 )
 from app.schemas.procurement import (
     PurchaseCategoryCreate, PurchaseCategoryUpdate,
@@ -44,6 +44,21 @@ async def update_category(db: AsyncSession, db_cat: PurchaseCategory, category: 
     await db.commit()
     await db.refresh(db_cat)
     return db_cat
+
+
+# -------------
+# PURCHASE UNIT
+# -------------
+async def get_units(db: AsyncSession) -> List[PurchaseUnit]:
+    result = await db.execute(select(PurchaseUnit).order_by(PurchaseUnit.sigla))
+    return result.scalars().all()
+
+async def create_unit(db: AsyncSession, sigla: str, descricao: Optional[str] = None) -> PurchaseUnit:
+    db_unit = PurchaseUnit(sigla=sigla.upper(), descricao=descricao)
+    db.add(db_unit)
+    await db.commit()
+    await db.refresh(db_unit)
+    return db_unit
 
 
 # ----------------
