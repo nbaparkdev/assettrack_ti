@@ -1238,7 +1238,7 @@ async def update_plan(
     criticidade: Annotated[str, Form()],
     descricao: Annotated[str, Form()],
     ativo: Annotated[str, Form()],
-    dias_personalizado: Annotated[Optional[int], Form()] = None,
+    dias_personalizado: Annotated[Optional[str], Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -1255,7 +1255,7 @@ async def update_plan(
     plan.criticidade = MaintenanceCriticality(criticidade)
     plan.descricao = descricao
     plan.ativo = ativo == "true"
-    plan.dias_personalizado = dias_personalizado if periodicidade == "Personalizada" else None
+    plan.dias_personalizado = int(dias_personalizado) if dias_personalizado and periodicidade == "Personalizada" else None
 
     db.add(plan)
     await db.commit()

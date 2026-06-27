@@ -130,6 +130,9 @@
                                     Fornecedores
                                 </a>
                                 {% endif %}
+                                <a href="/assets/reports" class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black hover:bg-gray-50 transition-all border border-transparent hover:border-gray-200">
+                                    Relatórios
+                                </a>
                             </div>
                         </div>
 
@@ -172,8 +175,14 @@
                                 <div class="p-1">
                                     <a href="/servicos" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Service Desk</a>
                                     <a href="/minhas-solicitacoes-manutencao" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Solicitar Manutenção Ativo</a>
+                                    <a href="/aguardando-entrega" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Entregas Pendentes</a>
                                     <div class="h-[2px] bg-gray-100 my-1 mx-2"></div>
-                                    <a href="/assets/scanner" class="block px-3 py-2 text-sm font-bold uppercase text-brand-600 hover:bg-brand-50">Mobile Scanner</a>
+                                    <a href="/assets/scanner" class="block px-3 py-2 text-sm font-bold uppercase text-brand-600 hover:bg-brand-50">Scanner Ativos</a>
+                                    <a href="/manutencao/entrega/scanner" class="block px-3 py-2 text-sm font-bold uppercase text-brand-600 hover:bg-brand-50">Scanner Entregas TI</a>
+                                    {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico', 'gerente_infra'] %}
+                                    <div class="h-[2px] bg-gray-100 my-1 mx-2"></div>
+                                    <a href="/solicitacoes-manutencao/administrativo/relatorios" class="block px-3 py-2 text-sm font-bold uppercase text-gray-500 hover:text-black hover:bg-gray-100">Relatórios Manutenção</a>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -235,6 +244,10 @@
                                 <div class="bg-gray-100 px-4 py-1 text-[10px] font-mono uppercase tracking-widest text-gray-500 border-b border-gray-200">Admin_Panel</div>
                                 <a href="/admin/users" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Usuários</a>
                                 <a href="/setores" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Setores</a>
+                                <a href="/assets/admin/localizacoes" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Localizações</a>
+                                <a href="/assets/admin/categorias" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Categorias de Ativos</a>
+                                <a href="/servicos/admin/categorias" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Cat. Service Desk</a>
+                                <a href="/servicos/admin/servicos" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Serviços S.D.</a>
                                 <a href="/admin/backup" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Backup</a>
                                 {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
                                 <a href="/admin/modulos" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Módulos</a>

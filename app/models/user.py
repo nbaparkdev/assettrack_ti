@@ -11,6 +11,7 @@ class UserRole(str, Enum):
     GERENTE = "gerente_ti"
     TECNICO = "tecnico"
     GERENTE_INFRA = "gerente_infra"
+    COMPRADOR = "comprador"
     USUARIO = "usuario_comum"
 
 class User(Base):

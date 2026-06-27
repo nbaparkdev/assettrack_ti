@@ -116,13 +116,11 @@
                         class="block font-mono text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
                         Tipo de Acesso Desejado
                     </label>
-                    <select name="role" id="role" required
-                        class="w-full bg-white border-2 border-gray-200 p-3 font-mono text-sm focus:border-black focus:ring-0 rounded-none transition">
-                        <option value="usuario_comum">USUÁRIO COMUM</option>
-                        <option value="gerente_ti">GERENTE TI</option>
-                        <option value="gerente_infra">GERENTE INFRA</option>
-                        <option value="tecnico">TÉCNICO</option>
+                    <select name="role" id="role" required readonly
+                        class="w-full bg-gray-100 border-2 border-gray-200 p-3 font-mono text-sm focus:outline-none rounded-none transition pointer-events-none text-gray-600">
+                        <option value="usuario_comum" selected>USUÁRIO COMUM (Padrão)</option>
                     </select>
+                    <p class="text-[10px] text-gray-400 font-mono mt-1 uppercase">O administrador poderá alterar seu acesso posteriormente.</p>
                 </div>
 
                 <button type="submit"

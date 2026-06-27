@@ -29,6 +29,13 @@ async def lifespan(app: FastAPI):
 
     # Auto-migration de colunas para o Service Desk (transações isoladas)
     from sqlalchemy import text
+    try:
+        async with engine.connect() as conn:
+            await conn.execution_options(isolation_level="AUTOCOMMIT")
+            await conn.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'COMPRADOR'"))
+    except Exception:
+        pass
+            
     async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE service_tickets ADD COLUMN foto VARCHAR(255)"))
@@ -58,6 +65,13 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE assets ADD COLUMN bloqueado BOOLEAN DEFAULT FALSE"))
+        except Exception:
+            pass
+
+    # Adicionar 'comprador' ao enum userrole (PostgreSQL)
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TYPE userrole ADD VALUE 'comprador'"))
         except Exception:
             pass
 
