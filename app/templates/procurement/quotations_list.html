@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Cotações de Compra</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Suprimentos // Comparativo Multilateral de Preços & Prazos</p>
+        </div>
+        <a href="/compras/solicitacoes" class="font-mono text-xs font-bold bg-black text-white px-4 py-2 hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
+            Novas Cotações (A partir de Solicitações Aprovadas) &rarr;
+        </a>
+    </div>
+
+    <!-- Quotations Table -->
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-black text-white border-b-2 border-black font-mono text-xs uppercase tracking-widest">
+                        <th class="p-4">Número</th>
+                        <th class="p-4">Solicitação Origem</th>
+                        <th class="p-4">Data Início</th>
+                        <th class="p-4">Status</th>
+                        <th class="p-4 text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y-2 divide-black font-sans text-sm">
+                    {% for cot in cotacoes %}
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="p-4 font-mono font-bold">{{ cot.numero }}</td>
+                        <td class="p-4 font-mono text-xs">{{ cot.request.numero }}</td>
+                        <td class="p-4 font-mono text-xs">{{ cot.data_criacao.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td class="p-4">
+                            <span class="font-mono text-[10px] px-2 py-0.5 {% if cot.status == 'Finalizada' %}bg-green-100 text-green-800 border border-green-300{% else %}bg-amber-100 text-amber-800 border border-amber-300{% endif %} font-bold uppercase">{{ cot.status }}</span>
+                        </td>
+                        <td class="p-4 text-right">
+                            <a href="/compras/cotacoes/{{ cot.id }}" class="font-mono text-xs font-bold bg-black text-white px-3 py-1.5 hover:bg-gray-800 transition">COMPARAR COTADOS &rarr;</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="p-8 text-center text-gray-500 font-mono text-xs uppercase">Nenhuma cotação de preços registrada no momento.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

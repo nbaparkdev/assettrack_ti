@@ -96,6 +96,22 @@
         <p class="text-gray-800 whitespace-pre-wrap">{{ solicitacao.descricao }}</p>
     </div>
 
+    <!-- Compras Relacionadas -->
+    {% if is_tech or user.role.value|lower in ['admin', 'gerente_ti'] %}
+    <div class="border-2 border-black p-6 bg-gray-50 flex flex-col justify-between">
+        <div>
+            <h3 class="font-mono text-xs text-gray-500 uppercase mb-2">Aquisição de Peças / Insumos</h3>
+            <p class="text-xs text-gray-600">Se esta manutenção necessitar da compra de peças sobressalentes, novos componentes ou contratação de serviço externo, abra uma solicitação de compras diretamente no módulo de Compras.</p>
+        </div>
+        <div class="mt-4">
+            <a href="/compras/solicitacoes/new?origem_tipo=manutencao&origem_id={{ solicitacao.id }}&descricao=Aquisicao+de+pecas/insumos+para+Manutencao+%23{{ solicitacao.id }}+-+Ativo%3A+{{ solicitacao.asset.nome }}" 
+               class="inline-block bg-black text-white text-xs font-bold px-4 py-2 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-white hover:text-black hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all uppercase">
+                &rarr; Solicitar Compra para esta Manutenção
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
     {% if solicitacao.observacao_resposta %}
     <!-- Resposta do Técnico -->
     <div class="border-2 border-gray-200 p-6 bg-gray-50">

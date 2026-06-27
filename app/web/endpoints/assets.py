@@ -259,8 +259,7 @@ async def list_categories(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    user_role = str(current_user.role.value).lower()
-    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/assets", status_code=303)
 
     categories = await asset_category_crud.category.get_multi(db)
@@ -279,8 +278,7 @@ async def create_category(
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
-    user_role = str(current_user.role.value).lower()
-    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         raise HTTPException(status_code=403)
 
     from app.schemas.asset_category import AssetCategoryCreate
@@ -295,8 +293,7 @@ async def delete_category(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    user_role = str(current_user.role.value).lower()
-    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         raise HTTPException(status_code=403)
 
     await asset_category_crud.category.remove(db, id=cat_id)
@@ -1200,8 +1197,7 @@ async def list_locais(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    user_role = str(current_user.role.value).lower()
-    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/assets", status_code=303)
 
     from sqlalchemy.orm import selectinload
@@ -1228,8 +1224,7 @@ async def create_local(
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
-    user_role = str(current_user.role.value).lower()
-    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/assets", status_code=303)
 
     from app.schemas.location import LocalizacaoCreate
@@ -1244,8 +1239,7 @@ async def delete_local(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    user_role = str(current_user.role.value).lower()
-    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/assets", status_code=303)
 
     try:

@@ -144,13 +144,19 @@ WAITED=0
 while [ $WAITED -lt $MAX_WAIT ]; do
     STATUS=$($COMPOSE_CMD ps --format json 2>/dev/null | python3 -c "
 import sys, json
-for line in sys.stdin:
-    s = json.loads(line)
-    if s.get('Service') == 'web' and s.get('State') == 'running':
-        health = s.get('Health', '')
-        if health == 'healthy' or health == '':
-            print('ready')
-            break
+try:
+    content = sys.stdin.read().strip()
+    if content.startswith('['):
+        data = json.loads(content)
+    else:
+        data = [json.loads(line) for line in content.splitlines() if line.strip()]
+    for s in data:
+        if s.get('Service') == 'web' and s.get('State') == 'running':
+            if s.get('Health', '') in ('healthy', ''):
+                print('ready')
+                break
+except Exception:
+    pass
 " 2>/dev/null)
     if [ "$STATUS" = "ready" ]; then
         echo "✅ Container web pronto"

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">CALENDÁRIO_DE_MANUTENÇÕES</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Cronograma de ordens de serviço e próximas execuções previstas</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="/manutencao-preventiva/ordens" class="text-xs font-bold uppercase border-2 border-black bg-white px-4 py-2 hover:bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition">Lista de Ordens</a>
+            <a href="/manutencao-preventiva/planos" class="text-xs font-bold uppercase border-2 border-black bg-white px-4 py-2 hover:bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition">Lista de Planos</a>
+        </div>
+    </div>
+
+    <!-- Legenda -->
+    <div class="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-wrap gap-4 text-xs font-mono">
+        <span class="font-bold uppercase tracking-wider text-[10px] text-gray-400 mr-2 flex items-center">Legenda:</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 border border-black bg-[#2563eb]"></span> Aberta</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 border border-black bg-[#0891b2]"></span> Agendada</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 border border-black bg-[#eab308]"></span> Em Andamento</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 border border-black bg-[#f97316]"></span> Aguardando Peça</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 border border-black bg-[#4b5563]"></span> Pausada</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 border border-black bg-[#16a34a]"></span> Concluída</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 border border-black bg-[#dc2626]"></span> Cancelada</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 border border-black bg-[#0f172a]"></span> 🛠️ Previsão de Plano</span>
+    </div>
+
+    <!-- Calendar Container -->
+    <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <div id="calendar" class="min-h-[650px]"></div>
+    </div>
+</div>
+
+<!-- FullCalendar Libraries -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/pt-br.js"></script>
+
+<style>
+    /* Estilos Neobrutalistas para customizar o FullCalendar */
+    .fc {
+        font-family: inherit;
+    }
+    .fc-theme-standard td, .fc-theme-standard th {
+        border: 1px solid #000000 !important;
+    }
+    .fc-theme-standard .fc-scrollgrid {
+        border: 2px solid #000000 !important;
+    }
+    .fc .fc-toolbar-title {
+        font-size: 1.25rem !important;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: -0.025em;
+    }
+    .fc .fc-button-primary {
+        background-color: #000000 !important;
+        border-color: #000000 !important;
+        border-radius: 0px !important;
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        box-shadow: 2px 2px 0px 0px rgba(0,0,0,0.2);
+        transition: all 0.15s ease;
+    }
+    .fc .fc-button-primary:hover {
+        background-color: #1f2937 !important;
+        border-color: #1f2937 !important;
+        box-shadow: 1px 1px 0px 0px rgba(0,0,0,0.2);
+    }
+    .fc .fc-button-primary:disabled {
+        background-color: #d1d5db !important;
+        border-color: #d1d5db !important;
+        color: #9ca3af !important;
+    }
+    .fc .fc-button-active {
+        background-color: #111827 !important;
+        border-color: #111827 !important;
+        box-shadow: none !important;
+    }
+    .fc-col-header-cell {
+        background-color: #f3f4f6;
+        padding: 8px 0 !important;
+    }
+    .fc-col-header-cell-cushion {
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        color: #000000 !important;
+        text-decoration: none !important;
+    }
+    .fc-daygrid-day-number {
+        font-family: monospace;
+        font-size: 0.875rem;
+        font-weight: bold;
+        color: #000000 !important;
+        text-decoration: none !important;
+        padding: 4px 8px !important;
+    }
+    .fc-daygrid-day.fc-day-today {
+        background-color: #fef08a !important; /* Yellow 200 para dia atual */
+    }
+    .fc-event {
+        border-radius: 0px !important;
+        padding: 2px 4px !important;
+        font-size: 0.75rem !important;
+        font-weight: bold !important;
+        border: 1px solid #000000 !important;
+        box-shadow: 2px 2px 0px 0px rgba(0,0,0,0.15) !important;
+        cursor: pointer;
+        transition: transform 0.1s ease;
+    }
+    .fc-event:hover {
+        transform: translate(-1px, -1px);
+        box-shadow: 3px 3px 0px 0px rgba(0,0,0,0.2) !important;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        var eventsData = {{ events_json|safe }};
+        
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            locale: 'pt-br',
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,listMonth'
+            },
+            editable: false,
+            droppable: false,
+            events: eventsData,
+            eventClick: function(info) {
+                if (info.event.url) {
+                    info.jsEvent.preventDefault();
+                    window.location.href = info.event.url;
+                }
+            }
+        });
+        calendar.render();
+    });
+</script>
+{% endblock %}

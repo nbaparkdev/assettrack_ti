@@ -49,3 +49,21 @@ async def get_active_user_web(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
     return user
+
+from app.crud.system_settings import system_settings
+
+async def get_admin_user_web(
+    user: Annotated[User, Depends(get_active_user_web)]
+) -> User:
+    if user.role.value.lower() not in ["admin", "gerente_ti"]:
+        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/assets/"})
+    return user
+
+async def check_preventive_maintenance_enabled(request: Request):
+    if not getattr(request.app.state, "pm_enabled", True):
+        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/assets/"})
+
+async def check_purchases_enabled(request: Request):
+    if not getattr(request.app.state, "purchases_enabled", True):
+        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/assets/"})
+

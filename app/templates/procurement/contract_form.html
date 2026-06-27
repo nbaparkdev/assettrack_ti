@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Novo Contrato</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Definir vigência e custos de fornecedores de TI</p>
+        </div>
+        <a href="/compras/contratos" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            &larr; Cancelar
+        </a>
+    </div>
+
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-600 p-4 font-mono text-xs text-red-600 uppercase">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- Form -->
+    <form action="/compras/contratos/new" method="POST" enctype="multipart/form-data" class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+                <label for="numero" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Número do Contrato</label>
+                <input type="text" id="numero" name="numero" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50 uppercase" placeholder="CONTRATO-2026-001">
+            </div>
+
+            <div>
+                <label for="fornecedor_id" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Fornecedor</label>
+                <select id="fornecedor_id" name="fornecedor_id" required class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50 font-mono">
+                    {% for supplier in suppliers %}
+                    <option value="{{ supplier.id }}">{{ supplier.razao_social }} (CNPJ: {{ supplier.cnpj }})</option>
+                    {% else %}
+                    <option value="" disabled>Nenhum fornecedor cadastrado</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="tipo" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Tipo de Contrato</label>
+                <select id="tipo" name="tipo" required class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50 font-mono">
+                    <option value="Licenciamento Software">Licenciamento de Software (SaaS)</option>
+                    <option value="Hardware / Leasing">Leasing / Locação de Hardware</option>
+                    <option value="Cloud / Infraestrutura">Cloud / Infraestrutura (AWS, GCP, Azure)</option>
+                    <option value="Suporte e Manutenção">Suporte Técnico e Manutenção</option>
+                    <option value="Link de Internet / Telecom">Link de Internet / Telecom</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="periodicidade" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Periodicidade do Pagamento</label>
+                <select id="periodicidade" name="periodicidade" required class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50 font-mono">
+                    <option value="Mensal">Mensal</option>
+                    <option value="Bimestral">Bimestral</option>
+                    <option value="Trimestral">Trimestral</option>
+                    <option value="Semestral">Semestral</option>
+                    <option value="Anual">Anual</option>
+                    <option value="Único">Único (À Vista)</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="data_inicio" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Data de Início</label>
+                <input type="date" id="data_inicio" name="data_inicio" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50">
+            </div>
+
+            <div>
+                <label for="data_fim" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Data de Término</label>
+                <input type="date" id="data_fim" name="data_fim" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50">
+            </div>
+
+            <div>
+                <label for="valor" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Valor do Contrato (R$)</label>
+                <input type="number" step="0.01" id="valor" name="valor" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50" placeholder="12500.00">
+            </div>
+
+            <div>
+                <label for="pdf_file" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Upload do Contrato (PDF)</label>
+                <input type="file" id="pdf_file" name="pdf_file" accept=".pdf" class="w-full bg-white border-2 border-black p-2 font-mono text-xs focus:outline-none">
+            </div>
+        </div>
+
+        <div class="border-t border-gray-200 pt-4 space-y-4">
+            <div class="flex items-start gap-3">
+                <input type="checkbox" id="renovacao_automatica" name="renovacao_automatica" value="true" class="w-5 h-5 accent-black border-2 border-black rounded-none mt-0.5">
+                <div class="text-xs">
+                    <label for="renovacao_automatica" class="font-bold text-black uppercase block">Renovação Automática</label>
+                    <span class="text-gray-500">Este contrato possui cláusula de renovação automática sem necessidade de novos termos assinados.</span>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="w-full bg-black text-white font-mono text-xs font-bold py-4 uppercase tracking-wider hover:bg-white hover:text-black hover:border-black transition border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]">
+            CADASTRAR CONTRATO
+        </button>
+    </form>
+</div>
+{% endblock %}

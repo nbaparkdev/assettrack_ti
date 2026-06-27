@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <div class="flex items-center gap-3 mb-2">
+                <span class="font-mono text-xs font-bold bg-black text-white px-2 py-1">{{ order.numero }}</span>
+            </div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-tight">HISTÓRICO</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Timeline completa de eventos</p>
+        </div>
+        <a href="/manutencao-preventiva/ordens/{{ order.id }}" class="text-xs font-bold uppercase hover:underline">← Voltar à Ordem</a>
+    </div>
+
+    <!-- Timeline -->
+    <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        {% if history %}
+        <div class="relative">
+            <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+            <div class="space-y-8">
+                {% for entry in history %}
+                <div class="relative flex gap-6 items-start">
+                    <!-- Dot -->
+                    {% set dot_color = {
+                        'Ordem Iniciada': 'bg-green-500',
+                        'Ordem Pausada': 'bg-yellow-500',
+                        'Ordem Concluída': 'bg-green-600',
+                        'Ordem Cancelada': 'bg-red-500'
+                    }.get(entry.acao, 'bg-black') %}
+                    <div class="w-8 h-8 rounded-full {{ dot_color }} flex items-center justify-center flex-shrink-0 z-10 shadow-md">
+                        {% if entry.acao == 'Ordem Iniciada' %}
+                        <span class="text-white text-xs">▶</span>
+                        {% elif entry.acao == 'Ordem Pausada' %}
+                        <span class="text-white text-xs">⏸</span>
+                        {% elif entry.acao == 'Ordem Concluída' %}
+                        <span class="text-white text-xs">✓</span>
+                        {% elif entry.acao == 'Ordem Cancelada' %}
+                        <span class="text-white text-xs">✕</span>
+                        {% else %}
+                        <span class="text-white text-xs">●</span>
+                        {% endif %}
+                    </div>
+                    <!-- Content -->
+                    <div class="flex-1 pb-2">
+                        <div class="flex items-baseline gap-3 mb-1">
+                            <span class="text-sm font-bold text-black uppercase">{{ entry.acao }}</span>
+                            {% if entry.status_anterior and entry.status_novo %}
+                            <span class="text-[10px] font-mono text-gray-400">{{ entry.status_anterior }} → {{ entry.status_novo }}</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-sm text-gray-700 mb-2">{{ entry.descricao }}</p>
+                        <div class="flex items-center gap-3 text-[10px] font-mono text-gray-400">
+                            <span>{{ entry.usuario.nome if entry.usuario else 'Sistema' }}</span>
+                            <span>•</span>
+                            <span>{{ entry.data_hora.strftime('%d/%m/%Y %H:%M:%S') }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <p class="font-mono text-gray-400 text-sm">Nenhum evento registrado</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

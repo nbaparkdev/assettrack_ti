@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Novo Plano de Manutenção</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Crie um novo plano para manutenções periódicas</p>
+        </div>
+    </div>
+
+    <form action="/manutencao-preventiva/planos/novo" method="POST" class="space-y-6">
+        <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Nome do Plano</label>
+                    <input type="text" name="nome" required
+                        placeholder="Ex: Manutenção Preventiva de Servidores"
+                        class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Tipo de Manutenção</label>
+                    <select name="tipo" required
+                        class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm uppercase">
+                        {% for mt in maintenance_types %}
+                        <option value="{{ mt }}">{{ mt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Periodicidade</label>
+                    <input type="text" name="periodicidade" required
+                        placeholder="Ex: Mensal, Trimestral, Semestral, Anual"
+                        class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Criticidade</label>
+                    <select name="criticidade" required
+                        class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm uppercase">
+                        {% for mc in maintenance_criticalities %}
+                        <option value="{{ mc }}">{{ mc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-xs font-bold uppercase tracking-widest text-black">Descrição</label>
+                <textarea name="descricao" rows="6" required
+                    placeholder="Descreva detalhes do plano..."
+                    class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm"></textarea>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-end gap-4">
+            <a href="/manutencao-preventiva/planos" class="font-bold text-xs uppercase tracking-widest text-gray-500 hover:text-black transition">
+                Cancelar
+            </a>
+            <button type="submit"
+                class="bg-black text-white px-10 py-4 rounded-none text-sm font-bold uppercase tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                Criar Plano
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

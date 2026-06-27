@@ -1,0 +1,499 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <div class="flex items-center gap-3 mb-2">
+                <span class="font-mono text-xs font-bold bg-black text-white px-2 py-1">{{ order.numero }}</span>
+                {% if order.asset %}
+                <span class="text-xs font-mono text-gray-500 uppercase tracking-widest">{{ order.asset.e_patrimonio }} // {{ order.asset.nome }}</span>
+                {% endif %}
+            </div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-tight">Manutenção {{ order.tipo.value }}</h1>
+        </div>
+        <div class="flex items-center gap-3">
+            {% set status_val = order.status.value %}
+            {% set status_class = {
+                'Aberta': 'bg-blue-50 text-blue-700 border-blue-500',
+                'Agendada': 'bg-cyan-50 text-cyan-700 border-cyan-500',
+                'Em andamento': 'bg-yellow-50 text-yellow-700 border-yellow-500',
+                'Aguardando peça': 'bg-orange-50 text-orange-700 border-orange-500',
+                'Pausada': 'bg-gray-50 text-gray-700 border-gray-500',
+                'Concluída': 'bg-green-50 text-green-700 border-green-500',
+                'Cancelada': 'bg-red-50 text-red-700 border-red-500'
+            }.get(status_val, 'bg-gray-50 text-gray-700 border-gray-500') %}
+            <div class="border-2 {{ status_class }} px-4 py-2 text-sm font-bold uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+                {{ status_val }}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-8">
+            <!-- Descrição -->
+            <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <h3 class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-4 border-b pb-2">Descrição da Manutenção</h3>
+                <div class="prose max-w-none">
+                    <p class="text-black font-medium leading-relaxed">{{ order.observacoes or 'Sem descrição' }}</p>
+                </div>
+
+                {% if order.solucao %}
+                <div class="mt-6 pt-4 border-t-2 border-dashed border-gray-200">
+                    <h4 class="font-mono text-xs text-green-600 uppercase tracking-widest mb-2">Solução Aplicada</h4>
+                    <p class="text-sm text-gray-700">{{ order.solucao }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Checklists de Execução -->
+            {% if checklists %}
+            <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <h3 class="font-mono text-xs text-black uppercase tracking-widest mb-6 border-b-2 border-black pb-2">Checklist de Manutenção</h3>
+                {% for checklist in checklists %}
+                <div class="mb-6">
+                    <h4 class="text-sm font-bold text-gray-700 uppercase mb-3">{{ checklist.nome }}</h4>
+                    {% if checklist.items %}
+                    <div class="space-y-3">
+                        {% for item in checklist.items %}
+                        {% set execution = None %}
+                        {% for exec in (order.executions or []) %}
+                            {% if exec.checklist_item_id == item.id %}
+                                {% set execution = exec %}
+                            {% endif %}
+                        {% endfor %}
+                        <div class="flex items-start gap-3 p-3 border border-gray-200 {{ 'bg-green-50' if execution and execution.concluido else 'bg-white' }}">
+                            {% if order.status.value == 'Em andamento' %}
+                            <form action="/manutencao-preventiva/ordens/{{ order.id }}/executar-checklist" method="POST" class="flex items-start gap-3 flex-1">
+                                <input type="hidden" name="checklist_item_id" value="{{ item.id }}">
+                                <input type="checkbox" name="concluido" value="on"
+                                    {{ 'checked' if execution and execution.concluido else '' }}
+                                    onchange="this.form.submit()"
+                                    class="mt-1 w-5 h-5 border-2 border-black accent-black cursor-pointer">
+                                <div class="flex-1">
+                                    <p class="text-sm text-black {{ 'line-through text-gray-400' if execution and execution.concluido else '' }}">
+                                        {{ item.descricao }}
+                                        {% if item.obrigatorio %}<span class="text-red-500 text-[10px] font-bold ml-1">OBRIGATÓRIO</span>{% endif %}
+                                    </p>
+                                    {% if execution and execution.executado_por %}
+                                    <p class="text-[10px] text-gray-400 font-mono mt-1">
+                                        ✓ {{ execution.executado_por.nome }} — {{ execution.data_execucao.strftime('%d/%m %H:%M') if execution.data_execucao else '' }}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </form>
+                            {% else %}
+                            <input type="checkbox" disabled {{ 'checked' if execution and execution.concluido else '' }}
+                                class="mt-1 w-5 h-5 border-2 border-gray-300">
+                            <div>
+                                <p class="text-sm text-black {{ 'line-through text-gray-400' if execution and execution.concluido else '' }}">
+                                    {{ item.descricao }}
+                                    {% if item.obrigatorio %}<span class="text-red-500 text-[10px] font-bold ml-1">OBRIGATÓRIO</span>{% endif %}
+                                </p>
+                                {% if execution and execution.executado_por %}
+                                <p class="text-[10px] text-gray-400 font-mono mt-1">
+                                    ✓ {{ execution.executado_por.nome }} — {{ execution.data_execucao.strftime('%d/%m %H:%M') if execution.data_execucao else '' }}
+                                </p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-xs text-gray-400 font-mono">Nenhum item neste checklist</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Materiais Utilizados -->
+            <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <div class="flex items-center justify-between mb-6 border-b-2 border-black pb-2">
+                    <h3 class="font-mono text-xs text-black uppercase tracking-widest">Materiais e Peças de Reposição</h3>
+                    <span class="text-xs font-mono text-gray-500">
+                        Total: R$ {{ "%.2f"|format(order.materials|sum(attribute='valor_total')) }}
+                    </span>
+                </div>
+
+                {% if order.materials %}
+                <div class="overflow-x-auto border-2 border-black mb-6">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 border-b-2 border-black text-xs font-mono uppercase">
+                                <th class="p-3 border-r border-black">Produto/Item</th>
+                                <th class="p-3 border-r border-black text-center w-20">Qtd.</th>
+                                <th class="p-3 border-r border-black text-right w-28">Val. Unit.</th>
+                                <th class="p-3 border-r border-black text-right w-28">Val. Total</th>
+                                {% if order.status.value not in ['Concluída', 'Cancelada'] %}
+                                <th class="p-3 text-center w-16">Ação</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mat in order.materials %}
+                            <tr class="border-b border-black hover:bg-gray-50 text-black">
+                                <td class="p-3 border-r border-black font-medium">
+                                    {{ mat.produto }}
+                                    {% if mat.observacao %}
+                                    <span class="block text-[10px] text-gray-500 italic">{{ mat.observacao }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 border-r border-black text-center font-mono">{{ "%.2f"|format(mat.quantidade) }}</td>
+                                <td class="p-3 border-r border-black text-right font-mono">R$ {{ "%.2f"|format(mat.valor_unitario) }}</td>
+                                <td class="p-3 border-r border-black text-right font-mono font-bold">R$ {{ "%.2f"|format(mat.valor_total) }}</td>
+                                {% if order.status.value not in ['Concluída', 'Cancelada'] %}
+                                <td class="p-3 text-center">
+                                    <form action="/manutencao-preventiva/ordens/{{ order.id }}/materiais/{{ mat.id }}/delete" method="POST"
+                                        onsubmit="return confirm('Remover material {{ mat.produto }}?')">
+                                        <button type="submit" class="text-red-600 hover:text-red-800 font-bold text-xs uppercase hover:underline">✕</button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-400 font-mono text-center py-4 mb-6">Nenhum material adicionado a esta ordem.</p>
+                {% endif %}
+
+                {% if order.status.value not in ['Concluída', 'Cancelada'] %}
+                <!-- Formulário para adicionar material -->
+                <form action="/manutencao-preventiva/ordens/{{ order.id }}/materiais" method="POST" class="pt-4 border-t-2 border-dashed border-gray-200">
+                    <h4 class="font-mono text-xs uppercase font-bold text-black mb-4">Adicionar Material/Peça</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="md:col-span-2">
+                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Produto/Item *</label>
+                            <input type="text" name="produto" required placeholder="Ex: Óleo lubrificante, Filtro de ar..."
+                                class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Qtd. *</label>
+                            <input type="number" name="quantidade" step="0.01" min="0.01" required placeholder="1.0"
+                                class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Valor Unitário (R$) *</label>
+                            <input type="number" name="valor_unitario" step="0.01" min="0.00" required placeholder="0.00"
+                                class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Observação (opcional)</label>
+                            <input type="text" name="observacao" placeholder="Ex: Número do lote, especificação extra..."
+                                class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-black text-white py-3 text-xs font-bold uppercase hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
+                        + Adicionar Material
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+
+            <!-- Galeria de Fotos da Manutenção -->
+            <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+                <div class="flex items-center justify-between border-b-2 border-black pb-2">
+                    <h3 class="font-mono text-xs text-black uppercase tracking-widest">Galeria de Evidências (Fotos)</h3>
+                    <span class="text-xs font-mono text-gray-500">{{ order.photos|length }} foto(s)</span>
+                </div>
+
+                {% if order.photos %}
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {% for photo in order.photos %}
+                    <div class="relative border-2 border-black bg-gray-50 p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition group">
+                        <a href="{{ photo.caminho_arquivo }}" target="_blank" class="block aspect-video overflow-hidden border border-gray-300">
+                            <img src="{{ photo.caminho_arquivo }}" alt="{{ photo.descricao or 'Foto' }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                        </a>
+                        
+                        <!-- Badge Tipo -->
+                        <span class="absolute top-4 left-4 font-mono text-[9px] font-bold uppercase px-2 py-0.5 bg-black text-white border border-white">
+                            {{ photo.tipo.value }}
+                        </span>
+
+                        <div class="mt-2 flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                {% if photo.descricao %}
+                                <p class="text-xs text-black font-medium truncate" title="{{ photo.descricao }}">{{ photo.descricao }}</p>
+                                {% endif %}
+                                <p class="text-[9px] text-gray-400 font-mono">
+                                    Por {{ photo.upload_por.nome if photo.upload_por else 'Sistema' }}
+                                </p>
+                            </div>
+                            
+                            {% if order.status.value not in ['Concluída', 'Cancelada'] %}
+                            <form action="/manutencao-preventiva/ordens/{{ order.id }}/fotos/{{ photo.id }}/delete" method="POST"
+                                onsubmit="return confirm('Excluir esta foto?')">
+                                <button type="submit" class="text-red-500 hover:text-red-700 text-xs font-bold p-1 hover:bg-red-50 border border-transparent hover:border-red-200" title="Excluir Foto">
+                                    ✕
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-400 font-mono text-center py-4">Nenhuma foto anexada a esta ordem de serviço.</p>
+                {% endif %}
+
+                {% if order.status.value not in ['Concluída', 'Cancelada'] %}
+                <!-- Formulário para Upload de Foto -->
+                <form action="/manutencao-preventiva/ordens/{{ order.id }}/fotos" method="POST" enctype="multipart/form-data" class="pt-4 border-t-2 border-dashed border-gray-200">
+                    <h4 class="font-mono text-xs uppercase font-bold text-black mb-4">Anexar Nova Foto</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="md:col-span-2">
+                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Selecionar Imagem *</label>
+                            <input type="file" name="foto" required accept="image/*"
+                                class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 file:mr-4 file:py-1.5 file:px-4 file:border-2 file:border-black file:text-xs file:font-bold file:uppercase file:bg-yellow-400 file:hover:bg-yellow-500 file:cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Etapa/Tipo *</label>
+                            <select name="tipo" required class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
+                                <option value="Antes">Antes</option>
+                                <option value="Durante" selected>Durante</option>
+                                <option value="Depois">Depois</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Descrição / Legenda (opcional)</label>
+                        <input type="text" name="descricao" placeholder="Ex: Detalhe do desgaste da correia, Filtro trocado..."
+                            class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
+                    </div>
+                    <button type="submit" class="w-full bg-black text-white py-3 text-xs font-bold uppercase hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
+                        Enviar Foto
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+
+            <!-- Histórico -->
+            {% if order.history %}
+            <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <div class="flex items-center justify-between mb-6 border-b-2 border-black pb-2">
+                    <h3 class="font-mono text-xs text-black uppercase tracking-widest">Timeline</h3>
+                    <a href="/manutencao-preventiva/ordens/{{ order.id }}/historico" class="text-[10px] font-bold uppercase hover:underline">Ver completo →</a>
+                </div>
+                <div class="space-y-4">
+                    {% for entry in order.history[:5] %}
+                    <div class="flex gap-4 items-start">
+                        <div class="w-2 h-2 rounded-full bg-black mt-2 flex-shrink-0"></div>
+                        <div>
+                            <p class="text-sm font-bold text-black">{{ entry.acao }}</p>
+                            <p class="text-xs text-gray-600">{{ entry.descricao }}</p>
+                            <p class="text-[10px] font-mono text-gray-400 mt-1">
+                                {{ entry.usuario.nome if entry.usuario else 'Sistema' }} — {{ entry.data_hora.strftime('%d/%m/%Y %H:%M') }}
+                            </p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Details Card -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+                <h3 class="font-mono text-xs text-gray-500 uppercase tracking-widest border-b pb-2">Informações</h3>
+
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Tipo</p>
+                    <p class="text-sm font-bold text-black uppercase">{{ order.tipo.value }}</p>
+                </div>
+
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Prioridade</p>
+                    <p class="text-sm font-bold text-black uppercase">{{ order.prioridade.value }}</p>
+                </div>
+
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Aberto em</p>
+                    <p class="text-sm font-mono text-black">{{ order.data_abertura.strftime('%d/%m/%Y %H:%M') }}</p>
+                </div>
+
+                {% if order.data_agendada %}
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Data Agendada</p>
+                    <p class="text-sm font-mono text-black">{{ order.data_agendada.strftime('%d/%m/%Y %H:%M') }}</p>
+                </div>
+                {% endif %}
+
+                {% if order.data_inicio %}
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Iniciada em</p>
+                    <p class="text-sm font-mono text-black">{{ order.data_inicio.strftime('%d/%m/%Y %H:%M') }}</p>
+                </div>
+                {% endif %}
+
+                {% if order.tecnico %}
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Técnico Responsável</p>
+                    <p class="text-sm font-bold text-black">{{ order.tecnico.nome }}</p>
+                </div>
+                {% endif %}
+
+                {% if order.tempo_total_minutos %}
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Tempo Total</p>
+                    <p class="text-sm font-mono text-black">{{ (order.tempo_total_minutos // 60) }}h {{ (order.tempo_total_minutos % 60) }}min</p>
+                </div>
+                {% endif %}
+
+                {% if order.custo_total %}
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Custo Total</p>
+                    <p class="text-sm font-mono text-black font-bold">R$ {{ "%.2f"|format(order.custo_total) }}</p>
+                </div>
+                {% endif %}
+
+                {% if order.data_conclusao %}
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Concluída em</p>
+                    <p class="text-sm font-mono text-green-600 font-bold">{{ order.data_conclusao.strftime('%d/%m/%Y %H:%M') }}</p>
+                </div>
+                {% endif %}
+
+                {% if order.plan %}
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Plano Vinculado</p>
+                    <a href="/manutencao-preventiva/planos/{{ order.plan.id }}" class="text-sm font-bold text-black hover:underline">{{ order.plan.codigo }}</a>
+                </div>
+                {% endif %}
+
+                <!-- QR Code de Acesso Rápido -->
+                <div class="border-t-2 border-dashed border-black pt-4 flex flex-col items-center justify-center text-center">
+                    <p class="text-[9px] text-gray-400 uppercase font-bold mb-2">Acesso Rápido</p>
+                    <div class="border-2 border-black p-1 bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data={{ request.base_url }}manutencao-preventiva/ordens/{{ order.id }}" 
+                             alt="QR Code OS" class="w-20 h-20">
+                    </div>
+                    <span class="text-[8px] text-gray-400 font-mono mt-1">Escaneie no campo</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <!-- Action Buttons -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-3">
+                <h3 class="font-mono text-xs text-gray-500 uppercase tracking-widest border-b pb-2">Ações</h3>
+
+                {% if order.status.value not in ['Concluída', 'Cancelada'] %}
+                    {% if order.status.value in ['Aberta', 'Agendada', 'Pausada'] %}
+                    <form action="/manutencao-preventiva/ordens/{{ order.id }}/iniciar" method="POST">
+                        <button type="submit" class="w-full bg-green-600 text-white px-6 py-3 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-green-700 transition">
+                            ▶ {{ 'Retomar' if order.status.value == 'Pausada' else 'Iniciar' }} Ordem
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if order.status.value == 'Em andamento' %}
+                    <button onclick="document.getElementById('modal-pausar').classList.remove('hidden')"
+                        class="w-full bg-yellow-500 text-black px-6 py-3 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-yellow-600 transition">
+                        ⏸ Pausar Ordem
+                    </button>
+                    {% endif %}
+
+                    <button onclick="document.getElementById('modal-concluir').classList.remove('hidden')"
+                        class="w-full bg-black text-white px-6 py-3 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition">
+                        ✓ Concluir Ordem
+                    </button>
+
+                    {% if user.role.value in ['admin', 'gerente_ti', 'gerente_infra'] %}
+                    <button onclick="document.getElementById('modal-cancelar').classList.remove('hidden')"
+                        class="w-full bg-red-600 text-white px-6 py-3 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-red-700 transition">
+                        ✕ Cancelar Ordem
+                    </button>
+                    {% endif %}
+                {% endif %}
+
+                <!-- Editar OS (acessível para admins, gerentes ou técnicos se a OS não estiver concluída) -->
+                {% if user.role.value in ['admin', 'gerente_ti', 'gerente_infra'] or (order.status.value not in ['Concluída', 'Cancelada']) %}
+                <a href="/manutencao-preventiva/ordens/{{ order.id }}/editar" 
+                    class="block w-full text-center bg-yellow-400 border-2 border-black text-black px-6 py-3 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-yellow-500 transition">
+                    ⚙ Editar Ordem
+                </a>
+                {% endif %}
+
+                <!-- Compras Relacionadas -->
+                {% if user.role.value in ['admin', 'gerente_ti', 'tecnico'] %}
+                <a href="/compras/solicitacoes/new?origem_tipo=os&origem_id={{ order.id }}&descricao=Aquisicao+de+itens+para+OS+%23{{ order.numero }}+-+Ativo%3A+{{ order.asset.nome if order.asset else '' }}" 
+                   class="block w-full text-center bg-black text-white px-6 py-3 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-white hover:text-black border-2 border-black transition">
+                    &rarr; Solicitar Compra
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Navigation -->
+            <div class="space-y-3">
+                <a href="/manutencao-preventiva/ordens" class="block w-full text-center bg-gray-100 border-2 border-black text-black px-6 py-3 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-200 transition">
+                    ← Voltar à Lista
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Pausar -->
+<div id="modal-pausar" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 max-w-md w-full">
+        <h3 class="font-bold text-lg uppercase mb-4">Pausar Ordem</h3>
+        <form action="/manutencao-preventiva/ordens/{{ order.id }}/pausar" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Motivo (opcional)</label>
+                <textarea name="motivo" rows="3" class="w-full border-2 border-black p-3 text-sm focus:ring-0" placeholder="Motivo da pausa..."></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="flex-1 bg-yellow-500 text-black py-3 text-xs font-bold uppercase hover:bg-yellow-600 transition">Confirmar Pausa</button>
+                <button type="button" onclick="document.getElementById('modal-pausar').classList.add('hidden')" class="flex-1 bg-gray-100 border-2 border-black py-3 text-xs font-bold uppercase hover:bg-gray-200 transition">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Concluir -->
+<div id="modal-concluir" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 max-w-md w-full">
+        <h3 class="font-bold text-lg uppercase mb-4">Concluir Ordem</h3>
+        <form action="/manutencao-preventiva/ordens/{{ order.id }}/concluir" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Solução Aplicada</label>
+                <textarea name="solucao" rows="3" class="w-full border-2 border-black p-3 text-sm focus:ring-0" placeholder="Descreva a solução aplicada..."></textarea>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Custo de Mão de Obra / Outros (R$)</label>
+                <input type="text" name="custo_total" class="w-full border-2 border-black p-3 text-sm focus:ring-0" placeholder="0,00">
+                <span class="text-[10px] text-gray-400 block mt-1">Este valor será somado ao custo total dos materiais (R$ {{ "%.2f"|format(order.materials|sum(attribute='valor_total')) }}).</span>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="flex-1 bg-green-600 text-white py-3 text-xs font-bold uppercase hover:bg-green-700 transition">Confirmar Conclusão</button>
+                <button type="button" onclick="document.getElementById('modal-concluir').classList.add('hidden')" class="flex-1 bg-gray-100 border-2 border-black py-3 text-xs font-bold uppercase hover:bg-gray-200 transition">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Cancelar -->
+<div id="modal-cancelar" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 max-w-md w-full">
+        <h3 class="font-bold text-lg uppercase mb-4 text-red-600">Cancelar Ordem</h3>
+        <form action="/manutencao-preventiva/ordens/{{ order.id }}/cancelar" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Motivo do Cancelamento</label>
+                <textarea name="motivo" rows="3" required class="w-full border-2 border-red-500 p-3 text-sm focus:ring-0" placeholder="Motivo obrigatório..."></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="flex-1 bg-red-600 text-white py-3 text-xs font-bold uppercase hover:bg-red-700 transition">Confirmar Cancelamento</button>
+                <button type="button" onclick="document.getElementById('modal-cancelar').classList.add('hidden')" class="flex-1 bg-gray-100 border-2 border-black py-3 text-xs font-bold uppercase hover:bg-gray-200 transition">Voltar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

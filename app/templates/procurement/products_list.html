@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Produtos para Compra</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Cadastro Auxiliar de Itens de Consumo e Equipamentos</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="/compras" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                &larr; Painel Compras
+            </a>
+            <a href="/compras/produtos/new" class="font-mono text-xs font-bold bg-black text-white px-4 py-2 hover:bg-white hover:text-black hover:border-black transition border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]">
+                + Novo Produto
+            </a>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b-2 border-black font-mono text-[10px] text-gray-500 uppercase">
+                        <th class="pb-2">Código</th>
+                        <th class="pb-2">Nome</th>
+                        <th class="pb-2">Categoria</th>
+                        <th class="pb-2">Tipo</th>
+                        <th class="pb-2">Unidade</th>
+                        <th class="pb-2">Marca/Modelo</th>
+                        <th class="pb-2">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 text-sm">
+                    {% for prod in produtos %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="py-3 font-mono font-bold">{{ prod.codigo }}</td>
+                        <td class="py-3 font-bold">{{ prod.nome }}</td>
+                        <td class="py-3 font-mono text-xs">{{ prod.categoria.nome if prod.categoria else 'N/A' }}</td>
+                        <td class="py-3">
+                            <span class="font-mono text-xs px-2 py-0.5 border border-black uppercase font-bold bg-gray-100">
+                                {{ prod.tipo.value }}
+                            </span>
+                        </td>
+                        <td class="py-3 font-mono text-xs">{{ prod.unidade }}</td>
+                        <td class="py-3 font-mono text-xs text-gray-500">{{ prod.marca or '-' }} / {{ prod.modelo or '-' }}</td>
+                        <td class="py-3">
+                            {% if prod.ativo %}
+                            <span class="font-mono text-[10px] px-2 py-0.5 bg-green-100 text-green-800 border border-green-300 uppercase font-bold">Ativo</span>
+                            {% else %}
+                            <span class="font-mono text-[10px] px-2 py-0.5 bg-red-100 text-red-800 border border-red-300 uppercase font-bold">Inativo</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="py-8 text-center font-mono text-xs text-gray-400 uppercase">Nenhum produto cadastrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

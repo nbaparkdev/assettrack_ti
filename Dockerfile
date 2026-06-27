@@ -18,5 +18,9 @@ COPY ./static /code/static
 COPY ./create_admin.py /code/create_admin.py
 COPY ./create_technician.py /code/create_technician.py
 COPY ./activate_user_admin.py /code/activate_user_admin.py
+COPY ./init_app.py /code/init_app.py
+
+# Garantir existência da pasta de uploads (PDFs de contratos - módulo Compras)
+RUN mkdir -p /code/static/uploads
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

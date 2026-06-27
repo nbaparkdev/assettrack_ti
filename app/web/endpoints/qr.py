@@ -154,7 +154,7 @@ async def login_qr_submit(
     )
     
     response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    response.set_cookie(key="access_token", value=f"Bearer {access_token}", httponly=True)
+    response.set_cookie(key="access_token", value=f"Bearer {access_token}", httponly=True, max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
     return response
 
 # ===== Perfil Público via QR (Admin/Gerente) =====

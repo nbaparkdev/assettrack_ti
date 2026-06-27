@@ -75,7 +75,52 @@ async def dashboard(
     }
 
     # Admin and Manager specific data (Users & Recent Deliveries)
-    if user_role in ["admin", "gerente_ti", "gerente_infra"]:
+    if user_role in ["admin", "gerente_ti", "gerente_infra", "comprador"]:
+        # Expiring contracts alert
+        purchases_enabled = getattr(request.app.state, "purchases_enabled", True)
+        expiring_contracts_data = []
+        if purchases_enabled and user_role in ["admin", "gerente_ti", "comprador"]:
+            from app.models.procurement import PurchaseContract
+            from datetime import datetime, timedelta
+            limit_date = datetime.now() + timedelta(days=90)
+            res = await db.execute(
+                select(PurchaseContract)
+                .options(selectinload(PurchaseContract.fornecedor))
+                .filter(PurchaseContract.data_fim <= limit_date)
+                .order_by(PurchaseContract.data_fim)
+            )
+            expiring_contracts = res.scalars().all()
+            for c in expiring_contracts:
+                dias = (c.data_fim - datetime.now()).days
+                tag_color = "bg-gray-100 text-gray-800 border-gray-300"
+                tag_text = f"{dias} dias"
+                if dias < 0:
+                    tag_color = "bg-red-200 text-red-900 border-red-500 font-extrabold"
+                    tag_text = "Expirado"
+                elif dias <= 7:
+                    tag_color = "bg-red-100 text-red-800 border-red-400 font-bold"
+                    tag_text = "Crítico (7 dias)"
+                elif dias <= 15:
+                    tag_color = "bg-orange-100 text-orange-800 border-orange-400 font-bold"
+                    tag_text = "Alerta (15 dias)"
+                elif dias <= 30:
+                    tag_color = "bg-amber-100 text-amber-800 border-amber-400"
+                    tag_text = "Atenção (30 dias)"
+                elif dias <= 60:
+                    tag_color = "bg-blue-100 text-blue-800 border-blue-400"
+                    tag_text = "60 dias"
+                elif dias <= 90:
+                    tag_color = "bg-green-100 text-green-800 border-green-400"
+                    tag_text = "90 dias"
+                    
+                expiring_contracts_data.append({
+                    "contract": c,
+                    "dias": dias,
+                    "tag_color": tag_color,
+                    "tag_text": tag_text
+                })
+        context["expiring_contracts"] = expiring_contracts_data
+
         # Pending Users to Approve
         pending_users_result = await db.execute(select(User).filter(User.is_active == False))
         context["pending_users_list"] = pending_users_result.scalars().all()

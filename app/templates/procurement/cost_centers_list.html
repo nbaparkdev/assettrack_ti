@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Centros de Custo</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Controle Financeiro e Regras de Limites de Compra</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="/compras" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                &larr; Painel Compras
+            </a>
+            <a href="/compras/centro-custos/new" class="font-mono text-xs font-bold bg-black text-white px-4 py-2 hover:bg-white hover:text-black hover:border-black transition border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]">
+                + Novo Centro de Custo
+            </a>
+        </div>
+    </div>
+
+    <!-- Grid de Centros de Custo -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for cc in cost_centers %}
+        {% set pct_mensal = (cc.orcamento_mensal_usado / cc.orcamento_mensal * 100) if cc.orcamento_mensal > 0 else 0 %}
+        <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between space-y-4">
+            <div class="space-y-2">
+                <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+                    <span class="font-mono text-xs font-bold text-gray-400 uppercase">{{ cc.codigo }}</span>
+                    <div class="flex gap-1.5">
+                        {% if cc.bloquear_limite %}
+                        <span class="font-mono text-[9px] px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-300 uppercase font-bold" title="Bloqueia compras acima do limite">Bloqueante</span>
+                        {% elif cc.alerta_limite %}
+                        <span class="font-mono text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 uppercase font-bold" title="Alerta ao estourar orçamento">Alerta</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <h3 class="font-bold text-lg text-black uppercase tracking-tight">{{ cc.nome }}</h3>
+                <p class="font-mono text-[10px] text-gray-500 uppercase">
+                    Depto: {{ cc.departamento.nome if cc.departamento else 'N/A' }} // Responsável: {{ cc.responsavel.nome if cc.responsavel else 'N/A' }}
+                </p>
+            </div>
+
+            <div class="space-y-2 pt-2">
+                <div class="flex justify-between text-xs font-mono">
+                    <span class="text-gray-400">Mensal Usado:</span>
+                    <span class="font-bold {% if pct_mensal > 100 %}text-red-600{% elif pct_mensal > 80 %}text-amber-600{% else %}text-black{% endif %}">
+                        R$ {{ "%.2f" | format(cc.orcamento_mensal_usado) }} / R$ {{ "%.2f" | format(cc.orcamento_mensal) }}
+                    </span>
+                </div>
+                
+                <!-- Barra de progresso industrial -->
+                <div class="w-full bg-gray-100 border border-black h-4 rounded-none overflow-hidden relative">
+                    <div class="h-full {% if pct_mensal > 100 %}bg-red-500{% elif pct_mensal > 80 %}bg-amber-400{% else %}bg-green-400{% endif %}" style="width: {{ [pct_mensal, 100]|min }}%"></div>
+                    <span class="absolute inset-0 flex items-center justify-center font-mono text-[9px] font-bold text-black uppercase">
+                        {{ "%.1f" | format(pct_mensal) }}% usado
+                    </span>
+                </div>
+
+                <div class="flex justify-between text-[10px] font-mono text-gray-500 pt-1">
+                    <span>Anual Usado:</span>
+                    <span>R$ {{ "%.2f" | format(cc.orcamento_anual_usado) }} de R$ {{ "%.2f" | format(cc.orcamento_anual) }}</span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-span-full bg-white border-2 border-black p-8 text-center font-mono text-xs text-gray-400 uppercase">
+            Nenhum centro de custo cadastrado.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

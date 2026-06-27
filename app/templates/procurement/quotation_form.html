@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="border-b-2 border-black pb-4">
+        <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Novas Cotações de Preços</h1>
+        <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Lançamento de Preços de Fornecedores // Solicitação Origem: {{ solicitacao.numero }}</p>
+    </div>
+
+    <form action="/compras/cotacoes/new" method="POST" class="space-y-6">
+        <input type="hidden" name="request_id" value="{{ solicitacao.id }}">
+
+        <!-- Seleção de Fornecedores Participantes -->
+        <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+            <div class="border-b border-black pb-2 mb-4">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider">Fornecedores Participantes</h3>
+            </div>
+            
+            <div id="suppliers-container" class="space-y-6">
+                <!-- Fornecedor Row Template -->
+                <div class="border-2 border-black p-4 bg-gray-50 supplier-block space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Fornecedor</label>
+                            <select name="fornecedor_ids" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" onchange="updateInputsIndex(this)">
+                                <option value="">Selecione...</option>
+                                {% for sup in suppliers %}
+                                <option value="{{ sup.id }}">{{ sup.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Valor do Frete (R$)</label>
+                            <input type="number" step="0.01" name="fretes" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" value="0.00">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Prazo de Entrega (Dias)</label>
+                            <input type="number" name="prazos" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" value="5">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Forma de Pagamento</label>
+                            <input type="text" name="formas_pagamento" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" value="Faturado 30 dias">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Garantia (Meses)</label>
+                            <input type="number" name="garantias" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" value="12">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Observações do Fornecedor</label>
+                            <input type="text" name="observacoes" class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" value="-">
+                        </div>
+                    </div>
+
+                    <!-- Grid de Preço de Itens para este Fornecedor -->
+                    <div class="border-t border-gray-300 pt-4 mt-2">
+                        <h4 class="font-bold text-[10px] uppercase text-gray-600 mb-2">Preços Unitários por Item</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 item-prices-grid">
+                            {% for item in solicitacao.itens %}
+                            <div class="flex items-center justify-between bg-white border p-2 text-xs">
+                                <span class="font-bold truncate max-w-[150px]">{{ item.product.nome }} ({{ item.quantidade }} {{ item.product.unidade }})</span>
+                                <div class="flex items-center gap-1">
+                                    <span class="text-gray-400">R$</span>
+                                    <input type="number" step="0.01" data-product-id="{{ item.product_id }}" class="w-20 border p-1 text-right focus:outline-none price-input" value="0.00" required>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" onclick="addSupplierBlock()" class="mt-4 font-mono text-xs font-bold bg-black text-white px-4 py-2 hover:bg-gray-800 transition">ADICIONAR FORNECEDOR PARTICIPANTE</button>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="flex justify-end items-center gap-4">
+            <a href="/compras/solicitacoes" class="btn-secondary">Cancelar</a>
+            <button type="submit" onclick="prepareSubmit(event)" class="btn-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">Salvar Comparativo de Cotações</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function addSupplierBlock() {
+    const container = document.getElementById('suppliers-container');
+    const firstBlock = container.querySelector('.supplier-block');
+    const newBlock = firstBlock.cloneNode(true);
+
+    // Reset values
+    newBlock.querySelector('select[name="fornecedor_ids"]').value = "";
+    newBlock.querySelector('input[name="fretes"]').value = "0.00";
+    newBlock.querySelector('input[name="prazos"]').value = "5";
+    newBlock.querySelector('input[name="formas_pagamento"]').value = "Faturado 30 dias";
+    newBlock.querySelector('input[name="garantias"]').value = "12";
+    newBlock.querySelector('input[name="observacoes"]').value = "-";
+    
+    // Clear item inputs
+    newBlock.querySelectorAll('.price-input').forEach(input => {
+        input.value = "0.00";
+        input.name = ""; // Limpa o nome temporariamente até selecionar o fornecedor
+    });
+
+    container.appendChild(newBlock);
+}
+
+function updateInputsIndex(selectEl) {
+    const block = selectEl.closest('.supplier-block');
+    const supplierId = selectEl.value;
+    if (!supplierId) return;
+
+    // Atualiza o atributo "name" dos campos de preço unitário para incluir o supplierId
+    block.querySelectorAll('.price-input').forEach(input => {
+        const prodId = input.getAttribute('data-product-id');
+        input.name = `unit_price_${supplierId}_${prodId}`;
+    });
+}
+
+function prepareSubmit(event) {
+    // Garantir que todos os blocos tenham selecionado fornecedor e atribuído nome adequado aos inputs
+    const selects = document.querySelectorAll('select[name="fornecedor_ids"]');
+    let valid = true;
+    selects.forEach(selectEl => {
+        if (!selectEl.value) {
+            alert("Selecione um fornecedor para cada bloco participante.");
+            valid = false;
+            event.preventDefault();
+        }
+        updateInputsIndex(selectEl);
+    });
+}
+</script>
+{% endblock %}

@@ -109,10 +109,35 @@ echo "🏗️ Reconstruindo aplicacao..."
 $COMPOSE_CMD up -d --build
 
 # ==========================================
-# Aguardar estabilizacao
+# Aguardar estabilização
 # ==========================================
-echo "⏳ Aguardando containers..."
-sleep 15
+echo "⏳ Aguardando container web iniciar..."
+MAX_WAIT=60
+WAITED=0
+while [ $WAITED -lt $MAX_WAIT ]; do
+    STATUS=$($COMPOSE_CMD ps --format json 2>/dev/null | python3 -c "
+import sys, json
+try:
+    content = sys.stdin.read().strip()
+    if content.startswith('['):
+        data = json.loads(content)
+    else:
+        data = [json.loads(line) for line in content.splitlines() if line.strip()]
+    for s in data:
+        if s.get('Service') == 'web' and s.get('State') == 'running':
+            if s.get('Health', '') in ('healthy', ''):
+                print('ready')
+                break
+except Exception:
+    pass
+" 2>/dev/null)
+    if [ "$STATUS" = "ready" ]; then
+        echo "✅ Container web pronto"
+        break
+    fi
+    sleep 2
+    WAITED=$((WAITED + 2))
+done
 
 # ==========================================
 # Limpeza segura

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="border-b-2 border-black pb-4">
+        <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Gerenciamento de Módulos</h1>
+        <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Ativação e Desativação de Recursos do Sistema // Acesso Restrito</p>
+    </div>
+
+    {% if success %}
+    <div class="bg-green-50 border-2 border-green-600 p-4 shadow-[4px_4px_0px_0px_rgba(22,163,74,1)] flex items-center gap-3">
+        <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="font-mono text-xs font-bold text-green-800 uppercase tracking-wider">Configurações de módulos atualizadas com sucesso!</span>
+    </div>
+    {% endif %}
+
+    <!-- Modules Form -->
+    <form action="/admin/modulos" method="POST" class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-8">
+        <div class="space-y-6">
+            <div class="border-2 border-gray-200 p-6 hover:border-black transition-colors bg-gray-50">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-lg text-black uppercase tracking-tight">Manutenção Preventiva e Corretiva</span>
+                            <span class="font-mono text-[10px] px-2 py-0.5 bg-black text-white font-bold uppercase tracking-widest">MOD_03</span>
+                        </div>
+                        <p class="text-sm text-gray-600 font-sans leading-relaxed">
+                            Módulo completo para agendamento de manutenções preventivas, ordens de serviço, controle de checklists, calendário operacional e relatórios de custos de ativos.
+                        </p>
+                        <div class="pt-2 flex items-center gap-4 text-xs font-mono text-gray-500">
+                            <span>Impacto: Rotas <code class="bg-gray-200 px-1 py-0.5 text-black">/manutencao-preventiva/*</code></span>
+                            <span>•</span>
+                            <span>Persistência: Imediata</span>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Switch Literal HTML/Tailwind -->
+                    <label class="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-1">
+                        <input type="checkbox" name="preventive_maintenance_enabled" class="sr-only peer" {% if pm_enabled %}checked{% endif %}>
+                        <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="border-2 border-gray-200 p-6 hover:border-black transition-colors bg-gray-50">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-lg text-black uppercase tracking-tight">Gestão de Compras (Procurement)</span>
+                            <span class="font-mono text-[10px] px-2 py-0.5 bg-black text-white font-bold uppercase tracking-widest">MOD_04</span>
+                        </div>
+                        <p class="text-sm text-gray-600 font-sans leading-relaxed">
+                            Módulo de compras integrado: Solicitações, cotações com comparativos automáticos, pedidos de compra, recebimentos parciais/totais com estoque simples e gestão de contratos.
+                        </p>
+                        <div class="pt-2 flex items-center gap-4 text-xs font-mono text-gray-500">
+                             <span>Impacto: Rotas <code class="bg-gray-200 px-1 py-0.5 text-black">/compras/*</code></span>
+                             <span>•</span>
+                             <span>Persistência: Imediata</span>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Switch Literal HTML/Tailwind -->
+                    <label class="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-1">
+                        <input type="checkbox" name="purchases_enabled" class="sr-only peer" {% if purchases_enabled %}checked{% endif %}>
+                        <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
+                    </label>
+                </div>
+            </div>
+
+            
+            <!-- Outros módulos futuros podem ser listados aqui -->
+            <div class="border-2 border-gray-200 p-6 bg-gray-100 opacity-60">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-lg text-gray-700 uppercase tracking-tight">Módulo de Ativos & Patrimônio</span>
+                            <span class="font-mono text-[10px] px-2 py-0.5 bg-gray-600 text-white font-bold uppercase tracking-widest">CORE_02</span>
+                        </div>
+                        <p class="text-sm text-gray-500 font-sans leading-relaxed">
+                            Módulo central de gestão de ativos, movimentações, fornecedores e histórico. (Módulo Core - Não pode ser desativado).
+                        </p>
+                    </div>
+                    <span class="font-mono text-xs font-bold text-gray-500 uppercase tracking-widest px-3 py-1 border border-gray-300 bg-gray-200 cursor-not-allowed">Sempre Ativo</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-4 border-t-2 border-black flex items-center justify-end gap-4">
+            <a href="/" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                Salvar Configurações
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

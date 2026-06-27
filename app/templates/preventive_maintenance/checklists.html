@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">CHECKLISTS</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Gerenciamento de checklists de manutenção // V1.0</p>
+        </div>
+    </div>
+
+    <!-- Checklists Placeholder -->
+    <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center">
+        <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+        </svg>
+        <p class="font-mono text-gray-500 mb-2">CHECKLISTS_EM_DESENVOLVIMENTO</p>
+        <p class="text-sm text-gray-400">Esta funcionalidade estará disponível em breve</p>
+    </div>
+</div>
+{% endblock %}

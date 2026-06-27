@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="font-mono text-xs font-bold bg-black text-white px-2 py-0.5">{{ plan.codigo }}</span>
+            </div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Editar Plano de Manutenção</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Atualize as configurações e periodicidade do plano</p>
+        </div>
+        <div>
+            <a href="/manutencao-preventiva/planos/{{ plan.id }}" class="text-xs font-bold uppercase hover:underline">← Voltar aos Detalhes</a>
+        </div>
+    </div>
+
+    <!-- Error message if present -->
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-500 text-red-700 p-4 text-sm font-bold uppercase tracking-wider">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form action="/manutencao-preventiva/planos/{{ plan.id }}/editar" method="POST" class="space-y-6">
+        <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Nome do Plano</label>
+                    <input type="text" name="nome" required value="{{ plan.nome }}"
+                        placeholder="Ex: Manutenção Preventiva de Servidores"
+                        class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-black font-mono text-sm">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Tipo de Manutenção</label>
+                    <select name="tipo" required
+                        class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-black font-mono text-sm uppercase">
+                        {% for mt in maintenance_types %}
+                        <option value="{{ mt }}" {{ 'selected' if plan.tipo.value == mt else '' }}>{{ mt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Periodicidade</label>
+                    <select name="periodicidade" required id="select-periodicidade"
+                        class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-black font-mono text-sm uppercase">
+                        {% for per in periodicities %}
+                        <option value="{{ per }}" {{ 'selected' if plan.periodicidade.value == per else '' }}>{{ per }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Criticidade</label>
+                    <select name="criticidade" required
+                        class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-black font-mono text-sm uppercase">
+                        {% for mc in maintenance_criticalities %}
+                        <option value="{{ mc }}" {{ 'selected' if plan.criticidade.value == mc else '' }}>{{ mc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2" id="div-dias-personalizado">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Dias Personalizados</label>
+                    <input type="number" name="dias_personalizado" value="{{ plan.dias_personalizado or '' }}"
+                        placeholder="Ex: 45"
+                        class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-black font-mono text-sm">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Status do Plano</label>
+                    <div class="flex items-center gap-4 py-3">
+                        <label class="flex items-center gap-2 font-mono text-sm cursor-pointer">
+                            <input type="radio" name="ativo" value="true" {{ 'checked' if plan.ativo else '' }} class="w-4 h-4 border-2 border-black accent-black">
+                            Ativo
+                        </label>
+                        <label class="flex items-center gap-2 font-mono text-sm cursor-pointer">
+                            <input type="radio" name="ativo" value="false" {{ 'checked' if not plan.ativo else '' }} class="w-4 h-4 border-2 border-black accent-black">
+                            Inativo
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-xs font-bold uppercase tracking-widest text-black">Descrição</label>
+                <textarea name="descricao" rows="6" required
+                    placeholder="Descreva detalhes do plano..."
+                    class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-black font-mono text-sm">{{ plan.descricao }}</textarea>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-between">
+            <div>
+                {% if user.role.value in ['admin', 'gerente_ti', 'gerente_infra'] %}
+                <button type="button" onclick="document.getElementById('modal-deletar').classList.remove('hidden')"
+                    class="bg-red-600 text-white px-6 py-3 text-xs font-bold uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-red-700 transition">
+                    Excluir Plano
+                </button>
+                {% endif %}
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="/manutencao-preventiva/planos/{{ plan.id }}" class="font-bold text-xs uppercase tracking-widest text-gray-500 hover:text-black transition">
+                    Cancelar
+                </a>
+                <button type="submit"
+                    class="bg-black text-white px-10 py-4 rounded-none text-sm font-bold uppercase tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                    Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Modal: Deletar Plano -->
+<div id="modal-deletar" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 max-w-md w-full">
+        <h3 class="font-bold text-lg uppercase mb-4 text-red-600">Excluir Plano</h3>
+        <p class="text-sm text-gray-700 mb-6 leading-relaxed">
+            Tem certeza de que deseja excluir o plano de manutenção <strong>{{ plan.nome }}</strong>? Esta ação excluirá todos os checklists e vínculos de ativos associados.
+            <br><br>
+            <span class="text-red-500 font-bold">Aviso:</span> Se este plano possuir ordens de serviço já iniciadas ou concluídas, a exclusão física será impedida para proteger o histórico operacional do sistema. Nesses casos, recomendamos desativar o plano (marcar como Inativo).
+        </p>
+        <form action="/manutencao-preventiva/planos/{{ plan.id }}/delete" method="POST" class="flex gap-3">
+            <button type="submit" class="flex-1 bg-red-600 text-white py-3 text-xs font-bold uppercase hover:bg-red-700 transition">Sim, Excluir</button>
+            <button type="button" onclick="document.getElementById('modal-deletar').classList.add('hidden')" class="flex-1 bg-gray-100 border-2 border-black py-3 text-xs font-bold uppercase hover:bg-gray-200 transition">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectPer = document.getElementById('select-periodicidade');
+        const divDias = document.getElementById('div-dias-personalizado');
+        
+        function toggleDias() {
+            if (selectPer.value === 'Personalizada') {
+                divDias.style.display = 'block';
+            } else {
+                divDias.style.display = 'none';
+            }
+        }
+        
+        selectPer.addEventListener('change', toggleDias);
+        toggleDias(); // Executar no load
+    });
+</script>
+{% endblock %}

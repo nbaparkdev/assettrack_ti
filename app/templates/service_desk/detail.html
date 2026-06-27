@@ -178,6 +178,18 @@
                 </form>
             </div>
             {% endif %}
+
+            <!-- Compras Relacionadas (Chamados) -->
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+                <h3 class="font-mono text-xs text-gray-500 uppercase tracking-widest border-b pb-2">Suprimentos / Compras</h3>
+                <p class="text-xs text-gray-600">Se a resolução deste chamado depender da aquisição de hardware, licença de software ou peças adicionais, crie uma solicitação de compra vinculada.</p>
+                <a href="/compras/solicitacoes/new?origem_tipo=chamado&origem_id={{ ticket.id }}&descricao=Aquisicao+de+itens+para+Chamado+%23{{ ticket.codigo }}+-+{{ ticket.titulo }}" 
+                   class="w-full text-center inline-block bg-black text-white text-xs font-bold py-2 border-2 border-black hover:bg-white hover:text-black transition-all uppercase">
+                    &rarr; Solicitar Compra
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

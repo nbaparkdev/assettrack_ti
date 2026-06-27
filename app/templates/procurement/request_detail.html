@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Solicitação {{ solicitacao.numero }}</h1>
+                <span class="font-mono text-xs px-2 py-0.5 bg-black text-white uppercase font-bold">{{ solicitacao.status.value }}</span>
+            </div>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Solicitante: {{ solicitacao.solicitante.nome }} // Centro de Custo: {{ solicitacao.centro_custo.nome }}</p>
+        </div>
+        <a href="/compras/solicitacoes" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            &larr; Voltar para Lista
+        </a>
+    </div>
+
+    {% if solicitacao.status.value == "Aguardando Liberação de Orçamento" %}
+    <div class="bg-red-50 border-[3px] border-red-600 p-6 shadow-[8px_8px_0px_0px_rgba(220,38,38,1)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="space-y-1">
+            <h3 class="font-bold text-lg uppercase text-red-600 tracking-tight flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                Limite Orçamentário Excedido!
+            </h3>
+            <p class="text-sm font-sans text-red-700">Esta solicitação ultrapassa o orçamento definido para o centro de custo e está aguardando liberação manual por um administrador ou gerente de TI.</p>
+        </div>
+        {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+        <form action="/compras/solicitacoes/{{ solicitacao.id }}/liberar-orcamento" method="POST">
+            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-mono text-xs font-bold py-3 px-6 uppercase tracking-wider transition border-2 border-red-600 hover:border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]">
+                Liberar Orçamento
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Detalhes da Solicitação -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider border-b-2 border-black pb-2">Informações Gerais</h3>
+                <div class="grid grid-cols-2 gap-4 text-sm font-mono">
+                    <div>
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">Urgência</span>
+                        <span class="text-black font-bold uppercase">{{ solicitacao.urgencia }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">Data Necessária</span>
+                        <span class="text-black font-bold">{{ solicitacao.data_necessaria.strftime('%d/%m/%Y') if solicitacao.data_necessaria else 'N/A' }}</span>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-gray-400 block text-[10px] font-mono uppercase font-bold mb-1">Justificativa</span>
+                    <p class="text-sm bg-gray-50 border border-gray-300 p-3 font-sans text-gray-800">{{ solicitacao.justificativa }}</p>
+                </div>
+            </div>
+
+            <!-- Itens -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider border-b-2 border-black pb-2 mb-4">Itens Solicitados</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b-2 border-black font-mono text-[10px] text-gray-500 uppercase">
+                                <th class="pb-2">Produto</th>
+                                <th class="pb-2">Qtd</th>
+                                <th class="pb-2 text-right">Valor Est. Unit.</th>
+                                <th class="pb-2 text-right">Total Est.</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 text-sm">
+                            {% for item in solicitacao.itens %}
+                            <tr class="py-2">
+                                <td class="py-3 font-bold">{{ item.product.nome }} <span class="font-mono text-[10px] font-normal text-gray-400">({{ item.product.unidade }})</span></td>
+                                <td class="py-3 font-mono">{{ item.quantidade }}</td>
+                                <td class="py-3 text-right font-mono">R$ {{ "%.2f" | format(item.valor_estimado) }}</td>
+                                <td class="py-3 text-right font-mono">R$ {{ "%.2f" | format(item.quantidade * item.valor_estimado) }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="font-bold text-base border-t-2 border-black">
+                                <td colspan="3" class="pt-3 uppercase">Total Estimado</td>
+                                <td class="pt-3 text-right font-mono">R$ {{ "%.2f" | format(total_estimado) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Painel de Aprovação / Histórico -->
+        <div class="space-y-6">
+            {% if can_approve %}
+            <div class="bg-amber-50 border-2 border-amber-600 p-6 shadow-[8px_8px_0px_0px_rgba(217,119,6,1)] space-y-4">
+                <h3 class="font-bold text-xs uppercase text-amber-800 tracking-wider">Aprovação Necessária: {{ pending_level }}</h3>
+                <form action="/compras/solicitacoes/{{ solicitacao.id }}/decidir" method="POST" class="space-y-4">
+                    <input type="hidden" name="nivel" value="{{ pending_level }}">
+                    
+                    <div>
+                        <label for="decisao" class="block text-[10px] font-bold uppercase text-amber-800 mb-1">Decisão</label>
+                        <select name="decisao" id="decisao" required class="w-full bg-white border border-amber-600 p-2 text-xs font-bold focus:outline-none">
+                            <option value="Aprovado">Aprovar Solicitação</option>
+                            <option value="Reprovado">Reprovar / Rejeitar</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="observacao" class="block text-[10px] font-bold uppercase text-amber-800 mb-1">Observações / Parecer</label>
+                        <textarea name="observacao" id="observacao" rows="2" class="w-full bg-white border border-amber-600 p-2 text-xs focus:outline-none" placeholder="Opcional..."></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-black text-white font-mono text-xs font-bold py-3 uppercase tracking-wider hover:bg-gray-800 transition">ENVIAR DECISÃO</button>
+                </form>
+            </div>
+            {% endif %}
+
+            <!-- Histórico de Decisões -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider border-b-2 border-black pb-2">Histórico do Workflow</h3>
+                <div class="space-y-4 font-mono text-xs">
+                    <!-- Níveis Definidos -->
+                    {% set levels = ["Gestor", "Gerente", "Financeiro", "Diretoria", "Compras"] %}
+                    {% for lvl in levels %}
+                        {% set ns = namespace(found=false, app_obj=none) %}
+                        {% for app in solicitacao.approvals %}
+                            {% if app.nivel == lvl %}
+                                {% set ns.found = true %}
+                                {% set ns.app_obj = app %}
+                            {% endif %}
+                        {% endfor %}
+                        
+                        <div class="flex items-start gap-2 border-l-2 {% if ns.found %}{% if ns.app_obj.status == 'Aprovado' %}border-green-500{% else %}border-red-500{% endif %}{% else %}border-gray-300{% endif %} pl-3 py-1">
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-black uppercase">{{ lvl }}</span>
+                                    {% if ns.found %}
+                                        {% if ns.app_obj.status == 'Aprovado' %}
+                                        <span class="text-green-600 font-bold uppercase">APROVOU</span>
+                                        {% else %}
+                                        <span class="text-red-600 font-bold uppercase">REPROVOU</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-gray-400 uppercase">AGUARDANDO</span>
+                                    {% endif %}
+                                </div>
+                                {% if ns.found %}
+                                <p class="text-[10px] text-gray-500 mt-0.5">Por: {{ ns.app_obj.aprovador.nome }} em {{ ns.app_obj.data_decisao.strftime('%d/%m/%Y %H:%M') }}</p>
+                                {% if ns.app_obj.observacao %}
+                                <p class="text-[10px] italic bg-gray-50 border p-1 mt-1 text-gray-600">{{ ns.app_obj.observacao }}</p>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

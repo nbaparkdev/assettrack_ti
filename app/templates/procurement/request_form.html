@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="border-b-2 border-black pb-4">
+        <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Nova Solicitação de Compra</h1>
+        <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Preenchimento de Requisição // Compras</p>
+    </div>
+
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-600 p-4 shadow-[4px_4px_0px_0px_rgba(220,38,38,1)] flex items-center gap-3">
+        <span class="font-mono text-xs font-bold text-red-800 uppercase tracking-wider">{{ error }}</span>
+    </div>
+    {% endif %}
+
+    {% if origem_tipo %}
+    <div class="bg-amber-50 border-2 border-amber-500 p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-3">
+        <span class="text-amber-600 text-xl">&#8594;</span>
+        <span class="font-mono text-xs font-bold text-amber-800 uppercase tracking-wider">
+            Solicitação originada de:
+            {% if origem_tipo == 'os' %}OS de Manutenção Preventiva #{{ origem_id }}
+            {% elif origem_tipo == 'manutencao' %}Solicitação de Manutenção #{{ origem_id }}
+            {% elif origem_tipo == 'chamado' %}Chamado Service Desk #{{ origem_id }}
+            {% else %}{{ origem_tipo }} #{{ origem_id }}
+            {% endif %}
+            — Justificativa pré-preenchida
+        </span>
+    </div>
+    {% endif %}
+
+    <!-- Form -->
+    <form action="/compras/solicitacoes/new" method="POST" class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Centro de Custo -->
+            <div>
+                <label for="centro_custo_id" class="block text-xs font-bold uppercase text-gray-900 mb-2">Centro de Custo *</label>
+                <select name="centro_custo_id" id="centro_custo_id" required class="w-full bg-white border-2 border-black p-3 font-sans text-sm focus:outline-none focus:bg-gray-50">
+                    <option value="">Selecione...</option>
+                    {% for cc in cost_centers %}
+                    <option value="{{ cc.id }}">{{ cc.nome }} [Disponível: R$ {{ "%.2f" | format(cc.orcamento_mensal - cc.orcamento_mensal_usado) }}]</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Urgência -->
+            <div>
+                <label for="urgencia" class="block text-xs font-bold uppercase text-gray-900 mb-2">Urgência *</label>
+                <select name="urgencia" id="urgencia" required class="w-full bg-white border-2 border-black p-3 font-sans text-sm focus:outline-none focus:bg-gray-50">
+                    <option value="Baixa">Baixa</option>
+                    <option value="Média" selected>Média</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Urgente">Urgente</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Justificativa -->
+        <div>
+            <label for="justificativa" class="block text-xs font-bold uppercase text-gray-900 mb-2">Justificativa da Aquisição *</label>
+            <textarea name="justificativa" id="justificativa" rows="3" required class="w-full bg-white border-2 border-black p-3 font-sans text-sm focus:outline-none focus:bg-gray-50" placeholder="Descreva detalhadamente a necessidade da compra...">{{ justificativa_prefill or '' }}</textarea>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Data Necessária -->
+            <div>
+                <label for="data_necessaria" class="block text-xs font-bold uppercase text-gray-900 mb-2">Data Necessária</label>
+                <input type="date" name="data_necessaria" id="data_necessaria" class="w-full bg-white border-2 border-black p-3 font-sans text-sm focus:outline-none focus:bg-gray-50">
+            </div>
+        </div>
+
+        <!-- Itens Solicitados -->
+        <div class="border-2 border-black p-6 bg-gray-50 space-y-4">
+            <div class="border-b-2 border-black pb-2 flex items-center justify-between">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider">Itens da Solicitação</h3>
+                <button type="button" onclick="addItemRow()" class="font-mono text-xs font-bold bg-black text-white px-3 py-1 hover:bg-gray-800 transition">ADICIONAR ITEM</button>
+            </div>
+            
+            <div id="items-container" class="space-y-4">
+                <!-- Template Item Row -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end border-b border-gray-300 pb-4 item-row">
+                    <div class="md:col-span-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Produto / Serviço</label>
+                        <select name="products_ids" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none">
+                            <option value="">Selecione...</option>
+                            {% for prod in products %}
+                            <option value="{{ prod.id }}">{{ prod.nome }} ({{ prod.unidade }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Quantidade</label>
+                        <input type="number" step="0.01" name="quantities" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" value="1.00">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Valor Unitário Est. (R$)</label>
+                        <input type="number" step="0.01" name="estimated_prices" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" value="0.00">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Fornecedor Sugerido</label>
+                            <select name="fornecedores_sugeridos" class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none">
+                                <option value="">Sem sugestão</option>
+                                {% for sup in suppliers %}
+                                <option value="{{ sup.id }}">{{ sup.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="button" onclick="removeItemRow(this)" class="bg-red-600 text-white p-2 border-2 border-black hover:bg-red-700 transition self-end">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="pt-6 border-t-2 border-black flex justify-end items-center gap-4">
+            <a href="/compras/solicitacoes" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">Salvar Solicitação</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function addItemRow() {
+    const container = document.getElementById('items-container');
+    const firstRow = container.querySelector('.item-row');
+    const newRow = firstRow.cloneNode(true);
+    
+    // Clear selections & inputs
+    newRow.querySelector('select[name="products_ids"]').value = "";
+    newRow.querySelector('input[name="quantities"]').value = "1.00";
+    newRow.querySelector('input[name="estimated_prices"]').value = "0.00";
+    newRow.querySelector('select[name="fornecedores_sugeridos"]').value = "";
+    
+    container.appendChild(newRow);
+}
+
+function removeItemRow(btn) {
+    const container = document.getElementById('items-container');
+    if (container.querySelectorAll('.item-row').length > 1) {
+        btn.closest('.item-row').remove();
+    } else {
+        alert("A solicitação de compra precisa conter pelo menos um item!");
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Pedido {{ pedido.numero }}</h1>
+                <span class="font-mono text-xs px-2 py-0.5 bg-black text-white uppercase font-bold">{{ pedido.status.value }}</span>
+            </div>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Fornecedor: {{ pedido.fornecedor.nome }} // Emissão: {{ pedido.data_emissao.strftime('%d/%m/%Y %H:%M') }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="/compras/pedidos" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                &larr; Voltar
+            </a>
+            {% if pedido.status.value == "Aberto" or pedido.status.value == "Recebido Parcial" %}
+            <a href="/compras/pedidos/{{ pedido.id }}/receber" class="font-mono text-xs font-bold bg-black text-white px-5 py-2.5 hover:bg-gray-800 transition">
+                Receber Mercadorias
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Details -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-2 space-y-6">
+            <!-- Itens do Pedido -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider border-b-2 border-black pb-2 mb-4">Itens Contratados</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b-2 border-black font-mono text-[10px] text-gray-500 uppercase">
+                                <th class="pb-2">Produto</th>
+                                <th class="pb-2">Quantidade</th>
+                                <th class="pb-2 text-right">Valor Unitário</th>
+                                <th class="pb-2 text-right">Valor Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 text-sm">
+                            {% for item in pedido.itens %}
+                            <tr>
+                                <td class="py-3 font-bold">
+                                    {{ item.product.nome }}
+                                    <span class="block text-[10px] font-normal font-mono text-gray-400">TIPO: {{ item.product.tipo.value }} // CÓD: {{ item.product.codigo }}</span>
+                                </td>
+                                <td class="py-3 font-mono">{{ item.quantidade }} {{ item.product.unidade }}</td>
+                                <td class="py-3 text-right font-mono">R$ {{ "%.2f" | format(item.valor_unitario) }}</td>
+                                <td class="py-3 text-right font-mono">R$ {{ "%.2f" | format(item.total_item) }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="font-bold border-t-2 border-black">
+                                <td colspan="3" class="pt-3 uppercase text-sm">Valor Bruto Itens</td>
+                                <td class="pt-3 text-right font-mono text-sm">R$ {{ "%.2f" | format(pedido.valor_total - pedido.frete) }}</td>
+                            </tr>
+                            <tr class="font-mono text-xs text-amber-700">
+                                <td colspan="3" class="py-1 uppercase">Frete Contratado</td>
+                                <td class="py-1 text-right">R$ {{ "%.2f" | format(pedido.frete) }}</td>
+                            </tr>
+                            <tr class="font-bold text-base border-t border-black bg-gray-50 p-2">
+                                <td colspan="3" class="p-2 uppercase">Valor Total do Pedido</td>
+                                <td class="p-2 text-right font-mono">R$ {{ "%.2f" | format(pedido.valor_total) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <!-- Finance & CC Info -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4 font-mono text-xs">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider border-b-2 border-black pb-2">Informações de Custeio</h3>
+                <div>
+                    <span class="text-gray-400 block text-[10px] uppercase font-bold">Centro de Custo</span>
+                    <span class="text-black font-bold">{{ pedido.centro_custo.nome if pedido.centro_custo else 'Default' }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-400 block text-[10px] uppercase font-bold">Solicitação de Compra</span>
+                    <a href="/compras/solicitacoes/{{ pedido.request_id }}" class="text-black font-bold underline">{{ pedido.request.numero if pedido.request else 'N/A' }}</a>
+                </div>
+                <div>
+                    <span class="text-gray-400 block text-[10px] uppercase font-bold">Cotação de Preços</span>
+                    <a href="/compras/cotacoes/{{ pedido.quotation_id }}" class="text-black font-bold underline">{{ pedido.quotation.numero if pedido.quotation else 'N/A' }}</a>
+                </div>
+            </div>
+
+            <!-- Recebimentos Efetuados -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider border-b-2 border-black pb-2">Recebimentos Físicos</h3>
+                <div class="space-y-3 font-mono text-xs">
+                    {% for rec in pedido.receivings %}
+                    <div class="border-b pb-2">
+                        <div class="flex justify-between items-center font-bold">
+                            <span>Recebimento #{{ rec.id }}</span>
+                            <span class="text-green-600">PROCESSADO</span>
+                        </div>
+                        <p class="text-[10px] text-gray-500 mt-1">Por: {{ rec.responsavel.nome }} em {{ rec.data_recebimento.strftime('%d/%m/%Y') }}</p>
+                        {% if rec.nota_fiscal %}
+                        <p class="text-[10px] text-blue-600 mt-0.5">NF: {{ rec.nota_fiscal.numero_nota }}</p>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <p class="text-gray-400 italic">Nenhuma entrega recebida para este pedido ainda.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -13,3 +13,15 @@ from app.schemas.transaction import (
 )
 from app.schemas.supplier import FornecedorCreate, FornecedorUpdate, FornecedorResponse
 from app.schemas.invoice import NotaFiscalCreate, NotaFiscalUpdate, NotaFiscalResponse
+from app.schemas.procurement import (
+    PurchaseCategoryCreate, PurchaseCategoryUpdate, PurchaseCategoryResponse,
+    PurchaseProductCreate, PurchaseProductUpdate, PurchaseProductResponse,
+    CostCenterCreate, CostCenterUpdate, CostCenterResponse,
+    PurchaseRequestCreate, PurchaseRequestUpdate, PurchaseRequestResponse,
+    PurchaseApprovalCreate, PurchaseApprovalResponse,
+    PurchaseQuotationCreate, PurchaseQuotationResponse,
+    PurchaseOrderCreate, PurchaseOrderResponse,
+    PurchaseReceivingCreate, PurchaseReceivingResponse,
+    PurchaseContractCreate, PurchaseContractResponse
+)
+

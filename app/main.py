@@ -1,14 +1,15 @@
 # app/main.py
 import os
 import uvicorn
-from fastapi import FastAPI, Request
+import logging
+from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.config import settings
 from app.api.v1 import api_router
-from app.database import engine, Base
+from app.database import engine, Base, get_db
 from app.web import web_router
 from app.web.endpoints import admin 
 from app.core.rate_limit import limiter
@@ -60,8 +61,40 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
+    # Iniciar agendador de manutenção preventiva em background
+    import asyncio
+    from app.services.maintenance_scheduler import start_maintenance_scheduler_loop
+    
+    # Executa a verificação imediatamente no startup e depois a cada 1 hora (3600s)
+    scheduler_task = asyncio.create_task(start_maintenance_scheduler_loop(interval_seconds=3600))
+    app.state.maintenance_scheduler_task = scheduler_task
+
+    # Carregar configuração de system_settings
+    from app.crud.system_settings import system_settings
+    from app.database import SessionLocal
+    async with SessionLocal() as session:
+        try:
+            val = await system_settings.get_setting(session, "preventive_maintenance_enabled", default_value="true")
+            app.state.pm_enabled = (val.lower() == "true")
+        except Exception:
+            app.state.pm_enabled = True
+
+        try:
+            val_pur = await system_settings.get_setting(session, "purchases_enabled", default_value="true")
+            app.state.purchases_enabled = (val_pur.lower() == "true")
+        except Exception:
+            app.state.purchases_enabled = True
+
     yield
     # Shutdown
+    logger = logging.getLogger("app.main")
+    logger.info("Cancelando agendador de manutenção preventiva...")
+    scheduler_task.cancel()
+    try:
+        await scheduler_task
+    except asyncio.CancelledError:
+        pass
+    
     await engine.dispose()
 
 app = FastAPI(
@@ -69,6 +102,13 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan
 )
+
+@app.middleware("http")
+async def add_module_state(request: Request, call_next):
+    request.state.pm_enabled = getattr(request.app.state, "pm_enabled", True)
+    request.state.purchases_enabled = getattr(request.app.state, "purchases_enabled", True)
+    return await call_next(request)
+
 
 # Templates instantiation
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
@@ -106,6 +146,14 @@ async def custom_500_handler(request: Request, exc):
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(web_router)
+
+@app.get("/debug-db")
+async def debug_db(db = Depends(get_db)):
+    from sqlalchemy import select
+    from app.models.system_settings import SystemSettings
+    result = await db.execute(select(SystemSettings))
+    settings_list = result.scalars().all()
+    return [{"id": s.id, "setting_key": s.setting_key, "setting_value": s.setting_value, "descricao": s.descricao} for s in settings_list]
 
 @app.get("/health")
 def health_check():

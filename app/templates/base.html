@@ -133,9 +133,33 @@
                             </div>
                         </div>
 
-                        <!-- MOD 03: SUPPORT -->
+                        <!-- MOD 03: PREVENTIVE MAINTENANCE -->
+                        {% if request.state.pm_enabled %}
                         <div class="flex flex-col gap-1 px-6 border-l-2 border-gray-100 relative group/dropdown">
-                            <span class="font-mono text-[9px] text-gray-400 uppercase tracking-widest">03_SUPPORT</span>
+                            <span class="font-mono text-[9px] text-gray-400 uppercase tracking-widest">03_PM</span>
+                            <button class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black flex items-center gap-1.5 transition-all">
+                                Manutenção
+                                <svg class="w-3 h-3 transition-transform group-hover/dropdown:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div class="absolute left-6 top-full mt-0 w-64 border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50" style="background-color:#ffffff;">
+                                <div class="bg-brand-600 text-white px-4 py-1 text-[10px] font-mono uppercase tracking-widest">Preventive_Maintenance</div>
+                                <div class="p-1">
+                                    <a href="/manutencao-preventiva" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Dashboard</a>
+                                    <a href="/manutencao-preventiva/planos" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Planos de Manutenção</a>
+                                    <a href="/manutencao-preventiva/ordens" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Ordens de Serviço</a>
+                                    <a href="/manutencao-preventiva/calendario" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Calendário</a>
+                                    <a href="/manutencao-preventiva/checklists" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Checklists</a>
+                                    <a href="/manutencao-preventiva/relatorios" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Relatórios</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- MOD 04: SUPPORT -->
+                        <div class="flex flex-col gap-1 px-6 border-l-2 border-gray-100 relative group/dropdown">
+                            <span class="font-mono text-[9px] text-gray-400 uppercase tracking-widest">04_SUPPORT</span>
                             <button class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black flex items-center gap-1.5 transition-all">
                                 Tickets
                                 <svg class="w-3 h-3 transition-transform group-hover/dropdown:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,8 +167,8 @@
                                 </svg>
                             </button>
                             <!-- Dropdown Refined -->
-                            <div class="absolute left-6 top-full mt-0 w-64 bg-white border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50">
-                                <div class="bg-black text-white px-4 py-1 text-[10px] font-mono uppercase tracking-widest">Module_03_Access</div>
+                            <div class="absolute left-6 top-full mt-0 w-64 border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50" style="background-color:#ffffff;">
+                                <div class="bg-black text-white px-4 py-1 text-[10px] font-mono uppercase tracking-widest">Module_04_Access</div>
                                 <div class="p-1">
                                     <a href="/servicos" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Service Desk</a>
                                     <a href="/minhas-solicitacoes-manutencao" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Solicitar Manutenção Ativo</a>
@@ -153,6 +177,34 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- MOD 05: PROCUREMENT -->
+                        {% if request.state.purchases_enabled %}
+                        <div class="flex flex-col gap-1 px-6 border-l-2 border-gray-100 relative group/dropdown">
+                            <span class="font-mono text-[9px] text-gray-400 uppercase tracking-widest">05_COMPRAS</span>
+                            <button class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black flex items-center gap-1.5 transition-all">
+                                Compras
+                                <svg class="w-3 h-3 transition-transform group-hover/dropdown:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div class="absolute left-6 top-full mt-0 w-64 bg-white border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50" style="background-color: #ffffff !important;">
+                                <div class="bg-black text-white px-4 py-1 text-[10px] font-mono uppercase tracking-widest">Module_05_Purchases</div>
+                                <div class="p-1">
+                                    <a href="/compras" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Painel Compras</a>
+                                    <a href="/compras/solicitacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Solicitações</a>
+                                    <a href="/compras/cotacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Cotações</a>
+                                    <a href="/compras/pedidos" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Pedidos PO</a>
+                                    <a href="/compras/contratos" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Contratos</a>
+                                    <a href="/compras/estoque" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Almoxarifado</a>
+                                    <div class="h-[2px] bg-black my-1 mx-2"></div>
+                                    <a href="/compras/produtos" class="block px-3 py-2 text-xs font-mono font-bold uppercase hover:bg-gray-100 text-gray-500 hover:text-black">Cad. Produtos</a>
+                                    <a href="/compras/centro-custos" class="block px-3 py-2 text-xs font-mono font-bold uppercase hover:bg-gray-100 text-gray-500 hover:text-black">Centros Custo</a>
+                                    <a href="/compras/relatorios" class="block px-3 py-2 text-xs font-mono font-bold uppercase hover:bg-gray-100 text-gray-500 hover:text-black">Relatórios</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -184,6 +236,9 @@
                                 <a href="/admin/users" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Usuários</a>
                                 <a href="/setores" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Setores</a>
                                 <a href="/admin/backup" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Backup</a>
+                                {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+                                <a href="/admin/modulos" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Módulos</a>
+                                {% endif %}
                             </div>
                         </div>
                         {% endif %}
@@ -252,10 +307,27 @@
                 </svg>
             </a>
 
+            <!-- Seção: Manutenção Preventiva -->
+            {% if request.state.pm_enabled %}
+            <div class="{{ section_title }}">Manutenção Preventiva</div>
+            <a href="/manutencao-preventiva" class="{{ mobile_link }} ml-2 text-brand-600 border-brand-100 hover:border-brand-600 hover:bg-brand-50">Dashboard</a>
+            <a href="/manutencao-preventiva/planos" class="{{ mobile_link }} ml-2">Planos de Manutenção</a>
+            <a href="/manutencao-preventiva/ordens" class="{{ mobile_link }} ml-2">Ordens de Serviço</a>
+            {% endif %}
+            
             <!-- Seção: Suporte -->
             <div class="{{ section_title }}">Suporte</div>
             <a href="/servicos" class="{{ mobile_link }} ml-2">Service Desk</a>
             <a href="/minhas-solicitacoes-manutencao" class="{{ mobile_link }} ml-2">Minhas Solicitações</a>
+
+            <!-- Seção: Compras -->
+            {% if request.state.purchases_enabled %}
+            <div class="{{ section_title }}">Compras</div>
+            <a href="/compras" class="{{ mobile_link }} ml-2 text-black border-black hover:bg-gray-50">Painel de Compras</a>
+            <a href="/compras/solicitacoes" class="{{ mobile_link }} ml-2">Solicitações de Compra</a>
+            <a href="/compras/pedidos" class="{{ mobile_link }} ml-2">Pedidos de Compra</a>
+            <a href="/compras/estoque" class="{{ mobile_link }} ml-2">Almoxarifado</a>
+            {% endif %}
 
             <!-- Seção: Área Técnica -->
             {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico', 'gerente_infra'] %}
@@ -270,6 +342,9 @@
             <a href="/admin/users" class="{{ mobile_link }} ml-2">Usuários</a>
             <a href="/setores" class="{{ mobile_link }} ml-2">Setores</a>
             <a href="/admin/backup" class="{{ mobile_link }} ml-2">Backup</a>
+            {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+            <a href="/admin/modulos" class="{{ mobile_link }} ml-2">Módulos</a>
+            {% endif %}
             {% endif %}
 
             <!-- Seção: Pessoal -->

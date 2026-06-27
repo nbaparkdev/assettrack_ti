@@ -120,6 +120,21 @@ Funcionalidades de identificação, login rápido e acompanhamento ágil.
 
 ---
 
+## 🔧 Manutenção Preventiva (CMMS/EAM)
+
+Módulo completo para gestão de manutenção preventiva, corretiva e periódica integrado ao AssetTrack TI.
+
+| Recurso | Descrição |
+| :--- | :--- |
+| **Planos de Manutenção** | Registro de planos periódicos, definindo tipo (Preventiva/Preditiva/Inspeção/Calibração), periodicidade, criticidade e prioridade. |
+| **Ordens de Serviço** | Criação manual ou automática de ordens de manutenção (OS), com histórico de execução e acompanhamento de status em tempo real. |
+| **Checklists de Manutenção** | Cadastro de itens de verificação obrigatórios para cada tipo de manutenção. |
+| **Histórico Completo** | Auditoria completa de todas as ações, incluindo execução de checklists, fotos e materiais utilizados. |
+| **Dashboard Analítico** | Painel com métricas (manutenções vencidas/hoje/semana), gráficos (Preventiva vs Corretiva, status das ordens, ordens por técnico) e próximas manutenções agendadas. |
+| **Geração Automática de Códigos** | Planos no formato `PLAN-ANO-NÚMERO` e ordens no formato `OS-ANO-NÚMERO`. |
+| **Integração com Ativos** | Vinculação de ativos aos planos e ordens, com histórico completo. |
+| **Segurança por Permissões** | Acesso controlado por perfis: Admin, Gerente, Técnico, Usuário. |
+
 ## 🛠️ Segurança e Auditoria
 
 - 🔒 **Rate Limiting**: Proteção contra força bruta nos logins.

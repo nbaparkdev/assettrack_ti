@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">RELATÓRIOS</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Estatísticas, Custos e Desempenho do Módulo de Manutenção</p>
+        </div>
+        
+        <!-- Filtro de Periodo -->
+        <form method="GET" action="/manutencao-preventiva/relatorios" class="flex flex-wrap items-end gap-3 bg-gray-50 border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div>
+                <label class="block text-[9px] font-bold uppercase text-gray-500 mb-1 font-mono">Data Inicial</label>
+                <input type="date" name="data_inicio" value="{{ data_inicio }}" 
+                    class="border-2 border-black px-3 py-1.5 text-xs font-mono focus:ring-0">
+            </div>
+            <div>
+                <label class="block text-[9px] font-bold uppercase text-gray-500 mb-1 font-mono">Data Final</label>
+                <input type="date" name="data_fim" value="{{ data_fim }}" 
+                    class="border-2 border-black px-3 py-1.5 text-xs font-mono focus:ring-0">
+            </div>
+            <button type="submit" class="bg-black text-white px-5 py-2 text-xs font-bold uppercase hover:bg-gray-800 transition">
+                Filtrar
+            </button>
+        </form>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <!-- Total OS -->
+        <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
+            <p class="font-mono text-[10px] text-gray-500 uppercase tracking-wider mb-2">OS Concluídas</p>
+            <h3 class="text-3xl font-black text-black leading-none">{{ total_concluidas }}</h3>
+            <p class="text-[10px] text-gray-400 mt-2">No período selecionado</p>
+        </div>
+        
+        <!-- Custo Total -->
+        <div class="bg-yellow-400 border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
+            <p class="font-mono text-[10px] text-black uppercase tracking-wider mb-2">Custo Total</p>
+            <h3 class="text-3xl font-black text-black leading-none">R$ {{ "%.2f"|format(custo_total) }}</h3>
+            <p class="text-[10px] text-black/60 mt-2">Materiais + Mão de Obra</p>
+        </div>
+
+        <!-- Custo Peças -->
+        <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
+            <p class="font-mono text-[10px] text-gray-500 uppercase tracking-wider mb-2">Custo com Peças</p>
+            <h3 class="text-3xl font-black text-green-600 leading-none">R$ {{ "%.2f"|format(custo_materiais) }}</h3>
+            <p class="text-[10px] text-gray-400 mt-2">Insumos e materiais</p>
+        </div>
+
+        <!-- Custo Mão de Obra -->
+        <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
+            <p class="font-mono text-[10px] text-gray-500 uppercase tracking-wider mb-2">Custo Mão de Obra</p>
+            <h3 class="text-3xl font-black text-blue-600 leading-none">R$ {{ "%.2f"|format(custo_mao_de_obra) }}</h3>
+            <p class="text-[10px] text-gray-400 mt-2">Valores informados no encerramento</p>
+        </div>
+
+        <!-- Tempo Médio -->
+        <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
+            <p class="font-mono text-[10px] text-gray-500 uppercase tracking-wider mb-2">Tempo Médio</p>
+            <h3 class="text-3xl font-black text-black leading-none">
+                {% if tempo_medio_minutos >= 60 %}
+                {{ "%.1f"|format(tempo_medio_minutos / 60) }}h
+                {% else %}
+                {{ "%.0f"|format(tempo_medio_minutos) }}m
+                {% endif %}
+            </h3>
+            <p class="text-[10px] text-gray-400 mt-2">Por ordem de serviço</p>
+        </div>
+    </div>
+
+    <!-- Tabelas Detalhadas -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Esquerda: Tipos e Ativos -->
+        <div class="space-y-8">
+            <!-- Tipos de Manutenção -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <h3 class="font-mono text-xs text-black uppercase tracking-widest mb-4 border-b-2 border-black pb-2 font-bold">
+                    Distribuição por Tipo
+                </h3>
+                
+                {% if tipos_stats %}
+                <div class="space-y-4">
+                    {% for item in tipos_stats %}
+                    <div>
+                        <div class="flex justify-between text-xs font-bold uppercase mb-1">
+                            <span>{{ item.tipo }}</span>
+                            <span class="font-mono">{{ item.quantidade }} OSs (R$ {{ "%.2f"|format(item.custo) }})</span>
+                        </div>
+                        <div class="w-full bg-gray-100 border border-black h-4">
+                            {% set percent = (item.custo / custo_total * 100) if custo_total > 0 else 0 %}
+                            <div class="bg-yellow-400 border-r border-black h-full" style="width: {{ percent if percent > 3 else 3 }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-400 font-mono text-center py-4">Sem dados no período.</p>
+                {% endif %}
+            </div>
+
+            <!-- Ativos Problemáticos -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <h3 class="font-mono text-xs text-black uppercase tracking-widest mb-4 border-b-2 border-black pb-2 font-bold">
+                    Ativos com mais Incidentes / Custos
+                </h3>
+
+                {% if ativos_stats %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 border-b border-black font-mono uppercase text-gray-500">
+                                <th class="p-2 border-r border-gray-200">Patrimônio</th>
+                                <th class="p-2 border-r border-gray-200">Ativo</th>
+                                <th class="p-2 border-r border-gray-200 text-center">Manutenções</th>
+                                <th class="p-2 text-right">Custo Acumulado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in ativos_stats %}
+                            <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                <td class="p-2 border-r border-gray-200 font-mono font-bold">{{ item.patrimonio }}</td>
+                                <td class="p-2 border-r border-gray-200 font-medium">{{ item.nome }}</td>
+                                <td class="p-2 border-r border-gray-200 text-center font-mono font-bold">{{ item.quantidade }}</td>
+                                <td class="p-2 text-right font-mono font-bold text-red-600">R$ {{ "%.2f"|format(item.custo) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-400 font-mono text-center py-4">Sem incidentes registrados no período.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Direita: Desempenho Técnico -->
+        <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+            <h3 class="font-mono text-xs text-black uppercase tracking-widest mb-4 border-b-2 border-black pb-2 font-bold">
+                Desempenho dos Técnicos
+            </h3>
+
+            {% if tecnicos_stats %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100 border-b border-black font-mono uppercase text-gray-500">
+                            <th class="p-3 border-r border-gray-200">Técnico</th>
+                            <th class="p-3 border-r border-gray-200 text-center">OS Concluídas</th>
+                            <th class="p-3 text-right">Tempo Médio p/ OS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in tecnicos_stats %}
+                        <tr class="border-b border-gray-200 hover:bg-gray-50">
+                            <td class="p-3 border-r border-gray-200 font-bold">{{ item.nome }}</td>
+                            <td class="p-3 border-r border-gray-200 text-center font-mono font-bold">{{ item.quantidade }}</td>
+                            <td class="p-3 text-right font-mono font-bold">
+                                {% if item.tempo_medio >= 60 %}
+                                {{ "%.1f"|format(item.tempo_medio / 60) }} horas
+                                {% else %}
+                                {{ "%.0f"|format(item.tempo_medio) }} minutos
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-400 font-mono text-center py-4">Nenhuma atividade registrada por técnicos no período.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{
+    "auths": {},
+    "currentContext": "default",
+    "plugins": {
+        "-x-cli-hints": {
+            "enabled": "true"
+        },
+        "ai": {
+            "hooks": "build,buildx build,run,compose"
+        },
+        "debug": {
+            "hooks": "exec"
+        },
+        "scout": {
+            "hooks": "pull,buildx build"
+        }
+    },
+    "features": {
+        "hooks": "true"
+    }
+}

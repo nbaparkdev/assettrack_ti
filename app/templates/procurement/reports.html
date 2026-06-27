@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Relatórios e Consolidação</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Painel de execução orçamentária e controle de suprimentos</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="/compras/relatorios/exportar?tipo=solicitacoes" class="font-mono text-xs font-bold bg-black text-white border-2 border-black px-4 py-2 hover:bg-white hover:text-black transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]">
+                &#8595; CSV Solicitações
+            </a>
+            <a href="/compras/relatorios/exportar?tipo=contratos" class="font-mono text-xs font-bold bg-white border-2 border-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]">
+                &#8595; CSV Contratos
+            </a>
+            <a href="/compras" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                &larr; Voltar para Compras
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <span class="font-mono text-[10px] text-gray-400 block uppercase font-bold">Portfólio de Contratos</span>
+            <span class="text-3xl font-black font-mono block mt-2">R$ {{ "%.2f" | format(contract_summary.total_valor) }}</span>
+            <span class="text-xs font-mono text-gray-500 block mt-1 uppercase">{{ contract_summary.total_count }} Contratos Ativos</span>
+        </div>
+        <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <span class="font-mono text-[10px] text-gray-400 block uppercase font-bold">Contratos Expirados</span>
+            <span class="text-3xl font-black font-mono block mt-2 text-red-600">{{ contract_summary.expired }}</span>
+            <span class="text-xs font-mono text-gray-500 block mt-1 uppercase">Ações Requeridas Imediatamente</span>
+        </div>
+        <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <span class="font-mono text-[10px] text-gray-400 block uppercase font-bold">Contratos a Vencer (30d)</span>
+            <span class="text-3xl font-black font-mono block mt-2 text-amber-500">{{ contract_summary.expiring_30 }}</span>
+            <span class="text-xs font-mono text-gray-500 block mt-1 uppercase">Fase de Planejamento/Renovação</span>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Execução Orçamentária por Centro de Custo -->
+        <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+            <h3 class="font-bold text-lg uppercase tracking-tight border-b-2 border-black pb-2 flex justify-between items-center">
+                <span>Orçamento por Centro de Custo</span>
+                <span class="font-mono text-xs text-gray-400">Mensal</span>
+            </h3>
+            
+            <div class="space-y-6">
+                {% for cc in cc_data %}
+                <div class="space-y-2">
+                    <div class="flex justify-between items-end font-mono text-xs">
+                        <div>
+                            <span class="font-bold text-black uppercase">{{ cc.nome }}</span>
+                            <span class="text-gray-400">({{ cc.codigo }})</span>
+                        </div>
+                        <span class="font-bold text-black">R$ {{ "%.2f" | format(cc.usado) }} / R$ {{ "%.2f" | format(cc.limite) }}</span>
+                    </div>
+                    <!-- Neo-brutalist progress bar -->
+                    <div class="w-full bg-white border-2 border-black h-6 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden flex">
+                        <div class="h-full border-r-2 border-black font-mono text-[10px] font-bold text-white flex items-center justify-center transition-all duration-500 {% if cc.porcentagem >= 90 %}bg-red-500{% elif cc.porcentagem >= 75 %}bg-amber-500{% else %}bg-green-500{% endif %}" 
+                             style="width: {{ cc.porcentagem }}%">
+                            {% if cc.porcentagem > 10 %}{{ cc.porcentagem|int }}%{% endif %}
+                        </div>
+                    </div>
+                    <div class="flex justify-between font-mono text-[10px] text-gray-400">
+                        <span>Disponível: R$ {{ "%.2f" | format(cc.disponivel) }}</span>
+                        <span>Consumido</span>
+                    </div>
+                </div>
+                {% else %}
+                <p class="font-mono text-xs text-gray-400 text-center py-4">Nenhum Centro de Custo cadastrado.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Gastos por Categoria de Produto -->
+        <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+            <h3 class="font-bold text-lg uppercase tracking-tight border-b-2 border-black pb-2">Distribuição por Categoria</h3>
+            
+            <div class="border-2 border-gray-200">
+                <table class="w-full text-left font-mono text-xs">
+                    <thead class="bg-gray-50 border-b-2 border-gray-200">
+                        <tr>
+                            <th class="p-3 font-bold uppercase text-gray-500">Categoria</th>
+                            <th class="p-3 font-bold uppercase text-gray-500 text-right">Total Solicitado</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for cat in category_spent %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3 font-bold text-black uppercase">{{ cat.name }}</td>
+                            <td class="p-3 text-right font-bold">R$ {{ "%.2f" | format(cat.total) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="2" class="p-8 text-center text-gray-400 uppercase">Nenhuma compra aprovada encontrada para consolidar.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Category Mini visual bars -->
+            {% if category_spent %}
+            <div class="space-y-3 pt-4">
+                <h4 class="font-bold text-xs uppercase tracking-wider text-black">Representatividade Visual</h4>
+                {% set max_val = category_spent|map(attribute='total')|max %}
+                {% for cat in category_spent %}
+                    {% set bar_perc = (cat.total / max_val * 100) if max_val > 0 else 0 %}
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[10px] font-mono">
+                            <span class="uppercase font-bold">{{ cat.name }}</span>
+                            <span>R$ {{ "%.2f" | format(cat.total) }}</span>
+                        </div>
+                        <div class="w-full bg-white border border-black h-3 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
+                            <div class="h-full bg-black" style="width: {{ bar_perc }}%"></div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

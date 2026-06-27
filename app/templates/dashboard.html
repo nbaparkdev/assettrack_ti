@@ -76,6 +76,44 @@
     </div>
     {% endif %}
 
+    {% if expiring_contracts and user.role.value|lower in ['admin', 'gerente_ti', 'comprador'] %}
+    <div class="bg-amber-50 border-l-4 border-amber-600 p-4">
+        <div class="flex items-start justify-between">
+            <div class="flex items-start">
+                <div class="flex-shrink-0 mt-0.5">
+                    <!-- Document Icon -->
+                    <svg class="h-5 w-5 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <div class="ml-3 space-y-1">
+                    <p class="text-sm font-bold text-amber-800">
+                        CONTRATOS EXPIRANDO: Existem {{ expiring_contracts|length }} contrato(s) com vencimento próximo (menos de 90 dias).
+                    </p>
+                    <div class="flex flex-wrap gap-2 pt-1.5">
+                        {% for item in expiring_contracts[:5] %}
+                        <a href="/compras/contratos/{{ item.contract.id }}" class="inline-flex items-center gap-1.5 font-mono text-[10px] px-2 py-0.5 border border-amber-300 {{ item.tag_color }} uppercase font-bold hover:border-black transition">
+                            {{ item.contract.numero }} ({{ item.tag_text }})
+                        </a>
+                        {% endfor %}
+                        {% if expiring_contracts|length > 5 %}
+                        <span class="font-mono text-[10px] text-gray-500 font-bold uppercase self-center">+ {{ expiring_contracts|length - 5 }} outros</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="ml-auto pl-3">
+                <div class="-mx-1.5 -my-1.5">
+                    <a href="/compras/contratos"
+                        class="inline-flex rounded-md p-1.5 text-amber-600 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 font-bold uppercase text-xs tracking-wider">
+                        Gerenciar &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Data Blocks (Stats) -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-0 border-2 border-black bg-black">
         <!-- Block 1: Total -->

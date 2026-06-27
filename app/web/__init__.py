@@ -27,3 +27,10 @@ from app.web.endpoints import suppliers
 web_router.include_router(suppliers.router, prefix="/suppliers", tags=["web_suppliers"])
 from app.web.endpoints import backup
 web_router.include_router(backup.router, tags=["web_backup"])
+from app.web.endpoints import preventive_maintenance
+web_router.include_router(preventive_maintenance.router, prefix="/manutencao-preventiva", tags=["web_preventive_maintenance"])
+from app.web.endpoints import admin_modules
+web_router.include_router(admin_modules.router, prefix="/admin", tags=["web_admin_modules"])
+from app.web.endpoints import procurement
+web_router.include_router(procurement.router, prefix="/compras", tags=["web_procurement"])
+

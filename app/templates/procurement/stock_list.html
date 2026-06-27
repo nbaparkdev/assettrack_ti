@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Almoxarifado de Consumo</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Suprimentos // Controle Físico de Saldos & Consumos</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="/compras" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                &larr; Voltar
+            </a>
+        </div>
+    </div>
+
+    <!-- Stock Table -->
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-black text-white border-b-2 border-black font-mono text-xs uppercase tracking-widest">
+                        <th class="p-4">Código</th>
+                        <th class="p-4">Produto</th>
+                        <th class="p-4">Categoria</th>
+                        <th class="p-4">Quantidade Saldo</th>
+                        <th class="p-4 text-center">Nível Mínimo</th>
+                        <th class="p-4 text-right">Situação</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y-2 divide-black font-sans text-sm">
+                    {% for st in estoques %}
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="p-4 font-mono text-xs">{{ st.product.codigo }}</td>
+                        <td class="p-4">
+                            <span class="font-bold">{{ st.product.nome }}</span>
+                            {% if st.product.descricao %}
+                            <p class="text-[10px] text-gray-400 font-normal">{{ st.product.descricao }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 font-mono text-xs uppercase">{{ st.product.categoria.nome }}</td>
+                        <td class="p-4 font-mono font-bold text-base">
+                            {{ st.quantidade_saldo }} {{ st.product.unidade }}
+                        </td>
+                        <td class="p-4 text-center font-mono text-gray-500">
+                            {{ st.quantidade_minima }} {{ st.product.unidade }}
+                        </td>
+                        <td class="p-4 text-right">
+                            {% if st.quantidade_saldo < st.quantidade_minima %}
+                            <span class="font-mono text-[10px] px-2.5 py-1 bg-red-100 text-red-800 border border-red-300 font-bold uppercase">ABAIXO DO MÍNIMO</span>
+                            {% else %}
+                            <span class="font-mono text-[10px] px-2.5 py-1 bg-green-100 text-green-800 border border-green-300 font-bold uppercase">STOCK OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="p-8 text-center text-gray-500 font-mono text-xs uppercase">Nenhum saldo de insumo cadastrado no almoxarifado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

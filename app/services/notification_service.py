@@ -1,5 +1,6 @@
 # app/services/notification_service.py
 from typing import List, Optional
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.user import User, UserRole
@@ -179,6 +180,165 @@ Esta solicitação mudou para status ENTREGUE/CONCLUÍDA.
             
         print(f"[NOTIFICATION] Entrega #{request_id} - {len(notified)} gerentes notificados: {notified}")
         return notified
+
+    async def notify_order_assigned(
+        self,
+        db: AsyncSession,
+        order_id: int,
+        order_code: str,
+        technician_id: int,
+        technician_email: str,
+        asset_name: str,
+        priority: str,
+        data_agendada: Optional[datetime] = None
+    ):
+        """Notifica o técnico quando uma ordem de serviço é atribuída a ele"""
+        from app.models.preventive_maintenance import MaintenanceNotification
+        
+        subject = f"🔧 Nova OS Atribuída: {order_code} - {priority.upper()}"
+        data_str = data_agendada.strftime('%d/%m/%Y %H:%M') if data_agendada else "Não agendada"
+        
+        message = f"""
+Você foi designado como responsável por uma nova Ordem de Serviço de manutenção.
+
+📋 OS Código: {order_code}
+💻 Equipamento/Ativo: {asset_name}
+⚠️ Prioridade: {priority.upper()}
+📅 Data Agendada: {data_str}
+
+Acesse o módulo de Manutenção Preventiva para iniciar a execução desta ordem.
+"""
+        # Criar notificação persistente no banco de dados
+        notification = MaintenanceNotification(
+            order_id=order_id,
+            usuario_id=technician_id,
+            tipo="ATRIBUICAO",
+            mensagem=f"Você foi designado para a OS {order_code} ({asset_name}) agendada para {data_str}."
+        )
+        db.add(notification)
+        
+        # Enviar e-mail de notificação
+        try:
+            await self.email_service.send_notification(
+                email_to=technician_email,
+                subject=subject,
+                message=message
+            )
+        except Exception:
+            pass # Previne falhas se o serviço de email não estiver ativo
+            
+        print(f"[NOTIFICATION] OS #{order_id} atribuída ao técnico ID {technician_id}")
+
+    async def notify_order_completed(
+        self,
+        db: AsyncSession,
+        order_id: int,
+        order_code: str,
+        technician_name: str,
+        asset_name: str,
+        custo_total: float
+    ):
+        """Notifica os administradores e gerentes que uma OS foi concluída"""
+        from app.models.preventive_maintenance import MaintenanceNotification
+        
+        # Buscar gestores/admins
+        managers = await self.get_staff_users(db, roles=[UserRole.ADMIN, UserRole.GERENTE])
+        
+        subject = f"✅ OS Concluída: {order_code} - {asset_name}"
+        message = f"""
+A Ordem de Serviço {order_code} foi concluída pelo técnico responsável.
+
+📋 Código: {order_code}
+💻 Equipamento: {asset_name}
+👨‍🔧 Técnico: {technician_name}
+💰 Custo Total: R$ {custo_total:.2f}
+
+Acesse a plataforma para auditar os detalhes e materiais aplicados.
+"""
+        # Notificar gestores no banco e via e-mail
+        for mgr in managers:
+            notification = MaintenanceNotification(
+                order_id=order_id,
+                usuario_id=mgr.id,
+                tipo="CONCLUSAO",
+                mensagem=f"A OS {order_code} ({asset_name}) foi concluída por {technician_name}. Custo: R$ {custo_total:.2f}."
+            )
+            db.add(notification)
+            
+            try:
+                await self.email_service.send_notification(
+                    email_to=mgr.email,
+                    subject=subject,
+                    message=message
+                )
+            except Exception:
+                pass
+                
+        print(f"[NOTIFICATION] OS #{order_id} de conclusão enviada para gestores")
+
+    async def notify_order_overdue(
+        self,
+        db: AsyncSession,
+        order_id: int,
+        order_code: str,
+        technician_id: Optional[int],
+        technician_email: Optional[str],
+        asset_name: str,
+        data_agendada: datetime
+    ):
+        """Notifica sobre OS preventiva atrasada"""
+        from app.models.preventive_maintenance import MaintenanceNotification
+        
+        subject = f"⚠️ ALERTA: OS Atrasada {order_code} - {asset_name}"
+        data_str = data_agendada.strftime('%d/%m/%Y %H:%M')
+        
+        message = f"""
+Atenção, a Ordem de Serviço {order_code} está vencida e ainda não foi iniciada.
+
+📋 Código: {order_code}
+💻 Equipamento: {asset_name}
+📅 Vencimento original: {data_str}
+
+Favor verificar com urgência a situação desta manutenção.
+"""
+        # Se houver técnico atribuído, notifica ele
+        if technician_id and technician_email:
+            notification = MaintenanceNotification(
+                order_id=order_id,
+                usuario_id=technician_id,
+                tipo="ATRASO",
+                mensagem=f"A OS {order_code} ({asset_name}) sob sua responsabilidade está vencida desde {data_str}."
+            )
+            db.add(notification)
+            try:
+                await self.email_service.send_notification(
+                    email_to=technician_email,
+                    subject=subject,
+                    message=message
+                )
+            except Exception:
+                pass
+
+        # Também notificar administradores e gerentes
+        managers = await self.get_staff_users(db, roles=[UserRole.ADMIN, UserRole.GERENTE])
+        for mgr in managers:
+            notification = MaintenanceNotification(
+                order_id=order_id,
+                usuario_id=mgr.id,
+                tipo="ATRASO_GESTOR",
+                mensagem=f"ALERTA: A OS {order_code} ({asset_name}) está vencida desde {data_str}."
+            )
+            db.add(notification)
+            try:
+                await self.email_service.send_notification(
+                    email_to=mgr.email,
+                    subject=subject,
+                    message=message
+                )
+            except Exception:
+                pass
+                
+        print(f"[NOTIFICATION] OS #{order_id} de atraso gerada")
 
 
 # Singleton

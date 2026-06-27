@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Comparativo de Cotações: {{ quotation.numero }}</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Suprimentos // Análise Multilateral de Preços e Prazos</p>
+        </div>
+        <a href="/compras/cotacoes" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            &larr; Voltar para Lista
+        </a>
+    </div>
+
+    <!-- Tabela Comparativa de Itens -->
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 space-y-6">
+        <h3 class="font-bold text-xs uppercase text-black tracking-wider border-b-2 border-black pb-2">Preços Comparados por Item</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse border border-black">
+                <thead>
+                    <tr class="bg-black text-white font-mono text-xs uppercase">
+                        <th class="p-3 border border-black">Item Cotado</th>
+                        <th class="p-3 border border-black text-center">Quantidade</th>
+                        {% for s in suppliers %}
+                        <th class="p-3 border border-black text-center">
+                            {{ s.fornecedor.nome }}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="text-sm">
+                    <!-- Itens listados dinamicamente com preço unitário e total por fornecedor -->
+                    <!-- Buscamos os itens da primeira cotação de fornecedor para ver a lista de produtos -->
+                    {% if suppliers %}
+                        {% for item in suppliers[0].itens %}
+                        <tr class="hover:bg-gray-50 border-b border-gray-300">
+                            <td class="p-3 font-bold border border-black">{{ item.product.nome }}</td>
+                            <td class="p-3 text-center font-mono border border-black">{{ item.quantidade }}</td>
+                            {% for s in suppliers %}
+                                {% set ns = namespace(val=0.0) %}
+                                {% for it in s.itens %}
+                                    {% if it.product_id == item.product_id %}
+                                        {% set ns.val = it.valor_unitario %}
+                                    {% endif %}
+                                {% endfor %}
+                                <td class="p-3 text-center font-mono border border-black">
+                                    R$ {{ "%.2f" | format(ns.val) }}
+                                    <span class="block text-[10px] text-gray-400">Total: R$ {{ "%.2f" | format(ns.val * item.quantidade) }}</span>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Frete -->
+                    <tr class="bg-gray-50 font-bold border-t-2 border-black">
+                        <td class="p-3 border border-black uppercase">Valor do Frete</td>
+                        <td class="p-3 border border-black text-center">-</td>
+                        {% for s in suppliers %}
+                        <td class="p-3 text-center font-mono border border-black text-amber-700">R$ {{ "%.2f" | format(s.frete) }}</td>
+                        {% endfor %}
+                    </tr>
+
+                    <!-- Total Geral -->
+                    <tr class="bg-black text-white font-bold text-base">
+                        <td class="p-3 border border-black uppercase">Valor Total Estimado</td>
+                        <td class="p-3 border border-black text-center">-</td>
+                        {% for s in suppliers %}
+                        <td class="p-3 text-center font-mono border border-black">
+                            R$ {{ "%.2f" | format(s.valor_total) }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <!-- Prazo de Entrega -->
+                    <tr class="bg-gray-50 font-mono text-xs">
+                        <td class="p-3 border border-black font-sans font-bold uppercase">Prazo de Entrega</td>
+                        <td class="p-3 border border-black text-center">-</td>
+                        {% for s in suppliers %}
+                        <td class="p-3 text-center border border-black font-bold">{{ s.prazo_entrega_dias }} Dias</td>
+                        {% endfor %}
+                    </tr>
+
+                    <!-- Forma Pagamento -->
+                    <tr class="bg-gray-50 font-mono text-xs">
+                        <td class="p-3 border border-black font-sans font-bold uppercase">Forma Pagamento</td>
+                        <td class="p-3 border border-black text-center">-</td>
+                        {% for s in suppliers %}
+                        <td class="p-3 text-center border border-black">{{ s.forma_pagamento }}</td>
+                        {% endfor %}
+                    </tr>
+
+                    <!-- Garantia -->
+                    <tr class="bg-gray-50 font-mono text-xs">
+                        <td class="p-3 border border-black font-sans font-bold uppercase">Garantia Oferecida</td>
+                        <td class="p-3 border border-black text-center">-</td>
+                        {% for s in suppliers %}
+                        <td class="p-3 text-center border border-black font-bold">{{ s.garantia_meses }} Meses</td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Destaque de Vencedores por Critério -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Menor Preço -->
+        <div class="bg-white border-2 border-black p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <h4 class="font-mono text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1">MENOR PREÇO</h4>
+            {% for s in suppliers %}
+                {% if s.id == cheapest_id %}
+                <span class="block text-lg font-bold text-black">{{ s.fornecedor.nome }}</span>
+                <span class="font-mono text-xs text-gray-500">Total: R$ {{ "%.2f" | format(s.valor_total) }}</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- Menor Prazo -->
+        <div class="bg-white border-2 border-black p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <h4 class="font-mono text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">MAIS RÁPIDO</h4>
+            {% for s in suppliers %}
+                {% if s.id == fastest_id %}
+                <span class="block text-lg font-bold text-black">{{ s.fornecedor.nome }}</span>
+                <span class="font-mono text-xs text-gray-500">Entrega em: {{ s.prazo_entrega_dias }} dias</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- Melhor Custo-Benefício -->
+        <div class="bg-white border-2 border-black p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <h4 class="font-mono text-[10px] font-bold text-brand-600 uppercase tracking-widest mb-1">CUSTO-BENEFÍCIO (PONDERADO)</h4>
+            {% for s in suppliers %}
+                {% if s.id == best_value_id %}
+                <span class="block text-lg font-bold text-black">{{ s.fornecedor.nome }}</span>
+                <span class="font-mono text-xs text-gray-500">Calculado automaticamente</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Ação de Seleção do Vencedor e Conversão em Pedido -->
+    {% if quotation.status != 'Finalizada' %}
+    <div class="bg-amber-50 border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <h3 class="font-bold text-sm text-black uppercase tracking-wider mb-2">Homologar Fornecedor e Gerar Pedido de Compra</h3>
+        <p class="text-xs text-gray-500 mb-4">Selecione o fornecedor ganhador. O sistema encerrará esta cotação e gerará automaticamente um Pedido de Compra (PO) em aberto.</p>
+        
+        <form action="/compras/cotacoes/{{ quotation.id }}/select-winner" method="POST" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <select name="winner_supplier_id" required class="bg-white border-2 border-black p-3 text-sm focus:outline-none font-bold">
+                <option value="">Selecione o Ganhador...</option>
+                {% for s in suppliers %}
+                <option value="{{ s.id }}">{{ s.fornecedor.nome }} [Total: R$ {{ "%.2f" | format(s.valor_total) }}]</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="bg-black text-white font-mono text-xs font-bold px-6 py-3 uppercase hover:bg-gray-800 transition">HOMOLOGAR & EMITIR PEDIDO &rarr;</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

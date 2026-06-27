@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Contrato {{ contrato.numero }}</h1>
+                <span class="font-mono text-xs px-2 py-0.5 border uppercase font-bold {{ tag_color }}">{{ tag_text }}</span>
+            </div>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Tipo: {{ contrato.tipo }} // Fornecedor: {{ contrato.fornecedor.razao_social }}</p>
+        </div>
+        <a href="/compras/contratos" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            &larr; Voltar para Lista
+        </a>
+    </div>
+
+    <!-- Contract Status Alert Banner -->
+    {% if dias < 0 %}
+    <div class="bg-red-50 border-[3px] border-red-600 p-6 shadow-[8px_8px_0px_0px_rgba(220,38,38,1)] flex items-center gap-4">
+        <div class="text-red-600">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+        </div>
+        <div>
+            <h3 class="font-bold text-base uppercase text-red-600 font-mono">CONTRATO EXPIRADO</h3>
+            <p class="text-xs text-red-700 font-sans">Este contrato expirou em {{ contrato.data_fim.strftime('%d/%m/%Y') }}. Uma renovação imediata ou termo aditivo deve ser negociado.</p>
+        </div>
+    </div>
+    {% elif dias <= 30 %}
+    <div class="bg-amber-50 border-[3px] border-amber-600 p-6 shadow-[8px_8px_0px_0px_rgba(217,119,6,1)] flex items-center gap-4">
+        <div class="text-amber-600">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+        </div>
+        <div>
+            <h3 class="font-bold text-base uppercase text-amber-800 font-mono">VENCIMENTO PRÓXIMO: {{ dias }} DIAS RESTANTES</h3>
+            <p class="text-xs text-amber-900 font-sans">Este contrato expira em {{ contrato.data_fim.strftime('%d/%m/%Y') }}. Planeje a renovação para evitar interrupção de serviços.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Detalhes do Contrato -->
+        <div class="md:col-span-2 space-y-6">
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider border-b-2 border-black pb-2">Termos e Vigência</h3>
+                <div class="grid grid-cols-2 gap-4 text-sm font-mono">
+                    <div>
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">Data de Início</span>
+                        <span class="text-black font-bold">{{ contrato.data_inicio.strftime('%d/%m/%Y') }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">Data de Término</span>
+                        <span class="text-black font-bold">{{ contrato.data_fim.strftime('%d/%m/%Y') }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">Renovação Automática</span>
+                        <span class="text-black font-bold uppercase">{{ 'Sim' if contrato.renovacao_automatica else 'Não' }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">Vencimento em</span>
+                        <span class="text-black font-bold {% if dias <= 30 %}text-amber-600{% endif %}">{{ tag_text }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dados do Fornecedor -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider border-b-2 border-black pb-2">Fornecedor Contratado</h3>
+                <div class="grid grid-cols-2 gap-4 text-sm font-mono">
+                    <div class="col-span-2">
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">Razão Social</span>
+                        <span class="text-black font-bold text-base">{{ contrato.fornecedor.razao_social }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">CNPJ</span>
+                        <span class="text-black font-bold">{{ contrato.fornecedor.cnpj }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">Contato Comercial</span>
+                        <span class="text-black font-bold">{{ contrato.fornecedor.contato_nome or 'Não especificado' }}</span>
+                    </div>
+                    {% if contrato.fornecedor.contato_email %}
+                    <div>
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">E-mail de Contato</span>
+                        <span class="text-black font-bold">{{ contrato.fornecedor.contato_email }}</span>
+                    </div>
+                    {% endif %}
+                    {% if contrato.fornecedor.contato_telefone %}
+                    <div>
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">Telefone</span>
+                        <span class="text-black font-bold">{{ contrato.fornecedor.contato_telefone }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Painel Financeiro / Arquivos -->
+        <div class="space-y-6">
+            <!-- Valores -->
+            <div class="bg-black text-white p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-2 border-black space-y-2">
+                <span class="text-[10px] text-gray-400 font-mono block uppercase">Valor do Contrato</span>
+                <span class="text-3xl font-black font-mono block text-green-400">R$ {{ "%.2f" | format(contrato.valor) }}</span>
+                <div class="font-mono text-xs text-gray-300 pt-2 border-t border-gray-800">
+                    <p class="uppercase">Periodicidade: {{ contrato.periodicidade }}</p>
+                </div>
+            </div>
+
+            <!-- Arquivos -->
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider border-b-2 border-black pb-2">Documento Digital</h3>
+                {% if contrato.arquivo_pdf_path %}
+                <div class="flex items-center justify-between font-mono text-xs">
+                    <span class="font-bold text-black uppercase">Termo Assinado (PDF)</span>
+                    <a href="/uploads/{{ contrato.arquivo_pdf_path }}" target="_blank" class="text-xs font-bold text-blue-600 hover:underline">[ DOWNLOAD ]</a>
+                </div>
+                {% else %}
+                <p class="font-mono text-xs text-gray-400 uppercase">Nenhum arquivo PDF anexado ao contrato.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
