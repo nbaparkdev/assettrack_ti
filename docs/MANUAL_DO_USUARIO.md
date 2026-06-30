@@ -105,8 +105,34 @@ Mantenha o cadastro de fornecedores organizado e vinculado aos ativos.
 
 ## 👥 9. Perfis de Acesso
 
-- **USUARIO:** Consulta seus ativos, abre chamados e solicita manutenções.
-- **TECNICO:** Atende chamados, gerencia manutenções e valida entregas via scanner QR.
-- **GERENTE_TI:** Aprova solicitações, gerencia inventário e usuários.
-- **GERENTE_INFRA:** Gestão de infraestrutura, fornecedores e categorias de ativos.
-- **ADMIN:** Controle total do sistema (System Owner).
+- **USUARIO:** Consulta seus ativos sob sua guarda, abre chamados de suporte e solicita manutenções.
+- **TECNICO:** Atende chamados no Service Desk, gerencia ordens de manutenção e realiza a entrega/devolução física de ativos via scanner QR.
+- **COMPRADOR:** Perfil focado em suprimentos. Realiza cotações, emite Pedidos de Compra (PO), gerencia fornecedores e faz o recebimento físico/estoque.
+- **GERENTE_TI:** Aprova solicitações de ativos, gerencia o inventário técnico e administra usuários.
+- **GERENTE_INFRA:** Gestão do inventário geral de infraestrutura, contratos de fornecedores e categorias.
+- **ADMIN:** Controle absoluto e irrestrito sobre todas as configurações do sistema (System Owner).
+
+---
+
+## 🛒 10. Módulo de Compras (Procurement)
+
+O ciclo de compras no sistema é completamente integrado e segue o fluxo abaixo:
+
+1. **Solicitação de Compra (SC):** Qualquer usuário ou técnico pode abrir uma requisição de compra (inclusive como atalho direto dentro de um Chamado ou Ordem de Serviço).
+2. **Aprovação de Orçamento:** O gestor ou administrador analisa a solicitação comparando-a com o orçamento do Centro de Custo definido.
+3. **Cotação de Preços:** O comprador lança os valores cotados com diferentes fornecedores. O sistema gera automaticamente um comparativo de preços detalhado.
+4. **Pedido de Compra (PO):** Após a seleção do vencedor, é gerado um Pedido de Compra estruturado (formato PDF) para envio ao fornecedor.
+5. **Recebimento de Itens:** Ao receber a mercadoria, o Almoxarifado realiza o recebimento no sistema (parcial ou total). Itens de consumo entram no estoque de manutenção, enquanto equipamentos geram automaticamente um Ativo patrimonial no inventário de TI.
+6. **Contratos:** O menu **Contratos** permite gerenciar a vigência de contratos com fornecedores, exibindo alertas visuais de vencimento a partir de 90 dias.
+
+---
+
+## 🎛️ 11. Configurações de Módulos e Acessos por Menu (RBAC)
+
+Os administradores têm controle total sobre as seções de menu da aplicação através do painel de Módulos:
+
+1. Acesse o menu **Módulos** (canto superior direito no dropdown do Administrador ou em `/admin/modulos`).
+2. **Ativar/Desativar Módulos Globais:** Você pode ligar ou desligar funcionalidades inteiras (como Compras e Manutenção Preventiva). Isso oculta links e bloqueia acessos a endpoints dessas seções imediatamente em todo o sistema.
+3. **Matriz de Permissões de Menu:** Abaixo dos módulos, use a tabela para conceder ou revogar o acesso de visualização de cada menu principal (Ex: *Ativos*, *Compras*, *Backup*, *Usuários*) para cada Perfil de Acesso do sistema.
+4. Clique em **Salvar Configurações** para aplicar instantaneamente na interface de todos os usuários.
+5. *Nota de segurança:* O perfil do Administrador é travado com acesso completo a tudo por padrão para prevenir bloqueios permanentes acidentais.

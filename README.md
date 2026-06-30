@@ -151,13 +151,14 @@ Sistema completo de suprimentos integrado ao AssetTrack TI, permitindo ciclo pon
 
 ---
 
-## 🎛️ Gerenciador de Módulos (Feature Toggles)
+## 🎛️ Gerenciador de Módulos e Controle de Acessos (RBAC Dinâmico)
 
-O sistema possui uma arquitetura modular que permite habilitar ou desabilitar grandes funcionalidades sob demanda, sem necessidade de reiniciar a aplicação:
+O sistema possui uma arquitetura modular e flexível que permite ao administrador gerenciar tanto os recursos globais quanto as permissões específicas de visualização de menus por perfil, diretamente pela interface e em tempo real:
 
-- **Manutenção Preventiva:** Pode ser ligada/desligada via painel (rotas protegidas e menu dinâmico).
-- **Módulo de Compras:** Pode ser ligado/desligado, ajustando a interface globalmente.
-- **Acesso:** Somente administradores através do menu `Configurações > Módulos` (`/admin/modulos`).
+- **Habilitação de Recursos Globais:** Ativação/desativação sob demanda dos módulos de **Manutenção Preventiva** e **Compras**, ocultando rotas e menus associados.
+- **Controle de Acessos por Menu (Matriz RBAC):** Uma grade de controle onde o administrador define quais perfis de acesso (`ADMIN`, `GERENTE_TI`, `GERENTE_INFRA`, `TECNICO`, `COMPRADOR`, `USUARIO_COMUM`) podem visualizar e acessar cada menu da aplicação (`Ativos`, `Fornecedores`, `Manutenção`, `Tickets`, `Compras`, `Relatórios`, `Usuários`, `Backup`).
+- **Trava de Segurança:** O perfil `Administrador` possui permissões garantidas e travadas para leitura em todos os módulos, evitando bloqueios acidentais.
+- **Acesso:** Painel administrativo em `/admin/modulos`.
 
 ---
 

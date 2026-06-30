@@ -63,6 +63,26 @@ Módulo integrado e profissional de suporte técnico para agilização operacion
 
 ---
 
+## 🛒 Compras & Suprimentos (Procurement)
+
+Módulo completo integrado de suprimentos cobrindo do pedido ao recebimento.
+
+- **Fluxo Ponta a Ponta:** Emissão de Solicitações de Compra (SC), aprovação por alçadas de diretoria/financeiro e controle orçamentário por Centro de Custo.
+- **Cotações Multilateral:** Lançamento de cotações de fornecedores com painel comparativo do menor preço e melhor custo-benefício.
+- **Pedidos de Compra (PO):** Emissão de pedidos formais de compra e monitoramento de entrega.
+- **Recebimento e Integração Patrimonial:** A entrada de itens físicos atualiza o estoque simples e cadastra automaticamente novos Ativos no inventário de TI.
+- **Gestão de Contratos:** Controle de prazos de validade com alertas visuais no painel geral e armazenamento de PDFs de contratos e termos de garantia.
+
+---
+
+## 🎛️ Controle de Módulos e Acessos (RBAC Dinâmico)
+
+- **Feature Toggles:** Ativação ou desativação em tempo real dos módulos de Compras e Manutenção Preventiva.
+- **Matriz de Permissões de Menu:** Painel visual que permite ao administrador customizar quais perfis de acesso visualizam cada seção de menu no sistema.
+- **Trava de Segurança:** Acesso irrestrito do Administrador é mantido de forma nativa para evitar bloqueios acidentais.
+
+---
+
 ## 🎨 Design System: Industrial Technical
 
 - Interface limpa e objetiva.
@@ -74,7 +94,7 @@ Módulo integrado e profissional de suporte técnico para agilização operacion
 
 ## 🔧 Stack Tecnológica
 
-- **Backend:** FastAPI (Python 3.11).
+- **Backend:** FastAPI (Python 3.12).
 - **Frontend:** Jinja2 + Tailwind CSS.
 - **Banco de Dados:** PostgreSQL (Dockerizado).
 - **Infra:** Docker & Docker Compose.
