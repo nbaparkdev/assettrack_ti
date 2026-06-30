@@ -207,7 +207,7 @@ async def get_user_by_qr(
     Restrito a Admin e Gerente TI.
     """
     # Verificar permissão
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE_TI]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Apenas Admin e Gerente TI podem consultar perfis via QR"
@@ -294,7 +294,7 @@ async def confirm_delivery(
     - Técnico PRECISA do QR do usuário
     """
     # Verificar se é Admin/Gerente ou Técnico
-    is_privileged = current_user.role in [UserRole.ADMIN, UserRole.GERENTE]
+    is_privileged = current_user.role in [UserRole.ADMIN, UserRole.GERENTE_TI]
     
     # Se não for privileged, precisa do QR
     if not is_privileged and not data.qr_token:

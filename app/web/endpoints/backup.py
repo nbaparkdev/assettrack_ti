@@ -71,7 +71,7 @@ def _topological_sort(inspector, table_names: list[str]) -> list[str]:
 
 
 async def check_admin(user: Annotated[User, Depends(get_active_user_web)]):
-    if user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Acesso negado")
     return user

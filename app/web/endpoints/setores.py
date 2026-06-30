@@ -18,7 +18,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 async def check_manager_role(current_user: Annotated[User, Depends(get_active_user_web)]):
     """Verifica se o usuário é ADMIN ou GERENTE."""
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         raise HTTPException(status_code=403, detail="Acesso negado. Somente Admin ou Gerente.")
     return current_user
 

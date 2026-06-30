@@ -8,7 +8,7 @@
             <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">PLANOS_DE_MANUTENCAO</h1>
             <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Gestão de Planos Preventivos, Preditivos e Calibração // V1.0</p>
         </div>
-        {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+        {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
         <a href="/manutencao-preventiva/planos/novo"
             class="flex items-center justify-center gap-2 bg-black text-white px-6 py-3 rounded-none text-sm font-bold uppercase tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,7 +129,7 @@
                                     class="text-xs font-bold uppercase text-black hover:underline tracking-wider">
                                     VER
                                 </a>
-                                {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+                                {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
                                 <span class="text-gray-300">|</span>
                                 <a href="/manutencao-preventiva/planos/{{ plano.id }}/editar"
                                     class="text-xs font-bold uppercase text-brand-600 hover:underline tracking-wider">
@@ -147,7 +147,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
                                 </svg>
                                 <p class="text-gray-500 font-mono text-sm uppercase tracking-widest">Nenhum plano de manutenção cadastrado</p>
-                                {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+                                {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
                                 <a href="/manutencao-preventiva/planos/novo"
                                     class="mt-4 inline-block text-xs font-bold uppercase border-b-2 border-black pb-0.5 hover:pb-1 transition-all">
                                     Criar Primeiro Plano

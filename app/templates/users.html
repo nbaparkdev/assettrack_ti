@@ -106,6 +106,16 @@
                                 class="inline-block bg-white text-black px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-black">
                                 [ OPR ] GERENTE TI
                             </span>
+                            {% elif u.role.value|lower == 'gerente_infra' %}
+                            <span
+                                class="inline-block bg-white text-black px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-black">
+                                [ OPR ] GERENTE INFRA
+                            </span>
+                            {% elif u.role.value|lower == 'comprador' %}
+                            <span
+                                class="inline-block bg-white text-black px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-black">
+                                [ OPR ] COMPRADOR
+                            </span>
                             {% elif u.role.value|lower == 'tecnico' %}
                             <span
                                 class="inline-block bg-gray-100 text-black px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-gray-400">

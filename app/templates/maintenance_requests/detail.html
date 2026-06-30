@@ -97,7 +97,7 @@
     </div>
 
     <!-- Compras Relacionadas -->
-    {% if is_tech or user.role.value|lower in ['admin', 'gerente_ti'] %}
+    {% if is_tech or user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
     <div class="border-2 border-black p-6 bg-gray-50 flex flex-col justify-between">
         <div>
             <h3 class="font-mono text-xs text-gray-500 uppercase mb-2">Aquisição de Peças / Insumos</h3>

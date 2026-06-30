@@ -32,7 +32,7 @@ async def scanner_usuario_page(
 ):
     """Página de scanner de QR Code de usuários (restrito Admin/Gerente)"""
     # Verificar permissão
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         raise HTTPException(
             status_code=403,
             detail="Apenas Admin e Gerente TI podem escanear QR de usuários"
@@ -168,7 +168,7 @@ async def user_public_profile_page(
 ):
     """Página de perfil público do usuário após scan do QR (restrito Admin/Gerente)"""
     # Verificar permissão
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         raise HTTPException(
             status_code=403,
             detail="Apenas Admin e Gerente TI podem consultar perfis via QR"

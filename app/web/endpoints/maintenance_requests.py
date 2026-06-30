@@ -35,7 +35,7 @@ async def form_nova_solicitacao(
 ):
     """Formulário para criar nova solicitação de manutenção"""
     # Buscar ativos do usuário (ou todos se for admin/gerente)
-    if current_user.role in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         result = await db.execute(
             select(Asset)
             .filter(Asset.status != AssetStatus.BAIXADO)
@@ -107,7 +107,7 @@ async def submit_nova_solicitacao(
         )
     except Exception as e:
         # Re-render form with error
-        if current_user.role in [UserRole.ADMIN, UserRole.GERENTE]:
+        if current_user.role in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
             result = await db.execute(select(Asset).filter(Asset.status != AssetStatus.BAIXADO))
         else:
             result = await db.execute(
@@ -162,7 +162,7 @@ async def painel_solicitacoes(
     current_user: Annotated[User, Depends(get_active_user_web)]
 ):
     """Painel de solicitações para técnicos/gerentes"""
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
     # Filtrar por status
@@ -204,7 +204,7 @@ async def detalhe_solicitacao(
     
     # Verificar permissão: dono ou técnico/admin
     is_owner = solicitacao.solicitante_id == current_user.id
-    is_tech = current_user.role in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]
+    is_tech = current_user.role in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]
     
     if not is_owner and not is_tech:
         raise HTTPException(status_code=403, detail="Acesso negado")
@@ -228,7 +228,7 @@ async def aceitar_solicitacao(
     current_user: Annotated[User, Depends(get_active_user_web)] = None
 ):
     """Aceita uma solicitação e inicia manutenção"""
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
     # Buscar solicitação com relações para notificação
@@ -271,7 +271,7 @@ async def rejeitar_solicitacao(
     current_user: Annotated[User, Depends(get_active_user_web)]
 ):
     """Rejeita uma solicitação"""
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
     if not observacao or len(observacao) < 10:
@@ -319,7 +319,7 @@ async def concluir_manutencao(
     current_user: Annotated[User, Depends(get_active_user_web)] = None
 ):
     """Técnico marca manutenção como concluída (aguardando entrega)"""
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
     # Buscar solicitação para notificação
@@ -385,7 +385,7 @@ async def confirmar_entrega_page(
     current_user: Annotated[User, Depends(get_active_user_web)]
 ):
     """Página para técnico confirmar entrega escaneando QR do usuário"""
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
     solicitacao = await maintenance_request.get_with_relations(db, id=id)
@@ -415,7 +415,7 @@ async def confirmar_entrega_submit(
     """Processa confirmação de entrega - valida QR do usuário"""
     from app.crud import user as user_crud
     
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
     solicitacao = await maintenance_request.get_with_relations(db, id=id)
@@ -525,7 +525,7 @@ async def usuario_scanner_page(
     current_user: Annotated[User, Depends(get_active_user_web)]
 ):
     """Página para técnico escanear QR de usuário e ver entregas pendentes"""
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
     return templates.TemplateResponse("maintenance_requests/usuario_scanner.html", {
@@ -545,7 +545,7 @@ async def usuario_scanner_submit(
     """Busca usuário pelo QR e mostra entregas pendentes"""
     from app.crud import user as user_crud
     
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
     if not qr_token or not qr_token.strip():
@@ -658,7 +658,7 @@ async def relatorio_manutencao(
     tech_id: int = 0
 ):
     """Página de relatórios de manutenção"""
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
     # Importar User crud para listar técnicos no filtro
@@ -701,7 +701,7 @@ async def relatorio_manutencao(
     # Assumindo que temos um método list_by_role ou similar. Se não, list all e filtra.
     # Por simplicidade, vamos pegar todos usuarios que tem role tecnico/admin/gerente
     tecnicos_result = await db.execute(
-        select(User).filter(User.role.in_([UserRole.TECNICO, UserRole.ADMIN, UserRole.GERENTE]))
+        select(User).filter(User.role.in_([UserRole.TECNICO, UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]))
     )
     tecnicos = tecnicos_result.scalars().all()
 

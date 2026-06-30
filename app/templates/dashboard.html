@@ -16,7 +16,7 @@
     </div>
 
     <!-- Alerts -->
-    {% if stats.pending_maintenance > 0 and user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+    {% if stats.pending_maintenance > 0 and user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] %}
     <div class="bg-red-50 border-l-4 border-red-500 p-4">
         <div class="flex items-center justify-between">
             <div class="flex items-center">
@@ -76,7 +76,7 @@
     </div>
     {% endif %}
 
-    {% if expiring_contracts and user.role.value|lower in ['admin', 'gerente_ti', 'comprador'] %}
+    {% if expiring_contracts and user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra', 'comprador'] %}
     <div class="bg-amber-50 border-l-4 border-amber-600 p-4">
         <div class="flex items-start justify-between">
             <div class="flex items-start">
@@ -169,8 +169,8 @@
     </div>
 
     <!-- Admin Approvals -->
-    {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
-    {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+    {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] %}
+    {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
         <!-- Recent Deliveries (Added by request) -->
         <div class="lg:col-span-2">
@@ -237,7 +237,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
         <!-- Pending Users -->
-        {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+        {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
         <div>
             <div class="flex items-center justify-between mb-4">
                 <h3 class="font-bold text-lg uppercase flex items-center gap-2">
@@ -414,7 +414,7 @@
                 <span class="font-bold text-lg group-hover:underline">Minhas Solicitações de Ativos</span>
             </a>
 
-            {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] %}
             <a href="/manutencao/entrega/scanner"
                 class="border-2 border-green-200 p-6 hover:border-green-600 hover:bg-green-50 transition group">
                 <span class="font-mono text-xs text-green-600 block mb-2">CMD_04</span>
@@ -422,7 +422,7 @@
                 <span class="font-mono text-[10px] text-gray-400 block mt-1">Ler QR do usuário</span>
             </a>
             {% endif %}
-            {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
             <a href="/assets/new"
                 class="border-2 border-black bg-black text-white p-6 hover:bg-gray-900 transition group relative overflow-hidden">
                 <div class="absolute top-0 right-0 p-2 opacity-20">

@@ -131,7 +131,7 @@
                 {% endif %}
 
                 <!-- Admin Actions -->
-                {% if sol.status.value == 'Pendente' and user.role.value|lower in ['admin', 'gerente_ti'] %}
+                {% if sol.status.value == 'Pendente' and user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
                 <div>
                     <h3 class="font-bold text-xs uppercase tracking-widest mb-4 border-b-2 border-gray-200 pb-2">Painel
                         de Decisão</h3>
@@ -153,7 +153,7 @@
                 {% endif %}
 
                 <!-- Confirm Delivery Action (for approved requests) -->
-                {% if sol.status.value == 'Aprovada' and user.role.value|lower in ['admin', 'gerente_ti'] %}
+                {% if sol.status.value == 'Aprovada' and user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
                 <div>
                     <h3 class="font-bold text-xs uppercase tracking-widest mb-4 border-b-2 border-gray-200 pb-2">Ação de
                         Entrega</h3>

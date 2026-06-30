@@ -115,6 +115,14 @@ async def delete_user(
     if target_user.id == admin.id:
         raise HTTPException(status_code=400, detail="Você não pode excluir a si mesmo")
     
-    await db.delete(target_user)
-    await db.commit()
+    from sqlalchemy.exc import IntegrityError
+    try:
+        await db.delete(target_user)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível excluir este usuário pois ele possui registros vinculados (como Centro de Custo, Ativos ou Chamados)."
+        )
     return RedirectResponse(url="/admin/users", status_code=303)

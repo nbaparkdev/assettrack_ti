@@ -32,7 +32,19 @@ async def lifespan(app: FastAPI):
     try:
         async with engine.connect() as conn:
             await conn.execution_options(isolation_level="AUTOCOMMIT")
-            await conn.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'COMPRADOR'"))
+            for val in ['COMPRADOR', 'GERENTE_INFRA', 'comprador', 'gerente_infra']:
+                try:
+                    await conn.execute(text(f"ALTER TYPE userrole ADD VALUE IF NOT EXISTS '{val}'"))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    # Sincronizar papéis na tabela de usuários para maiúsculo (padrão SQLAlchemy Enum)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("UPDATE users SET role = 'COMPRADOR' WHERE role = 'comprador'"))
+            await conn.execute(text("UPDATE users SET role = 'GERENTE_INFRA' WHERE role = 'gerente_infra'"))
     except Exception:
         pass
             
@@ -99,6 +111,34 @@ async def lifespan(app: FastAPI):
         except Exception:
             app.state.purchases_enabled = True
 
+        try:
+            import json
+            perms_str = await system_settings.get_setting(session, "menu_permissions")
+            if perms_str:
+                app.state.menu_permissions = json.loads(perms_str)
+            else:
+                app.state.menu_permissions = {
+                    "ativos": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "usuario_comum"],
+                    "fornecedores": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+                    "manutencao": ["admin", "gerente_ti", "gerente_infra", "tecnico"],
+                    "tickets": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "usuario_comum"],
+                    "compras": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+                    "relatorios": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+                    "usuarios": ["admin", "gerente_ti", "gerente_infra"],
+                    "backup": ["admin", "gerente_ti", "gerente_infra"]
+                }
+        except Exception:
+            app.state.menu_permissions = {
+                "ativos": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "usuario_comum"],
+                "fornecedores": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+                "manutencao": ["admin", "gerente_ti", "gerente_infra", "tecnico"],
+                "tickets": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "usuario_comum"],
+                "compras": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+                "relatorios": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+                "usuarios": ["admin", "gerente_ti", "gerente_infra"],
+                "backup": ["admin", "gerente_ti", "gerente_infra"]
+            }
+
     yield
     # Shutdown
     logger = logging.getLogger("app.main")
@@ -121,6 +161,16 @@ app = FastAPI(
 async def add_module_state(request: Request, call_next):
     request.state.pm_enabled = getattr(request.app.state, "pm_enabled", True)
     request.state.purchases_enabled = getattr(request.app.state, "purchases_enabled", True)
+    request.state.menu_permissions = getattr(request.app.state, "menu_permissions", {
+        "ativos": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "usuario_comum"],
+        "fornecedores": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+        "manutencao": ["admin", "gerente_ti", "gerente_infra", "tecnico"],
+        "tickets": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "usuario_comum"],
+        "compras": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+        "relatorios": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+        "usuarios": ["admin", "gerente_ti", "gerente_infra"],
+        "backup": ["admin", "gerente_ti", "gerente_infra"]
+    })
     return await call_next(request)
 
 

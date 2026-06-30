@@ -226,15 +226,16 @@ async def request_detail(
     # Determine if current user can approve the pending level
     can_approve = False
     if pending_level and req_obj.status != PurchaseRequestStatus.AGUARDANDO_ORCAMENTO:
-        if pending_level == "Gestor" and current_user.role.value.lower() in ["admin", "gerente_ti", "comprador"]:
+        role_lower = current_user.role.value.lower()
+        if pending_level == "Gestor" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"]:
             can_approve = True
-        elif pending_level == "Gerente" and current_user.role.value.lower() in ["admin", "gerente_ti"]:
+        elif pending_level == "Gerente" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"]:
             can_approve = True
-        elif pending_level == "Financeiro" and current_user.role.value.lower() in ["admin", "comprador"]: # or finance role
+        elif pending_level == "Financeiro" and role_lower in ["admin", "comprador"]: # or finance role
             can_approve = True
-        elif pending_level == "Diretoria" and current_user.role.value.lower() in ["admin"]:
+        elif pending_level == "Diretoria" and role_lower in ["admin", "comprador"]:
             can_approve = True
-        elif pending_level == "Compras" and current_user.role.value.lower() in ["admin", "comprador"]:
+        elif pending_level == "Compras" and role_lower in ["admin", "comprador"]:
             can_approve = True
 
     return templates.TemplateResponse("procurement/request_detail.html", {
@@ -260,6 +261,23 @@ async def decide_request(
     req_obj = await crud_proc.get_purchase_request(db, request_id)
     if not req_obj:
         raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+
+    # Check if the user is authorized to approve this level
+    authorized = False
+    role_lower = current_user.role.value.lower()
+    if nivel == "Gestor" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"]:
+        authorized = True
+    elif nivel == "Gerente" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"]:
+        authorized = True
+    elif nivel == "Financeiro" and role_lower in ["admin", "comprador"]:
+        authorized = True
+    elif nivel == "Diretoria" and role_lower in ["admin", "comprador"]:
+        authorized = True
+    elif nivel == "Compras" and role_lower in ["admin", "comprador"]:
+        authorized = True
+
+    if not authorized:
+        raise HTTPException(status_code=403, detail="Não autorizado a decidir este nível de solicitação")
 
     # Save Approval record
     app = PurchaseApproval(
@@ -307,7 +325,7 @@ async def release_budget(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    if current_user.role.value.lower() not in ["admin", "gerente_ti"]:
+    if current_user.role.value.lower() not in ["admin", "gerente_ti", "gerente_infra"]:
         raise HTTPException(status_code=403, detail="Não autorizado a liberar orçamento")
         
     req_obj = await crud_proc.get_purchase_request(db, request_id)
@@ -678,6 +696,8 @@ async def new_product_form(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
     categories = await crud_proc.get_categories(db, limit=100)
     units = await crud_proc.get_units(db)
     
@@ -705,7 +725,7 @@ async def api_create_category(
     current_user: User = Depends(get_active_user_web),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         raise HTTPException(status_code=403, detail="Não autorizado")
     
     cat_in = PurchaseCategoryCreate(nome=nome, descricao=descricao)
@@ -722,7 +742,7 @@ async def api_create_unit(
     current_user: User = Depends(get_active_user_web),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         raise HTTPException(status_code=403, detail="Não autorizado")
     
     try:
@@ -745,7 +765,7 @@ async def api_create_product(
     current_user: User = Depends(get_active_user_web),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         raise HTTPException(status_code=403, detail="Não autorizado")
     
     try:
@@ -787,6 +807,8 @@ async def create_product_submit(
     fabricante: Optional[str] = Form(None),
     descricao: Optional[str] = Form(None)
 ):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
     try:
         existing = await crud_proc.get_product_by_codigo(db, codigo)
         if existing:
@@ -839,6 +861,8 @@ async def new_cost_center_form(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
     from app.models.location import Departamento
     departments = (await db.execute(select(Departamento))).scalars().all()
     users_list = (await db.execute(select(User).filter(User.is_active == True))).scalars().all()
@@ -866,6 +890,8 @@ async def create_cost_center_submit(
     alerta_limite: Optional[str] = Form(None),
     bloquear_limite: Optional[str] = Form(None)
 ):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
     try:
         existing = (await db.execute(select(CostCenter).filter(CostCenter.codigo == codigo))).scalars().first()
         if existing:

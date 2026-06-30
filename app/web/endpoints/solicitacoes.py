@@ -124,7 +124,7 @@ async def list_solicitacoes_admin(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/solicitacoes", status_code=303)
 
     pending_solicitacoes = await transaction_crud.solicitacao.get_pending(db)
@@ -167,7 +167,7 @@ async def approve_solicitacao(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/solicitacoes", status_code=303)
 
     await transaction_crud.solicitacao.approve(db, solicitacao_id=solicitacao_id, aprovador_id=current_user.id)
@@ -180,7 +180,7 @@ async def reject_solicitacao(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/solicitacoes", status_code=303)
 
     await transaction_crud.solicitacao.reject(db, solicitacao_id=solicitacao_id, aprovador_id=current_user.id)
@@ -195,7 +195,7 @@ async def confirmar_entrega_page(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Página de confirmação de entrega - Admin/Gerente pode confirmar com ou sem QR do usuário"""
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/solicitacoes", status_code=303)
 
     result = await db.execute(
@@ -228,7 +228,7 @@ async def confirmar_entrega_submit(
     """Processa confirmação de entrega - valida QR do usuário se fornecido"""
     from app.crud import user as user_crud
     
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/solicitacoes", status_code=303)
 
     result = await db.execute(

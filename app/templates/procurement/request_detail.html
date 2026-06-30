@@ -25,9 +25,9 @@
                 </svg>
                 Limite Orçamentário Excedido!
             </h3>
-            <p class="text-sm font-sans text-red-700">Esta solicitação ultrapassa o orçamento definido para o centro de custo e está aguardando liberação manual por um administrador ou gerente de TI.</p>
+            <p class="text-sm font-sans text-red-700">Esta solicitação ultrapassa o orçamento definido para o centro de custo e está aguardando liberação manual por um administrador ou gerente.</p>
         </div>
-        {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
+        {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
         <form action="/compras/solicitacoes/{{ solicitacao.id }}/liberar-orcamento" method="POST">
             <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-mono text-xs font-bold py-3 px-6 uppercase tracking-wider transition border-2 border-red-600 hover:border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]">
                 Liberar Orçamento

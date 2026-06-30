@@ -15,13 +15,13 @@ router = APIRouter()
 
 # Dependency to check admin/manager role
 async def check_admin_role(current_user: Annotated[User, Depends(get_active_user_web)]):
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     return current_user
 
 # Dependency to check staff role (includes technician)
 async def check_staff_role(current_user: Annotated[User, Depends(get_active_user_web)]):
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     return current_user
 

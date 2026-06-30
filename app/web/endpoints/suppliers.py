@@ -134,7 +134,7 @@ async def list_suppliers(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     from app.models.user import UserRole
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/", status_code=303)
         
     fornecedores = await crud_supplier.get_fornecedores(db)
@@ -151,7 +151,7 @@ async def new_supplier_form(
     current_user: Annotated[User, Depends(get_active_user_web)]
 ):
     from app.models.user import UserRole
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/", status_code=303)
         
     return templates.TemplateResponse("suppliers/form.html", {
@@ -177,7 +177,7 @@ async def create_supplier(
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     from app.models.user import UserRole
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/", status_code=303)
 
     try:
@@ -234,7 +234,7 @@ async def parse_xml_for_supplier_form(
 ):
     """Recebe um XML de NF-e e retorna os dados do emitente para preenchimento automático do formulário."""
     from app.models.user import UserRole
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return {}
     if not xml_file or not xml_file.filename:
         return {}
@@ -276,7 +276,7 @@ async def edit_supplier_form(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     from app.models.user import UserRole
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/", status_code=303)
         
     fornecedor = await crud_supplier.get_fornecedor(db, fornecedor_id)
@@ -312,7 +312,7 @@ async def update_supplier(
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     from app.models.user import UserRole
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/", status_code=303)
         
     fornecedor = await crud_supplier.get_fornecedor(db, fornecedor_id)
@@ -380,7 +380,7 @@ async def get_supplier_invoices(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     from app.models.user import UserRole
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return []
         
     fornecedor = await crud_supplier.get_fornecedor(db, fornecedor_id)
@@ -396,7 +396,7 @@ async def get_invoice_details(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     from app.models.user import UserRole
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return {}
         
     invoice = await crud_invoice.get_nota_fiscal(db, invoice_id)
@@ -424,7 +424,7 @@ async def delete_invoice(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     from app.models.user import UserRole
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url=f"/suppliers/{fornecedor_id}/edit", status_code=303)
         
     invoice = await crud_invoice.get_nota_fiscal(db, invoice_id)
@@ -458,7 +458,7 @@ async def delete_supplier(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     from app.models.user import UserRole
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/suppliers", status_code=303)
         
     fornecedor = await crud_supplier.get_fornecedor(db, fornecedor_id)
