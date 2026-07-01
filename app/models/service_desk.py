@@ -11,6 +11,7 @@ class ServiceStatus(str, Enum):
     ABERTO = "Aberto"
     EM_ATENDIMENTO = "Em Atendimento"
     AGUARDANDO_TERCEIRO = "Aguardando Terceiro"
+    ESPERANDO_COMPRA = "Esperando Compra"
     RESOLVIDO = "Resolvido"
     CANCELADO = "Cancelado"
 

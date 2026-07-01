@@ -5,8 +5,8 @@
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
         <div>
-            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Novo Produto</h1>
-            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Registrar novo item no catálogo de compras</p>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">{% if produto %}Editar Produto{% else %}Novo Produto{% endif %}</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">{% if produto %}Atualizar informações do produto #{{ produto.id }}{% else %}Registrar novo item no catálogo de compras{% endif %}</p>
         </div>
         <a href="/compras/produtos" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             &larr; Cancelar
@@ -20,16 +20,16 @@
     {% endif %}
 
     <!-- Form -->
-    <form action="/compras/produtos/new" method="POST" class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+    <form action="{% if produto %}/compras/produtos/{{ produto.id }}/edit{% else %}/compras/produtos/new{% endif %}" method="POST" class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
                 <label for="codigo" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Código Único (SKU/PartNumber)</label>
-                <input type="text" id="codigo" name="codigo" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50 uppercase" placeholder="PROD-0001">
+                <input type="text" id="codigo" name="codigo" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50 uppercase" placeholder="PROD-0001" value="{{ produto.codigo if produto else '' }}">
             </div>
 
             <div>
                 <label for="nome" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Nome do Produto/Serviço</label>
-                <input type="text" id="nome" name="nome" required class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Ex: Teclado Mecânico USB">
+                <input type="text" id="nome" name="nome" required class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Ex: Teclado Mecânico USB" value="{{ produto.nome if produto else '' }}">
             </div>
 
             <div>
@@ -39,7 +39,7 @@
                 </div>
                 <select id="categoria_id" name="categoria_id" required class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50 font-mono">
                     {% for cat in categories %}
-                    <option value="{{ cat.id }}">{{ cat.nome }}</option>
+                    <option value="{{ cat.id }}" {% if produto and produto.categoria_id == cat.id %}selected{% endif %}>{{ cat.nome }}</option>
                     {% else %}
                     <option value="" disabled>Nenhuma categoria disponível</option>
                     {% endfor %}
@@ -53,7 +53,7 @@
                 </div>
                 <select id="unidade" name="unidade" required class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50 font-mono">
                     {% for u in units %}
-                    <option value="{{ u.sigla }}">{{ u.sigla }} - {{ u.descricao or '' }}</option>
+                    <option value="{{ u.sigla }}" {% if produto and produto.unidade == u.sigla %}selected{% endif %}>{{ u.sigla }} - {{ u.descricao or '' }}</option>
                     {% else %}
                     <option value="UN">UN - Unidade</option>
                     {% endfor %}
@@ -63,35 +63,45 @@
             <div>
                 <label for="tipo" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Tipo de Produto</label>
                 <select id="tipo" name="tipo" required class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50 font-mono">
-                    <option value="Equipamento">Equipamento (Ativo Imobilizado)</option>
-                    <option value="Material de Consumo">Material de Consumo (Almoxarifado)</option>
-                    <option value="Serviço">Serviço</option>
+                    <option value="Equipamento" {% if produto and produto.tipo.value == 'Equipamento' %}selected{% endif %}>Equipamento (Ativo Imobilizado)</option>
+                    <option value="Material de Consumo" {% if produto and produto.tipo.value == 'Material de Consumo' %}selected{% endif %}>Material de Consumo (Almoxarifado)</option>
+                    <option value="Serviço" {% if produto and produto.tipo.value == 'Serviço' %}selected{% endif %}>Serviço</option>
+                    <option value="Produto" {% if produto and produto.tipo.value == 'Produto' %}selected{% endif %}>Produto</option>
+                    <option value="Licença" {% if produto and produto.tipo.value == 'Licença' %}selected{% endif %}>Licença</option>
+                    <option value="Assinatura" {% if produto and produto.tipo.value == 'Assinatura' %}selected{% endif %}>Assinatura</option>
                 </select>
             </div>
 
             <div>
                 <label for="marca" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Marca</label>
-                <input type="text" id="marca" name="marca" class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Ex: Dell, Logitech">
+                <input type="text" id="marca" name="marca" class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Ex: Dell, Logitech" value="{{ produto.marca if produto and produto.marca else '' }}">
             </div>
 
             <div>
                 <label for="modelo" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Modelo</label>
-                <input type="text" id="modelo" name="modelo" class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Ex: MX Keys">
+                <input type="text" id="modelo" name="modelo" class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Ex: MX Keys" value="{{ produto.modelo if produto and produto.modelo else '' }}">
             </div>
 
             <div>
                 <label for="fabricante" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Fabricante</label>
-                <input type="text" id="fabricante" name="fabricante" class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Ex: Dell Inc.">
+                <input type="text" id="fabricante" name="fabricante" class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Ex: Dell Inc." value="{{ produto.fabricante if produto and produto.fabricante else '' }}">
             </div>
         </div>
 
+        {% if produto %}
+        <div class="flex items-center gap-2 font-mono text-sm bg-gray-50 p-3 border-2 border-black">
+            <input type="checkbox" id="ativo" name="ativo" value="true" {% if produto.ativo %}checked{% endif %} class="w-4 h-4 accent-black border-2 border-black cursor-pointer">
+            <label for="ativo" class="font-bold uppercase cursor-pointer select-none">Produto Ativo (Disponível para compras e solicitações)</label>
+        </div>
+        {% endif %}
+
         <div>
             <label for="descricao" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Descrição Detalhada / Observações técnicas</label>
-            <textarea id="descricao" name="descricao" rows="4" class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Insira especificações técnicas necessárias para o comprador..."></textarea>
+            <textarea id="descricao" name="descricao" rows="4" class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Insira especificações técnicas necessárias para o comprador...">{{ produto.descricao if produto and produto.descricao else '' }}</textarea>
         </div>
 
         <button type="submit" class="w-full bg-black text-white font-mono text-xs font-bold py-4 uppercase tracking-wider hover:bg-white hover:text-black hover:border-black transition border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]">
-            CADASTRAR PRODUTO
+            {% if produto %}SALVAR ALTERAÇÕES{% else %}CADASTRAR PRODUTO{% endif %}
         </button>
     </form>
 </div>

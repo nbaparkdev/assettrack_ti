@@ -2,6 +2,17 @@
 
 {% block content %}
 <div class="max-w-5xl mx-auto space-y-8 fade-in">
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-600 p-4 font-mono text-xs text-red-600 uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(220,38,38,1)]">
+        {{ error }}
+    </div>
+    {% endif %}
+    {% if success %}
+    <div class="bg-green-50 border-2 border-green-600 p-4 font-mono text-xs text-green-600 uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(22,163,74,1)]">
+        {{ success }}
+    </div>
+    {% endif %}
+
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
         <div>
@@ -15,6 +26,8 @@
             {% set status_class = {
                 'Aberto': 'bg-blue-50 text-blue-700 border-blue-500',
                 'Em Atendimento': 'bg-yellow-50 text-yellow-700 border-yellow-500',
+                'Aguardando Terceiro': 'bg-pink-50 text-pink-700 border-pink-500',
+                'Esperando Compra': 'bg-amber-50 text-amber-700 border-amber-500',
                 'Resolvido': 'bg-green-50 text-green-700 border-green-500',
                 'Cancelado': 'bg-gray-50 text-gray-700 border-gray-500'
             }.get(ticket.status, 'bg-gray-50 text-gray-700 border-gray-500') %}
@@ -188,6 +201,47 @@
                    class="w-full text-center inline-block bg-black text-white text-xs font-bold py-2 border-2 border-black hover:bg-white hover:text-black transition-all uppercase">
                     &rarr; Solicitar Compra
                 </a>
+
+                <!-- Divisor -->
+                <div class="border-t border-gray-200 my-4 pt-4 space-y-4">
+                    <h4 class="font-mono text-[10px] font-bold text-gray-400 uppercase">Estoque de Consumo</h4>
+                    
+                    {% if consumed_items %}
+                    <div class="space-y-2">
+                        <p class="text-[10px] font-bold text-black uppercase">Itens Consumidos:</p>
+                        <div class="bg-gray-50 border border-black p-3 font-mono text-[11px] space-y-1">
+                            {% for item in consumed_items %}
+                            <div class="flex justify-between">
+                                <span class="uppercase">{{ item.product.nome }}</span>
+                                <span class="font-bold">-{{ item.quantidade }} {{ item.product.unidade_medida or 'un' }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if stocks %}
+                    <form action="/servicos/chamado/{{ ticket.codigo }}/consumir-estoque" method="POST" class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Retirar do Estoque</label>
+                            <select name="product_id" required class="w-full bg-white border border-black text-xs p-2 focus:ring-0 font-mono">
+                                <option value="">Selecione o Item...</option>
+                                {% for st in stocks %}
+                                <option value="{{ st.product.id }}">{{ st.product.nome }} (Saldo: {{ st.quantidade_saldo }} {{ st.product.unidade_medida or 'un' }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="number" name="quantidade" step="0.01" min="0.01" required placeholder="Qtd" class="w-20 bg-white border border-black text-xs p-2 font-mono focus:ring-0">
+                            <button type="submit" class="flex-1 bg-green-600 text-white font-bold uppercase text-[10px] py-2 hover:bg-green-700 transition">
+                                Consumir
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <p class="text-[10px] text-gray-400 italic uppercase">Nenhum item disponível no estoque de consumo.</p>
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
         </div>

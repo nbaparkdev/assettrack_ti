@@ -28,10 +28,17 @@
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Ativo (não editável aqui) -->
+                <!-- Ativo / Infra Relacionado -->
                 <div class="space-y-2">
+                    {% if order.asset %}
                     <label class="block text-xs font-bold uppercase tracking-widest text-gray-400">Ativo Relacionado</label>
                     <input type="text" disabled value="{{ order.asset.e_patrimonio }} — {{ order.asset.nome }}"
                         class="w-full border-2 border-gray-200 bg-gray-50 rounded-none px-4 py-3 font-mono text-sm text-gray-400">
+                    {% else %}
+                    <label class="block text-xs font-bold uppercase tracking-widest text-gray-400">Serviço de Infra Predial</label>
+                    <input type="text" disabled value="{{ order.infra_predial_servico or 'Sem Ativo / Infra' }}"
+                        class="w-full border-2 border-gray-200 bg-gray-50 rounded-none px-4 py-3 font-mono text-sm text-gray-400">
+                    {% endif %}
                 </div>
 
                 <!-- Técnico Responsável -->

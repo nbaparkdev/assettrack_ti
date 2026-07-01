@@ -155,7 +155,7 @@
                     <a href="/manutencao-preventiva/ordens/{{ order.id }}" class="flex items-center justify-between p-3 border border-gray-200 hover:bg-gray-50 transition">
                         <div class="flex items-center gap-3">
                             <span class="font-mono text-xs font-bold">{{ order.numero }}</span>
-                            <span class="text-xs text-gray-500">{{ order.asset.nome if order.asset else '-' }}</span>
+                            <span class="text-xs text-gray-500">{{ order.asset.nome if order.asset else (order.infra_predial_servico or '-') }}</span>
                         </div>
                         <div class="flex items-center gap-3">
                             {% set s_class = {

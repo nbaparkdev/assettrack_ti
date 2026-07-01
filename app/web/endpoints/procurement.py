@@ -28,7 +28,7 @@ from app.schemas.procurement import (
     PurchaseRequestCreate, PurchaseRequestItemCreate,
     PurchaseOrderCreate, PurchaseOrderItemCreate,
     PurchaseReceivingCreate, PurchaseReceivingItemCreate,
-    PurchaseProductCreate, CostCenterCreate, PurchaseContractCreate,
+    PurchaseProductCreate, PurchaseProductUpdate, CostCenterCreate, PurchaseContractCreate,
     PurchaseCategoryCreate
 )
 
@@ -514,12 +514,17 @@ async def select_winning_supplier(
     cq.status = "Finalizada"
     db.add(cq)
 
+    # Obter a solicitação de compra original para propagar o centro de custo
+    req_res = await db.execute(select(PurchaseRequest).filter(PurchaseRequest.id == cq.request_id))
+    req = req_res.scalars().first()
+    centro_custo_id = req.centro_custo_id if req else 1
+
     # Gerar automaticamente o Pedido de Compra (PurchaseOrder)
     num = await crud_proc.generate_order_number(db)
     order = PurchaseOrder(
         numero=num,
         fornecedor_id=winner.fornecedor_id,
-        centro_custo_id=1, # Default/Configurável
+        centro_custo_id=centro_custo_id,
         request_id=cq.request_id,
         quotation_id=cq.id,
         valor_total=winner.valor_total,
@@ -931,6 +936,96 @@ async def create_product_submit(
         })
 
 
+@router.get("/produtos/{product_id}/edit", response_class=HTMLResponse)
+async def edit_product_form(
+    product_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    produto = await crud_proc.get_product(db, product_id)
+    if not produto:
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+    categories = await crud_proc.get_categories(db, limit=100)
+    units = await crud_proc.get_units(db)
+    return templates.TemplateResponse("procurement/product_form.html", {
+        "request": request,
+        "user": current_user,
+        "categories": categories,
+        "units": units,
+        "produto": produto,
+        "title": f"Editar Produto: {produto.nome}"
+    })
+
+
+@router.post("/produtos/{product_id}/edit", response_class=HTMLResponse)
+async def edit_product_submit(
+    product_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    codigo: str = Form(...),
+    nome: str = Form(...),
+    categoria_id: int = Form(...),
+    unidade: str = Form(...),
+    tipo: str = Form(...),
+    marca: Optional[str] = Form(None),
+    modelo: Optional[str] = Form(None),
+    fabricante: Optional[str] = Form(None),
+    descricao: Optional[str] = Form(None),
+    ativo: Optional[str] = Form(None)
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    
+    produto = await crud_proc.get_product(db, product_id)
+    if not produto:
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+        
+    try:
+        # Check if code is already used by ANOTHER product
+        existing = await crud_proc.get_product_by_codigo(db, codigo)
+        if existing and existing.id != product_id:
+            raise ValueError("Já existe outro produto cadastrado com este código!")
+            
+        is_active = True
+        if ativo is not None:
+            is_active = ativo.lower() in ("true", "1", "yes", "on")
+        else:
+            is_active = False # HTML unchecked checkbox returns nothing
+            
+        product_in = PurchaseProductUpdate(
+            codigo=codigo,
+            nome=nome,
+            categoria_id=categoria_id,
+            unidade=unidade,
+            tipo=ProductType(tipo),
+            marca=marca,
+            modelo=modelo,
+            fabricante=fabricante,
+            descricao=descricao,
+            ativo=is_active
+        )
+        await crud_proc.update_product(db, db_prod=produto, product=product_in)
+        return RedirectResponse(url="/compras/produtos", status_code=303)
+    except Exception as e:
+        logger.error(f"Erro ao editar produto: {e}")
+        categories = await crud_proc.get_categories(db, limit=100)
+        units = await crud_proc.get_units(db)
+        return templates.TemplateResponse("procurement/product_form.html", {
+            "request": request,
+            "user": current_user,
+            "categories": categories,
+            "units": units,
+            "produto": produto,
+            "error": str(e),
+            "title": f"Editar Produto: {produto.nome}"
+        })
+
+
+
 @router.get("/centro-custos", response_class=HTMLResponse)
 async def list_cost_centers(
     request: Request,
@@ -1027,6 +1122,119 @@ async def create_cost_center_submit(
             "users_list": users_list,
             "error": str(e),
             "title": "Novo Centro de Custo"
+        })
+
+
+@router.get("/centro-custos/{cc_id}/edit", response_class=HTMLResponse)
+async def edit_cost_center_form(
+    cc_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    
+    cc = await crud_proc.get_cost_center(db, cc_id=cc_id)
+    if not cc:
+        raise HTTPException(status_code=404, detail="Centro de Custo não encontrado")
+        
+    from app.models.location import Departamento
+    departments = (await db.execute(select(Departamento))).scalars().all()
+    users_list = (await db.execute(select(User).filter(User.is_active == True))).scalars().all()
+    
+    return templates.TemplateResponse("procurement/cost_center_form.html", {
+        "request": request,
+        "user": current_user,
+        "cc": cc,
+        "departments": departments,
+        "users_list": users_list,
+        "title": f"Editar Centro de Custo: {cc.nome}"
+    })
+
+
+@router.post("/centro-custos/{cc_id}/edit")
+async def edit_cost_center_submit(
+    cc_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    nome: str = Form(...),
+    departamento_id: Optional[int] = Form(None),
+    responsavel_id: Optional[int] = Form(None),
+    orcamento_mensal: float = Form(...),
+    orcamento_anual: float = Form(...),
+    alerta_limite: Optional[str] = Form(None),
+    bloquear_limite: Optional[str] = Form(None)
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+        
+    cc = await crud_proc.get_cost_center(db, cc_id=cc_id)
+    if not cc:
+        raise HTTPException(status_code=404, detail="Centro de Custo não encontrado")
+        
+    try:
+        cc.nome = nome
+        cc.departamento_id = departamento_id
+        cc.responsavel_id = responsavel_id
+        cc.orcamento_mensal = orcamento_mensal
+        cc.orcamento_anual = orcamento_anual
+        cc.alerta_limite = True if alerta_limite else False
+        cc.bloquear_limite = True if bloquear_limite else False
+        
+        db.add(cc)
+        await db.commit()
+        return RedirectResponse(url="/compras/centro-custos", status_code=303)
+    except Exception as e:
+        logger.error(f"Erro ao editar centro de custo: {e}")
+        from app.models.location import Departamento
+        departments = (await db.execute(select(Departamento))).scalars().all()
+        users_list = (await db.execute(select(User).filter(User.is_active == True))).scalars().all()
+        return templates.TemplateResponse("procurement/cost_center_form.html", {
+            "request": request,
+            "user": current_user,
+            "cc": cc,
+            "departments": departments,
+            "users_list": users_list,
+            "error": str(e),
+            "title": f"Editar Centro de Custo: {cc.nome}"
+        })
+
+
+@router.post("/centro-custos/{cc_id}/delete")
+async def delete_cost_center(
+    cc_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+        
+    cc = await crud_proc.get_cost_center(db, cc_id=cc_id)
+    if not cc:
+        raise HTTPException(status_code=404, detail="Centro de Custo não encontrado")
+        
+    try:
+        from app.models.procurement import PurchaseRequest
+        existing_requests = (await db.execute(select(PurchaseRequest).filter(PurchaseRequest.centro_custo_id == cc_id))).scalars().first()
+        if existing_requests:
+            raise ValueError("Não é possível excluir este Centro de Custo pois existem solicitações de compra vinculadas a ele.")
+            
+        await db.delete(cc)
+        await db.commit()
+        return RedirectResponse(url="/compras/centro-custos", status_code=303)
+    except Exception as e:
+        logger.error(f"Erro ao excluir centro de custo: {e}")
+        await db.rollback()
+        cost_centers = await crud_proc.get_cost_centers(db, limit=100)
+        return templates.TemplateResponse("procurement/cost_centers_list.html", {
+            "request": request,
+            "user": current_user,
+            "cost_centers": cost_centers,
+            "error": str(e),
+            "title": "Centros de Custo"
         })
 
 
@@ -1233,7 +1441,10 @@ async def procurement_reports(
         .join(PurchaseProduct, PurchaseRequestItem.product_id == PurchaseProduct.id)
         .join(PurchaseCategory, PurchaseProduct.categoria_id == PurchaseCategory.id)
         .join(PurchaseRequest, PurchaseRequestItem.request_id == PurchaseRequest.id)
-        .filter(PurchaseRequest.status == PurchaseRequestStatus.APROVADA)
+        .filter(PurchaseRequest.status.in_([
+            PurchaseRequestStatus.APROVADA, 
+            PurchaseRequestStatus.CONVERTIDA_COTACAO
+        ]))
         .group_by(PurchaseCategory.nome)
     )
     for row in res_cat.all():

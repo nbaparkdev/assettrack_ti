@@ -147,6 +147,7 @@ class MaintenanceMaterialBase(BaseModel):
     quantidade: Decimal
     valor_unitario: Decimal
     valor_total: Decimal
+    product_id: Optional[int] = None
     observacao: Optional[str] = None
 
 
@@ -274,7 +275,8 @@ class MaintenanceNotificationResponse(MaintenanceNotificationBase):
 # ============== Maintenance Order ==============
 class MaintenanceOrderBase(BaseModel):
     plan_id: Optional[int] = None
-    asset_id: int
+    asset_id: Optional[int] = None
+    infra_predial_servico: Optional[str] = None
     tecnico_id: Optional[int] = None
     solicitante_id: Optional[int] = None
     status: OrderStatus = OrderStatus.ABERTA
@@ -332,6 +334,7 @@ class MaintenanceMaterialBase(BaseModel):
     quantidade: float
     valor_unitario: float
     valor_total: float
+    product_id: Optional[int] = None
     observacao: Optional[str] = None
 
 

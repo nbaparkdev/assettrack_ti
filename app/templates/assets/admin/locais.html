@@ -28,10 +28,11 @@
     {% endif %}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- New Location Form -->
-        <div class="lg:col-span-1">
-            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sticky top-8">
-                <h3 class="font-bold text-sm uppercase tracking-widest mb-6 border-b-2 border-black pb-2">Nova Localização</h3>
+        <!-- Forms Column -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- New Location Form -->
+            <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                <h3 class="font-bold text-sm uppercase tracking-widest mb-4 border-b-2 border-black pb-2">Nova Localização</h3>
                 <form action="/assets/admin/localizacoes" method="POST" class="space-y-4">
                     <div class="space-y-1">
                         <label class="block text-[10px] font-bold uppercase text-gray-500">Nome da Localização</label>
@@ -54,18 +55,48 @@
                     </button>
                 </form>
             </div>
+
+            <!-- New Storage Form -->
+            <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                <h3 class="font-bold text-sm uppercase tracking-widest mb-4 border-b-2 border-black pb-2">Novo Armazenamento</h3>
+                <form action="/assets/admin/armazenamentos" method="POST" class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Nome do Armazenamento</label>
+                        <input type="text" name="nome" required placeholder="Ex: Almoxarifado Central"
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Capacidade Máxima (Itens)</label>
+                        <input type="number" name="capacidade_max" value="0" min="0" required
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Tipos de Itens</label>
+                        <input type="text" name="tipo_itens" placeholder="Ex: Hardware, Cabos, Peças"
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-green-600 text-white font-bold uppercase text-xs py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-green-700 transition">
+                        Cadastrar Armazenamento
+                    </button>
+                </form>
+            </div>
         </div>
 
-        <!-- Locations List -->
-        <div class="lg:col-span-2">
-            <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <!-- Lists Column -->
+        <div class="lg:col-span-2 space-y-8">
+            <!-- Locations List -->
+            <div class="bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                <div class="bg-black text-white p-4 font-mono text-xs uppercase tracking-widest font-bold">
+                    Localizações Físicas (Salas/Andares)
+                </div>
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-black text-white font-mono text-xs uppercase tracking-widest">
-                            <th class="px-6 py-4 border-b border-gray-800">Localização</th>
-                            <th class="px-6 py-4 border-b border-gray-800">Departamento</th>
-                            <th class="px-6 py-4 border-b border-gray-800 text-right">Ativos</th>
-                            <th class="px-6 py-4 border-b border-gray-800 text-right">Ações</th>
+                        <tr class="bg-gray-100 text-black font-mono text-[10px] uppercase tracking-widest border-b-2 border-black">
+                            <th class="px-6 py-3 font-bold">Localização</th>
+                            <th class="px-6 py-3 font-bold">Departamento</th>
+                            <th class="px-6 py-3 font-bold text-right">Ativos</th>
+                            <th class="px-6 py-3 font-bold text-right">Ações</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -83,6 +114,53 @@
                         {% else %}
                         <tr>
                             <td colspan="4" class="px-6 py-8 text-center text-gray-400 font-mono text-xs uppercase">Nenhuma localização cadastrada</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Storages List -->
+            <div class="bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                <div class="bg-green-600 text-white p-4 font-mono text-xs uppercase tracking-widest font-bold border-b border-black">
+                    Locais de Armazenamento (Almoxarifados / Depósitos)
+                </div>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100 text-black font-mono text-[10px] uppercase tracking-widest border-b-2 border-black">
+                            <th class="px-6 py-3 font-bold">Nome do Armazenamento</th>
+                            <th class="px-6 py-3 font-bold">Capacidade Máx / Tipos</th>
+                            <th class="px-6 py-3 font-bold text-right">Ativos</th>
+                            <th class="px-6 py-3 font-bold text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for arm in armazenamentos %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 font-bold text-sm uppercase">
+                                {{ arm.nome }}
+                                {% if arm.nome == 'Almoxarifado TI (Compras)' %}
+                                <span class="ml-2 font-mono text-[9px] bg-yellow-100 border border-yellow-500 text-yellow-800 px-1 py-[2px] rounded">Padrão</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-xs text-gray-500">
+                                {% if arm.capacidade_max %}{{ arm.capacidade_max }} itens{% else %}Sem limite{% endif %}
+                                {% if arm.tipo_itens %}<span class="block text-[10px] italic text-gray-400">Foco: {{ arm.tipo_itens }}</span>{% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-xs text-right font-mono">{{ arm.assets|length if arm.assets else 0 }}</td>
+                            <td class="px-6 py-4 text-right">
+                                {% if arm.nome != 'Almoxarifado TI (Compras)' %}
+                                <form action="/assets/admin/armazenamentos/{{ arm.id }}/delete" method="POST" onsubmit="return confirm('Excluir armazenamento {{ arm.nome }}?')" class="inline">
+                                    <button type="submit" class="text-red-600 hover:underline text-[10px] font-bold uppercase">Excluir</button>
+                                </form>
+                                {% else %}
+                                <span class="text-gray-400 text-[10px] uppercase font-bold">Protegido</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="px-6 py-8 text-center text-gray-400 font-mono text-xs uppercase">Nenhum local de armazenamento cadastrado</td>
                         </tr>
                         {% endfor %}
                     </tbody>

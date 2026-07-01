@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from app.database import Base
 from app.core.datetime_utils import now_sp
+from app.models.procurement import PurchaseProduct
 
 
 class MaintenanceType(str, Enum):
@@ -143,7 +144,8 @@ class MaintenanceOrder(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     numero: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
     plan_id: Mapped[Optional[int]] = mapped_column(ForeignKey("maintenance_plans.id"), nullable=True)
-    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), nullable=False)
+    asset_id: Mapped[Optional[int]] = mapped_column(ForeignKey("assets.id"), nullable=True)
+    infra_predial_servico: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
     # Responsáveis
     tecnico_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
@@ -207,6 +209,7 @@ class MaintenanceMaterial(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("maintenance_orders.id"), nullable=False)
+    product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("purchase_products.id"), nullable=True)
     produto: Mapped[str] = mapped_column(String(200), nullable=False)
     quantidade: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     valor_unitario: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
@@ -215,6 +218,7 @@ class MaintenanceMaterial(Base):
     
     # Relacionamentos
     order = relationship("MaintenanceOrder", back_populates="materials")
+    product = relationship("PurchaseProduct")
 
 
 class MaintenancePhoto(Base):

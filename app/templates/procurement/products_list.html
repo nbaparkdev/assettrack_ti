@@ -31,6 +31,7 @@
                         <th class="pb-2">Unidade</th>
                         <th class="pb-2">Marca/Modelo</th>
                         <th class="pb-2">Status</th>
+                        <th class="pb-2 text-right">Ações</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 text-sm">
@@ -53,10 +54,15 @@
                             <span class="font-mono text-[10px] px-2 py-0.5 bg-red-100 text-red-800 border border-red-300 uppercase font-bold">Inativo</span>
                             {% endif %}
                         </td>
+                        <td class="py-3 text-right">
+                            <a href="/compras/produtos/{{ prod.id }}/edit" class="font-mono text-xs font-bold bg-white border border-black px-2.5 py-1 hover:bg-black hover:text-white transition shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]">
+                                Editar
+                            </a>
+                        </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="py-8 text-center font-mono text-xs text-gray-400 uppercase">Nenhum produto cadastrado.</td>
+                        <td colspan="8" class="py-8 text-center font-mono text-xs text-gray-400 uppercase">Nenhum produto cadastrado.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

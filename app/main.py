@@ -87,6 +87,22 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
+    # Manutenção Preventiva - Alterações de tabela para infra predial
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE maintenance_orders ALTER COLUMN asset_id DROP NOT NULL"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE maintenance_orders ADD COLUMN infra_predial_servico VARCHAR(255)"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE maintenance_materials ADD COLUMN product_id INTEGER REFERENCES purchase_products(id)"))
+        except Exception:
+            pass
+
+
     # Iniciar agendador de manutenção preventiva em background
     import asyncio
     from app.services.maintenance_scheduler import start_maintenance_scheduler_loop

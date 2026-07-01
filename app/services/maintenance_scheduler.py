@@ -239,7 +239,7 @@ async def check_and_notify_overdue_orders():
                 # Se não foi notificado hoje, notificar
                 tech_id = order.tecnico_id
                 tech_email = order.tecnico.email if order.tecnico else None
-                asset_name = order.asset.nome if order.asset else "Equipamento"
+                asset_name = order.asset.nome if order.asset else (order.infra_predial_servico or "Infra Predial")
                 
                 await notification_service.notify_order_overdue(
                     db=db,

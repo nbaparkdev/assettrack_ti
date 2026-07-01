@@ -5,7 +5,7 @@
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
         <div>
-            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Novo Centro de Custo</h1>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">{% if cc %}Editar{% else %}Novo{% endif %} Centro de Custo</h1>
             <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Definir limites financeiros e políticas de compras</p>
         </div>
         <a href="/compras/centro-custos" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -20,16 +20,16 @@
     {% endif %}
 
     <!-- Form -->
-    <form action="/compras/centro-custos/new" method="POST" class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+    <form action="{% if cc %}/compras/centro-custos/{{ cc.id }}/edit{% else %}/compras/centro-custos/new{% endif %}" method="POST" class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
                 <label for="codigo" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Código Contábil</label>
-                <input type="text" id="codigo" name="codigo" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50 uppercase" placeholder="CC-TI-01">
+                <input type="text" id="codigo" name="codigo" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50 uppercase" placeholder="CC-TI-01" value="{{ cc.codigo if cc else '' }}" {% if cc %}readonly class="opacity-70 bg-gray-50 cursor-not-allowed"{% endif %}>
             </div>
 
             <div>
                 <label for="nome" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Nome do Centro de Custo</label>
-                <input type="text" id="nome" name="nome" required class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Ex: Tecnologia da Informação">
+                <input type="text" id="nome" name="nome" required class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50" placeholder="Ex: Tecnologia da Informação" value="{{ cc.nome if cc else '' }}">
             </div>
 
             <div>
@@ -37,7 +37,7 @@
                 <select id="departamento_id" name="departamento_id" class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50 font-mono">
                     <option value="">Nenhum</option>
                     {% for dept in departments %}
-                    <option value="{{ dept.id }}">{{ dept.nome }}</option>
+                    <option value="{{ dept.id }}" {% if cc and cc.departamento_id == dept.id %}selected{% endif %}>{{ dept.nome }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -47,19 +47,19 @@
                 <select id="responsavel_id" name="responsavel_id" class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50 font-mono">
                     <option value="">Nenhum</option>
                     {% for usr in users_list %}
-                    <option value="{{ usr.id }}">{{ usr.nome }}</option>
+                    <option value="{{ usr.id }}" {% if cc and cc.responsavel_id == usr.id %}selected{% endif %}>{{ usr.nome }}</option>
                     {% endfor %}
                 </select>
             </div>
 
             <div>
                 <label for="orcamento_mensal" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Orçamento Mensal (R$)</label>
-                <input type="number" step="0.01" id="orcamento_mensal" name="orcamento_mensal" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50" placeholder="5000.00">
+                <input type="number" step="0.01" id="orcamento_mensal" name="orcamento_mensal" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50" placeholder="5000.00" value="{{ cc.orcamento_mensal if cc else '' }}">
             </div>
 
             <div>
                 <label for="orcamento_anual" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Orçamento Anual (R$)</label>
-                <input type="number" step="0.01" id="orcamento_anual" name="orcamento_anual" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50" placeholder="60000.00">
+                <input type="number" step="0.01" id="orcamento_anual" name="orcamento_anual" required class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50" placeholder="60000.00" value="{{ cc.orcamento_anual if cc else '' }}">
             </div>
         </div>
 
@@ -67,7 +67,7 @@
             <h4 class="font-bold text-xs uppercase text-black tracking-wider">Políticas e Limites</h4>
             
             <div class="flex items-start gap-3">
-                <input type="checkbox" id="alerta_limite" name="alerta_limite" value="true" checked class="w-5 h-5 accent-black border-2 border-black rounded-none mt-0.5">
+                <input type="checkbox" id="alerta_limite" name="alerta_limite" value="true" {% if (cc and cc.alerta_limite) or not cc %}checked{% endif %} class="w-5 h-5 accent-black border-2 border-black rounded-none mt-0.5">
                 <div class="text-xs">
                     <label for="alerta_limite" class="font-bold text-black uppercase block">Habilitar Alertas</label>
                     <span class="text-gray-500">Notificar gestores quando os gastos mensais atingirem 80% do orçamento.</span>
@@ -75,7 +75,7 @@
             </div>
 
             <div class="flex items-start gap-3">
-                <input type="checkbox" id="bloquear_limite" name="bloquear_limite" value="true" class="w-5 h-5 accent-black border-2 border-black rounded-none mt-0.5">
+                <input type="checkbox" id="bloquear_limite" name="bloquear_limite" value="true" {% if cc and cc.bloquear_limite %}checked{% endif %} class="w-5 h-5 accent-black border-2 border-black rounded-none mt-0.5">
                 <div class="text-xs">
                     <label for="bloquear_limite" class="font-bold text-black uppercase block">Bloquear Compras Excedentes</label>
                     <span class="text-gray-500">Redirecionar solicitações de compras comuns para aprovação especial de orçamento se o limite for ultrapassado.</span>
@@ -84,7 +84,7 @@
         </div>
 
         <button type="submit" class="w-full bg-black text-white font-mono text-xs font-bold py-4 uppercase tracking-wider hover:bg-white hover:text-black hover:border-black transition border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]">
-            CADASTRAR CENTRO DE CUSTO
+            {% if cc %}SALVAR ALTERAÇÕES{% else %}CADASTRAR CENTRO DE CUSTO{% endif %}
         </button>
     </form>
 </div>

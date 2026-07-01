@@ -544,10 +544,11 @@ async def new_order_form(
 @router.post("/ordens/nova")
 async def create_order(
     request: Request,
-    asset_id: Annotated[int, Form()],
     tipo: Annotated[str, Form()],
     prioridade: Annotated[str, Form()],
     descricao: Annotated[str, Form()],
+    asset_id: Annotated[Optional[str], Form()] = None,
+    infra_predial_servico: Annotated[Optional[str], Form()] = None,
     plan_id: Annotated[Optional[str], Form()] = None,
     tecnico_id: Annotated[Optional[str], Form()] = None,
     data_agendada: Annotated[Optional[str], Form()] = None,
@@ -568,10 +569,15 @@ async def create_order(
     count = result.scalar() or 0
     numero = f"OS-{year}-{count + 1:05d}"
     
+    parsed_asset_id = None
+    if asset_id and asset_id.strip() and asset_id.strip() != "None" and asset_id.strip().isdigit():
+        parsed_asset_id = int(asset_id)
+        
     # Criar a ordem diretamente usando o model
     order = MaintenanceOrder(
         numero=numero,
-        asset_id=asset_id,
+        asset_id=parsed_asset_id,
+        infra_predial_servico=infra_predial_servico if not parsed_asset_id else None,
         tipo=MaintenanceType(tipo),
         prioridade=MaintenancePriority(prioridade),
         observacoes=descricao,
@@ -604,17 +610,21 @@ async def create_order(
             tech_res = await db.execute(select(User).filter(User.id == order.tecnico_id))
             tech = tech_res.scalar_one_or_none()
             
-            asset_res = await db.execute(select(Asset).filter(Asset.id == order.asset_id))
-            asset = asset_res.scalar_one_or_none()
+            asset_name = order.infra_predial_servico or "Manutenção de Infra Predial"
+            if order.asset_id:
+                asset_res = await db.execute(select(Asset).filter(Asset.id == order.asset_id))
+                asset = asset_res.scalar_one_or_none()
+                if asset:
+                    asset_name = asset.nome
             
-            if tech and asset:
+            if tech:
                 await notification_service.notify_order_assigned(
                     db=db,
                     order_id=order.id,
                     order_code=order.numero,
                     technician_id=tech.id,
                     technician_email=tech.email,
-                    asset_name=asset.nome,
+                    asset_name=asset_name,
                     priority=order.prioridade.value,
                     data_agendada=order.data_agendada
                 )
@@ -625,15 +635,18 @@ async def create_order(
     return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order.id}", status_code=303)
 
 
+
 @router.get("/ordens/{order_id}", response_class=HTMLResponse)
 async def order_detail(
     request: Request,
     order_id: int,
     current_user: Annotated[User, Depends(get_active_user_web)],
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: Annotated[AsyncSession, Depends(get_db)],
+    error: Optional[str] = None
 ):
     """Página de detalhes da ordem de manutenção"""
     from app.models.preventive_maintenance import MaintenanceExecution, MaintenanceHistory
+    from app.models.procurement import MaterialStock
 
     # Obter ordem com todos os relacionamentos necessários
     stmt = (
@@ -672,13 +685,24 @@ async def order_detail(
         result = await db.execute(stmt)
         checklists = result.scalars().all()
 
+    # Obter itens do estoque com saldo disponível
+    stock_stmt = (
+        select(MaterialStock)
+        .options(selectinload(MaterialStock.product))
+        .filter(MaterialStock.quantidade_saldo > 0)
+    )
+    stock_res = await db.execute(stock_stmt)
+    available_stock = stock_res.scalars().all()
+
     return templates.TemplateResponse("preventive_maintenance/order_detail.html", {
         "request": request,
         "user": current_user,
         "order": order,
         "checklists": checklists,
         "statuses": OrderStatus,
-        "title": f"Ordem de Serviço: {order.numero}"
+        "title": f"Ordem de Serviço: {order.numero}",
+        "error": error,
+        "available_stock": available_stock
     })
 
 # --- Endpoints para Planos de Manutenção ---
@@ -1449,15 +1473,18 @@ async def delete_order(
 @router.post("/ordens/{order_id}/materiais")
 async def add_order_material(
     order_id: int,
-    produto: Annotated[str, Form()],
     quantidade: Annotated[float, Form()],
-    valor_unitario: Annotated[float, Form()],
+    valor_unitario: Annotated[Optional[str], Form()] = None,
+    produto: Annotated[Optional[str], Form()] = None,
+    product_id: Annotated[Optional[str], Form()] = None,
     observacao: Annotated[Optional[str], Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
-    """Adiciona um material/peça de reposição à ordem de serviço"""
+    """Adiciona um material/peça de reposição à ordem de serviço e realiza a baixa no estoque"""
     from app.models.preventive_maintenance import MaintenanceMaterial, MaintenanceHistory
+    from app.models.procurement import MaterialStock, PurchaseProduct, PurchaseOrderItem
+    from app.services.procurement_service import handle_material_consumption_in_maintenance
     
     order = await pm_crud.maintenance_order.get(db, id=order_id)
     if not order:
@@ -1466,13 +1493,78 @@ async def add_order_material(
     if order.status in [OrderStatus.CONCLUIDA, OrderStatus.CANCELADA]:
         raise HTTPException(status_code=400, detail="Não é possível alterar materiais de ordens concluídas ou canceladas")
         
-    valor_total = quantidade * valor_unitario
+    # Tratamento para campos vazios provenientes de formulário HTML
+    parsed_product_id = None
+    if product_id and product_id.strip():
+        try:
+            parsed_product_id = int(product_id.strip())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="ID do produto inválido")
+            
+    parsed_valor_unitario = None
+    if valor_unitario and valor_unitario.strip():
+        try:
+            parsed_valor_unitario = float(valor_unitario.replace(",", ".").strip())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Valor unitário inválido")
+
+    final_produto = produto
+    
+    if parsed_product_id:
+        # Se selecionou do estoque
+        product_res = await db.execute(select(PurchaseProduct).filter(PurchaseProduct.id == parsed_product_id))
+        product = product_res.scalar_one_or_none()
+        if not product:
+            raise HTTPException(status_code=400, detail="Produto do estoque não encontrado")
+            
+        final_produto = product.nome
+        
+        # Se valor unitário não foi informado para produto do estoque, busca a última compra
+        if parsed_valor_unitario is None:
+            po_item_stmt = select(PurchaseOrderItem.valor_unitario).filter(
+                PurchaseOrderItem.product_id == parsed_product_id
+            ).order_by(PurchaseOrderItem.id.desc()).limit(1)
+            po_item_res = await db.execute(po_item_stmt)
+            parsed_valor_unitario = po_item_res.scalar()
+            if parsed_valor_unitario is None:
+                parsed_valor_unitario = 0.0
+            else:
+                parsed_valor_unitario = float(parsed_valor_unitario)
+        
+        # Validar estoque
+        stock_res = await db.execute(select(MaterialStock).filter(MaterialStock.product_id == parsed_product_id))
+        stock_obj = stock_res.scalar_one_or_none()
+        if not stock_obj or stock_obj.quantidade_saldo < quantidade:
+            saldo_disp = stock_obj.quantidade_saldo if stock_obj else 0.0
+            error_msg = f"Saldo de estoque insuficiente para o item '{product.nome}'. Disponível: {saldo_disp:.2f}"
+            return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order_id}?error={error_msg}", status_code=303)
+            
+        # Baixa no estoque
+        await handle_material_consumption_in_maintenance(
+            product_id=parsed_product_id,
+            quantity=quantidade,
+            db=db,
+            current_user_id=current_user.id,
+            maintenance_id=order_id
+        )
+    else:
+        # Modo manual (sem vínculo de estoque) se produto_id for nulo e produto text foi fornecido
+        if not final_produto:
+            error_msg = "Selecione um produto do estoque ou informe a descrição."
+            return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order_id}?error={error_msg}", status_code=303)
+            
+        if parsed_valor_unitario is None:
+            error_msg = "O valor unitário é obrigatório para materiais avulsos."
+            return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order_id}?error={error_msg}", status_code=303)
+            
+    valor_total = quantidade * parsed_valor_unitario
     
     material = MaintenanceMaterial(
         order_id=order_id,
-        produto=produto,
+        product_id=parsed_product_id,
+        produto=final_produto,
         quantidade=quantidade,
-        valor_unitario=valor_unitario,
+        valor_unitario=parsed_valor_unitario,
         valor_total=valor_total,
         observacao=observacao
     )
@@ -1490,7 +1582,7 @@ async def add_order_material(
     history = MaintenanceHistory(
         order_id=order.id,
         acao="Material Adicionado",
-        descricao=f"Material '{produto}' (Qtd: {quantidade:.2f}, R$ {valor_unitario:.2f}/un, Total: R$ {valor_total:.2f}) adicionado por {current_user.nome}.",
+        descricao=f"Material '{final_produto}' (Qtd: {quantidade:.2f}, R$ {parsed_valor_unitario:.2f}/un, Total: R$ {valor_total:.2f}) adicionado por {current_user.nome}.",
         usuario_id=current_user.id
     )
     db.add(history)
@@ -1506,7 +1598,7 @@ async def remove_order_material(
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
-    """Remove um material/peça de reposição de uma ordem de serviço"""
+    """Remove um material/peça de reposição de uma ordem de serviço e estorna o estoque"""
     from app.models.preventive_maintenance import MaintenanceMaterial, MaintenanceHistory
     
     order = await pm_crud.maintenance_order.get(db, id=order_id)
@@ -1526,7 +1618,23 @@ async def remove_order_material(
         
     produto = material.produto
     
+    # Estornar do estoque se possuir product_id
+    if material.product_id:
+        from app.crud.procurement import create_or_update_stock
+        await create_or_update_stock(
+            db=db,
+            product_id=material.product_id,
+            quantidade=float(material.quantidade),
+            tipo="Entrada",
+            user_id=current_user.id,
+            justificativa=f"Estorno de Material removido da OS ID {order_id}",
+            origem_tabela="maintenance",
+            origem_id=order_id
+        )
+        
     # Remover o material
+    if material in order.materials:
+        order.materials.remove(material)
     await db.delete(material)
     await db.flush()
     

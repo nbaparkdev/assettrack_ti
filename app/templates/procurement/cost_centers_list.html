@@ -12,11 +12,19 @@
             <a href="/compras" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 &larr; Painel Compras
             </a>
+            {% if user.role.value|lower in ['admin', 'gerente', 'gerente_infra'] %}
             <a href="/compras/centro-custos/new" class="font-mono text-xs font-bold bg-black text-white px-4 py-2 hover:bg-white hover:text-black hover:border-black transition border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]">
                 + Novo Centro de Custo
             </a>
+            {% endif %}
         </div>
     </div>
+
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-600 p-4 shadow-[4px_4px_0px_0px_rgba(220,38,38,1)] flex items-center gap-3">
+        <span class="font-mono text-xs font-bold text-red-800 uppercase tracking-wider">{{ error }}</span>
+    </div>
+    {% endif %}
 
     <!-- Grid de Centros de Custo -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -61,6 +69,19 @@
                     <span>R$ {{ "%.2f" | format(cc.orcamento_anual_usado) }} de R$ {{ "%.2f" | format(cc.orcamento_anual) }}</span>
                 </div>
             </div>
+
+            {% if user.role.value|lower in ['admin', 'gerente', 'gerente_infra'] %}
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-200">
+                <a href="/compras/centro-custos/{{ cc.id }}/edit" class="font-mono text-[9px] font-bold border border-black px-2.5 py-1 bg-white hover:bg-gray-100 uppercase transition">
+                    Editar
+                </a>
+                <form action="/compras/centro-custos/{{ cc.id }}/delete" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir o centro de custo {{ cc.nome }}?')" class="inline">
+                    <button type="submit" class="font-mono text-[9px] font-bold border border-black px-2.5 py-1 bg-red-600 text-white hover:bg-red-700 uppercase transition">
+                        Excluir
+                    </button>
+                </form>
+            </div>
+            {% endif %}
         </div>
         {% else %}
         <div class="col-span-full bg-white border-2 border-black p-8 text-center font-mono text-xs text-gray-400 uppercase">

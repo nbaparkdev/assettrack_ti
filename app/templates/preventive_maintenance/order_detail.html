@@ -9,6 +9,8 @@
                 <span class="font-mono text-xs font-bold bg-black text-white px-2 py-1">{{ order.numero }}</span>
                 {% if order.asset %}
                 <span class="text-xs font-mono text-gray-500 uppercase tracking-widest">{{ order.asset.e_patrimonio }} // {{ order.asset.nome }}</span>
+                {% elif order.infra_predial_servico %}
+                <span class="text-xs font-mono text-gray-500 uppercase tracking-widest">Infra Predial // {{ order.infra_predial_servico }}</span>
                 {% endif %}
             </div>
             <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-tight">Manutenção {{ order.tipo.value }}</h1>
@@ -29,6 +31,12 @@
             </div>
         </div>
     </div>
+
+    {% if error %}
+    <div class="bg-red-100 border-2 border-black p-4 text-red-900 font-mono text-sm shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <strong>Erro:</strong> {{ error }}
+    </div>
+    {% endif %}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Main Content -->
@@ -166,22 +174,39 @@
                 <!-- Formulário para adicionar material -->
                 <form action="/manutencao-preventiva/ordens/{{ order.id }}/materiais" method="POST" class="pt-4 border-t-2 border-dashed border-gray-200">
                     <h4 class="font-mono text-xs uppercase font-bold text-black mb-4">Adicionar Material/Peça</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div class="md:col-span-2">
-                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Produto/Item *</label>
-                            <input type="text" name="produto" required placeholder="Ex: Óleo lubrificante, Filtro de ar..."
-                                class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
-                        </div>
+                    
+                    <div class="grid grid-cols-1 gap-4 mb-4">
                         <div>
-                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Qtd. *</label>
-                            <input type="number" name="quantidade" step="0.01" min="0.01" required placeholder="1.0"
-                                class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
+                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Item do Estoque (Consultar Almoxarifado)</label>
+                            <select id="select_estoque" name="product_id" class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
+                                <option value="">-- Selecione um Item do Estoque (Opcional - Avulso abaixo) --</option>
+                                {% for item in available_stock %}
+                                <option value="{{ item.product.id }}" data-saldo="{{ item.quantidade_saldo }}" data-nome="{{ item.product.nome }}" data-unidade="{{ item.product.unidade }}">
+                                    {{ item.product.nome }} (Código: {{ item.product.codigo }} // Saldo: {{ "%.2f"|format(item.quantidade_saldo) }} {{ item.product.unidade }})
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="md:col-span-2" id="wrapper_produto_manual">
+                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Produto/Item (Descrição) *</label>
+                            <input type="text" id="input_produto" name="produto" required placeholder="Ex: Óleo lubrificante, Filtro de ar..."
+                                class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
+                        </div>
                         <div>
-                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Valor Unitário (R$) *</label>
-                            <input type="number" name="valor_unitario" step="0.01" min="0.00" required placeholder="0.00"
+                            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Qtd. * <span id="label_unidade" class="text-gray-400"></span></label>
+                            <input type="number" id="input_quantidade" name="quantidade" step="0.01" min="0.01" required placeholder="1.0"
+                                class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
+                            <span id="help_saldo" class="text-[10px] text-orange-600 font-mono block mt-1 hidden"></span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div id="wrapper_valor_unitario">
+                            <label id="label_valor_unitario" class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Valor Unitário (R$) *</label>
+                            <input type="number" id="input_valor_unitario" name="valor_unitario" step="0.01" min="0.00" required placeholder="0.00"
                                 class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0">
                         </div>
                         <div class="md:col-span-2">
@@ -191,7 +216,7 @@
                         </div>
                     </div>
                     <button type="submit" class="w-full bg-black text-white py-3 text-xs font-bold uppercase hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
-                        + Adicionar Material
+                        + Adicionar Material / Registrar Baixa
                     </button>
                 </form>
                 {% endif %}
@@ -424,7 +449,7 @@
 
                 <!-- Compras Relacionadas -->
                 {% if user.role.value in ['admin', 'gerente_ti', 'tecnico'] %}
-                <a href="/compras/solicitacoes/new?origem_tipo=os&origem_id={{ order.id }}&descricao=Aquisicao+de+itens+para+OS+%23{{ order.numero }}+-+Ativo%3A+{{ order.asset.nome if order.asset else '' }}" 
+                <a href="/compras/solicitacoes/new?origem_tipo=os&origem_id={{ order.id }}&descricao=Aquisicao+de+itens+para+OS+%23{{ order.numero }}+-+Ativo%3A+{{ order.asset.nome if order.asset else (order.infra_predial_servico or '') }}" 
                    class="block w-full text-center bg-black text-white px-6 py-3 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-white hover:text-black border-2 border-black transition">
                     &rarr; Solicitar Compra
                 </a>
@@ -496,4 +521,61 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectEstoque = document.getElementById('select_estoque');
+    const inputProduto = document.getElementById('input_produto');
+    const wrapperProdutoManual = document.getElementById('wrapper_produto_manual');
+    const inputQuantidade = document.getElementById('input_quantidade');
+    const labelUnidade = document.getElementById('label_unidade');
+    const helpSaldo = document.getElementById('help_saldo');
+    const inputValorUnitario = document.getElementById('input_valor_unitario');
+    const labelValorUnitario = document.getElementById('label_valor_unitario');
+    const wrapperValorUnitario = document.getElementById('wrapper_valor_unitario');
+
+    if (selectEstoque) {
+        selectEstoque.addEventListener('change', function() {
+            const selectedOption = selectEstoque.options[selectEstoque.selectedIndex];
+            const val = selectEstoque.value;
+
+            if (val) {
+                // Produto selecionado do estoque
+                const nome = selectedOption.getAttribute('data-nome');
+                const saldo = parseFloat(selectedOption.getAttribute('data-saldo') || '0');
+                const unidade = selectedOption.getAttribute('data-unidade') || 'UN';
+
+                inputProduto.value = nome;
+                inputProduto.removeAttribute('required');
+                wrapperProdutoManual.classList.add('opacity-50');
+                
+                // Definir limites de quantidade com base no estoque disponível
+                inputQuantidade.max = saldo;
+                labelUnidade.textContent = `(${unidade})`;
+                helpSaldo.textContent = `Saldo disponível: ${saldo.toFixed(2)} ${unidade}`;
+                helpSaldo.classList.remove('hidden');
+
+                // Valor unitário deixa de ser obrigatório para itens do estoque
+                inputValorUnitario.removeAttribute('required');
+                labelValorUnitario.innerHTML = 'Valor Unitário (R$) <span class="text-gray-400 font-normal">(Opcional)</span>';
+                wrapperValorUnitario.classList.add('opacity-50');
+            } else {
+                // Modo manual (avulso)
+                inputProduto.value = '';
+                inputProduto.setAttribute('required', 'required');
+                wrapperProdutoManual.classList.remove('opacity-50');
+                
+                inputQuantidade.removeAttribute('max');
+                labelUnidade.textContent = '';
+                helpSaldo.classList.add('hidden');
+
+                // Re-exigir valor unitário para itens manuais/avulsos
+                inputValorUnitario.setAttribute('required', 'required');
+                labelValorUnitario.innerHTML = 'Valor Unitário (R$) *';
+                wrapperValorUnitario.classList.remove('opacity-50');
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

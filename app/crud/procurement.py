@@ -362,23 +362,26 @@ async def get_material_stock(db: AsyncSession, product_id: int) -> Optional[Mate
 async def create_or_update_stock(
     db: AsyncSession, product_id: int, quantidade: float, tipo: str, user_id: int, justificativa: str, origem_tabela: str = None, origem_id: int = None
 ) -> MaterialStock:
+    from decimal import Decimal
+    qty_decimal = Decimal(str(quantidade))
+    
     stock = await get_material_stock(db, product_id)
     if not stock:
-        stock = MaterialStock(product_id=product_id, quantidade_saldo=0.0)
+        stock = MaterialStock(product_id=product_id, quantidade_saldo=Decimal('0.00'))
         db.add(stock)
         await db.flush()
         
     if tipo == "Entrada":
-        stock.quantidade_saldo += quantidade
+        stock.quantidade_saldo += qty_decimal
     else:
-        stock.quantidade_saldo -= quantidade
+        stock.quantidade_saldo -= qty_decimal
         
     db.add(stock)
     
     # Save Transaction
     tx = MaterialStockTransaction(
         product_id=product_id,
-        quantidade=quantidade,
+        quantidade=qty_decimal,
         tipo_movimentacao=tipo,
         origem_tabela=origem_tabela,
         origem_id=origem_id,

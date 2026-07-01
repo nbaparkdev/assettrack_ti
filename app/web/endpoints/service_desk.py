@@ -208,7 +208,9 @@ async def ticket_detail(
     request: Request,
     ticket_id: str,
     current_user: Annotated[User, Depends(get_active_user_web)],
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: Annotated[AsyncSession, Depends(get_db)],
+    error: Optional[str] = None,
+    success: Optional[str] = None
 ):
     ticket = await service_desk_crud.ticket.get_full(db, ticket_id)
     if not ticket:
@@ -219,13 +221,38 @@ async def ticket_detail(
     qr_content = f"{base_url}/servicos/chamado/{ticket.codigo}"
     qr_base64 = QRService.generate_qr_base64(qr_content)
     
+    # Fetch stock information for technicians/admins
+    stocks = []
+    consumed_items = []
+    user_role = str(current_user.role.value).lower()
+    if user_role in ['admin', 'gerente_ti', 'gerente_infra', 'tecnico']:
+        from app.models.procurement import MaterialStock, MaterialStockTransaction
+        stocks = (await db.execute(
+            select(MaterialStock)
+            .options(selectinload(MaterialStock.product))
+            .filter(MaterialStock.quantidade_saldo > 0)
+        )).scalars().all()
+        
+        consumed_items = (await db.execute(
+            select(MaterialStockTransaction)
+            .options(selectinload(MaterialStockTransaction.product))
+            .filter(
+                MaterialStockTransaction.origem_tabela == "service_tickets",
+                MaterialStockTransaction.origem_id == ticket.id
+            )
+        )).scalars().all()
+        
     return templates.TemplateResponse("service_desk/detail.html", {
         "request": request,
         "user": current_user,
         "ticket": ticket,
         "qr_code": qr_base64,
         "statuses": ServiceStatus,
-        "title": f"Chamado: {ticket.codigo}"
+        "title": f"Chamado: {ticket.codigo}",
+        "stocks": stocks,
+        "consumed_items": consumed_items,
+        "error": error,
+        "success": success
     })
 
 # --- Admin Area for Categories and Definitions ---
@@ -247,6 +274,58 @@ async def list_categories(
         "categories": categories,
         "title": "Gerenciar Categorias"
     })
+
+@router.post("/chamado/{ticket_id}/consumir-estoque")
+async def ticket_consume_stock(
+    ticket_id: str,
+    product_id: Annotated[int, Form()],
+    quantidade: Annotated[float, Form()],
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    user_role = str(current_user.role.value).lower()
+    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO, UserRole.GERENTE_INFRA]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+        
+    ticket = await service_desk_crud.ticket.get_full(db, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Chamado não encontrado")
+        
+    from decimal import Decimal
+    qty_decimal = Decimal(str(quantidade))
+    from app.crud.procurement import create_or_update_stock, get_material_stock
+    stock = await get_material_stock(db, product_id)
+    if not stock or stock.quantidade_saldo < qty_decimal:
+        return RedirectResponse(url=f"/servicos/chamado/{ticket.codigo}?error=Saldo+insuficiente+no+estoque!", status_code=303)
+        
+    # Consume item
+    justificativa = f"Consumo lançado para o chamado {ticket.codigo}"
+    await create_or_update_stock(
+        db=db,
+        product_id=product_id,
+        quantidade=quantidade,
+        tipo="Saída",
+        user_id=current_user.id,
+        justificativa=justificativa,
+        origem_tabela="service_tickets",
+        origem_id=ticket.id
+    )
+    
+    # Post interaction on ticket
+    product_name = stock.product.nome if stock.product else "Item"
+    obj_in = ServiceTicketInteractionCreate(
+        ticket_id=ticket.id,
+        mensagem=f"📦 ESTOQUE CONSUMIDO: {quantidade}x {product_name} retirado(s) do estoque para resolução do chamado.",
+        tipo="Comentário"
+    )
+    await service_desk_crud.interaction.create_with_user(db, obj_in=obj_in, usuario_id=current_user.id)
+    
+    # Update ticket update time
+    ticket.data_atualizacao = now_sp()
+    await db.commit()
+    
+    return RedirectResponse(url=f"/servicos/chamado/{ticket.codigo}?success=Item+retirado+do+estoque+com+sucesso!", status_code=303)
+
 
 @router.post("/chamado/{ticket_id}/update")
 async def update_ticket_status(

@@ -28,7 +28,7 @@
 
                 <div class="space-y-2">
                     <label class="block text-xs font-bold uppercase tracking-widest text-black">Equipamento</label>
-                    <select name="asset_id" required
+                    <select name="asset_id"
                         class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm uppercase">
                         <option value="">Selecione o Equipamento</option>
                         {% for asset in assets %}
@@ -36,6 +36,13 @@
                         {% endfor %}
                     </select>
                 </div>
+            </div>
+
+            <!-- Serviço de Infra Predial -->
+            <div class="space-y-2" id="infra-field-container">
+                <label class="block text-xs font-bold uppercase tracking-widest text-black">Serviço de Infra Predial</label>
+                <input type="text" id="infra_predial_servico" name="infra_predial_servico" placeholder="Ex: Pintura, Reparo Elétrico, Ar Condicionado, etc."
+                    class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm uppercase">
             </div>
 
             <!-- Tipo e Prioridade -->
@@ -102,4 +109,29 @@
         </div>
     </form>
 </div>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const assetSelect = document.querySelector('select[name="asset_id"]');
+        const infraInput = document.getElementById('infra_predial_servico');
+        const infraContainer = document.getElementById('infra-field-container');
+
+        function toggleFields() {
+            if (assetSelect.value) {
+                infraInput.removeAttribute('required');
+                infraContainer.style.opacity = '0.5';
+                infraInput.placeholder = "Não aplicável (Equipamento selecionado)";
+                infraInput.disabled = true;
+                infraInput.value = "";
+            } else {
+                infraInput.setAttribute('required', 'required');
+                infraContainer.style.opacity = '1';
+                infraInput.placeholder = "Ex: Pintura, Reparo Elétrico, Ar Condicionado, etc.";
+                infraInput.disabled = false;
+            }
+        }
+
+        assetSelect.addEventListener('change', toggleFields);
+        toggleFields();
+    });
+</script>
 {% endblock %}

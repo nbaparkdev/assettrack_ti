@@ -90,6 +90,9 @@
                             {% if ordem.asset %}
                             <p class="font-bold text-sm text-black">{{ ordem.asset.nome }}</p>
                             <p class="text-xs text-gray-500 font-mono">{{ ordem.asset.e_patrimonio }}</p>
+                            {% elif ordem.infra_predial_servico %}
+                            <p class="font-bold text-sm text-black">{{ ordem.infra_predial_servico }}</p>
+                            <p class="text-xs text-gray-500 font-mono">Infra Predial</p>
                             {% else %}
                             <p class="text-gray-400 font-mono text-xs">-</p>
                             {% endif %}

@@ -1190,25 +1190,37 @@ async def toggle_bloqueio(
 async def list_locais(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: Annotated[AsyncSession, Depends(get_db)],
+    error: Optional[str] = None,
+    success: Optional[str] = None
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/assets", status_code=303)
 
     from sqlalchemy.orm import selectinload
     from sqlalchemy import select
+    from app.models.location import Armazenamento
+    
     result = await db.execute(
         select(Localizacao).options(selectinload(Localizacao.assets), selectinload(Localizacao.departamento))
     )
     locais_list = result.scalars().all()
     departamentos_list = await location.departamento.get_multi(db)
+    
+    armazenamentos_res = await db.execute(
+        select(Armazenamento).options(selectinload(Armazenamento.assets))
+    )
+    armazenamentos_list = armazenamentos_res.scalars().all()
 
     return templates.TemplateResponse("assets/admin/locais.html", {
         "request": request,
         "user": current_user,
         "locais": locais_list,
         "departamentos": departamentos_list,
-        "title": "Localizações"
+        "armazenamentos": armazenamentos_list,
+        "error": error,
+        "success": success,
+        "title": "Localizações e Armazenamentos"
     })
 
 
@@ -1225,7 +1237,7 @@ async def create_local(
     from app.schemas.location import LocalizacaoCreate
     local_in = LocalizacaoCreate(nome=nome, departamento_id=departamento_id)
     await location.localizacao.create(db, obj_in=local_in)
-    return RedirectResponse(url="/assets/admin/localizacoes", status_code=303)
+    return RedirectResponse(url="/assets/admin/localizacoes?success=Localização+cadastrada+com+sucesso!", status_code=303)
 
 
 @router.post("/admin/localizacoes/{local_id}/delete")
@@ -1239,26 +1251,59 @@ async def delete_local(
 
     try:
         await location.localizacao.remove(db, id=local_id)
-        return RedirectResponse(url="/assets/admin/localizacoes", status_code=303)
+        return RedirectResponse(url="/assets/admin/localizacoes?success=Localização+excluída+com+sucesso!", status_code=303)
     except Exception as e:
         await db.rollback()
-        from sqlalchemy.orm import selectinload
-        from sqlalchemy import select
-        result = await db.execute(
-            select(Localizacao).options(selectinload(Localizacao.assets), selectinload(Localizacao.departamento))
+        error_msg = "Não é possível excluir esta localização pois há ativos vinculados a ela."
+        return RedirectResponse(url=f"/assets/admin/localizacoes?error={error_msg}", status_code=303)
+
+
+@router.post("/admin/armazenamentos")
+async def create_armazenamento(
+    nome: Annotated[str, Form()],
+    capacidade_max: Annotated[Optional[int], Form()] = 0,
+    tipo_itens: Annotated[Optional[str], Form()] = None,
+    current_user: Annotated[User, Depends(get_active_user_web)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        return RedirectResponse(url="/assets", status_code=303)
+        
+    from app.models.location import Armazenamento
+    from sqlalchemy import select
+    existing = await db.scalar(select(Armazenamento).filter(Armazenamento.nome == nome))
+    if existing:
+        return RedirectResponse(url="/assets/admin/localizacoes?error=Já+existe+um+armazenamento+com+este+nome!", status_code=303)
+        
+    armazenamento = Armazenamento(nome=nome, capacidade_max=capacidade_max, tipo_itens=tipo_itens)
+    db.add(armazenamento)
+    await db.commit()
+    return RedirectResponse(url="/assets/admin/localizacoes?success=Armazenamento+cadastrado+com+sucesso!", status_code=303)
+
+
+@router.post("/admin/armazenamentos/{armazenamento_id}/delete")
+async def delete_armazenamento(
+    armazenamento_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        return RedirectResponse(url="/assets", status_code=303)
+        
+    from app.models.location import Armazenamento
+    from app.models.asset import Asset
+    from sqlalchemy import select, func
+    armazenamento = await db.get(Armazenamento, armazenamento_id)
+    if not armazenamento:
+        return RedirectResponse(url="/assets/admin/localizacoes?error=Armazenamento+não+encontrado!", status_code=303)
+        
+    asset_count = await db.scalar(select(func.count(Asset.id)).filter(Asset.current_armazenamento_id == armazenamento_id))
+    if asset_count > 0:
+        return RedirectResponse(
+            url=f"/assets/admin/localizacoes?error=Não+é+possível+excluir+este+armazenamento+pois+existem+{asset_count}+ativos+vinculados+a+ele!", 
+            status_code=303
         )
-        locais_list = result.scalars().all()
-        departamentos_list = await location.departamento.get_multi(db)
-
-        error_msg = f"Erro ao excluir: {str(e)}"
-        if "constraint" in str(e).lower() or "foreign" in str(e).lower():
-            error_msg = "Não é possível excluir esta localização pois há ativos vinculados a ela."
-
-        return templates.TemplateResponse("assets/admin/locais.html", {
-            "request": request,
-            "user": current_user,
-            "locais": locais_list,
-            "departamentos": departamentos_list,
-            "error": error_msg,
-            "title": "Localizações"
-        })
+        
+    db.delete(armazenamento)
+    await db.commit()
+    return RedirectResponse(url="/assets/admin/localizacoes?success=Armazenamento+excluído+com+sucesso!", status_code=303)
