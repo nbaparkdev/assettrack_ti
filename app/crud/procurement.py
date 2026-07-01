@@ -146,7 +146,9 @@ async def get_purchase_request(db: AsyncSession, request_id: int) -> Optional[Pu
             selectinload(PurchaseRequest.departamento),
             selectinload(PurchaseRequest.centro_custo),
             selectinload(PurchaseRequest.itens).selectinload(PurchaseRequestItem.product),
-            selectinload(PurchaseRequest.approvals).selectinload(PurchaseApproval.aprovador)
+            selectinload(PurchaseRequest.approvals).selectinload(PurchaseApproval.aprovador),
+            selectinload(PurchaseRequest.origem_os),
+            selectinload(PurchaseRequest.origem_ticket)
         )
         .filter(PurchaseRequest.id == request_id)
     )
@@ -227,6 +229,10 @@ async def get_purchase_order(db: AsyncSession, order_id: int) -> Optional[Purcha
         .options(
             selectinload(PurchaseOrder.fornecedor),
             selectinload(PurchaseOrder.centro_custo),
+            selectinload(PurchaseOrder.request),
+            selectinload(PurchaseOrder.quotation),
+            selectinload(PurchaseOrder.receivings).selectinload(PurchaseReceiving.responsavel),
+            selectinload(PurchaseOrder.receivings).selectinload(PurchaseReceiving.nota_fiscal),
             selectinload(PurchaseOrder.itens).selectinload(PurchaseOrderItem.product)
         )
         .filter(PurchaseOrder.id == order_id)
@@ -238,7 +244,8 @@ async def get_purchase_orders(db: AsyncSession, skip: int = 0, limit: int = 100)
         select(PurchaseOrder)
         .options(
             selectinload(PurchaseOrder.fornecedor),
-            selectinload(PurchaseOrder.centro_custo)
+            selectinload(PurchaseOrder.centro_custo),
+            selectinload(PurchaseOrder.request)
         )
         .order_by(desc(PurchaseOrder.data_emissao))
         .offset(skip).limit(limit)

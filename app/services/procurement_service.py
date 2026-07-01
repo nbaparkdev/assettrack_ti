@@ -58,7 +58,13 @@ async def calculate_quotation_comparison(quotation_id: int, db: AsyncSession) ->
         "best_value_id": best_value_supplier.id if best_value_supplier else None
     }
 
-async def convert_receiving_to_assets(receiving_id: int, db: AsyncSession, current_user_id: int) -> List[Asset]:
+async def convert_receiving_to_assets(
+    receiving_id: int, 
+    db: AsyncSession, 
+    current_user_id: int,
+    current_local_id: Optional[int] = None,
+    current_armazenamento_id: Optional[int] = None
+) -> List[Asset]:
     """
     Processa os itens de um recebimento de compras. 
     Se o produto for do tipo EQUIPAMENTO, cria automaticamente registros na tabela assets (Gestão de Ativos)
@@ -68,6 +74,7 @@ async def convert_receiving_to_assets(receiving_id: int, db: AsyncSession, curre
         select(PurchaseReceiving)
         .options(
             selectinload(PurchaseReceiving.order).selectinload(PurchaseOrder.centro_custo),
+            selectinload(PurchaseReceiving.order).selectinload(PurchaseOrder.itens),
             selectinload(PurchaseReceiving.itens).selectinload(PurchaseReceivingItem.product)
         )
         .filter(PurchaseReceiving.id == receiving_id)
@@ -102,7 +109,9 @@ async def convert_receiving_to_assets(receiving_id: int, db: AsyncSession, curre
                 fornecedor_id=receiving.order.fornecedor_id,
                 nota_fiscal_id=receiving.nota_fiscal_id,
                 created_by_id=current_user_id,
-                current_departamento_id=receiving.order.centro_custo.departamento_id
+                current_departamento_id=receiving.order.centro_custo.departamento_id,
+                current_local_id=current_local_id,
+                current_armazenamento_id=current_armazenamento_id
             )
             db.add(db_asset)
             await db.flush() # Gerar ID do ativo

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="border-b-2 border-black pb-4">
+        <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Recebimento Registrado!</h1>
+        <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Suprimentos // Integração Automática de Ativos</p>
+    </div>
+
+    <!-- Alert / Banner -->
+    <div class="bg-green-500 text-white border-4 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex items-center justify-between">
+        <div class="space-y-1">
+            <h2 class="text-xl font-bold uppercase tracking-tight">Sucesso!</h2>
+            <p class="text-sm font-medium">Os itens foram conferidos fisicamente e o status do pedido foi atualizado para recebido.</p>
+        </div>
+        <div class="text-4xl">🎉</div>
+    </div>
+
+    <!-- Equipment List Box -->
+    <div class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+        <div class="border-b border-black pb-4">
+            <h3 class="font-bold text-lg uppercase text-black">Bens de Capital Gerados ({{ assets|length }})</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Os seguintes ativos foram inseridos automaticamente sob responsabilidade de TI/Compras.</p>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse border-2 border-black">
+                <thead class="bg-gray-100 border-b-2 border-black">
+                    <tr>
+                        <th class="border border-black p-3 text-left text-xs font-bold uppercase">Ativo</th>
+                        <th class="border border-black p-3 text-left text-xs font-bold uppercase">Patrimônio (Tag)</th>
+                        <th class="border border-black p-3 text-left text-xs font-bold uppercase">Modelo</th>
+                        <th class="border border-black p-3 text-left text-xs font-bold uppercase">Destinação Inicial</th>
+                        <th class="border border-black p-3 text-right text-xs font-bold uppercase">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-black font-sans text-sm">
+                    {% for asset in assets %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="border border-black p-3 font-semibold text-black">
+                            {{ asset.nome }}
+                        </td>
+                        <td class="border border-black p-3 font-mono text-xs">
+                            <span class="bg-amber-100 border border-amber-400 text-amber-800 px-2 py-0.5 font-bold">{{ asset.e_patrimonio }}</span>
+                        </td>
+                        <td class="border border-black p-3 text-gray-700">
+                            {{ asset.modelo or '-' }}
+                        </td>
+                        <td class="border border-black p-3 font-mono text-xs text-gray-600">
+                            {% if asset.current_armazenamento %}
+                            <span class="block">📦 {{ asset.current_armazenamento.nome }}</span>
+                            {% endif %}
+                            {% if asset.current_local %}
+                            <span class="block text-[10px]">📍 Local: {{ asset.current_local.nome }}</span>
+                            {% endif %}
+                            {% if not asset.current_armazenamento and not asset.current_local %}
+                            <span class="text-gray-400 italic">Não definida</span>
+                            {% endif %}
+                        </td>
+                        <td class="border border-black p-3 text-right">
+                            <a href="/assets/{{ asset.id }}/edit" class="inline-block bg-black text-white hover:bg-gray-800 px-3 py-1 font-bold text-xs uppercase tracking-tight transition shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                                Editar Ativo / S/N
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="bg-amber-50 border-l-4 border-amber-500 text-amber-900 p-4 font-sans text-xs">
+            <span class="font-bold block uppercase mb-1">💡 Dica de Integração</span>
+            Como esses ativos foram gerados automaticamente, recomendamos clicar em <strong>Editar Ativo / S/N</strong> para atualizar o número de série físico real (N/S) recebido na embalagem e vincular a categoria apropriada.
+        </div>
+
+        <!-- Footer / Navigation -->
+        <div class="pt-6 border-t-2 border-black flex justify-between items-center">
+            <a href="/compras/pedidos" class="btn-secondary">Voltar para Pedidos</a>
+            <a href="/assets" class="btn-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">Ir para Controle de Ativos</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

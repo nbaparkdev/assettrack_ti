@@ -8,7 +8,7 @@
         <natOp>Venda de Mercadoria Adquirida</natOp>
         <mod>55</mod>
         <serie>1</serie>
-        <nNF>8296</nNF>
+        <nNF>9991</nNF>
         <dhEmi>2025-11-06T09:49:49-03:00</dhEmi>
         <dhSaiEnt>2025-09-06T09:49:49-03:00</dhSaiEnt>
         <tpNF>1</tpNF>
@@ -64,7 +64,7 @@
         <prod>
           <cProd>432512.8001</cProd>
           <cEAN>7891113161367</cEAN>
-          <xProd>NOTEBOOK DELL VOSTRO IP3512F</xProd>
+          <xProd>Optiplex 7000</xProd>
           <NCM>60033000</NCM>
           <CFOP>5102</CFOP>
           <uCom>NV</uCom>

@@ -8,6 +8,7 @@ from sqlalchemy import select, desc, func, and_
 from sqlalchemy.orm import selectinload
 import logging
 from datetime import datetime
+from decimal import Decimal
 
 from app.database import get_db
 from app.web.dependencies import get_active_user_web, check_purchases_enabled
@@ -140,7 +141,7 @@ async def create_request_submit(
     products_ids: List[int] = Form(...),
     quantities: List[float] = Form(...),
     estimated_prices: List[float] = Form(...),
-    fornecedores_sugeridos: List[Optional[int]] = Form(...)
+    fornecedores_sugeridos: List[str] = Form(...)
 ):
     try:
         dt_necessaria = None
@@ -149,11 +150,17 @@ async def create_request_submit(
 
         itens_in = []
         for i in range(len(products_ids)):
+            sug_forn_id = None
+            if i < len(fornecedores_sugeridos) and fornecedores_sugeridos[i] and fornecedores_sugeridos[i].strip():
+                try:
+                    sug_forn_id = int(fornecedores_sugeridos[i])
+                except ValueError:
+                    pass
             itens_in.append(PurchaseRequestItemCreate(
                 product_id=products_ids[i],
                 quantidade=quantities[i],
                 valor_estimado=estimated_prices[i],
-                fornecedor_sugerido_id=fornecedores_sugeridos[i] if (i < len(fornecedores_sugeridos) and fornecedores_sugeridos[i]) else None
+                fornecedor_sugerido_id=sug_forn_id
             ))
 
         request_in = PurchaseRequestCreate(
@@ -166,7 +173,7 @@ async def create_request_submit(
 
         # Validate budget
         cc = await crud_proc.get_cost_center(db, cc_id=centro_custo_id)
-        estimated_total = sum(item.quantidade * item.valor_estimado for item in itens_in)
+        estimated_total = Decimal(str(sum(item.quantidade * item.valor_estimado for item in itens_in)))
         status_req = PurchaseRequestStatus.PENDENTE
         if cc and cc.bloquear_limite and (cc.orcamento_mensal_usado + estimated_total > cc.orcamento_mensal):
             status_req = PurchaseRequestStatus.AGUARDANDO_ORCAMENTO
@@ -301,7 +308,7 @@ async def decide_request(
             # Auto update Cost Center budget used
             cc = await crud_proc.get_cost_center(db, req_obj.centro_custo_id)
             if cc:
-                estimated_total = sum(item.quantidade * item.valor_estimado for item in req_obj.itens)
+                estimated_total = Decimal(str(sum(float(item.quantidade) * float(item.valor_estimado) for item in req_obj.itens)))
                 cc.orcamento_mensal_usado += estimated_total
                 cc.orcamento_anual_usado += estimated_total
                 db.add(cc)
@@ -351,7 +358,7 @@ async def list_quotations(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    cotacoes = (await db.execute(select(PurchaseQuotation).order_by(desc(PurchaseQuotation.data_criacao)))).scalars().all()
+    cotacoes = (await db.execute(select(PurchaseQuotation).options(selectinload(PurchaseQuotation.request)).order_by(desc(PurchaseQuotation.data_criacao)))).scalars().all()
     return templates.TemplateResponse("procurement/quotations_list.html", {
         "request": request,
         "user": current_user,
@@ -595,11 +602,38 @@ async def receiving_form(
     )
     notas = notas_res.scalars().all()
 
+    # Verificar se há equipamentos no pedido
+    has_equipment = any(item.product.tipo == ProductType.EQUIPAMENTO for item in order.itens)
+    armazenamentos = []
+    locais = []
+    
+    if has_equipment:
+        from app.models.location import Armazenamento, Localizacao
+        
+        # Buscar armazenamentos
+        arm_res = await db.execute(select(Armazenamento))
+        armazenamentos = arm_res.scalars().all()
+        
+        # Se não houver nenhum, criar um padrão
+        if not armazenamentos:
+            default_arm = Armazenamento(nome="Almoxarifado TI (Compras)", capacidade_max=1000, tipo_itens="Equipamentos")
+            db.add(default_arm)
+            await db.commit()
+            arm_res = await db.execute(select(Armazenamento))
+            armazenamentos = arm_res.scalars().all()
+            
+        # Buscar localizações
+        loc_res = await db.execute(select(Localizacao))
+        locais = loc_res.scalars().all()
+
     return templates.TemplateResponse("procurement/receiving_form.html", {
         "request": request,
         "user": current_user,
         "pedido": order,
         "notas": notas,
+        "has_equipment": has_equipment,
+        "armazenamentos": armazenamentos,
+        "locais": locais,
         "title": f"Receber Pedido {order.numero}"
     })
 
@@ -614,7 +648,9 @@ async def create_receiving_submit(
     observacoes: Optional[str] = Form(None),
     product_ids: List[int] = Form(...),
     quantities_received: List[float] = Form(...),
-    divergencias: List[Optional[str]] = Form(...)
+    divergencias: List[Optional[str]] = Form(...),
+    current_local_id: Optional[int] = Form(None),
+    current_armazenamento_id: Optional[int] = Form(None)
 ):
     try:
         itens_in = []
@@ -635,18 +671,73 @@ async def create_receiving_submit(
         rec = await crud_proc.create_receiving(db, receiving_in=receiving_in, responsavel_id=current_user.id)
         
         # Trigger Asset Creation & Stock Addition
-        await serv_proc.convert_receiving_to_assets(rec.id, db, current_user.id)
-
+        created_assets = await serv_proc.convert_receiving_to_assets(
+            rec.id, 
+            db, 
+            current_user.id,
+            current_local_id=current_local_id,
+            current_armazenamento_id=current_armazenamento_id
+        )
+ 
         # Update Order Status to fully received
         order = await crud_proc.get_purchase_order(db, order_id)
         order.status = PurchaseOrderStatus.RECEBIDO_TOTAL
         db.add(order)
         await db.commit()
-
+ 
+        if created_assets:
+            return RedirectResponse(url=f"/compras/pedidos/{order_id}/recebido-sucesso/{rec.id}", status_code=303)
+ 
         return RedirectResponse(url="/compras/pedidos", status_code=303)
     except Exception as e:
         logger.error(f"Erro ao registrar recebimento: {e}")
         return RedirectResponse(url=f"/compras/pedidos/{order_id}/receber", status_code=303)
+ 
+ 
+@router.get("/pedidos/{order_id}/recebido-sucesso/{receiving_id}", response_class=HTMLResponse)
+async def receiving_success(
+    order_id: int,
+    receiving_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    from app.models.asset import Asset
+    
+    # Buscar recebimento
+    res = await db.execute(
+        select(PurchaseReceiving)
+        .options(
+            selectinload(PurchaseReceiving.itens),
+            selectinload(PurchaseReceiving.order)
+        )
+        .filter(PurchaseReceiving.id == receiving_id)
+    )
+    receiving = res.scalars().first()
+    if not receiving:
+        return RedirectResponse(url="/compras/pedidos", status_code=303)
+        
+    # Buscar ativos criados
+    asset_ids = [item.ativo_criado_id for item in receiving.itens if item.ativo_criado_id]
+    assets = []
+    if asset_ids:
+        assets_res = await db.execute(
+            select(Asset)
+            .options(
+                selectinload(Asset.current_local),
+                selectinload(Asset.current_armazenamento)
+            )
+            .filter(Asset.id.in_(asset_ids))
+        )
+        assets = assets_res.scalars().all()
+        
+    return templates.TemplateResponse("procurement/receiving_success.html", {
+        "request": request,
+        "user": current_user,
+        "pedido": receiving.order,
+        "assets": assets,
+        "title": "Recebimento com Sucesso!"
+    })
 
 
 # -----
@@ -1201,14 +1292,15 @@ async def export_procurement_csv(
         res = await db.execute(select(PurchaseContract).options(selectinload(PurchaseContract.fornecedor)))
         contratos = res.scalars().all()
         for c in contratos:
+            status_calc = "Ativo" if c.data_fim and c.data_fim >= datetime.now() else "Vencido"
             writer.writerow([
                 c.numero,
                 c.fornecedor.nome if c.fornecedor else "",
-                c.objeto,
+                c.tipo,
                 float(c.valor),
-                c.data_inicio.strftime("%d/%m/%Y"),
-                c.data_fim.strftime("%d/%m/%Y"),
-                c.status,
+                c.data_inicio.strftime("%d/%m/%Y") if c.data_inicio else "",
+                c.data_fim.strftime("%d/%m/%Y") if c.data_fim else "",
+                status_calc,
                 "Sim" if c.renovacao_automatica else "Não"
             ])
         filename = "contratos_export.csv"
@@ -1232,7 +1324,7 @@ async def export_procurement_csv(
                 s.centro_custo.nome if s.centro_custo else "",
                 s.justificativa,
                 s.urgencia,
-                s.status,
+                s.status.value if hasattr(s.status, 'value') else str(s.status),
                 s.data_criacao.strftime("%d/%m/%Y %H:%M") if s.data_criacao else "",
                 f"{total_val:.2f}"
             ])
