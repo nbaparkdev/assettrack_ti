@@ -1,0 +1,12 @@
+Order: 3
+Plan ID: 1
+Executions count: 3
+  Execution ID: 3, Checklist Item: 3, Concluido: True, Desc: limpeza com agua
+  Execution ID: 2, Checklist Item: 2, Concluido: True, Desc: limpeza interna
+  Execution ID: 1, Checklist Item: 1, Concluido: True, Desc: retirar o filtro
+
+--- ACTIVE CHECKLIST ITEMS ---
+Checklist: Desmontar para retirada (ID: 1)
+  Item: retirar o filtro (ID: 1), Requer foto: False
+  Item: limpeza interna (ID: 2), Requer foto: False
+  Item: limpeza com agua (ID: 3), Requer foto: True

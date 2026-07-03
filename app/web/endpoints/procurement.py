@@ -8,6 +8,7 @@ from sqlalchemy import select, desc, func, and_
 from sqlalchemy.orm import selectinload
 import logging
 from datetime import datetime
+from app.core.datetime_utils import now_sp
 from decimal import Decimal
 
 from app.database import get_db
@@ -293,7 +294,7 @@ async def decide_request(
         aprovador_id=current_user.id,
         status=decisao,
         observacao=observacao,
-        data_decisao=datetime.now()
+        data_decisao=now_sp()
     )
     db.add(app)
     
@@ -406,7 +407,7 @@ async def create_quotation_submit(
         form_data = await request.form()
 
         # Criar a cotação central
-        year = datetime.now().year
+        year = now_sp().year
         prefix = f"CQ-{year}-"
         cq_count = len((await db.execute(select(PurchaseQuotation))).scalars().all()) + 1
         num = f"{prefix}{cq_count:06d}"
@@ -1251,7 +1252,7 @@ async def list_contracts(
     contracts = await crud_proc.get_contracts(db, limit=100)
     contracts_data = []
     for c in contracts:
-        dias = (c.data_fim - datetime.now()).days
+        dias = (c.data_fim - now_sp()).days
         tag_color = "bg-gray-100 text-gray-800 border-gray-300"
         tag_text = f"{dias} dias"
         if dias < 0:
@@ -1375,7 +1376,7 @@ async def contract_detail(
     if not contrato:
         raise HTTPException(status_code=404, detail="Contrato não encontrado")
         
-    dias = (contrato.data_fim - datetime.now()).days
+    dias = (contrato.data_fim - now_sp()).days
     tag_color = "bg-gray-100 text-gray-800 border-gray-300"
     tag_text = f"{dias} dias"
     if dias < 0:
@@ -1460,7 +1461,7 @@ async def procurement_reports(
     expired_cnt = 0
     expiring_30_cnt = 0
     for c in all_contracts:
-        dias = (c.data_fim - datetime.now()).days
+        dias = (c.data_fim - now_sp()).days
         if dias < 0:
             expired_cnt += 1
         elif dias <= 30:
@@ -1503,7 +1504,7 @@ async def export_procurement_csv(
         res = await db.execute(select(PurchaseContract).options(selectinload(PurchaseContract.fornecedor)))
         contratos = res.scalars().all()
         for c in contratos:
-            status_calc = "Ativo" if c.data_fim and c.data_fim >= datetime.now() else "Vencido"
+            status_calc = "Ativo" if c.data_fim and c.data_fim >= now_sp() else "Vencido"
             writer.writerow([
                 c.numero,
                 c.fornecedor.nome if c.fornecedor else "",

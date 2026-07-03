@@ -3,6 +3,7 @@ from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
+from app.core.datetime_utils import now_sp
 
 from app.api import dependencies
 from app.crud import preventive_maintenance as pm_crud
@@ -348,7 +349,7 @@ async def start_maintenance_order(
         raise HTTPException(status_code=404, detail="Ordem de serviço não encontrada")
     
     status_anterior = order.status
-    now = datetime.now()
+    now = now_sp()
     
     # Update order
     await pm_crud.maintenance_order.update(
@@ -395,7 +396,7 @@ async def pause_maintenance_order(
         db_obj=order,
         obj_in={
             "status": OrderStatus.PAUSADA,
-            "data_pausa": datetime.now()
+            "data_pausa": now_sp()
         }
     )
     
@@ -426,7 +427,7 @@ async def complete_maintenance_order(
         raise HTTPException(status_code=404, detail="Ordem de serviço não encontrada")
     
     status_anterior = order.status
-    now = datetime.now()
+    now = now_sp()
     
     # Calculate total time
     tempo_total_minutos = None
@@ -486,7 +487,7 @@ async def create_execution(
 ):
     execution_data = execution_in.model_dump()
     execution_data["executado_por_id"] = current_user.id
-    execution_data["data_execucao"] = datetime.now()
+    execution_data["data_execucao"] = now_sp()
     return await pm_crud.maintenance_execution.create(db, obj_in=execution_data)
 
 
@@ -504,7 +505,7 @@ async def update_execution(
     update_data = execution_in.model_dump(exclude_unset=True)
     if execution_in.concluido is not None:
         update_data["executado_por_id"] = current_user.id
-        update_data["data_execucao"] = datetime.now()
+        update_data["data_execucao"] = now_sp()
     
     return await pm_crud.maintenance_execution.update(db, db_obj=execution, obj_in=update_data)
 

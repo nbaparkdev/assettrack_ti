@@ -169,8 +169,8 @@ async def get_purchase_requests(db: AsyncSession, skip: int = 0, limit: int = 10
     return result.scalars().all()
 
 async def generate_request_number(db: AsyncSession) -> str:
-    from datetime import datetime
-    year = datetime.now().year
+    from app.core.datetime_utils import now_sp
+    year = now_sp().year
     prefix = f"SC-{year}-"
     # Find count of SCs this year
     result = await db.execute(
@@ -253,8 +253,8 @@ async def get_purchase_orders(db: AsyncSession, skip: int = 0, limit: int = 100)
     return result.scalars().all()
 
 async def generate_order_number(db: AsyncSession) -> str:
-    from datetime import datetime
-    year = datetime.now().year
+    from app.core.datetime_utils import now_sp
+    year = now_sp().year
     prefix = f"PC-{year}-"
     result = await db.execute(
         select(PurchaseOrder).filter(PurchaseOrder.numero.like(f"{prefix}%"))

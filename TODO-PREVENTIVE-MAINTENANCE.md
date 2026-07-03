@@ -101,3 +101,10 @@ bash start_local.sh
 # App: http://localhost:8000
 # Swagger: http://localhost:8000/docs
 ```
+
+---
+
+## 🐛 Bugfixes & Ajustes Recentes (Jul/2026)
+- [x] **Correção de Escopo Jinja2**: Corrigido bug de renderização no template `order_detail.html` usando `namespace` para garantir persistência do status de checkboxes no checklist.
+- [x] **Padronização de Timezone**: Substituição sistemática de `datetime.now()` por `now_sp()` em todos os arquivos e endpoints (incluindo Manutenção, Compras, Ativos, etc.) para garantir a correta aplicação do fuso horário `America/Sao_Paulo`.
+- [x] **Configuração de Container**: Adicionada a flag `ENV TZ=America/Sao_Paulo` ao `Dockerfile` do ambiente para forçar o timezone local do servidor.

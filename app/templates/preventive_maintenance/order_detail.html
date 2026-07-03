@@ -66,29 +66,52 @@
                     {% if checklist.items %}
                     <div class="space-y-3">
                         {% for item in checklist.items %}
-                        {% set execution = None %}
+                        {% set ns = namespace(execution=None) %}
                         {% for exec in (order.executions or []) %}
                             {% if exec.checklist_item_id == item.id %}
-                                {% set execution = exec %}
+                                {% set ns.execution = exec %}
                             {% endif %}
                         {% endfor %}
+                        {% set execution = ns.execution %}
                         <div class="flex items-start gap-3 p-3 border border-gray-200 {{ 'bg-green-50' if execution and execution.concluido else 'bg-white' }}">
                             {% if order.status.value == 'Em andamento' %}
-                            <form action="/manutencao-preventiva/ordens/{{ order.id }}/executar-checklist" method="POST" class="flex items-start gap-3 flex-1">
+                            <form action="/manutencao-preventiva/ordens/{{ order.id }}/executar-checklist" method="POST" enctype="multipart/form-data" class="flex items-start gap-3 flex-1">
                                 <input type="hidden" name="checklist_item_id" value="{{ item.id }}">
-                                <input type="checkbox" name="concluido" value="on"
-                                    {{ 'checked' if execution and execution.concluido else '' }}
-                                    onchange="this.form.submit()"
-                                    class="mt-1 w-5 h-5 border-2 border-black accent-black cursor-pointer">
+                                
                                 <div class="flex-1">
-                                    <p class="text-sm text-black {{ 'line-through text-gray-400' if execution and execution.concluido else '' }}">
-                                        {{ item.descricao }}
-                                        {% if item.obrigatorio %}<span class="text-red-500 text-[10px] font-bold ml-1">OBRIGATÓRIO</span>{% endif %}
-                                    </p>
-                                    {% if execution and execution.executado_por %}
-                                    <p class="text-[10px] text-gray-400 font-mono mt-1">
-                                        ✓ {{ execution.executado_por.nome }} — {{ execution.data_execucao.strftime('%d/%m %H:%M') if execution.data_execucao else '' }}
-                                    </p>
+                                    <div class="flex items-start gap-3">
+                                        {% if item.requer_foto and not (execution and execution.concluido) %}
+                                            <input type="checkbox" onclick="alert('Este item requer foto. Por favor, anexe a evidência no campo abaixo e clique em ENVIAR E CONCLUIR.'); return false;" class="mt-1 w-5 h-5 border-2 border-gray-300 cursor-pointer">
+                                            <input type="hidden" name="concluido" value="on">
+                                        {% else %}
+                                            <input type="checkbox" name="concluido" value="on"
+                                                {{ 'checked' if execution and execution.concluido else '' }}
+                                                onchange="this.form.submit()"
+                                                class="mt-1 w-5 h-5 border-2 border-black accent-black cursor-pointer">
+                                        {% endif %}
+                                        
+                                        <div class="flex-1">
+                                            <p class="text-sm text-black {{ 'line-through text-gray-400' if execution and execution.concluido else '' }}">
+                                                {{ item.descricao }}
+                                                {% if item.obrigatorio %}<span class="text-red-500 text-[10px] font-bold ml-1">OBRIGATÓRIO</span>{% endif %}
+                                                {% if item.requer_foto %}<span class="text-blue-500 text-[10px] font-bold ml-1">📷 REQUER FOTO</span>{% endif %}
+                                            </p>
+                                            {% if execution and execution.executado_por %}
+                                            <p class="text-[10px] text-gray-400 font-mono mt-1">
+                                                ✓ {{ execution.executado_por.nome }} — {{ execution.data_execucao.strftime('%d/%m %H:%M') if execution.data_execucao else '' }}
+                                            </p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    {% if item.requer_foto and not (execution and execution.concluido) %}
+                                    <div class="mt-3 bg-gray-50 border border-gray-200 p-3 ml-8">
+                                        <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Anexar foto para concluir</label>
+                                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                                            <input type="file" name="foto" required accept="image/*" class="w-full sm:w-auto border-2 border-black p-1 text-xs font-mono focus:ring-0 file:mr-2 file:py-1 file:px-2 file:border-0 file:bg-yellow-400 file:hover:bg-yellow-500 file:cursor-pointer file:text-[10px] file:uppercase file:font-bold">
+                                            <button type="submit" class="bg-black text-white px-4 py-2 text-[10px] font-bold uppercase whitespace-nowrap hover:bg-gray-800 transition shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">Enviar e Concluir</button>
+                                        </div>
+                                    </div>
                                     {% endif %}
                                 </div>
                             </form>
@@ -99,6 +122,7 @@
                                 <p class="text-sm text-black {{ 'line-through text-gray-400' if execution and execution.concluido else '' }}">
                                     {{ item.descricao }}
                                     {% if item.obrigatorio %}<span class="text-red-500 text-[10px] font-bold ml-1">OBRIGATÓRIO</span>{% endif %}
+                                    {% if item.requer_foto %}<span class="text-blue-500 text-[10px] font-bold ml-1">📷 REQUER FOTO</span>{% endif %}
                                 </p>
                                 {% if execution and execution.executado_por %}
                                 <p class="text-[10px] text-gray-400 font-mono mt-1">

@@ -18,6 +18,7 @@ from app.models.preventive_maintenance import (
 from app.models.asset import Asset
 from app.database import get_db
 from app.crud import preventive_maintenance as pm_crud
+from app.core.datetime_utils import now_sp
 
 router = APIRouter(dependencies=[Depends(check_preventive_maintenance_enabled)])
 templates = Jinja2Templates(directory="app/templates")
@@ -44,7 +45,7 @@ async def pm_dashboard(
     # Obter todas as ordens para calcular estatísticas
     ordens = await pm_crud.maintenance_order.get_multi(db, limit=1000)
     
-    now = datetime.now()
+    now = now_sp()
     today = now.date()
     week_start = today - timedelta(days=today.weekday())
     week_end = week_start + timedelta(days=7)
@@ -400,14 +401,14 @@ async def reports_page(
     if data_inicio:
         dt_inicio = datetime.fromisoformat(data_inicio)
     else:
-        dt_inicio = datetime.now() - timedelta(days=30)
+        dt_inicio = now_sp() - timedelta(days=30)
         dt_inicio = dt_inicio.replace(hour=0, minute=0, second=0, microsecond=0)
         
     if data_fim:
         dt_fim = datetime.fromisoformat(data_fim)
         dt_fim = dt_fim.replace(hour=23, minute=59, second=59, microsecond=999999)
     else:
-        dt_fim = datetime.now()
+        dt_fim = now_sp()
         dt_fim = dt_fim.replace(hour=23, minute=59, second=59, microsecond=999999)
 
     # 1. Estatísticas gerais de ordens concluídas
@@ -560,7 +561,7 @@ async def create_order(
     from sqlalchemy import func
     
     # Gerar o número da ordem
-    now = datetime.now()
+    now = now_sp()
     year = now.year
     result = await db.execute(
         select(func.count(MaintenanceOrder.id))
@@ -582,7 +583,7 @@ async def create_order(
         prioridade=MaintenancePriority(prioridade),
         observacoes=descricao,
         status=OrderStatus.ABERTA,
-        data_abertura=datetime.now()
+        data_abertura=now_sp()
     )
     
     # Converter plan_id para int se não for vazio
@@ -740,7 +741,7 @@ async def create_plan(
     from app.models.preventive_maintenance import MaintenancePeriodicity
     
     # Gerar o código do plano
-    now = datetime.now()
+    now = now_sp()
     year = now.year
     result = await db.execute(
         select(func.count(MaintenancePlan.id))
@@ -758,8 +759,8 @@ async def create_plan(
         criticidade=MaintenanceCriticality(criticidade),
         descricao=descricao,
         ativo=True,
-        data_criacao=datetime.now(),
-        proxima_execucao=datetime.now()  # Valor padrão
+        data_criacao=now_sp(),
+        proxima_execucao=now_sp()  # Valor padrão
     )
     
     db.add(plan)
@@ -786,7 +787,7 @@ async def start_order(
 
     status_anterior = order.status.value
     order.status = OrderStatus.EM_ANDAMENTO
-    order.data_inicio = datetime.now()
+    order.data_inicio = now_sp()
     if not order.tecnico_id:
         order.tecnico_id = current_user.id
     db.add(order)
@@ -821,11 +822,11 @@ async def pause_order(
 
     status_anterior = order.status.value
     order.status = OrderStatus.PAUSADA
-    order.data_pausa = datetime.now()
+    order.data_pausa = now_sp()
 
     # Calcular tempo acumulado
     if order.data_inicio:
-        elapsed = (datetime.now() - order.data_inicio).total_seconds() / 60
+        elapsed = (now_sp() - order.data_inicio).total_seconds() / 60
         order.tempo_total_minutos = (order.tempo_total_minutos or 0) + int(elapsed)
 
     db.add(order)
@@ -865,12 +866,12 @@ async def complete_order(
 
     status_anterior = order.status.value
     order.status = OrderStatus.CONCLUIDA
-    order.data_conclusao = datetime.now()
+    order.data_conclusao = now_sp()
     order.solucao = solucao if solucao else None
 
     # Calcular tempo total
     if order.data_inicio and order.status != OrderStatus.PAUSADA:
-        elapsed = (datetime.now() - order.data_inicio).total_seconds() / 60
+        elapsed = (now_sp() - order.data_inicio).total_seconds() / 60
         order.tempo_total_minutos = (order.tempo_total_minutos or 0) + int(elapsed)
 
     # Calcular custo acumulado de materiais
@@ -894,7 +895,7 @@ async def complete_order(
     if order.plan_id:
         plan = await pm_crud.maintenance_plan.get(db, id=order.plan_id)
         if plan:
-            plan.data_ultima_execucao = datetime.now()
+            plan.data_ultima_execucao = now_sp()
             from app.models.preventive_maintenance import MaintenancePeriodicity
             periodicity_days = {
                 MaintenancePeriodicity.DIARIA: 1,
@@ -907,7 +908,7 @@ async def complete_order(
                 MaintenancePeriodicity.ANUAL: 365,
             }
             days = periodicity_days.get(plan.periodicidade, plan.dias_personalizado or 30)
-            plan.proxima_execucao = datetime.now() + timedelta(days=days)
+            plan.proxima_execucao = now_sp() + timedelta(days=days)
             db.add(plan)
 
     history = MaintenanceHistory(
@@ -1158,15 +1159,28 @@ async def remove_plan_asset(
 
 @router.post("/ordens/{order_id}/executar-checklist")
 async def execute_checklist_item(
+    request: Request,
     order_id: int,
-    checklist_item_id: Annotated[int, Form()],
-    concluido: Annotated[Optional[str], Form()] = None,
-    observacao: Annotated[Optional[str], Form()] = None,
-    current_user: Annotated[User, Depends(get_active_user_web)] = None,
-    db: Annotated[AsyncSession, Depends(get_db)] = None
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Marcar item de checklist como concluído durante a execução da ordem"""
-    from app.models.preventive_maintenance import MaintenanceExecution
+    import os
+    import shutil
+    import uuid
+    from fastapi import UploadFile
+    from app.models.preventive_maintenance import MaintenanceExecution, MaintenanceChecklistItem, MaintenancePhoto, PhotoType
+
+    form = await request.form()
+    
+    checklist_item_id_str = form.get("checklist_item_id")
+    if not checklist_item_id_str:
+        return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order_id}", status_code=303)
+        
+    checklist_item_id = int(checklist_item_id_str)
+    concluido = form.get("concluido")
+    observacao = form.get("observacao")
+    foto = form.get("foto")
 
     # Verificar se já existe execução para este item nesta ordem
     stmt = select(MaintenanceExecution).filter(
@@ -1178,21 +1192,58 @@ async def execute_checklist_item(
 
     is_done = concluido == "on"
 
+    # Verificar se o item requer foto e se ela foi enviada
+    item_stmt = select(MaintenanceChecklistItem).filter(MaintenanceChecklistItem.id == checklist_item_id)
+    item_res = await db.execute(item_stmt)
+    check_item = item_res.scalar_one_or_none()
+
+    has_valid_photo = hasattr(foto, "filename") and bool(foto.filename)
+
+    if check_item and check_item.requer_foto and is_done and not has_valid_photo:
+        # Se for marcar como concluído, mas falta a foto que é obrigatória
+        error_msg = f"A foto é obrigatória para o item: {check_item.descricao}"
+        return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order_id}?error={error_msg}", status_code=303)
+
     if execution:
         execution.concluido = is_done
-        execution.observacao = observacao
-        execution.data_execucao = datetime.now()
+        execution.observacao = observacao if isinstance(observacao, str) else None
+        execution.data_execucao = now_sp()
         execution.executado_por_id = current_user.id
     else:
         execution = MaintenanceExecution(
             order_id=order_id,
             checklist_item_id=checklist_item_id,
             concluido=is_done,
-            observacao=observacao,
-            data_execucao=datetime.now(),
+            observacao=observacao if isinstance(observacao, str) else None,
+            data_execucao=now_sp(),
             executado_por_id=current_user.id
         )
         db.add(execution)
+
+    await db.flush() # Gerar o execution.id caso seja novo
+
+    # Lidar com o upload da foto se fornecida
+    if has_valid_photo and is_done:
+        upload_dir = "static/uploads/maintenance"
+        os.makedirs(upload_dir, exist_ok=True)
+        ext = os.path.splitext(foto.filename)[1]
+        unique_filename = f"os_{order_id}_exec_{execution.id}_{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(foto.file, buffer)
+            
+        foto_url = f"/{file_path}"
+        
+        photo = MaintenancePhoto(
+            order_id=order_id,
+            execution_id=execution.id,
+            tipo=PhotoType.DURANTE,
+            caminho_arquivo=foto_url,
+            descricao=f"Evidência do checklist: {check_item.descricao if check_item else 'Item'}",
+            upload_por_id=current_user.id
+        )
+        db.add(photo)
 
     await db.commit()
     return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order_id}", status_code=303)

@@ -33,18 +33,18 @@ async def export_help_pdf(
     current_user: User = Depends(get_active_user_web)
 ):
     from weasyprint import HTML
-    from datetime import datetime
+    from app.core.datetime_utils import now_sp
     from fastapi.responses import Response
 
     html_content = templates.get_template("help/pdf.html").render({
         "request": request,
         "user": current_user,
-        "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M")
+        "generated_at": now_sp().strftime("%d/%m/%Y %H:%M")
     })
 
     pdf_bytes = HTML(string=html_content).write_pdf()
 
-    filename = f"Manual_AssetTrack_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    filename = f"Manual_AssetTrack_{now_sp().strftime('%Y%m%d_%H%M%S')}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
 from datetime import datetime
+from app.core.datetime_utils import now_sp
 from typing import List, Dict, Any, Optional
 
 from app.models.procurement import (
@@ -94,7 +95,7 @@ async def convert_receiving_to_assets(
         if item.product.tipo == ProductType.EQUIPAMENTO:
             # Gerar serial/patrimonio sequencial
             current_count += 1
-            patrimonio_tag = f"PAT-{datetime.now().year}-{current_count:04d}"
+            patrimonio_tag = f"PAT-{now_sp().year}-{current_count:04d}"
             
             # Criar Ativo
             db_asset = Asset(
@@ -102,7 +103,7 @@ async def convert_receiving_to_assets(
                 e_patrimonio=patrimonio_tag,
                 modelo=item.product.modelo,
                 descricao=item.product.descricao or f"Criado automaticamente pelo recebimento do Pedido {receiving.order.numero}",
-                data_aquisicao=datetime.now(),
+                data_aquisicao=now_sp(),
                 valor=float(receiving.order.valor_total / len(receiving.order.itens)) if receiving.order.itens else 0.0,
                 status=AssetStatus.ARMAZENADO,
                 numero_serie=item.product.codigo,

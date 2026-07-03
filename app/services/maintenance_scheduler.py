@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
+from app.core.datetime_utils import now_sp
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from app.database import SessionLocal
@@ -32,7 +33,7 @@ async def check_and_generate_preventive_orders():
     async with SessionLocal() as db:
         try:
             # Buscar todos os planos ativos cuja próxima execução é hoje ou no passado
-            now = datetime.now()
+            now = now_sp()
             stmt = (
                 select(MaintenancePlan)
                 .options(
@@ -73,7 +74,7 @@ async def check_and_generate_preventive_orders():
                 for asset in assets_to_process:
                     # 2. Evitar duplicação (idempotência - Opção A.1):
                     # Verificar se já existe uma OS aberta ou agendada para este plano, este ativo e data de abertura hoje
-                    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                    today_start = now_sp().replace(hour=0, minute=0, second=0, microsecond=0)
                     today_end = today_start + timedelta(days=1)
                     
                     dup_stmt = (
@@ -122,8 +123,8 @@ async def check_and_generate_preventive_orders():
                         criticidade=plan.criticidade or MaintenanceCriticality.MEDIA,
                         tipo=plan.tipo or MaintenanceType.PREVENTIVA,
                         observacoes=desc,
-                        data_abertura=datetime.now(),
-                        data_agendada=datetime.now()
+                        data_abertura=now_sp(),
+                        data_agendada=now_sp()
                     )
                     db.add(order)
                     await db.flush() # Gerar ID temporário
@@ -175,7 +176,7 @@ async def check_and_generate_preventive_orders():
 
 async def update_plan_next_execution(db, plan: MaintenancePlan):
     """Calcula e atualiza a próxima data de execução de um plano de manutenção."""
-    plan.data_ultima_execucao = datetime.now()
+    plan.data_ultima_execucao = now_sp()
     
     periodicity_days = {
         MaintenancePeriodicity.DIARIA: 1,
@@ -189,7 +190,7 @@ async def update_plan_next_execution(db, plan: MaintenancePlan):
     }
     
     days = periodicity_days.get(plan.periodicidade, plan.dias_personalizado or 30)
-    plan.proxima_execucao = datetime.now() + timedelta(days=days)
+    plan.proxima_execucao = now_sp() + timedelta(days=days)
     db.add(plan)
 
 async def check_and_notify_overdue_orders():
@@ -203,7 +204,7 @@ async def check_and_notify_overdue_orders():
             from app.models.preventive_maintenance import MaintenanceNotification
             from app.services.notification_service import notification_service
             
-            now = datetime.now()
+            now = now_sp()
             
             # Buscar ordens de serviço não concluídas/canceladas com data agendada no passado
             stmt = (
@@ -222,7 +223,7 @@ async def check_and_notify_overdue_orders():
             
             for order in overdue_orders:
                 # Verificar se já não notificamos sobre atraso hoje para evitar spam
-                today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                today_start = now_sp().replace(hour=0, minute=0, second=0, microsecond=0)
                 
                 notif_stmt = (
                     select(func.count(MaintenanceNotification.id))

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
+from app.core.datetime_utils import now_sp
 from app.crud.base import CRUDBase
 from app.models.preventive_maintenance import (
     MaintenancePlan,
@@ -94,7 +95,7 @@ class CRUDMaintenancePlan(CRUDBase[MaintenancePlan, MaintenancePlanCreate, Maint
         return result.scalars().all()
 
     async def generate_codigo(self, db: AsyncSession) -> str:
-        now = datetime.now()
+        now = now_sp()
         year = now.year
         result = await db.execute(
             select(func.count(MaintenancePlan.id))
@@ -239,7 +240,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         return result.scalars().all()
 
     async def get_overdue(self, db: AsyncSession) -> List[MaintenanceOrder]:
-        now = datetime.now()
+        now = now_sp()
         result = await db.execute(
             select(MaintenanceOrder)
             .options(
@@ -253,7 +254,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         return result.scalars().all()
 
     async def get_today(self, db: AsyncSession) -> List[MaintenanceOrder]:
-        today = datetime.now().date()
+        today = now_sp().date()
         tomorrow = today + timedelta(days=1)
         result = await db.execute(
             select(MaintenanceOrder)
@@ -269,7 +270,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         return result.scalars().all()
 
     async def get_this_week(self, db: AsyncSession) -> List[MaintenanceOrder]:
-        now = datetime.now()
+        now = now_sp()
         week_start = now - timedelta(days=now.weekday())
         week_end = week_start + timedelta(days=7)
         result = await db.execute(
@@ -286,7 +287,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         return result.scalars().all()
 
     async def generate_numero(self, db: AsyncSession) -> str:
-        now = datetime.now()
+        now = now_sp()
         year = now.year
         result = await db.execute(
             select(func.count(MaintenanceOrder.id))

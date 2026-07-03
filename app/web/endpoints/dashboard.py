@@ -82,7 +82,8 @@ async def dashboard(
         if purchases_enabled and user_role in ["admin", "gerente_ti", "comprador"]:
             from app.models.procurement import PurchaseContract
             from datetime import datetime, timedelta
-            limit_date = datetime.now() + timedelta(days=90)
+            from app.core.datetime_utils import now_sp
+            limit_date = now_sp() + timedelta(days=90)
             res = await db.execute(
                 select(PurchaseContract)
                 .options(selectinload(PurchaseContract.fornecedor))
@@ -91,7 +92,7 @@ async def dashboard(
             )
             expiring_contracts = res.scalars().all()
             for c in expiring_contracts:
-                dias = (c.data_fim - datetime.now()).days
+                dias = (c.data_fim - now_sp()).days
                 tag_color = "bg-gray-100 text-gray-800 border-gray-300"
                 tag_text = f"{dias} dias"
                 if dias < 0:

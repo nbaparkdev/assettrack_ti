@@ -8,6 +8,7 @@ import os
 import shutil
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, datetime
+from app.core.datetime_utils import now_sp
 
 from app.web.dependencies import get_active_user_web
 from app.models.user import User, UserRole
@@ -482,12 +483,12 @@ async def reports_pdf(
         "assets": assets,
         "has_filters": has_filters,
         "active_filters": " | ".join(active_filters) if active_filters else "",
-        "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M")
+        "generated_at": now_sp().strftime("%d/%m/%Y %H:%M")
     })
 
     pdf_bytes = HTML(string=html_content).write_pdf()
 
-    filename = f"relatorio_ativos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    filename = f"relatorio_ativos_{now_sp().strftime('%Y%m%d_%H%M%S')}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -820,7 +821,7 @@ async def return_asset(
         tipo=TipoMovimentacao.DEVOLUCAO,
         de_user_id=previous_user_id, # User who is returning
         para_user_id=current_user.id, # Manager who received
-        data=datetime.now(),
+        data=now_sp(),
         observacao=f"Devolução registrada por {current_user.nome}"
     )
     db.add(movimentacao)
@@ -884,7 +885,7 @@ async def start_maintenance(
         responsavel_id=current_user.id,
         motivo=motivo,
         tipo=TipoManutencao(tipo),
-        data_entrada=datetime.now(),
+        data_entrada=now_sp(),
         data_previsao=dt_previsao,
         status=StatusManutencao.EM_ANDAMENTO
     )
@@ -901,7 +902,7 @@ async def start_maintenance(
         tipo=TipoMovimentacao.MANUTENCAO,
         de_user_id=previous_user_id,
         para_user_id=current_user.id,
-        data=datetime.now(),
+        data=now_sp(),
         observacao=f"Enviado para manutenção ({tipo}): {motivo[:100]}"
     )
     db.add(movimentacao)
@@ -1009,7 +1010,7 @@ async def finish_maintenance(
     # 1. Update Manutencao record
     if manutencao:
         manutencao.status = StatusManutencao.CONCLUIDA
-        manutencao.data_conclusao = datetime.now()
+        manutencao.data_conclusao = now_sp()
         manutencao.observacao_conclusao = observacao_conclusao
         manutencao.custo = val_custo
         manutencao.destino_tipo = DestinoManutencao(destino_tipo)
@@ -1034,7 +1035,7 @@ async def finish_maintenance(
             tipo=TipoMovimentacao.EMPRESTIMO,
             de_user_id=current_user.id,
             para_user_id=para_user_id,
-            data=datetime.now(),
+            data=now_sp(),
             observacao=f"Atribuído após manutenção para {destino_user.nome if destino_user else 'usuário'}"
         )
         db.add(movimento_emprestimo)
@@ -1052,7 +1053,7 @@ async def finish_maintenance(
         tipo=TipoMovimentacao.MANUTENCAO,
         de_user_id=current_user.id,
         para_user_id=para_user_id,
-        data=datetime.now(),
+        data=now_sp(),
         observacao=observacao_mov
     )
     db.add(movimentacao)
@@ -1153,7 +1154,7 @@ async def write_off_asset(
         tipo=TipoMovimentacao.BAIXA,
         de_user_id=previous_user,
         para_user_id=None, # Gone
-        data=datetime.now(),
+        data=now_sp(),
         observacao=f"Baixa efetuada por {current_user.nome}"
     )
     db.add(movimentacao)

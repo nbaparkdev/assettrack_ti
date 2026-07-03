@@ -3,6 +3,7 @@ import os
 import zipfile
 from collections import defaultdict, deque
 from datetime import datetime
+from app.core.datetime_utils import now_sp
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
@@ -108,7 +109,7 @@ async def export_backup(
             lines = [
                 f"-- AssetTrack TI Backup",
                 f"-- Gerado por: {user.nome}",
-                f"-- Data: {datetime.now().isoformat()}",
+                f"-- Data: {now_sp().isoformat()}",
                 "",
             ]
             for table_name in ordered_tables:
@@ -171,7 +172,7 @@ async def export_backup(
                         zf.write(filepath, arcname)
 
         buf.seek(0)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = now_sp().strftime("%Y%m%d_%H%M%S")
         return StreamingResponse(
             buf,
             media_type="application/zip",
