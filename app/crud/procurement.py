@@ -16,7 +16,7 @@ from app.schemas.procurement import (
     CostCenterCreate, CostCenterUpdate,
     PurchaseRequestCreate, PurchaseRequestUpdate,
     PurchaseOrderCreate, PurchaseReceivingCreate,
-    PurchaseContractCreate
+    PurchaseContractCreate, PurchaseContractUpdate
 )
 
 # -----------------
@@ -350,6 +350,22 @@ async def create_contract(db: AsyncSession, contract: PurchaseContractCreate) ->
     await db.commit()
     await db.refresh(db_contract)
     return db_contract
+
+async def update_contract(db: AsyncSession, db_contract: PurchaseContract, contract: PurchaseContractUpdate) -> PurchaseContract:
+    update_data = contract.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_contract, key, value)
+    await db.commit()
+    await db.refresh(db_contract)
+    return db_contract
+
+async def delete_contract(db: AsyncSession, contract_id: int) -> bool:
+    db_contract = await get_contract(db, contract_id)
+    if not db_contract:
+        return False
+    await db.delete(db_contract)
+    await db.commit()
+    return True
 
 
 # --------------

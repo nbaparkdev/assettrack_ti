@@ -71,7 +71,7 @@ Módulo completo integrado de suprimentos cobrindo do pedido ao recebimento.
 - **Cotações Multilateral:** Lançamento de cotações de fornecedores com painel comparativo do menor preço e melhor custo-benefício.
 - **Pedidos de Compra (PO):** Emissão de pedidos formais de compra e monitoramento de entrega.
 - **Recebimento e Integração Patrimonial:** A entrada de itens físicos atualiza o estoque simples e cadastra automaticamente novos Ativos no inventário de TI.
-- **Gestão de Contratos:** Controle de prazos de validade com alertas visuais no painel geral e armazenamento de PDFs de contratos e termos de garantia.
+- **Gestão de Contratos:** Controle de prazos de validade com alertas visuais no painel geral, opções completas de edição/exclusão de registros, e armazenamento de PDFs de contratos e termos de garantia.
 
 ---
 
@@ -85,9 +85,9 @@ Módulo completo integrado de suprimentos cobrindo do pedido ao recebimento.
 
 ## 🎨 Design System: Industrial Technical
 
-- Interface limpa e objetiva.
-- Bordas retas e sombras sólidas (Estilo Industrial).
-- Tipografia técnica e otimizada para leitura de dados.
+- Interface limpa e objetiva com navegação estruturada em módulos e sub-menus organizados (Dropdowns), maximizando o espaço útil da tela e garantindo a padronização.
+- Bordas retas e sombras sólidas (Estilo Neo-Brutalism / Industrial).
+- Tipografia técnica otimizada para leitura de dados.
 - Totalmente responsivo para uso em tablets e smartphones.
 
 ---

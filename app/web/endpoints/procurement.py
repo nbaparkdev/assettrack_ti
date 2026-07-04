@@ -29,7 +29,7 @@ from app.schemas.procurement import (
     PurchaseRequestCreate, PurchaseRequestItemCreate,
     PurchaseOrderCreate, PurchaseOrderItemCreate,
     PurchaseReceivingCreate, PurchaseReceivingItemCreate,
-    PurchaseProductCreate, PurchaseProductUpdate, CostCenterCreate, PurchaseContractCreate,
+    PurchaseProductCreate, PurchaseProductUpdate, CostCenterCreate, PurchaseContractCreate, PurchaseContractUpdate,
     PurchaseCategoryCreate
 )
 
@@ -1407,6 +1407,115 @@ async def contract_detail(
         "tag_text": tag_text,
         "title": f"Contrato {contrato.numero}"
     })
+
+
+@router.get("/contratos/{contract_id}/edit", response_class=HTMLResponse)
+async def edit_contract_form(
+    contract_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+        
+    contrato = await crud_proc.get_contract(db, contract_id)
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+        
+    suppliers = (await db.execute(select(Fornecedor))).scalars().all()
+    return templates.TemplateResponse("procurement/contract_form.html", {
+        "request": request,
+        "user": current_user,
+        "contrato": contrato,
+        "suppliers": suppliers,
+        "title": f"Editar Contrato {contrato.numero}"
+    })
+
+
+@router.post("/contratos/{contract_id}/edit")
+async def edit_contract_submit(
+    contract_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    numero: str = Form(...),
+    fornecedor_id: int = Form(...),
+    tipo: str = Form(...),
+    periodicidade: str = Form(...),
+    data_inicio: str = Form(...),
+    data_fim: str = Form(...),
+    valor: float = Form(...),
+    renovacao_automatica: Optional[str] = Form(None),
+    pdf_file: UploadFile = File(None)
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+        
+    contrato = await crud_proc.get_contract(db, contract_id)
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+        
+    try:
+        existing = (await db.execute(select(PurchaseContract).filter(PurchaseContract.numero == numero))).scalars().first()
+        if existing and existing.id != contract_id:
+            raise ValueError("Já existe outro contrato cadastrado com este número!")
+            
+        dt_ini = datetime.strptime(data_inicio, "%Y-%m-%d")
+        dt_fim = datetime.strptime(data_fim, "%Y-%m-%d")
+        
+        pdf_path = contrato.arquivo_pdf_path
+        if pdf_file and pdf_file.filename:
+            os.makedirs("static/uploads", exist_ok=True)
+            filename = f"contrato_{numero.replace('/', '_')}_{pdf_file.filename}"
+            save_path = os.path.join("static/uploads", filename)
+            with open(save_path, "wb") as f:
+                shutil.copyfileobj(pdf_file.file, f)
+            pdf_path = filename
+            
+        contract_in = PurchaseContractUpdate(
+            fornecedor_id=fornecedor_id,
+            tipo=tipo,
+            numero=numero,
+            data_inicio=dt_ini,
+            data_fim=dt_fim,
+            renovacao_automatica=True if renovacao_automatica else False,
+            valor=valor,
+            periodicidade=periodicidade,
+            arquivo_pdf_path=pdf_path
+        )
+        
+        await crud_proc.update_contract(db, db_contract=contrato, contract=contract_in)
+        return RedirectResponse(url=f"/compras/contratos/{contract_id}", status_code=303)
+    except Exception as e:
+        logger.error(f"Erro ao editar contrato: {e}")
+        suppliers = (await db.execute(select(Fornecedor))).scalars().all()
+        return templates.TemplateResponse("procurement/contract_form.html", {
+            "request": request,
+            "user": current_user,
+            "contrato": contrato,
+            "suppliers": suppliers,
+            "error": str(e),
+            "title": f"Editar Contrato {contrato.numero}"
+        })
+
+
+@router.post("/contratos/{contract_id}/delete")
+async def delete_contract_submit(
+    contract_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+        
+    success = await crud_proc.delete_contract(db, contract_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+        
+    return RedirectResponse(url="/compras/contratos", status_code=303)
+
 
 
 @router.get("/relatorios", response_class=HTMLResponse)

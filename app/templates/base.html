@@ -116,32 +116,33 @@
                         </div>
 
                         <!-- MOD 02: ASSETS -->
-                        <div class="flex flex-col gap-1 px-6 border-l-2 border-gray-100">
+                        <div class="flex flex-col gap-1 px-6 border-l-2 border-gray-100 relative group/dropdown">
                             <span class="font-mono text-[9px] text-gray-400 uppercase tracking-widest">02_ASSETS</span>
-                            <div class="flex items-center gap-2">
-                                {% if user.role.value|lower in request.state.menu_permissions.get('ativos', ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador', 'usuario_comum']) %}
-                                <a href="/assets" class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black hover:bg-gray-50 transition-all border border-transparent hover:border-gray-200">
-                                    Ativos
-                                </a>
-                                <a href="/movimentacoes" class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black hover:bg-gray-50 transition-all border border-transparent hover:border-gray-200">
-                                    Log
-                                </a>
-                                {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
-                                <a href="/assets/admin/localizacoes" class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black hover:bg-gray-50 transition-all border border-transparent hover:border-gray-200">
-                                    Localizações
-                                </a>
-                                {% endif %}
-                                {% endif %}
-                                {% if user.role.value|lower in request.state.menu_permissions.get('fornecedores', ['admin', 'gerente_ti', 'gerente_infra', 'comprador']) %}
-                                <a href="/suppliers" class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black hover:bg-gray-50 transition-all border border-transparent hover:border-gray-200">
-                                    Fornecedores
-                                </a>
-                                {% endif %}
-                                {% if user.role.value|lower in request.state.menu_permissions.get('relatorios', ['admin', 'gerente_ti', 'gerente_infra', 'comprador']) %}
-                                <a href="/assets/reports" class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black hover:bg-gray-50 transition-all border border-transparent hover:border-gray-200">
-                                    Relatórios
-                                </a>
-                                {% endif %}
+                            <button class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-black flex items-center gap-1.5 transition-all">
+                                Ativos
+                                <svg class="w-3 h-3 transition-transform group-hover/dropdown:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div class="absolute left-6 top-full mt-0 w-64 border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50" style="background-color:#ffffff;">
+                                <div class="bg-black text-white px-4 py-1 text-[10px] font-mono uppercase tracking-widest">Module_02_Assets</div>
+                                <div class="p-1">
+                                    {% if user.role.value|lower in request.state.menu_permissions.get('ativos', ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador', 'usuario_comum']) %}
+                                    <a href="/assets" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Inventário</a>
+                                    <a href="/movimentacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Log Movimentações</a>
+                                    {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
+                                    <a href="/assets/admin/localizacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Localizações</a>
+                                    {% endif %}
+                                    {% endif %}
+                                    {% if user.role.value|lower in request.state.menu_permissions.get('fornecedores', ['admin', 'gerente_ti', 'gerente_infra', 'comprador']) %}
+                                    <div class="h-[2px] bg-gray-100 my-1 mx-2"></div>
+                                    <a href="/suppliers" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Fornecedores</a>
+                                    {% endif %}
+                                    {% if user.role.value|lower in request.state.menu_permissions.get('relatorios', ['admin', 'gerente_ti', 'gerente_infra', 'comprador']) %}
+                                    <div class="h-[2px] bg-gray-100 my-1 mx-2"></div>
+                                    <a href="/assets/reports" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Relatórios</a>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
 
@@ -156,7 +157,7 @@
                                 </svg>
                             </button>
                             <div class="absolute left-6 top-full mt-0 w-64 border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50" style="background-color:#ffffff;">
-                                <div class="bg-brand-600 text-white px-4 py-1 text-[10px] font-mono uppercase tracking-widest">Preventive_Maintenance</div>
+                                <div class="bg-black text-white px-4 py-1 text-[10px] font-mono uppercase tracking-widest">Preventive_Maintenance</div>
                                 <div class="p-1">
                                     <a href="/manutencao-preventiva" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Dashboard</a>
                                     <a href="/manutencao-preventiva/planos" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Planos de Manutenção</a>

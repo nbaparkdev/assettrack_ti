@@ -308,6 +308,17 @@ class PurchaseContractBase(BaseModel):
 class PurchaseContractCreate(PurchaseContractBase):
     pass
 
+class PurchaseContractUpdate(BaseModel):
+    fornecedor_id: Optional[int] = None
+    tipo: Optional[str] = None
+    numero: Optional[str] = None
+    data_inicio: Optional[datetime] = None
+    data_fim: Optional[datetime] = None
+    renovacao_automatica: Optional[bool] = None
+    valor: Optional[float] = None
+    periodicidade: Optional[str] = None
+    arquivo_pdf_path: Optional[str] = None
+
 class PurchaseContractResponse(PurchaseContractBase):
     id: int
     alertado_dias: Optional[int] = None
