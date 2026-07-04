@@ -26,6 +26,20 @@ async def gerenciar_modulos_page(
     purchases_enabled_str = await system_settings.get_setting(db, "purchases_enabled", default_value="true")
     purchases_enabled = purchases_enabled_str.lower() == "true"
     
+    ai_enabled_str = await system_settings.get_setting(db, "ai_enabled", default_value="false")
+    ai_enabled = ai_enabled_str.lower() == "true"
+    
+    ai_advanced_str = await system_settings.get_setting(db, "ai_advanced_functions", default_value="false")
+    ai_advanced_functions = ai_advanced_str.lower() == "true"
+    
+    ai_provider = await system_settings.get_setting(db, "ai_provider", default_value="openai")
+    openai_api_key = await system_settings.get_setting(db, "openai_api_key", default_value="")
+    gemini_api_key = await system_settings.get_setting(db, "gemini_api_key", default_value="")
+    groq_api_key = await system_settings.get_setting(db, "groq_api_key", default_value="")
+    openai_model = await system_settings.get_setting(db, "openai_model", default_value="gpt-4o-mini")
+    gemini_model = await system_settings.get_setting(db, "gemini_model", default_value="gemini-2.5-flash")
+    groq_model = await system_settings.get_setting(db, "groq_model", default_value="llama-3.1-8b-instant")
+    
     # Carregar permissões de menu
     import json
     perms_str = await system_settings.get_setting(db, "menu_permissions")
@@ -80,6 +94,15 @@ async def gerenciar_modulos_page(
         "user": current_user,
         "pm_enabled": pm_enabled,
         "purchases_enabled": purchases_enabled,
+        "ai_enabled": ai_enabled,
+        "ai_advanced_functions": ai_advanced_functions,
+        "ai_provider": ai_provider,
+        "openai_api_key": openai_api_key,
+        "gemini_api_key": gemini_api_key,
+        "groq_api_key": groq_api_key,
+        "openai_model": openai_model,
+        "gemini_model": gemini_model,
+        "groq_model": groq_model,
         "menu_permissions": menu_permissions,
         "roles": roles,
         "menus": menus,
@@ -93,7 +116,16 @@ async def gerenciar_modulos_submit(
     current_user: Annotated[User, Depends(get_admin_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
     preventive_maintenance_enabled: Optional[str] = Form(None),
-    purchases_enabled: Optional[str] = Form(None)
+    purchases_enabled: Optional[str] = Form(None),
+    ai_enabled: Optional[str] = Form(None),
+    ai_advanced_functions: Optional[str] = Form(None),
+    ai_provider: Optional[str] = Form(None),
+    openai_api_key: Optional[str] = Form(None),
+    gemini_api_key: Optional[str] = Form(None),
+    groq_api_key: Optional[str] = Form(None),
+    openai_model: Optional[str] = Form(None),
+    gemini_model: Optional[str] = Form(None),
+    groq_model: Optional[str] = Form(None)
 ):
     # Salvar módulos
     enabled_val = "true" if preventive_maintenance_enabled == "on" else "false"
@@ -113,6 +145,39 @@ async def gerenciar_modulos_submit(
         descricao="Ativação do módulo de Compras (Procurement)"
     )
     request.app.state.purchases_enabled = (pur_enabled_val == "true")
+
+    ai_enabled_val = "true" if ai_enabled == "on" else "false"
+    await system_settings.set_setting(
+        db=db,
+        setting_key="ai_enabled",
+        setting_value=ai_enabled_val,
+        descricao="Ativação do Assistente de IA"
+    )
+    request.app.state.ai_enabled = (ai_enabled_val == "true")
+
+    ai_adv_val = "true" if ai_advanced_functions == "on" else "false"
+    await system_settings.set_setting(
+        db=db,
+        setting_key="ai_advanced_functions",
+        setting_value=ai_adv_val,
+        descricao="Permitir Ações Avançadas da IA (Criar/Modificar)"
+    )
+    request.app.state.ai_advanced_functions = (ai_adv_val == "true")
+
+    if ai_provider:
+        await system_settings.set_setting(db=db, setting_key="ai_provider", setting_value=ai_provider, descricao="Provedor do Assistente de IA")
+    if openai_api_key is not None:
+        await system_settings.set_setting(db=db, setting_key="openai_api_key", setting_value=openai_api_key, descricao="Chave de API OpenAI")
+    if gemini_api_key is not None:
+        await system_settings.set_setting(db=db, setting_key="gemini_api_key", setting_value=gemini_api_key, descricao="Chave de API Gemini")
+    if groq_api_key is not None:
+        await system_settings.set_setting(db=db, setting_key="groq_api_key", setting_value=groq_api_key, descricao="Chave de API Groq")
+    if openai_model:
+        await system_settings.set_setting(db=db, setting_key="openai_model", setting_value=openai_model, descricao="Modelo OpenAI")
+    if gemini_model:
+        await system_settings.set_setting(db=db, setting_key="gemini_model", setting_value=gemini_model, descricao="Modelo Gemini")
+    if groq_model:
+        await system_settings.set_setting(db=db, setting_key="groq_model", setting_value=groq_model, descricao="Modelo Groq")
 
     # Processar permissões do menu
     form_data = await request.form()

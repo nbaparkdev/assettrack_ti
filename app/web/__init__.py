@@ -33,4 +33,5 @@ from app.web.endpoints import admin_modules
 web_router.include_router(admin_modules.router, prefix="/admin", tags=["web_admin_modules"])
 from app.web.endpoints import procurement
 web_router.include_router(procurement.router, prefix="/compras", tags=["web_procurement"])
-
+from app.web.endpoints import ai_chat
+web_router.include_router(ai_chat.router, tags=["web_ai_chat"])

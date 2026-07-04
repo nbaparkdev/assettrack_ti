@@ -128,6 +128,18 @@ async def lifespan(app: FastAPI):
             app.state.purchases_enabled = True
 
         try:
+            val_ai = await system_settings.get_setting(session, "ai_enabled", default_value="false")
+            app.state.ai_enabled = (val_ai.lower() == "true")
+        except Exception:
+            app.state.ai_enabled = False
+
+        try:
+            val_adv = await system_settings.get_setting(session, "ai_advanced_functions", default_value="false")
+            app.state.ai_advanced_functions = (val_adv.lower() == "true")
+        except Exception:
+            app.state.ai_advanced_functions = False
+
+        try:
             import json
             perms_str = await system_settings.get_setting(session, "menu_permissions")
             if perms_str:
@@ -177,6 +189,8 @@ app = FastAPI(
 async def add_module_state(request: Request, call_next):
     request.state.pm_enabled = getattr(request.app.state, "pm_enabled", True)
     request.state.purchases_enabled = getattr(request.app.state, "purchases_enabled", True)
+    request.state.ai_enabled = getattr(request.app.state, "ai_enabled", False)
+    request.state.ai_advanced_functions = getattr(request.app.state, "ai_advanced_functions", False)
     request.state.menu_permissions = getattr(request.app.state, "menu_permissions", {
         "ativos": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "usuario_comum"],
         "fornecedores": ["admin", "gerente_ti", "gerente_infra", "comprador"],

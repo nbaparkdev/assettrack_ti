@@ -71,6 +71,100 @@
             </div>
 
             
+            <div class="border-2 border-gray-200 p-6 hover:border-black transition-colors bg-gray-50">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="space-y-2 w-full">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="font-bold text-lg text-black uppercase tracking-tight">Assistente de Inteligência Artificial</span>
+                                <span class="font-mono text-[10px] px-2 py-0.5 bg-black text-white font-bold uppercase tracking-widest">MOD_AI</span>
+                            </div>
+                            <!-- Toggle Switch Literal HTML/Tailwind -->
+                            <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                                <input type="checkbox" name="ai_enabled" class="sr-only peer" {% if ai_enabled %}checked{% endif %}>
+                                <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
+                            </label>
+                        </div>
+                        <p class="text-sm text-gray-600 font-sans leading-relaxed">
+                            Integração com LLM (OpenAI ou Gemini) para auxiliar usuários, fornecer avisos e gerenciar tarefas através de chamadas de funções.
+                        </p>
+
+                        <div class="flex items-center justify-between mt-4 border-t-2 border-gray-200 pt-4">
+                            <div class="flex items-center gap-3">
+                                <span class="font-bold text-sm text-black uppercase tracking-tight">Permitir Ações Avançadas</span>
+                                <span class="font-mono text-[9px] px-2 py-0.5 bg-gray-200 text-black font-bold uppercase tracking-widest">Criação / Modificação</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                                <input type="checkbox" name="ai_advanced_functions" class="sr-only peer" {% if ai_advanced_functions %}checked{% endif %}>
+                                <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
+                            </label>
+                        </div>
+                        
+                        <!-- AI Settings Sub-panel -->
+                        <div class="pt-4 space-y-4 border-t-2 border-gray-200 mt-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Provedor LLM</label>
+                                    <select name="ai_provider" class="w-full border-2 border-black p-2 bg-white text-sm focus:ring-0 focus:border-black font-mono">
+                                    <option value="openai" {% if ai_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+                                    <option value="gemini" {% if ai_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
+                                    <option value="groq" {% if ai_provider == 'groq' %}selected{% endif %}>Groq (Llama, Mixtral)</option>
+                                </select>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">OpenAI API Key</label>
+                                    <input type="password" name="openai_api_key" value="{{ openai_api_key }}" placeholder="sk-..." class="w-full border-2 border-black p-2 text-sm focus:ring-0 focus:border-black font-mono">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Modelo OpenAI</label>
+                                    <select name="openai_model" class="w-full border-2 border-black p-2 bg-white text-sm focus:ring-0 focus:border-black font-mono">
+                                        <option value="gpt-4o-mini" {% if openai_model == 'gpt-4o-mini' %}selected{% endif %}>gpt-4o-mini</option>
+                                        <option value="gpt-4o" {% if openai_model == 'gpt-4o' %}selected{% endif %}>gpt-4o</option>
+                                        <option value="gpt-3.5-turbo" {% if openai_model == 'gpt-3.5-turbo' %}selected{% endif %}>gpt-3.5-turbo</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                <div class="space-y-2">
+                                    <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Gemini API Key</label>
+                                    <input type="password" name="gemini_api_key" value="{{ gemini_api_key }}" placeholder="AIza..." class="w-full border-2 border-black p-2 text-sm focus:ring-0 focus:border-black font-mono">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Modelo Gemini</label>
+                                    <select name="gemini_model" class="w-full border-2 border-black p-2 bg-white text-sm focus:ring-0 focus:border-black font-mono">
+                                        <option value="gemini-2.5-flash" {% if gemini_model == 'gemini-2.5-flash' %}selected{% endif %}>gemini-2.5-flash</option>
+                                        <option value="gemini-2.0-flash-exp" {% if gemini_model == 'gemini-2.0-flash-exp' %}selected{% endif %}>gemini-2.0-flash-exp</option>
+                                        <option value="gemini-1.5-flash-latest" {% if gemini_model == 'gemini-1.5-flash-latest' %}selected{% endif %}>gemini-1.5-flash-latest</option>
+                                        <option value="gemini-1.5-flash" {% if gemini_model == 'gemini-1.5-flash' %}selected{% endif %}>gemini-1.5-flash</option>
+                                        <option value="gemini-1.5-pro-latest" {% if gemini_model == 'gemini-1.5-pro-latest' %}selected{% endif %}>gemini-1.5-pro-latest</option>
+                                        <option value="gemini-1.5-pro" {% if gemini_model == 'gemini-1.5-pro' %}selected{% endif %}>gemini-1.5-pro</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                <div class="space-y-2">
+                                    <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Groq API Key</label>
+                                    <input type="password" name="groq_api_key" value="{{ groq_api_key }}" placeholder="gsk_..." class="w-full border-2 border-black p-2 text-sm focus:ring-0 focus:border-black font-mono">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Modelo Groq</label>
+                                    <select name="groq_model" class="w-full border-2 border-black p-2 bg-white text-sm focus:ring-0 focus:border-black font-mono">
+                                        <option value="llama-3.1-8b-instant" {% if groq_model == 'llama-3.1-8b-instant' %}selected{% endif %}>llama-3.1-8b-instant</option>
+                                        <option value="llama-3.1-70b-versatile" {% if groq_model == 'llama-3.1-70b-versatile' %}selected{% endif %}>llama-3.1-70b-versatile</option>
+                                        <option value="llama3-8b-8192" {% if groq_model == 'llama3-8b-8192' %}selected{% endif %}>llama3-8b-8192</option>
+                                        <option value="llama3-70b-8192" {% if groq_model == 'llama3-70b-8192' %}selected{% endif %}>llama3-70b-8192</option>
+                                        <option value="mixtral-8x7b-32768" {% if groq_model == 'mixtral-8x7b-32768' %}selected{% endif %}>mixtral-8x7b-32768</option>
+                                        <option value="gemma2-9b-it" {% if groq_model == 'gemma2-9b-it' %}selected{% endif %}>gemma2-9b-it</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Outros módulos futuros podem ser listados aqui -->
             <div class="border-2 border-gray-200 p-6 bg-gray-100 opacity-60">
                 <div class="flex items-start justify-between gap-4">
