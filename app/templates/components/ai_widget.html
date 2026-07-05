@@ -49,11 +49,17 @@
     </div>
 
     <!-- Bubble Button -->
-    <button id="ai-chat-bubble" class="w-14 h-14 bg-black rounded-full text-white flex items-center justify-center border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all focus:outline-none">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
-        </svg>
-    </button>
+    <div class="relative flex items-center justify-center">
+        <!-- Ping Animation Layer -->
+        <div class="absolute w-14 h-14 bg-indigo-500 rounded-full animate-ping opacity-60"></div>
+        
+        <!-- Button -->
+        <button id="ai-chat-bubble" class="relative z-10 w-14 h-14 bg-yellow-400 rounded-full text-black flex items-center justify-center border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all focus:outline-none hover:bg-black hover:text-white">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+            </svg>
+        </button>
+    </div>
 </div>
 
 <!-- AI Chat Logic -->
