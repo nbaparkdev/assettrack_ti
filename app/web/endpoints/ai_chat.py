@@ -40,9 +40,24 @@ async def ai_chat_endpoint(
     ai_advanced_str = await system_settings.get_setting(db, "ai_advanced_functions", default_value="false")
     allow_advanced = (ai_advanced_str.lower() == "true")
     
+    # Build user context to inject into the system prompt
+    user_context = {
+        "nome": current_user.nome,
+        "role": current_user.role.value if current_user.role else "usuario_comum",
+        "email": current_user.email,
+    }
+    
     try:
         llm_service = get_llm_service(provider=ai_provider, api_key=api_key, model_name=model_name)
-        response_text = await llm_service.chat(db=db, user_id=current_user.id, messages=request.messages, allow_advanced_tools=allow_advanced)
+        response_text = await llm_service.chat(
+            db=db, 
+            user_id=current_user.id, 
+            messages=request.messages, 
+            allow_advanced_tools=allow_advanced,
+            user_context=user_context
+        )
         return ChatResponse(response=response_text)
     except Exception as e:
+        import traceback
+        print(f"AI Chat Error: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))

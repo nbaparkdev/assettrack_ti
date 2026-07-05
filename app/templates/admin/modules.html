@@ -109,6 +109,8 @@
                                     <option value="openai" {% if ai_provider == 'openai' %}selected{% endif %}>OpenAI</option>
                                     <option value="gemini" {% if ai_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
                                     <option value="groq" {% if ai_provider == 'groq' %}selected{% endif %}>Groq (Llama, Mixtral)</option>
+                                    <option value="openrouter" {% if ai_provider == 'openrouter' %}selected{% endif %}>OpenRouter</option>
+                                    <option value="kimi" {% if ai_provider == 'kimi' %}selected{% endif %}>Kimi (Moonshot)</option>
                                 </select>
                                 </div>
                             </div>
@@ -151,12 +153,37 @@
                                 <div class="space-y-2">
                                     <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Modelo Groq</label>
                                     <select name="groq_model" class="w-full border-2 border-black p-2 bg-white text-sm focus:ring-0 focus:border-black font-mono">
-                                        <option value="llama-3.1-8b-instant" {% if groq_model == 'llama-3.1-8b-instant' %}selected{% endif %}>llama-3.1-8b-instant</option>
-                                        <option value="llama-3.1-70b-versatile" {% if groq_model == 'llama-3.1-70b-versatile' %}selected{% endif %}>llama-3.1-70b-versatile</option>
+                                        <option value="groq/compound" {% if groq_model == 'groq/compound' %}selected{% endif %}>groq/compound</option>
                                         <option value="llama3-8b-8192" {% if groq_model == 'llama3-8b-8192' %}selected{% endif %}>llama3-8b-8192</option>
                                         <option value="llama3-70b-8192" {% if groq_model == 'llama3-70b-8192' %}selected{% endif %}>llama3-70b-8192</option>
                                         <option value="mixtral-8x7b-32768" {% if groq_model == 'mixtral-8x7b-32768' %}selected{% endif %}>mixtral-8x7b-32768</option>
-                                        <option value="gemma2-9b-it" {% if groq_model == 'gemma2-9b-it' %}selected{% endif %}>gemma2-9b-it</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                <div class="space-y-2">
+                                    <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">OpenRouter API Key</label>
+                                    <input type="password" name="openrouter_api_key" value="{{ openrouter_api_key }}" placeholder="sk-or-v1-..." class="w-full border-2 border-black p-2 text-sm focus:ring-0 focus:border-black font-mono">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Modelo OpenRouter</label>
+                                    <input type="text" name="openrouter_model" value="{{ openrouter_model }}" placeholder="meta-llama/llama-3.1-8b-instruct:free" class="w-full border-2 border-black p-2 text-sm focus:ring-0 focus:border-black font-mono">
+                                    <p class="text-[10px] text-gray-500 font-mono mt-1">Ex: meta-llama/llama-3.1-8b-instruct:free</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                <div class="space-y-2">
+                                    <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Kimi API Key</label>
+                                    <input type="password" name="kimi_api_key" value="{{ kimi_api_key }}" placeholder="sk-..." class="w-full border-2 border-black p-2 text-sm focus:ring-0 focus:border-black font-mono">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Modelo Kimi</label>
+                                    <select name="kimi_model" class="w-full border-2 border-black p-2 bg-white text-sm focus:ring-0 focus:border-black font-mono">
+                                        <option value="kimi-k2.6" {% if kimi_model == 'kimi-k2.6' %}selected{% endif %}>kimi-k2.6</option>
+                                        <option value="moonshot-v1-8k" {% if kimi_model == 'moonshot-v1-8k' %}selected{% endif %}>moonshot-v1-8k</option>
+                                        <option value="moonshot-v1-32k" {% if kimi_model == 'moonshot-v1-32k' %}selected{% endif %}>moonshot-v1-32k</option>
+                                        <option value="moonshot-v1-128k" {% if kimi_model == 'moonshot-v1-128k' %}selected{% endif %}>moonshot-v1-128k</option>
                                     </select>
                                 </div>
                             </div>

@@ -120,10 +120,13 @@
     }
 </style>
 
+<script id="events-data" type="application/json">
+    {{ events_json|safe }}
+</script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
-        var eventsData = {{ events_json|safe }};
+        var eventsData = JSON.parse(document.getElementById('events-data').textContent);
         
         var calendar = new FullCalendar.Calendar(calendarEl, {
             locale: 'pt-br',

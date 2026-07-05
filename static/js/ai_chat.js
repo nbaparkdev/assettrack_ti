@@ -111,4 +111,60 @@ document.addEventListener('DOMContentLoaded', () => {
             sendMessage();
         }
     });
+
+    // Auto-open welcome logic (only once per session)
+    if (!sessionStorage.getItem('ai_welcome_shown')) {
+        setTimeout(async () => {
+            // Read user info from widget dataset
+            const widgetEl = document.getElementById('ai-chat-widget');
+            const userName = widgetEl ? widgetEl.getAttribute('data-user-name') : 'usuário';
+            const userRole = widgetEl ? widgetEl.getAttribute('data-user-role') : 'usuario_comum';
+            
+            // Open window
+            toggleChat();
+            
+            const isManager = ['admin', 'gerente_ti', 'gerente_infra'].includes(userRole);
+            
+            if (isManager) {
+                // For admins/managers: auto-fetch system overview
+                const greetingText = `Olá, **${userName}**! 👋 Bem-vindo ao AssetTrack. Deixa eu buscar o panorama atual do sistema para você...`;
+                appendMessage('assistant', greetingText);
+                
+                // Show typing while fetching
+                typingIndicator.classList.remove('hidden');
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                try {
+                    // Send an automatic request to get the system overview
+                    chatHistory.push({ role: 'user', content: 'Me dê um resumo geral do sistema agora: chamados, ativos e manutenções.' });
+                    
+                    const response = await fetch('/api/v1/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ messages: chatHistory })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        appendMessage('assistant', data.response);
+                        chatHistory.push({ role: 'assistant', content: data.response });
+                    } else {
+                        appendMessage('assistant', 'Não consegui buscar o panorama agora. Me pergunte qualquer coisa!');
+                    }
+                } catch (err) {
+                    appendMessage('assistant', 'Estou pronto para ajudar! Me pergunte sobre chamados, ativos ou manutenções.');
+                } finally {
+                    typingIndicator.classList.add('hidden');
+                }
+            } else {
+                // For regular users: simple greeting
+                const greetingText = `Olá, **${userName}**! Sou o seu Assistente Virtual. 👋\n\nEstou aqui para te ajudar com consultas, informações sobre seus chamados ou procurar equipamentos. Como posso ajudar hoje?`;
+                appendMessage('assistant', greetingText);
+                chatHistory.push({ role: 'assistant', content: greetingText });
+            }
+            
+            // Mark as shown
+            sessionStorage.setItem('ai_welcome_shown', 'true');
+        }, 1500);
+    }
 });

@@ -2,6 +2,8 @@ from app.services.ai_assistant.llm_base import LLMBaseService
 from app.services.ai_assistant.openai_service import OpenAIService
 from app.services.ai_assistant.gemini_service import GeminiService
 from app.services.ai_assistant.groq_service import GroqService
+from app.services.ai_assistant.openrouter_service import OpenRouterService
+from app.services.ai_assistant.kimi_service import KimiService
 
 def get_llm_service(provider: str, api_key: str, model_name: str = "") -> LLMBaseService:
     if not api_key:
@@ -19,5 +21,11 @@ def get_llm_service(provider: str, api_key: str, model_name: str = "") -> LLMBas
         # Default to llama-3.1-8b-instant if not provided
         model = model_name if model_name else "llama-3.1-8b-instant"
         return GroqService(api_key=api_key, model=model)
+    elif provider.lower() == "openrouter":
+        model = model_name if model_name else "meta-llama/llama-3.1-8b-instruct:free"
+        return OpenRouterService(api_key=api_key, model=model)
+    elif provider.lower() == "kimi":
+        model = model_name if model_name else "kimi-k2.6"
+        return KimiService(api_key=api_key, model=model)
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")

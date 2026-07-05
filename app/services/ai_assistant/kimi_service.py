@@ -31,9 +31,12 @@ INSTRUÇÕES DE USO OBRIGATÓRIO:
 - QUALQUER pergunta sobre dados do sistema → USE uma ferramenta. NUNCA responda sem dados reais."""
 
 
-class OpenAIService(LLMBaseService):
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
-        self.client = AsyncOpenAI(api_key=api_key)
+class KimiService(LLMBaseService):
+    def __init__(self, api_key: str, model: str = "kimi-k2.6"):
+        self.client = AsyncOpenAI(
+            base_url="https://api.moonshot.ai/v1",
+            api_key=api_key,
+        )
         self.model = model
 
     async def chat(

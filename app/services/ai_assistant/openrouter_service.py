@@ -31,9 +31,12 @@ INSTRUÇÕES DE USO OBRIGATÓRIO:
 - QUALQUER pergunta sobre dados do sistema → USE uma ferramenta. NUNCA responda sem dados reais."""
 
 
-class OpenAIService(LLMBaseService):
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
-        self.client = AsyncOpenAI(api_key=api_key)
+class OpenRouterService(LLMBaseService):
+    def __init__(self, api_key: str, model: str = "meta-llama/llama-3.1-8b-instruct:free"):
+        self.client = AsyncOpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+        )
         self.model = model
 
     async def chat(

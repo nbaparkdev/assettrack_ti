@@ -39,6 +39,10 @@ async def gerenciar_modulos_page(
     openai_model = await system_settings.get_setting(db, "openai_model", default_value="gpt-4o-mini")
     gemini_model = await system_settings.get_setting(db, "gemini_model", default_value="gemini-2.5-flash")
     groq_model = await system_settings.get_setting(db, "groq_model", default_value="llama-3.1-8b-instant")
+    openrouter_api_key = await system_settings.get_setting(db, "openrouter_api_key", default_value="")
+    kimi_api_key = await system_settings.get_setting(db, "kimi_api_key", default_value="")
+    openrouter_model = await system_settings.get_setting(db, "openrouter_model", default_value="meta-llama/llama-3.1-8b-instruct:free")
+    kimi_model = await system_settings.get_setting(db, "kimi_model", default_value="kimi-k2.6")
     
     # Carregar permissões de menu
     import json
@@ -100,9 +104,13 @@ async def gerenciar_modulos_page(
         "openai_api_key": openai_api_key,
         "gemini_api_key": gemini_api_key,
         "groq_api_key": groq_api_key,
+        "openrouter_api_key": openrouter_api_key,
+        "kimi_api_key": kimi_api_key,
         "openai_model": openai_model,
         "gemini_model": gemini_model,
         "groq_model": groq_model,
+        "openrouter_model": openrouter_model,
+        "kimi_model": kimi_model,
         "menu_permissions": menu_permissions,
         "roles": roles,
         "menus": menus,
@@ -125,7 +133,11 @@ async def gerenciar_modulos_submit(
     groq_api_key: Optional[str] = Form(None),
     openai_model: Optional[str] = Form(None),
     gemini_model: Optional[str] = Form(None),
-    groq_model: Optional[str] = Form(None)
+    groq_model: Optional[str] = Form(None),
+    openrouter_api_key: Optional[str] = Form(None),
+    openrouter_model: Optional[str] = Form(None),
+    kimi_api_key: Optional[str] = Form(None),
+    kimi_model: Optional[str] = Form(None)
 ):
     # Salvar módulos
     enabled_val = "true" if preventive_maintenance_enabled == "on" else "false"
@@ -178,6 +190,14 @@ async def gerenciar_modulos_submit(
         await system_settings.set_setting(db=db, setting_key="gemini_model", setting_value=gemini_model, descricao="Modelo Gemini")
     if groq_model:
         await system_settings.set_setting(db=db, setting_key="groq_model", setting_value=groq_model, descricao="Modelo Groq")
+    if openrouter_api_key is not None:
+        await system_settings.set_setting(db=db, setting_key="openrouter_api_key", setting_value=openrouter_api_key, descricao="Chave de API OpenRouter")
+    if kimi_api_key is not None:
+        await system_settings.set_setting(db=db, setting_key="kimi_api_key", setting_value=kimi_api_key, descricao="Chave de API Kimi")
+    if openrouter_model:
+        await system_settings.set_setting(db=db, setting_key="openrouter_model", setting_value=openrouter_model, descricao="Modelo OpenRouter")
+    if kimi_model:
+        await system_settings.set_setting(db=db, setting_key="kimi_model", setting_value=kimi_model, descricao="Modelo Kimi")
 
     # Processar permissões do menu
     form_data = await request.form()
