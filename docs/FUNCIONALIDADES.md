@@ -75,6 +75,17 @@ Módulo completo integrado de suprimentos cobrindo do pedido ao recebimento.
 
 ---
 
+## 🤖 Assistente de Inteligência Artificial (IA)
+
+Módulo de assistente virtual cognitivo integrado nativamente ao ERP, operando via *Function Calling* para consultar e analisar dados reais do banco de dados de forma conversacional.
+
+- **Provedores Universais:** Suporte integrado a múltiplos ecossistemas de LLM (OpenAI, Gemini, Groq, OpenRouter e Moonshot/Kimi).
+- **Gerenciamento de Funcionalidades:** O administrador pode plugar chaves de API, alternar modelos instantaneamente sem reiniciar o servidor e desligar o chat através do painel Administrativo.
+- **Acesso ao Banco de Dados (Tool Calling):** O bot tem permissão de leitura programática (Functions) sobre: Inventário de Ativos, Service Desk (Tickets), Manutenções Preventivas e Módulo de Compras (Procurement).
+- **Interface Neo-Brutalista:** Widget global, rápido e persistente no canto inferior com feedback visual em animações (ping/radar).
+
+---
+
 ## 🎛️ Controle de Módulos e Acessos (RBAC Dinâmico)
 
 - **Feature Toggles:** Ativação ou desativação em tempo real dos módulos de Compras e Manutenção Preventiva.

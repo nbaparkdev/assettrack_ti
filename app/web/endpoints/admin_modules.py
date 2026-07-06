@@ -44,6 +44,14 @@ async def gerenciar_modulos_page(
     openrouter_model = await system_settings.get_setting(db, "openrouter_model", default_value="meta-llama/llama-3.1-8b-instruct:free")
     kimi_model = await system_settings.get_setting(db, "kimi_model", default_value="kimi-k2.6")
     
+    # SMTP Configs
+    smtp_host = await system_settings.get_setting(db, "smtp_host", default_value="")
+    smtp_port = await system_settings.get_setting(db, "smtp_port", default_value="587")
+    smtp_user = await system_settings.get_setting(db, "smtp_user", default_value="")
+    smtp_pass = await system_settings.get_setting(db, "smtp_pass", default_value="")
+    smtp_from = await system_settings.get_setting(db, "smtp_from", default_value="")
+    smtp_tls = await system_settings.get_setting(db, "smtp_tls", default_value="true")
+    
     # Carregar permissões de menu
     import json
     perms_str = await system_settings.get_setting(db, "menu_permissions")
@@ -111,6 +119,12 @@ async def gerenciar_modulos_page(
         "groq_model": groq_model,
         "openrouter_model": openrouter_model,
         "kimi_model": kimi_model,
+        "smtp_host": smtp_host,
+        "smtp_port": smtp_port,
+        "smtp_user": smtp_user,
+        "smtp_pass": smtp_pass,
+        "smtp_from": smtp_from,
+        "smtp_tls": smtp_tls,
         "menu_permissions": menu_permissions,
         "roles": roles,
         "menus": menus,
@@ -137,7 +151,13 @@ async def gerenciar_modulos_submit(
     openrouter_api_key: Optional[str] = Form(None),
     openrouter_model: Optional[str] = Form(None),
     kimi_api_key: Optional[str] = Form(None),
-    kimi_model: Optional[str] = Form(None)
+    kimi_model: Optional[str] = Form(None),
+    smtp_host: Optional[str] = Form(None),
+    smtp_port: Optional[str] = Form(None),
+    smtp_user: Optional[str] = Form(None),
+    smtp_pass: Optional[str] = Form(None),
+    smtp_from: Optional[str] = Form(None),
+    smtp_tls: Optional[str] = Form(None)
 ):
     # Salvar módulos
     enabled_val = "true" if preventive_maintenance_enabled == "on" else "false"
@@ -199,6 +219,15 @@ async def gerenciar_modulos_submit(
     if kimi_model:
         await system_settings.set_setting(db=db, setting_key="kimi_model", setting_value=kimi_model, descricao="Modelo Kimi")
 
+    # Salvar configurações SMTP
+    await system_settings.set_setting(db=db, setting_key="smtp_host", setting_value=smtp_host or "")
+    await system_settings.set_setting(db=db, setting_key="smtp_port", setting_value=smtp_port or "587")
+    await system_settings.set_setting(db=db, setting_key="smtp_user", setting_value=smtp_user or "")
+    if smtp_pass is not None:
+        await system_settings.set_setting(db=db, setting_key="smtp_pass", setting_value=smtp_pass)
+    await system_settings.set_setting(db=db, setting_key="smtp_from", setting_value=smtp_from or "")
+    await system_settings.set_setting(db=db, setting_key="smtp_tls", setting_value="true" if smtp_tls == "on" else "false")
+
     # Processar permissões do menu
     form_data = await request.form()
     menus = ["ativos", "fornecedores", "manutencao", "tickets", "compras", "relatorios", "usuarios", "backup"]
@@ -220,13 +249,57 @@ async def gerenciar_modulos_submit(
 
     import json
     perms_str = json.dumps(new_permissions)
-    await system_settings.set_setting(
-        db=db,
-        setting_key="menu_permissions",
-        setting_value=perms_str,
-        descricao="Mapeamento de permissões de acesso por menu e perfil"
-    )
+    try:
+        await system_settings.set_setting(
+            db=db,
+            setting_key="menu_permissions",
+            setting_value=perms_str,
+            descricao="Mapeamento de permissões de acesso por menu e perfil"
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        
     request.app.state.menu_permissions = new_permissions
 
     return RedirectResponse(url="/admin/modulos?success=1", status_code=status.HTTP_303_SEE_OTHER)
 
+from pydantic import BaseModel
+import smtplib
+from email.message import EmailMessage
+
+class SmtpTestRequest(BaseModel):
+    email: str
+    smtp_host: str
+    smtp_port: int
+    smtp_user: str
+    smtp_pass: str
+    smtp_from: str
+    smtp_tls: bool
+
+@router.post("/smtp/test")
+async def test_smtp_connection(
+    req: SmtpTestRequest,
+    current_user: Annotated[User, Depends(get_admin_user_web)]
+):
+    try:
+        msg = EmailMessage()
+        msg.set_content(f"Este é um e-mail de teste do ERP AssetTrack TI disparado por {current_user.nome}.\nSe você recebeu, as configurações SMTP estão corretas!")
+        msg["Subject"] = "Teste de Configuração SMTP - AssetTrack TI"
+        msg["From"] = req.smtp_from or req.smtp_user
+        msg["To"] = req.email
+
+        # Síncrono para testar a conexão (não usar block time grande em prod)
+        server = smtplib.SMTP(req.smtp_host, req.smtp_port, timeout=10)
+        
+        if req.smtp_tls:
+            server.starttls()
+            
+        server.login(req.smtp_user, req.smtp_pass)
+        server.send_message(msg)
+        server.quit()
+        
+        return {"message": "E-mail enviado com sucesso! Verifique sua caixa de entrada."}
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(e))

@@ -1,7 +1,7 @@
-# Plan: Assistente de IA Integrado (Gemini / OpenAI)
+# Plan: Assistente de IA Integrado (Gemini / OpenAI / Groq / OpenRouter / Kimi)
 
 ## Overview
-Integração de um assistente virtual na aplicação AssetTrack TI para gerenciar funções e avisos. O sistema terá suporte a múltiplos provedores (OpenAI e Gemini), permitindo ao administrador escolher qual usar (um ou outro) ou desativar completamente a funcionalidade através de um toggle (botão liga/desliga) nas configurações do sistema. O assistente usará *Function Calling* (chamada de função) para consultar e interagir com os dados do ERP.
+Integração de um assistente virtual na aplicação AssetTrack TI para gerenciar funções e avisos. O sistema terá suporte a múltiplos provedores (OpenAI, Gemini, Groq, OpenRouter e Kimi), permitindo ao administrador escolher qual usar (um ou outro) ou desativar completamente a funcionalidade através de um toggle (botão liga/desliga) nas configurações do sistema. O assistente usará *Function Calling* (chamada de função) para consultar e interagir com os dados do ERP.
 
 ## Project Type
 **WEB** (Backend API em Python/FastAPI + Frontend HTML/JS/CSS)
@@ -26,9 +26,12 @@ app/
 ├── services/
 │   └── ai_assistant/
 │       ├── __init__.py
-│       ├── llm_factory.py       # Retorna o cliente (Gemini ou OpenAI) com base na config
+│       ├── llm_factory.py       # Retorna o cliente (Gemini, OpenAI, Groq, OpenRouter, Kimi) com base na config
 │       ├── gemini_service.py    # Wrapper para chamadas ao Gemini
 │       ├── openai_service.py    # Wrapper para chamadas à OpenAI
+│       ├── groq_service.py      # Wrapper para chamadas à Groq API
+│       ├── openrouter_service.py# Wrapper para chamadas via OpenRouter
+│       ├── kimi_service.py      # Wrapper para chamadas à Moonshot AI (Kimi)
 │       └── tools.py             # Definição das funções mapeadas para o Function Calling
 ├── web/
 │   ├── endpoints/
@@ -53,7 +56,7 @@ app/
 - **Priority:** P0
 - **Dependencies:** None
 - **INPUT:** Modelos atuais em `app/models/system_settings.py`.
-- **OUTPUT:** Novos campos em SystemSettings: `ai_enabled` (boolean), `ai_provider` (enum/string), `openai_api_key`, `gemini_api_key`.
+- **OUTPUT:** Novos campos em SystemSettings: `ai_enabled` (boolean), `ai_provider` (enum/string), `openai_api_key`, `gemini_api_key`, `groq_api_key`, `openrouter_api_key`, `kimi_api_key` e seus respectivos models.
 - **VERIFY:** As colunas foram migradas (ou adicionadas via script se necessário) e as consultas não falham.
 
 ### Task 2: Painel de Configurações Administrativas (Frontend/Backend)
@@ -79,9 +82,9 @@ app/
 - **Skills:** `api-patterns`
 - **Priority:** P2
 - **Dependencies:** Task 3
-- **INPUT:** Funções e regras de negócio do AssetTrack TI (ex: ler avisos, relatar OS).
+- **INPUT:** Funções e regras de negócio do AssetTrack TI (ex: ler avisos, relatar OS, manutenções preventivas, ordens de compra).
 - **OUTPUT:** Declaração do JSON Schema correspondente para as ferramentas da OpenAI e conversão para o formato Tools do Gemini, garantindo que a IA saiba executar o roteamento.
-- **VERIFY:** LLM consegue mapear que deve invocar a função `get_system_alerts` quando o usuário perguntar "Quais são meus avisos?".
+- **VERIFY:** LLM consegue mapear que deve invocar a função `get_system_alerts` quando o usuário perguntar "Quais são meus avisos?" e `get_purchase_requests` para "Como estão os pedidos de compras?".
 
 ### Task 5: Endpoint do Chat / API Web
 - **Agent:** `backend-specialist`
@@ -121,3 +124,11 @@ app/
 - Security: ✅ Pass (Chaves salvas no backend apenas)
 - Build: ✅ Pass
 - Date: 2026-07-04
+
+## ✅ EXPANSÃO DE ECOSSISTEMA (2026-07-05)
+- **Novos Provedores Adicionados:** Groq (c/ Fallback dinâmico), OpenRouter, Kimi (Moonshot AI).
+- **Novas Ferramentas de IA (Function Calling):** 
+  - `get_preventive_maintenance_orders` (Manutenções Preventivas)
+  - `get_purchase_requests` (Requisições de Compras)
+  - `get_purchase_orders` (Pedidos de Compras - POs)
+- **Melhorias de UI:** Adicionado animação Neo-Brutalista no Widget (Pulse Radar e cores vibrantes).
