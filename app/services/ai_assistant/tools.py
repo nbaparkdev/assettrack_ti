@@ -17,6 +17,36 @@ from app.models.procurement import PurchaseRequest, PurchaseOrder, PurchaseReque
 # TOOL FUNCTIONS
 # ---------------------------------------------------------------------------
 
+async def send_email_to_user(db: AsyncSession, user_id: int, target_email: str, subject: str, message: str, **kwargs) -> str:
+    """Envia um e-mail para um usuário cadastrado no sistema."""
+    from app.services.email_service import EmailService
+    
+    # Verify user exists
+    stmt = select(User).where(User.email == target_email)
+    result = await db.execute(stmt)
+    target_user = result.scalar_one_or_none()
+    
+    if not target_user:
+        return f"Erro: O e-mail '{target_email}' não pertence a nenhum usuário cadastrado na aplicação."
+        
+    user_nome = target_user.nome
+    user_email = target_user.email
+        
+    email_svc = EmailService()
+    try:
+        success = await email_svc.send_notification(
+            email_to=user_email,
+            subject=subject,
+            message=message,
+            db=db
+        )
+        if success:
+            return f"✅ E-mail enviado com sucesso para {user_nome} ({user_email})."
+        else:
+            return f"❌ Falha ao enviar e-mail para {user_nome} ({user_email}). Verifique os logs de erro ou as configurações SMTP."
+    except Exception as e:
+        return f"Erro ao enviar e-mail: {str(e)}"
+
 async def get_my_active_tickets(db: AsyncSession, user_id: int, **kwargs) -> str:
     """Retorna um resumo das solicitações/tickets ativos do usuário."""
     stmt = (
@@ -474,6 +504,29 @@ AVAILABLE_TOOLS = {
                 }
             },
             "required": []
+        }
+    },
+    "send_email_to_user": {
+        "description": "Envia um e-mail para um usuário CADASTRADO no sistema. USE quando solicitar envio de relatórios, avisos ou mensagens por e-mail para outro funcionário.",
+        "func": send_email_to_user,
+        "advanced": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "target_email": {
+                    "type": "string",
+                    "description": "E-mail do destinatário. Deve obrigatoriamente estar cadastrado no sistema."
+                },
+                "subject": {
+                    "type": "string",
+                    "description": "Assunto do e-mail."
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Corpo do e-mail."
+                }
+            },
+            "required": ["target_email", "subject", "message"]
         }
     }
 }

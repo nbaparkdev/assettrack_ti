@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="border-b-2 border-black pb-4">
+        <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Gerenciamento de Notificações</h1>
+        <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Configuração de Alertas e Histórico de E-mails</p>
+    </div>
+
+    {% if success %}
+    <div class="bg-green-50 border-2 border-green-600 p-4 shadow-[4px_4px_0px_0px_rgba(22,163,74,1)] flex items-center gap-3">
+        <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="font-mono text-xs font-bold text-green-800 uppercase tracking-wider">Configurações de notificações atualizadas com sucesso!</span>
+    </div>
+    {% endif %}
+
+    <!-- Tabs Header -->
+    <div class="flex flex-wrap gap-0 mt-6 relative z-10 -mb-[2px] overflow-x-auto">
+        <button type="button" class="tab-btn active px-4 sm:px-6 py-3 border-2 border-black border-b-0 bg-white font-bold uppercase text-black whitespace-nowrap focus:outline-none" data-target="tab-config">Configurações</button>
+        <button type="button" class="tab-btn px-4 sm:px-6 py-3 border-2 border-black border-b-0 border-l-0 bg-gray-200 font-bold uppercase text-gray-600 hover:bg-gray-100 hover:text-black transition-colors whitespace-nowrap focus:outline-none" data-target="tab-logs">Histórico de E-mails (Logs)</button>
+    </div>
+
+    <!-- Main Container -->
+    <div class="bg-white border-2 border-black p-6 sm:p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative z-0">
+        
+        <!-- TAB: CONFIGURAÇÕES -->
+        <div id="tab-config" class="tab-content block">
+            <form action="/admin/notificacoes" method="POST" class="space-y-6">
+                
+                <!-- Section: Usuários -->
+                <div class="border-2 border-gray-200 p-6 hover:border-black transition-colors bg-gray-50">
+                    <h3 class="font-bold text-lg text-black uppercase tracking-tight mb-4">Usuários e Sistema</h3>
+                    
+                    <div class="flex items-center justify-between border-t-2 border-gray-200 pt-3">
+                        <div>
+                            <span class="font-bold text-sm text-black">Novo Usuário Cadastrado</span>
+                            <p class="text-xs text-gray-500">Notificar o usuário quando sua conta for criada.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" name="notify_new_user" class="sr-only peer" {% if notify_new_user %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Section: Helpdesk -->
+                <div class="border-2 border-gray-200 p-6 hover:border-black transition-colors bg-gray-50">
+                    <h3 class="font-bold text-lg text-black uppercase tracking-tight mb-4">Helpdesk (Solicitações de Manutenção)</h3>
+                    
+                    <div class="flex items-center justify-between border-t-2 border-gray-200 pt-3 mb-3">
+                        <div>
+                            <span class="font-bold text-sm text-black">Nova Solicitação</span>
+                            <p class="text-xs text-gray-500">Notificar técnicos/gerentes sobre novos chamados abertos.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" name="notify_new_maintenance_request" class="sr-only peer" {% if notify_new_maintenance %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between border-t-2 border-gray-200 pt-3 mb-3">
+                        <div>
+                            <span class="font-bold text-sm text-black">Solicitação Aceita</span>
+                            <p class="text-xs text-gray-500">Notificar o solicitante quando seu chamado for aceito e iniciado.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" name="notify_maintenance_accepted" class="sr-only peer" {% if notify_maintenance_accepted %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between border-t-2 border-gray-200 pt-3 mb-3">
+                        <div>
+                            <span class="font-bold text-sm text-black">Solicitação Rejeitada</span>
+                            <p class="text-xs text-gray-500">Notificar o solicitante quando seu chamado for recusado.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" name="notify_maintenance_rejected" class="sr-only peer" {% if notify_maintenance_rejected %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between border-t-2 border-gray-200 pt-3">
+                        <div>
+                            <span class="font-bold text-sm text-black">Entrega Realizada</span>
+                            <p class="text-xs text-gray-500">Notificar gestores quando um equipamento for entregue de volta.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" name="notify_maintenance_delivery" class="sr-only peer" {% if notify_maintenance_delivery %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Section: OS / Manutenção Preventiva -->
+                <div class="border-2 border-gray-200 p-6 hover:border-black transition-colors bg-gray-50">
+                    <h3 class="font-bold text-lg text-black uppercase tracking-tight mb-4">Ordens de Serviço (Preventiva)</h3>
+                    
+                    <div class="flex items-center justify-between border-t-2 border-gray-200 pt-3 mb-3">
+                        <div>
+                            <span class="font-bold text-sm text-black">Nova OS Atribuída</span>
+                            <p class="text-xs text-gray-500">Notificar o técnico quando uma Ordem de Serviço for designada a ele.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" name="notify_order_assigned" class="sr-only peer" {% if notify_order_assigned %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between border-t-2 border-gray-200 pt-3 mb-3">
+                        <div>
+                            <span class="font-bold text-sm text-black">OS Concluída</span>
+                            <p class="text-xs text-gray-500">Notificar gestores quando o técnico finalizar a OS.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" name="notify_order_completed" class="sr-only peer" {% if notify_order_completed %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between border-t-2 border-gray-200 pt-3">
+                        <div>
+                            <span class="font-bold text-sm text-black">OS Atrasada</span>
+                            <p class="text-xs text-gray-500">Notificar responsável e gerentes sobre Ordens de Serviço vencidas.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" name="notify_order_overdue" class="sr-only peer" {% if notify_order_overdue %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Section: Compras e Estoque -->
+                <div class="border-2 border-gray-200 p-6 hover:border-black transition-colors bg-gray-50">
+                    <h3 class="font-bold text-lg text-black uppercase tracking-tight mb-4">Compras & Estoque</h3>
+                    
+                    <div class="flex items-center justify-between border-t-2 border-gray-200 pt-3 mb-3">
+                        <div>
+                            <span class="font-bold text-sm text-black">Nova Solicitação de Compra</span>
+                            <p class="text-xs text-gray-500">Notificar gestores e compradores sobre novos pedidos de compra.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" name="notify_purchase_request" class="sr-only peer" {% if notify_purchase_request %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between border-t-2 border-gray-200 pt-3 mb-3">
+                        <div>
+                            <span class="font-bold text-sm text-black">Pedido Emitido (PO)</span>
+                            <p class="text-xs text-gray-500">Enviar e-mail automático ao fornecedor com a Ordem de Compra.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" name="notify_purchase_order" class="sr-only peer" {% if notify_purchase_order %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between border-t-2 border-gray-200 pt-3">
+                        <div>
+                            <span class="font-bold text-sm text-black">Estoque Baixo</span>
+                            <p class="text-xs text-gray-500">Notificar compradores quando um material atingir o estoque mínimo.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                            <input type="checkbox" name="notify_low_stock" class="sr-only peer" {% if notify_low_stock %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="pt-4 mt-8 border-t-2 border-black flex items-center justify-end gap-4">
+                    <button type="submit" class="btn-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        Salvar Configurações
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- TAB: LOGS DE E-MAILS -->
+        <div id="tab-logs" class="tab-content hidden space-y-6">
+            <div class="border-b-2 border-black pb-3 mb-4">
+                <h2 class="text-xl font-black text-black uppercase tracking-tight">Histórico de Saídas (Outbox)</h2>
+                <p class="font-mono text-[10px] text-gray-500 mt-1 uppercase">Últimos 50 e-mails enviados ou tentados pela aplicação.</p>
+            </div>
+
+            <div class="overflow-x-auto border-2 border-black">
+                <table class="w-full text-left border-collapse font-sans">
+                    <thead>
+                        <tr class="bg-gray-100 border-b-2 border-black">
+                            <th class="p-3 text-xs font-mono font-bold uppercase tracking-wider text-black w-40">Data/Hora</th>
+                            <th class="p-3 text-xs font-mono font-bold uppercase tracking-wider text-black border-l-2 border-black">Destinatário</th>
+                            <th class="p-3 text-xs font-mono font-bold uppercase tracking-wider text-black border-l-2 border-black">Assunto</th>
+                            <th class="p-3 text-xs font-mono font-bold uppercase tracking-wider text-black border-l-2 border-black w-24">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y-2 divide-black">
+                        {% for log in email_logs %}
+                        <tr class="hover:bg-yellow-50 transition-colors">
+                            <td class="p-3 font-mono text-[11px]">{{ log.sent_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td class="p-3 text-sm border-l-2 border-black">{{ log.recipient }}</td>
+                            <td class="p-3 text-sm font-bold border-l-2 border-black" title="{{ log.body }}">{{ log.subject }}</td>
+                            <td class="p-3 border-l-2 border-black">
+                                {% if log.status == 'SUCCESS' %}
+                                <span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 uppercase tracking-wider border-2 border-green-800">
+                                    OK
+                                </span>
+                                {% else %}
+                                <span class="bg-red-100 text-red-800 text-xs font-bold px-2 py-1 uppercase tracking-wider border-2 border-red-800" title="{{ log.error_message }}">
+                                    ERRO
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="p-6 text-center text-sm font-bold text-gray-500 uppercase tracking-widest">
+                                Nenhum registro de e-mail encontrado.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => {
+                b.classList.remove('active', 'bg-white', 'text-black');
+                b.classList.add('bg-gray-200', 'text-gray-600');
+            });
+            tabContents.forEach(c => {
+                c.classList.remove('block');
+                c.classList.add('hidden');
+            });
+
+            btn.classList.add('active', 'bg-white', 'text-black');
+            btn.classList.remove('bg-gray-200', 'text-gray-600');
+            
+            const targetId = btn.getAttribute('data-target');
+            document.getElementById(targetId).classList.remove('hidden');
+            document.getElementById(targetId).classList.add('block');
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -61,7 +61,7 @@ async def service_desk_home(
             
     # Determine scope
     solicitante_id = None
-    if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO, UserRole.GERENTE_INFRA]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO, UserRole.GERENTE_INFRA]:
         solicitante_id = current_user.id
         
     tickets = await service_desk_crud.ticket.search_tickets(
@@ -75,7 +75,7 @@ async def service_desk_home(
         data_fim=dt_fim
     )
     
-    if user_role in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO, UserRole.GERENTE_INFRA]:
+    if current_user.role in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO, UserRole.GERENTE_INFRA]:
         stats = {
             "abertos": await db.scalar(select(func.count(ServiceTicket.id)).filter(ServiceTicket.status == ServiceStatus.ABERTO)),
             "em_atendimento": await db.scalar(select(func.count(ServiceTicket.id)).filter(ServiceTicket.status == ServiceStatus.EM_ATENDIMENTO)),
@@ -85,7 +85,7 @@ async def service_desk_home(
         stats = None
 
     dashboard_data = None
-    if user_role in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+    if current_user.role in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         # Tickets by status
         status_counts = await db.execute(
             select(ServiceTicket.status, func.count(ServiceTicket.id))

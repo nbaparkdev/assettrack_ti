@@ -7,11 +7,18 @@ from app.models.user import User, UserRole
 from app.services.email_service import EmailService
 
 
+from app.crud.system_settings import system_settings
+
 class NotificationService:
     """Serviço para enviar notificações aos usuários relevantes"""
     
     def __init__(self):
         self.email_service = EmailService()
+        
+    async def _is_enabled(self, db: AsyncSession, key: str) -> bool:
+        """Verifica se uma notificação específica está habilitada nas configurações"""
+        val = await system_settings.get_setting(db, key, "true")
+        return val.lower() == "true"
     
     async def get_staff_users(
         self, 
@@ -42,6 +49,9 @@ class NotificationService:
         """
         Notifica técnicos, gerentes e admins sobre nova solicitação de manutenção
         """
+        if not await self._is_enabled(db, "notify_new_maintenance_request"):
+            return []
+            
         staff_users = await self.get_staff_users(db)
         
         subject = f"🔧 Nova Solicitação de Manutenção #{request_id} - {priority.upper()}"
@@ -65,7 +75,8 @@ Acesse o painel de solicitações para mais detalhes.
             await self.email_service.send_notification(
                 email_to=user.email,
                 subject=subject,
-                message=message
+                message=message,
+                db=db
             )
             notified.append(user.email)
         
@@ -81,7 +92,9 @@ Acesse o painel de solicitações para mais detalhes.
         technician_name: str,
         observation: Optional[str] = None
     ):
-        """Notifica o solicitante que seu pedido foi aceito"""
+        if not await self._is_enabled(db, "notify_maintenance_accepted"):
+            return None
+            
         subject = f"✅ Solicitação #{request_id} Aceita - Manutenção Iniciada"
         
         message = f"""
@@ -99,7 +112,8 @@ A manutenção foi iniciada. Você receberá atualizações sobre o andamento.
         await self.email_service.send_notification(
             email_to=requester_email,
             subject=subject,
-            message=message
+            message=message,
+            db=db
         )
         
         print(f"[NOTIFICATION] Aceita #{request_id} - notificado: {requester_email}")
@@ -114,7 +128,9 @@ A manutenção foi iniciada. Você receberá atualizações sobre o andamento.
         technician_name: str,
         reason: str
     ):
-        """Notifica o solicitante que seu pedido foi rejeitado"""
+        if not await self._is_enabled(db, "notify_maintenance_rejected"):
+            return None
+            
         subject = f"❌ Solicitação #{request_id} Rejeitada"
         
         message = f"""
@@ -133,7 +149,8 @@ Caso discorde ou tenha dúvidas, entre em contato com a equipe de TI.
         await self.email_service.send_notification(
             email_to=requester_email,
             subject=subject,
-            message=message
+            message=message,
+            db=db
         )
         
         print(f"[NOTIFICATION] Rejeitada #{request_id} - notificado: {requester_email}")
@@ -151,6 +168,9 @@ Caso discorde ou tenha dúvidas, entre em contato com a equipe de TI.
         """
         Notifica Gerentes e Admins que uma entrega foi realizada pelo técnico.
         """
+        if not await self._is_enabled(db, "notify_maintenance_delivery"):
+            return []
+            
         # Buscar admins e gerentes
         managers = await self.get_staff_users(db, roles=[UserRole.ADMIN, UserRole.GERENTE])
         
@@ -174,7 +194,8 @@ Esta solicitação mudou para status ENTREGUE/CONCLUÍDA.
             await self.email_service.send_notification(
                 email_to=user.email,
                 subject=subject,
-                message=message
+                message=message,
+                db=db
             )
             notified.append(user.email)
             
@@ -217,15 +238,17 @@ Acesse o módulo de Manutenção Preventiva para iniciar a execução desta orde
         )
         db.add(notification)
         
-        # Enviar e-mail de notificação
-        try:
-            await self.email_service.send_notification(
-                email_to=technician_email,
-                subject=subject,
-                message=message
-            )
-        except Exception:
-            pass # Previne falhas se o serviço de email não estiver ativo
+        # Enviar e-mail de notificação se habilitado
+        if await self._is_enabled(db, "notify_order_assigned"):
+            try:
+                await self.email_service.send_notification(
+                    email_to=technician_email,
+                    subject=subject,
+                    message=message,
+                    db=db
+                )
+            except Exception:
+                pass # Previne falhas se o serviço de email não estiver ativo
             
         print(f"[NOTIFICATION] OS #{order_id} atribuída ao técnico ID {technician_id}")
 
@@ -256,6 +279,7 @@ A Ordem de Serviço {order_code} foi concluída pelo técnico responsável.
 Acesse a plataforma para auditar os detalhes e materiais aplicados.
 """
         # Notificar gestores no banco e via e-mail
+        notify_email = await self._is_enabled(db, "notify_order_completed")
         for mgr in managers:
             notification = MaintenanceNotification(
                 order_id=order_id,
@@ -265,14 +289,16 @@ Acesse a plataforma para auditar os detalhes e materiais aplicados.
             )
             db.add(notification)
             
-            try:
-                await self.email_service.send_notification(
-                    email_to=mgr.email,
-                    subject=subject,
-                    message=message
-                )
-            except Exception:
-                pass
+            if notify_email:
+                try:
+                    await self.email_service.send_notification(
+                        email_to=mgr.email,
+                        subject=subject,
+                        message=message,
+                        db=db
+                    )
+                except Exception:
+                    pass
                 
         print(f"[NOTIFICATION] OS #{order_id} de conclusão enviada para gestores")
 
@@ -301,6 +327,8 @@ Atenção, a Ordem de Serviço {order_code} está vencida e ainda não foi inici
 
 Favor verificar com urgência a situação desta manutenção.
 """
+        notify_email = await self._is_enabled(db, "notify_order_overdue")
+        
         # Se houver técnico atribuído, notifica ele
         if technician_id and technician_email:
             notification = MaintenanceNotification(
@@ -310,14 +338,16 @@ Favor verificar com urgência a situação desta manutenção.
                 mensagem=f"A OS {order_code} ({asset_name}) sob sua responsabilidade está vencida desde {data_str}."
             )
             db.add(notification)
-            try:
-                await self.email_service.send_notification(
-                    email_to=technician_email,
-                    subject=subject,
-                    message=message
-                )
-            except Exception:
-                pass
+            if notify_email:
+                try:
+                    await self.email_service.send_notification(
+                        email_to=technician_email,
+                        subject=subject,
+                        message=message,
+                        db=db
+                    )
+                except Exception:
+                    pass
 
         # Também notificar administradores e gerentes
         managers = await self.get_staff_users(db, roles=[UserRole.ADMIN, UserRole.GERENTE])
@@ -329,14 +359,16 @@ Favor verificar com urgência a situação desta manutenção.
                 mensagem=f"ALERTA: A OS {order_code} ({asset_name}) está vencida desde {data_str}."
             )
             db.add(notification)
-            try:
-                await self.email_service.send_notification(
-                    email_to=mgr.email,
-                    subject=subject,
-                    message=message
-                )
-            except Exception:
-                pass
+            if notify_email:
+                try:
+                    await self.email_service.send_notification(
+                        email_to=mgr.email,
+                        subject=subject,
+                        message=message,
+                        db=db
+                    )
+                except Exception:
+                    pass
                 
         print(f"[NOTIFICATION] OS #{order_id} de atraso gerada")
 

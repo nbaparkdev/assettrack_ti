@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.core.datetime_utils import now_sp
 from app.crud.base import CRUDBase
 from app.models.service_desk import ServiceCategory, ServiceDefinition, ServiceTicket, ServiceStatus
+from app.models.user import User
 from app.schemas.service_desk import (
     ServiceCategoryCreate, ServiceCategoryUpdate,
     ServiceDefinitionCreate, ServiceDefinitionUpdate,
@@ -92,7 +93,7 @@ class CRUDServiceTicket(CRUDBase[ServiceTicket, ServiceTicketCreate, ServiceTick
     ) -> List[ServiceTicket]:
         stmt = select(ServiceTicket).options(
             selectinload(ServiceTicket.servico).selectinload(ServiceDefinition.categoria),
-            selectinload(ServiceTicket.solicitante)
+            selectinload(ServiceTicket.solicitante).selectinload(User.departamento)
         )
         
         if query:

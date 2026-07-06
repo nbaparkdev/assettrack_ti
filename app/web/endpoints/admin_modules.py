@@ -224,7 +224,7 @@ async def gerenciar_modulos_submit(
     await system_settings.set_setting(db=db, setting_key="smtp_port", setting_value=smtp_port or "587")
     await system_settings.set_setting(db=db, setting_key="smtp_user", setting_value=smtp_user or "")
     if smtp_pass is not None:
-        await system_settings.set_setting(db=db, setting_key="smtp_pass", setting_value=smtp_pass)
+        await system_settings.set_setting(db=db, setting_key="smtp_password", setting_value=smtp_pass)
     await system_settings.set_setting(db=db, setting_key="smtp_from", setting_value=smtp_from or "")
     await system_settings.set_setting(db=db, setting_key="smtp_tls", setting_value="true" if smtp_tls == "on" else "false")
 
