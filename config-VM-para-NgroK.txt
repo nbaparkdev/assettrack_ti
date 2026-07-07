@@ -1,0 +1,42 @@
+1. Descubra onde está o ngrok
+which ngrok
+
+Exemplo:
+
+/usr/local/bin/ngrok
+
+2. Crie o serviço
+sudo nano /etc/systemd/system/ngrok.service
+
+
+#### Acessar o System NGROK
+
+sudo nano /etc/systemd/system/ngrok.service
+
+
+
+
+####Configuração do INI na VM para NGROK
+
+[Unit]
+Description=Ngrok HTTP Tunnel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=instant <-(atento ao usuario)
+WorkingDirectory=/home/instant
+Environment=HOME=/home/instant
+ExecStart=/usr/local/bin/ngrok http --url=cupriferous-stainably-paloma.ngrok-free.dev 8000 <-(porta da aplicação)
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
+##### Depois de criado 
+
+sudo systemctl daemon-reload
+sudo systemctl restart ngrok
+sudo systemctl status ngrok
