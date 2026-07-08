@@ -166,7 +166,17 @@ async def register_submit(
             role=UserRole(role)
         )
         await user_crud.user.create(db, obj_in=user_in)
-        # Login automatically or redirect to login? Let's redirect to login.
+        # Notificar admins/gerentes sobre o novo cadastro aguardando aprovação
+        try:
+            from app.services.notification_service import notification_service
+            await notification_service.notify_new_user(
+                db=db,
+                user_nome=nome,
+                user_email=email,
+                user_role=role
+            )
+        except Exception as e:
+            print(f"[NOTIFICATION][ERRO] notify_new_user no registro: {e}")
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     except Exception as e:
         return templates.TemplateResponse("register.html", {"request": request, "error": f"Erro ao cadastrar: {str(e)}"})

@@ -187,7 +187,22 @@ async def create_request_submit(
         await crud_proc.log_history(
             db, tabela="purchase_requests", registro_id=req.id, user_id=current_user.id, acao="Solicitação de Compra Criada"
         )
-        
+
+        # Notificar gestores sobre nova solicitação de compra
+        try:
+            from app.services.notification_service import notification_service
+            total_est = float(sum(item.quantidade * item.valor_estimado for item in itens_in))
+            await notification_service.notify_purchase_request(
+                db=db,
+                request_id=req.id,
+                request_numero=req.numero,
+                solicitante_nome=current_user.nome,
+                urgencia=urgencia,
+                total_estimado=total_est
+            )
+        except Exception as e:
+            print(f"[NOTIFICATION][ERRO] notify_purchase_request: {e}")
+
         return RedirectResponse(url="/compras/solicitacoes", status_code=303)
     except Exception as e:
         logger.error(f"Erro ao criar solicitação de compra: {e}")
@@ -549,6 +564,22 @@ async def select_winning_supplier(
         db.add(db_item)
 
     await db.commit()
+
+    # Notificar gestores sobre o PO emitido
+    try:
+        from app.services.notification_service import notification_service
+        fornecedor_res = await db.get(Fornecedor, winner.fornecedor_id)
+        forn_nome = fornecedor_res.nome if fornecedor_res else f"Fornecedor #{winner.fornecedor_id}"
+        await notification_service.notify_purchase_order(
+            db=db,
+            order_id=order.id,
+            order_numero=order.numero,
+            fornecedor_nome=forn_nome,
+            valor_total=float(order.valor_total)
+        )
+    except Exception as e:
+        print(f"[NOTIFICATION][ERRO] notify_purchase_order: {e}")
+
     return RedirectResponse(url="/compras/pedidos", status_code=303)
 
 
@@ -690,7 +721,27 @@ async def create_receiving_submit(
         order.status = PurchaseOrderStatus.RECEBIDO_TOTAL
         db.add(order)
         await db.commit()
- 
+
+        # Verificar itens de consumo com estoque baixo após recebimento
+        try:
+            from app.services.notification_service import notification_service
+            from app.models.procurement import ProductType
+            for item_rec in rec.itens:
+                if item_rec.product and item_rec.product.tipo == ProductType.CONSUMIVEL:
+                    stock_res = await db.execute(
+                        select(MaterialStock).filter(MaterialStock.product_id == item_rec.product_id)
+                    )
+                    stock = stock_res.scalars().first()
+                    if stock and stock.quantidade_saldo < 5:
+                        await notification_service.notify_low_stock(
+                            db=db,
+                            product_name=item_rec.product.nome,
+                            saldo_atual=float(stock.quantidade_saldo),
+                            unidade=item_rec.product.unidade_medida or "un"
+                        )
+        except Exception as e:
+            print(f"[NOTIFICATION][ERRO] notify_low_stock após recebimento: {e}")
+
         if created_assets:
             return RedirectResponse(url=f"/compras/pedidos/{order_id}/recebido-sucesso/{rec.id}", status_code=303)
  

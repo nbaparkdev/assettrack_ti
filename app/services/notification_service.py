@@ -25,14 +25,15 @@ class NotificationService:
         db: AsyncSession, 
         roles: Optional[List[UserRole]] = None
     ) -> List[User]:
-        """Busca usuários com roles de staff (técnico, gerente, admin)"""
+        """Busca usuários com roles de staff (técnico, gerente, admin, gerente_infra)"""
         if roles is None:
-            roles = [UserRole.TECNICO, UserRole.GERENTE, UserRole.ADMIN]
+            roles = [UserRole.TECNICO, UserRole.GERENTE, UserRole.ADMIN, UserRole.GERENTE_INFRA]
         
         result = await db.execute(
             select(User).filter(
                 User.role.in_(roles),
-                User.is_active == True
+                User.is_active == True,
+                User.email != None,  # garante email preenchido
             )
         )
         return result.scalars().all()
@@ -72,6 +73,8 @@ Acesse o painel de solicitações para mais detalhes.
         
         notified = []
         for user in staff_users:
+            if not user.email or "@" not in user.email:
+                continue
             await self.email_service.send_notification(
                 email_to=user.email,
                 subject=subject,
@@ -191,6 +194,8 @@ Esta solicitação mudou para status ENTREGUE/CONCLUÍDA.
         
         notified = []
         for user in managers:
+            if not user.email or "@" not in user.email:
+                continue
             await self.email_service.send_notification(
                 email_to=user.email,
                 subject=subject,
@@ -247,8 +252,8 @@ Acesse o módulo de Manutenção Preventiva para iniciar a execução desta orde
                     message=message,
                     db=db
                 )
-            except Exception:
-                pass # Previne falhas se o serviço de email não estiver ativo
+            except Exception as e:
+                print(f"[NOTIFICATION][ERRO] notify_order_assigned — OS #{order_id} para {technician_email}: {e}")
             
         print(f"[NOTIFICATION] OS #{order_id} atribuída ao técnico ID {technician_id}")
 
@@ -297,8 +302,8 @@ Acesse a plataforma para auditar os detalhes e materiais aplicados.
                         message=message,
                         db=db
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"[NOTIFICATION][ERRO] notify_order_completed — OS #{order_id} para {mgr.email}: {e}")
                 
         print(f"[NOTIFICATION] OS #{order_id} de conclusão enviada para gestores")
 
@@ -372,6 +377,154 @@ Favor verificar com urgência a situação desta manutenção.
                 
         print(f"[NOTIFICATION] OS #{order_id} de atraso gerada")
 
+    # ─────────────────────────────────────────────
+    # NOVOS HANDLERS (antes existiam apenas como toggles)
+    # ─────────────────────────────────────────────
+
+    async def notify_new_user(
+        self,
+        db: AsyncSession,
+        user_nome: str,
+        user_email: str,
+        user_role: str
+    ):
+        """Notifica admins e gerentes quando um novo usuário se cadastra (aguardando aprovação)."""
+        if not await self._is_enabled(db, "notify_new_user"):
+            return
+
+        staff = await self.get_staff_users(db, roles=[UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA])
+        subject = f"👤 Novo usuário aguardando aprovação: {user_nome}"
+        message = f"""
+Um novo usuário se cadastrou no sistema e aguarda aprovação do administrador.
+
+👤 Nome: {user_nome}
+📧 E-mail: {user_email}
+🔖 Perfil solicitado: {user_role}
+
+Acesse /admin/users para aprovar ou rejeitar o acesso.
+"""
+        for u in staff:
+            try:
+                await self.email_service.send_notification(
+                    email_to=u.email, subject=subject, message=message, db=db
+                )
+            except Exception as e:
+                print(f"[NOTIFICATION][ERRO] notify_new_user para {u.email}: {e}")
+
+        print(f"[NOTIFICATION] Novo usuário '{user_nome}' — {len(staff)} gestores notificados")
+
+    async def notify_purchase_request(
+        self,
+        db: AsyncSession,
+        request_id: int,
+        request_numero: str,
+        solicitante_nome: str,
+        urgencia: str,
+        total_estimado: float
+    ):
+        """Notifica gestores e compradores sobre nova solicitação de compra."""
+        if not await self._is_enabled(db, "notify_purchase_request"):
+            return
+
+        staff = await self.get_staff_users(
+            db, roles=[UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]
+        )
+        subject = f"🛒 Nova Solicitação de Compra {request_numero} — {urgencia.upper()}"
+        message = f"""
+Nova solicitação de compra aguardando análise e aprovação.
+
+📋 Número: {request_numero}
+👤 Solicitante: {solicitante_nome}
+⚠️ Urgência: {urgencia.upper()}
+💰 Valor estimado: R$ {total_estimado:.2f}
+
+Acesse /compras/solicitacoes/{request_id} para revisar e aprovar.
+"""
+        for u in staff:
+            try:
+                await self.email_service.send_notification(
+                    email_to=u.email, subject=subject, message=message, db=db
+                )
+            except Exception as e:
+                print(f"[NOTIFICATION][ERRO] notify_purchase_request para {u.email}: {e}")
+
+        print(f"[NOTIFICATION] Solicitação {request_numero} — {len(staff)} notificados")
+
+    async def notify_purchase_order(
+        self,
+        db: AsyncSession,
+        order_id: int,
+        order_numero: str,
+        fornecedor_nome: str,
+        valor_total: float
+    ):
+        """Notifica gestores e compradores quando um Pedido de Compra (PO) é emitido."""
+        if not await self._is_enabled(db, "notify_purchase_order"):
+            return
+
+        staff = await self.get_staff_users(
+            db, roles=[UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]
+        )
+        subject = f"📦 Pedido de Compra Emitido: {order_numero}"
+        message = f"""
+Um novo Pedido de Compra foi gerado automaticamente após seleção do fornecedor vencedor.
+
+📋 Número PO: {order_numero}
+🏢 Fornecedor: {fornecedor_nome}
+💰 Valor Total: R$ {valor_total:.2f}
+
+Acesse /compras/pedidos/{order_id} para acompanhar o status.
+"""
+        for u in staff:
+            try:
+                await self.email_service.send_notification(
+                    email_to=u.email, subject=subject, message=message, db=db
+                )
+            except Exception as e:
+                print(f"[NOTIFICATION][ERRO] notify_purchase_order para {u.email}: {e}")
+
+        print(f"[NOTIFICATION] PO {order_numero} emitido — {len(staff)} notificados")
+
+    async def notify_low_stock(
+        self,
+        db: AsyncSession,
+        product_name: str,
+        saldo_atual: float,
+        unidade: str = "un"
+    ):
+        """Notifica compradores quando um material atinge estoque baixo (saldo < 5)."""
+        if not await self._is_enabled(db, "notify_low_stock"):
+            return
+
+        compradores = await self.get_staff_users(
+            db, roles=[UserRole.ADMIN, UserRole.COMPRADOR, UserRole.GERENTE, UserRole.GERENTE_INFRA]
+        )
+        subject = f"⚠️ Estoque Baixo: {product_name}"
+        message = f"""
+Atenção! Um material no almoxarifado atingiu nível crítico de estoque.
+
+📦 Material: {product_name}
+📊 Saldo Atual: {saldo_atual:.2f} {unidade}
+
+Acesse /compras/estoque e crie uma nova solicitação de compra para reposição.
+"""
+        for u in compradores:
+            try:
+                await self.email_service.send_notification(
+                    email_to=u.email, subject=subject, message=message, db=db
+                )
+            except Exception as e:
+                print(f"[NOTIFICATION][ERRO] notify_low_stock para {u.email}: {e}")
+
+        print(f"[NOTIFICATION] Estoque baixo: '{product_name}' ({saldo_atual}) — {len(compradores)} notificados")
+
 
 # Singleton
 notification_service = NotificationService()
+
+
+async def notify_new_user_registered(
+    db, user_nome: str, user_email: str, user_role: str
+):
+    """Wrapper chamado por auth.py ao registrar novo usuário."""
+    await notification_service.notify_new_user(db, user_nome, user_email, user_role)
