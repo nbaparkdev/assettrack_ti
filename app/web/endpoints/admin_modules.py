@@ -44,11 +44,11 @@ async def gerenciar_modulos_page(
     openrouter_model = await system_settings.get_setting(db, "openrouter_model", default_value="meta-llama/llama-3.1-8b-instruct:free")
     kimi_model = await system_settings.get_setting(db, "kimi_model", default_value="kimi-k2.6")
     
-    # SMTP Configs
+    # SMTP Configs (chave padronizada: smtp_password)
     smtp_host = await system_settings.get_setting(db, "smtp_host", default_value="")
     smtp_port = await system_settings.get_setting(db, "smtp_port", default_value="587")
     smtp_user = await system_settings.get_setting(db, "smtp_user", default_value="")
-    smtp_pass = await system_settings.get_setting(db, "smtp_pass", default_value="")
+    smtp_pass = await system_settings.get_setting(db, "smtp_password", default_value="")
     smtp_from = await system_settings.get_setting(db, "smtp_from", default_value="")
     smtp_tls = await system_settings.get_setting(db, "smtp_tls", default_value="true")
     
@@ -219,12 +219,12 @@ async def gerenciar_modulos_submit(
     if kimi_model:
         await system_settings.set_setting(db=db, setting_key="kimi_model", setting_value=kimi_model, descricao="Modelo Kimi")
 
-    # Salvar configurações SMTP
+    # Salvar configurações SMTP (chave padronizada: smtp_password)
     await system_settings.set_setting(db=db, setting_key="smtp_host", setting_value=smtp_host or "")
     await system_settings.set_setting(db=db, setting_key="smtp_port", setting_value=smtp_port or "587")
     await system_settings.set_setting(db=db, setting_key="smtp_user", setting_value=smtp_user or "")
-    if smtp_pass is not None:
-        await system_settings.set_setting(db=db, setting_key="smtp_password", setting_value=smtp_pass)
+    # Salva sempre, mesmo se vazio, para manter consistência
+    await system_settings.set_setting(db=db, setting_key="smtp_password", setting_value=smtp_pass or "")
     await system_settings.set_setting(db=db, setting_key="smtp_from", setting_value=smtp_from or "")
     await system_settings.set_setting(db=db, setting_key="smtp_tls", setting_value="true" if smtp_tls == "on" else "false")
 
@@ -282,24 +282,48 @@ async def test_smtp_connection(
     req: SmtpTestRequest,
     current_user: Annotated[User, Depends(get_admin_user_web)]
 ):
+    from fastapi import HTTPException
+    import asyncio
+
+    # Validação antecipada para retornar mensagem clara ao usuário
+    if not req.smtp_host:
+        raise HTTPException(status_code=400, detail="Servidor SMTP não configurado. Preencha o campo 'Servidor SMTP' e salve antes de testar.")
+    if not req.smtp_user:
+        raise HTTPException(status_code=400, detail="Usuário SMTP não configurado. Preencha o campo 'Usuário SMTP' e salve antes de testar.")
+    if not req.smtp_pass:
+        raise HTTPException(status_code=400, detail="Senha SMTP não configurada. Preencha o campo 'Senha SMTP', salve as configurações e tente novamente.")
+    if not req.email:
+        raise HTTPException(status_code=400, detail="Informe um e-mail de destino para o teste.")
+
     try:
         msg = EmailMessage()
-        msg.set_content(f"Este é um e-mail de teste do ERP AssetTrack TI disparado por {current_user.nome}.\nSe você recebeu, as configurações SMTP estão corretas!")
-        msg["Subject"] = "Teste de Configuração SMTP - AssetTrack TI"
+        msg.set_content(
+            f"Este é um e-mail de teste do ERP AssetTrack TI disparado por {current_user.nome}.\n"
+            f"Se você recebeu, as configurações SMTP estão corretas!"
+        )
+        msg["Subject"] = "[AssetTrack TI] Teste de Configuração SMTP"
         msg["From"] = req.smtp_from or req.smtp_user
         msg["To"] = req.email
 
-        # Síncrono para testar a conexão (não usar block time grande em prod)
-        server = smtplib.SMTP(req.smtp_host, req.smtp_port, timeout=10)
-        
-        if req.smtp_tls:
-            server.starttls()
-            
-        server.login(req.smtp_user, req.smtp_pass)
-        server.send_message(msg)
-        server.quit()
-        
-        return {"message": "E-mail enviado com sucesso! Verifique sua caixa de entrada."}
+        # Executa em thread para não bloquear o event loop
+        def _send():
+            server = smtplib.SMTP(req.smtp_host, req.smtp_port, timeout=15)
+            if req.smtp_tls:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+            server.login(req.smtp_user, req.smtp_pass)
+            server.send_message(msg)
+            server.quit()
+
+        await asyncio.to_thread(_send)
+        return {"message": f"E-mail enviado com sucesso para {req.email}! Verifique sua caixa de entrada."}
+
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(status_code=400, detail="Erro de autenticação SMTP: usuário ou senha incorretos. Para Gmail, use uma 'Senha de App' em vez da senha principal.")
+    except smtplib.SMTPConnectError as e:
+        raise HTTPException(status_code=400, detail=f"Falha ao conectar ao servidor SMTP ({req.smtp_host}:{req.smtp_port}). Verifique o host e a porta.")
+    except smtplib.SMTPException as e:
+        raise HTTPException(status_code=400, detail=f"Erro SMTP: {str(e)}")
     except Exception as e:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=f"Erro inesperado: {str(e)}")
