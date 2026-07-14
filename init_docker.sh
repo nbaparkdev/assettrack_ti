@@ -143,7 +143,23 @@ fi
 # ==========================================
 # Build e Start
 # ==========================================
-echo "🏗️ Construindo containers..."
+echo "🏗️ Iniciando banco de dados..."
+$COMPOSE_CMD up -d db
+
+echo "⏳ Aguardando banco de dados ficar pronto..."
+for i in $(seq 1 30); do
+    if $COMPOSE_CMD exec -T db pg_isready -U user -d assettrack 2>/dev/null; then
+        echo "✅ Banco de dados pronto!"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        echo "❌ Timeout aguardando banco de dados."
+        exit 1
+    fi
+    sleep 2
+done
+
+echo "🏗️ Construindo e iniciando demais containers..."
 $COMPOSE_CMD up -d --build
 
 # ==========================================
@@ -190,6 +206,17 @@ docker ps --format "table {{.Names}}\t{{.Status}}" 2>/dev/null || docker ps
 # Criar Admin
 # ==========================================
 echo "👤 Configurando usuario administrador..."
+
+# Garantir estrutura de tabelas criada antes de rodar os scripts de admin
+echo "Garantindo estrutura de tabelas criada..."
+$COMPOSE_CMD exec -T web python -c "
+import asyncio
+from app.database import engine, Base
+async def init():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+asyncio.run(init())
+"
 
 ADMIN_OK=true
 $COMPOSE_CMD exec -T web python create_admin.py || ADMIN_OK=false

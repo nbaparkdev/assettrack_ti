@@ -62,9 +62,9 @@ docker volume ls -q 2>/dev/null | grep -E 'assettrack|assettrack_ti' | xargs -r 
 
 echo ""
 
-# Subir ambiente
-echo "Subindo containers..."
-docker compose up -d
+# Subir apenas o banco de dados primeiro para evitar race conditions na aplicação
+echo "Subindo container do banco de dados..."
+docker compose up -d db
 
 # Aguardar banco ficar saudavel
 echo "Aguardando banco de dados..."
@@ -82,7 +82,11 @@ for i in $(seq 1 30); do
     sleep 2
 done
 
-# Aguardar web iniciar e criar tabelas
+# Subir os demais containers (incluindo web)
+echo "Subindo demais containers..."
+docker compose up -d
+
+# Aguardar web iniciar
 echo "Aguardando aplicacao iniciar..."
 for i in $(seq 1 30); do
     STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "000")
@@ -91,20 +95,23 @@ for i in $(seq 1 30); do
         break
     fi
     if [ $i -eq 30 ]; then
-        echo "Timeout aguardando aplicacao. Forcando criacao de tabelas..."
-        docker compose exec -T web python -c "
+        echo "Timeout aguardando aplicacao."
+        break
+    fi
+    printf "."
+    sleep 3
+done
+
+# Garantir que as tabelas existem no banco de dados antes de criar o admin
+echo "Garantindo estrutura de tabelas criada..."
+docker compose exec -T web python -c "
 import asyncio
 from app.database import engine, Base
 async def init():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 asyncio.run(init())
-" 2>/dev/null || true
-        break
-    fi
-    printf "."
-    sleep 3
-done
+"
 
 # Criar admin padrao
 echo ""
