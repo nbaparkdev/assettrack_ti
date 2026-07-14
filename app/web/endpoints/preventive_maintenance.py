@@ -1368,6 +1368,18 @@ async def delete_plan(
             status_code=303
         )
 
+    # Deletar manualmente as notificações vinculadas ao plano ou às suas ordens antes de excluir o plano
+    from sqlalchemy import delete
+    from app.models.preventive_maintenance import MaintenanceNotification, MaintenanceOrder
+    
+    order_ids_stmt = select(MaintenanceOrder.id).filter(MaintenanceOrder.plan_id == plan_id)
+    order_ids_res = await db.execute(order_ids_stmt)
+    order_ids = order_ids_res.scalars().all()
+    if order_ids:
+        await db.execute(delete(MaintenanceNotification).where(MaintenanceNotification.order_id.in_(order_ids)))
+        
+    await db.execute(delete(MaintenanceNotification).where(MaintenanceNotification.plan_id == plan_id))
+
     await pm_crud.maintenance_plan.remove(db, id=plan_id)
     return RedirectResponse(url="/manutencao-preventiva/planos", status_code=303)
 
@@ -1514,6 +1526,11 @@ async def delete_order(
             url=f"/manutencao-preventiva/ordens/{order_id}/editar?error={error_msg}",
             status_code=303
         )
+
+    # Deletar manualmente as notificações associadas antes da exclusão da ordem (evita erro de chave estrangeira)
+    from sqlalchemy import delete
+    from app.models.preventive_maintenance import MaintenanceNotification
+    await db.execute(delete(MaintenanceNotification).where(MaintenanceNotification.order_id == order_id))
 
     await pm_crud.maintenance_order.remove(db, id=order_id)
     return RedirectResponse(url="/manutencao-preventiva/ordens", status_code=303)
