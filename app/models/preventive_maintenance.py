@@ -97,6 +97,7 @@ class MaintenancePlan(Base):
     assets = relationship("MaintenancePlanAsset", back_populates="plan", cascade="all, delete-orphan")
     checklists = relationship("MaintenanceChecklist", back_populates="plan", cascade="all, delete-orphan")
     orders = relationship("MaintenanceOrder", back_populates="plan", cascade="all, delete-orphan")
+    notifications = relationship("MaintenanceNotification", back_populates="plan", cascade="all, delete-orphan")
 
 
 class MaintenancePlanAsset(Base):
@@ -185,6 +186,7 @@ class MaintenanceOrder(Base):
     materials = relationship("MaintenanceMaterial", back_populates="order", cascade="all, delete-orphan")
     photos = relationship("MaintenancePhoto", back_populates="order", cascade="all, delete-orphan")
     history = relationship("MaintenanceHistory", back_populates="order", cascade="all, delete-orphan")
+    notifications = relationship("MaintenanceNotification", back_populates="order", cascade="all, delete-orphan")
 
 
 class MaintenanceExecution(Base):
@@ -260,8 +262,8 @@ class MaintenanceNotification(Base):
     __tablename__ = "maintenance_notifications"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    order_id: Mapped[Optional[int]] = mapped_column(ForeignKey("maintenance_orders.id"), nullable=True)
-    plan_id: Mapped[Optional[int]] = mapped_column(ForeignKey("maintenance_plans.id"), nullable=True)
+    order_id: Mapped[Optional[int]] = mapped_column(ForeignKey("maintenance_orders.id", ondelete="CASCADE"), nullable=True)
+    plan_id: Mapped[Optional[int]] = mapped_column(ForeignKey("maintenance_plans.id", ondelete="CASCADE"), nullable=True)
     usuario_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     tipo: Mapped[str] = mapped_column(String(50), nullable=False)
     mensagem: Mapped[str] = mapped_column(Text, nullable=False)
@@ -269,7 +271,7 @@ class MaintenanceNotification(Base):
     data_criacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
     
     # Relacionamentos
-    order = relationship("MaintenanceOrder")
-    plan = relationship("MaintenancePlan")
+    order = relationship("MaintenanceOrder", back_populates="notifications")
+    plan = relationship("MaintenancePlan", back_populates="notifications")
     usuario = relationship("User")
 

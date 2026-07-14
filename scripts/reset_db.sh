@@ -54,10 +54,11 @@ fi
 
 # Derrubar containers e remover volume
 echo "Parando containers e removendo volume do banco..."
-docker compose down -v 2>/dev/null || true
+docker compose down -v --remove-orphans 2>/dev/null || true
 
-# Garantir que volume foi removido
-docker volume rm assettrack_ti_postgres_data 2>/dev/null || true
+# Garantir que todos os volumes relacionados ao banco foram removidos
+echo "Limpando volumes antigos..."
+docker volume ls -q 2>/dev/null | grep -E 'assettrack|assettrack_ti' | xargs -r docker volume rm 2>/dev/null || true
 
 echo ""
 
@@ -107,26 +108,9 @@ done
 
 # Criar admin padrao
 echo ""
-echo "Criando usuario administrador..."
-docker compose exec -T web python -c "
-from app.database import engine
-from sqlalchemy import text
-from passlib.context import CryptContext
-import asyncio
-
-async def seed():
-    pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
-    hashed = pwd_context.hash('admin')
-    async with engine.begin() as conn:
-        await conn.execute(text('''
-            INSERT INTO users (nome, email, hashed_password, role, is_active)
-            VALUES ('Administrador', 'admin@example.com', :pw, 'ADMIN', true)
-            ON CONFLICT (email) DO NOTHING
-        '''), {'pw': hashed})
-    print('Admin criado: admin@example.com / admin')
-
-asyncio.run(seed())
-" 2>/dev/null
+echo "Criando e ativando usuario administrador..."
+docker compose exec -T web python create_admin.py || true
+docker compose exec -T web python activate_user_admin.py || true
 
 echo ""
 echo "========================================"
@@ -137,3 +121,4 @@ echo "  URL:    http://localhost:8000/login"
 echo "  Email:  admin@example.com"
 echo "  Senha:  admin"
 echo ""
+
