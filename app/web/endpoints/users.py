@@ -126,3 +126,23 @@ async def delete_user(
             detail="Não é possível excluir este usuário pois ele possui registros vinculados (como Centro de Custo, Ativos ou Chamados)."
         )
     return RedirectResponse(url="/admin/users", status_code=303)
+
+@router.post("/{user_id}/reset-password")
+async def reset_password(
+    user_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    admin: Annotated[User, Depends(require_admin)],
+    new_password: str = Form(...)
+):
+    """Admin resets a user's password"""
+    from app.crud.user import user as user_crud
+    
+    target_user = await db.get(User, user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    target_user.hashed_password = user_crud.get_password_hash(new_password)
+    await db.commit()
+    
+    # Return to the edit page with a success message (or just redirect back to users list)
+    return RedirectResponse(url=f"/admin/users/{user_id}/edit?msg=Senha+redefinida+com+sucesso", status_code=303)

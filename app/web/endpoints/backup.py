@@ -1,5 +1,6 @@
 import io
 import os
+import json
 import zipfile
 from collections import defaultdict, deque
 from datetime import datetime
@@ -139,6 +140,10 @@ async def export_backup(
                             vals.append(f"'{v.isoformat()}'")
                         elif isinstance(v, bytes):
                             vals.append(f"'\\x{v.hex()}'")
+                        elif isinstance(v, (dict, list)):
+                            json_str = json.dumps(v, ensure_ascii=False)
+                            escaped = json_str.replace("'", "''")
+                            vals.append(f"'{escaped}'")
                         else:
                             escaped = str(v).replace("'", "''")
                             vals.append(f"'{escaped}'")

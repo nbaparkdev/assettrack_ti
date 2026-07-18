@@ -119,6 +119,26 @@
         </form>
     </div>
 
+    <!-- Security Zone (Reset Password) -->
+    <div class="mt-8 border-2 border-black bg-gray-50 p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex-1">
+                <h3 class="font-bold text-black uppercase tracking-wider text-sm mb-1 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    Segurança e Acesso
+                </h3>
+                <p class="font-mono text-xs text-gray-600">Redefinir a senha do usuário. O usuário deverá ser informado da nova senha.</p>
+            </div>
+            
+            <form action="/admin/users/{{ target_user.id }}/reset-password" method="post" class="flex-1 flex gap-2">
+                <input type="password" name="new_password" required minlength="6" placeholder="Nova Senha..." class="flex-1 px-4 py-2 bg-white border-2 border-gray-200 focus:border-black focus:ring-0 transition font-mono text-sm rounded-none">
+                <button type="submit" class="bg-black border-2 border-black text-white px-4 py-2 font-bold uppercase text-xs hover:bg-gray-800 transition shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[1px] active:shadow-none active:translate-y-[2px]">
+                    Resetar Senha
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Danger Zone -->
     {% if target_user.id != user.id %}
     <div class="mt-8 border-2 border-red-100 bg-red-50 p-6">
