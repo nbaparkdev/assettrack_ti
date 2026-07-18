@@ -220,10 +220,12 @@ async def create_supplier(
 
         return RedirectResponse(url="/suppliers", status_code=303)
     except Exception as e:
+        await db.rollback()
+        from app.core.errors import get_friendly_db_error
         return templates.TemplateResponse("suppliers/form.html", {
             "request": request,
             "user": current_user,
-            "error": f"Erro ao criar fornecedor: {str(e)}",
+            "error": get_friendly_db_error(e),
             "title": "Novo Fornecedor"
         })
 
@@ -365,11 +367,13 @@ async def update_supplier(
         # Redirect back to the edit page so the user sees the updated list
         return RedirectResponse(url=f"/suppliers/{fornecedor_id}/edit", status_code=303)
     except Exception as e:
+        await db.rollback()
+        from app.core.errors import get_friendly_db_error
         return templates.TemplateResponse("suppliers/form.html", {
             "request": request,
             "user": current_user,
             "fornecedor": fornecedor,
-            "error": f"Erro ao atualizar fornecedor: {str(e)}",
+            "error": get_friendly_db_error(e),
             "title": f"Editar Fornecedor: {fornecedor.nome}"
         })
 

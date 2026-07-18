@@ -238,6 +238,8 @@ async def create_asset(
         await asset_crud.asset.create(db, obj_in=asset_in)
         return RedirectResponse(url="/assets", status_code=303)
     except Exception as e:
+        await db.rollback()
+        from app.core.errors import get_friendly_db_error
         fornecedores = await crud_supplier.get_fornecedores(db)
         categories = await asset_category_crud.category.get_multi(db)
         locais = await location.localizacao.get_multi(db)
@@ -247,7 +249,7 @@ async def create_asset(
             "fornecedores": fornecedores,
             "categories": categories,
             "locais": locais,
-            "error": f"Erro ao criar ativo: {str(e)}",
+            "error": get_friendly_db_error(e),
             "title": "Novo Ativo"
         })
 
@@ -258,7 +260,8 @@ async def create_asset(
 async def list_categories(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: Annotated[AsyncSession, Depends(get_db)],
+    error: Optional[str] = None
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/assets", status_code=303)
@@ -268,6 +271,7 @@ async def list_categories(
         "request": request,
         "user": current_user,
         "categories": categories,
+        "error": error,
         "title": "Categorias de Ativos"
     })
 
@@ -283,9 +287,15 @@ async def create_category(
         raise HTTPException(status_code=403)
 
     from app.schemas.asset_category import AssetCategoryCreate
-    cat_in = AssetCategoryCreate(nome=nome, descricao=descricao)
-    await asset_category_crud.category.create(db, obj_in=cat_in)
-    return RedirectResponse(url="/assets/admin/categorias", status_code=303)
+    from app.core.errors import get_friendly_db_error
+    try:
+        cat_in = AssetCategoryCreate(nome=nome, descricao=descricao)
+        await asset_category_crud.category.create(db, obj_in=cat_in)
+        return RedirectResponse(url="/assets/admin/categorias", status_code=303)
+    except Exception as e:
+        friendly_error = get_friendly_db_error(e)
+        from urllib.parse import quote_plus
+        return RedirectResponse(url=f"/assets/admin/categorias?error={quote_plus(friendly_error)}", status_code=303)
 
 
 @router.post("/admin/categorias/{cat_id}/delete")
@@ -732,6 +742,8 @@ async def update_asset(
         await asset_crud.asset.update(db, db_obj=asset, obj_in=asset_update)
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
     except Exception as e:
+        await db.rollback()
+        from app.core.errors import get_friendly_db_error
         fornecedores = await crud_supplier.get_fornecedores(db)
         categories = await asset_category_crud.category.get_multi(db)
         locais = await location.localizacao.get_multi(db)
@@ -742,7 +754,7 @@ async def update_asset(
             "fornecedores": fornecedores,
             "categories": categories,
             "locais": locais,
-            "error": f"Erro ao atualizar ativo: {str(e)}",
+            "error": get_friendly_db_error(e),
             "title": f"Editar Ativo: {asset.nome}"
         })
 

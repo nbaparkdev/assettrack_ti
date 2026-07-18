@@ -76,9 +76,21 @@ async def delete_setor(
     current_user: Annotated[User, Depends(check_manager_role)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    setor = await db.get(Departamento, setor_id)
-    if setor:
-        await db.delete(setor)
-        await db.commit()
-    
-    return RedirectResponse(url="/setores", status_code=303)
+    from app.core.errors import get_friendly_db_error
+    try:
+        setor = await db.get(Departamento, setor_id)
+        if setor:
+            await db.delete(setor)
+            await db.commit()
+        return RedirectResponse(url="/setores", status_code=303)
+    except Exception as e:
+        await db.rollback()
+        result = await db.execute(select(Departamento).order_by(Departamento.nome))
+        setores = result.scalars().all()
+        return templates.TemplateResponse("setores/list.html", {
+            "request": request,
+            "user": current_user,
+            "setores": setores,
+            "error": get_friendly_db_error(e),
+            "title": "Gerenciar Setores"
+        })

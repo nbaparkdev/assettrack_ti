@@ -13,6 +13,12 @@
         </div>
     </div>
 
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-600 text-red-700 p-4 font-mono text-xs uppercase shadow-[4px_4px_0px_0px_rgba(220,38,38,0.2)]">
+        [ ERRO: {{ error }} ]
+    </div>
+    {% endif %}
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- New Category Form -->
         <div class="lg:col-span-1">

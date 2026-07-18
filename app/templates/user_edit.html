@@ -21,6 +21,12 @@
         </div>
 
         <form action="/admin/users/{{ target_user.id }}/edit" method="post" class="p-8 space-y-8">
+            {% if error %}
+            <div class="bg-red-50 border-2 border-red-600 text-red-700 p-4 font-mono text-xs uppercase shadow-[4px_4px_0px_0px_rgba(220,38,38,0.2)] mb-6">
+                [ ERRO: {{ error }} ]
+            </div>
+            {% endif %}
+            
             <!-- Section 1: Personal Info -->
             <div>
                 <h3

@@ -179,7 +179,9 @@ async def register_submit(
             print(f"[NOTIFICATION][ERRO] notify_new_user no registro: {e}")
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     except Exception as e:
-        return templates.TemplateResponse("register.html", {"request": request, "error": f"Erro ao cadastrar: {str(e)}"})
+        await db.rollback()
+        from app.core.errors import get_friendly_db_error
+        return templates.TemplateResponse("register.html", {"request": request, "error": f"Erro ao cadastrar: {get_friendly_db_error(e)}"})
 
 @router.get("/logout")
 async def logout():

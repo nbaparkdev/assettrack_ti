@@ -82,8 +82,20 @@ async def update_user(
     target_user.role = UserRole(role)
     target_user.is_active = is_active
     
-    await db.commit()
-    return RedirectResponse(url="/admin/users", status_code=303)
+    from app.core.errors import get_friendly_db_error
+    try:
+        await db.commit()
+        return RedirectResponse(url="/admin/users", status_code=303)
+    except Exception as e:
+        await db.rollback()
+        return templates.TemplateResponse("user_edit.html", {
+            "request": request,
+            "user": admin,
+            "target_user": target_user,
+            "title": f"Editar {target_user.nome}",
+            "roles": UserRole,
+            "error": get_friendly_db_error(e)
+        })
 
 @router.post("/{user_id}/approve")
 async def approve_user(
