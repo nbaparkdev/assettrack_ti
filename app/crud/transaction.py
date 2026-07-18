@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.crud.base import CRUDBase
 from app.models.transaction import Movimentacao, Solicitacao, StatusSolicitacao
+from app.models.user import User
 from app.schemas.transaction import (
     MovimentacaoCreate, SolicitacaoCreate, SolicitacaoUpdate
 )
@@ -29,7 +30,10 @@ class CRUDSolicitacao(CRUDBase[Solicitacao, SolicitacaoCreate, SolicitacaoUpdate
         """Override to include eager loading of relationships"""
         result = await db.execute(
             select(Solicitacao)
-            .options(selectinload(Solicitacao.asset), selectinload(Solicitacao.solicitante))
+            .options(
+                selectinload(Solicitacao.asset),
+                selectinload(Solicitacao.solicitante).selectinload(User.departamento),
+            )
             .offset(skip).limit(limit)
         )
         return result.scalars().all()
@@ -37,7 +41,10 @@ class CRUDSolicitacao(CRUDBase[Solicitacao, SolicitacaoCreate, SolicitacaoUpdate
     async def get_pending(self, db: AsyncSession) -> List[Solicitacao]:
         result = await db.execute(
             select(Solicitacao)
-            .options(selectinload(Solicitacao.asset), selectinload(Solicitacao.solicitante))
+            .options(
+                selectinload(Solicitacao.asset),
+                selectinload(Solicitacao.solicitante).selectinload(User.departamento),
+            )
             .filter(Solicitacao.status == StatusSolicitacao.PENDENTE)
         )
         return result.scalars().all()
@@ -45,7 +52,10 @@ class CRUDSolicitacao(CRUDBase[Solicitacao, SolicitacaoCreate, SolicitacaoUpdate
     async def get_by_user(self, db: AsyncSession, user_id: int) -> List[Solicitacao]:
         result = await db.execute(
             select(Solicitacao)
-            .options(selectinload(Solicitacao.asset), selectinload(Solicitacao.solicitante))
+            .options(
+                selectinload(Solicitacao.asset),
+                selectinload(Solicitacao.solicitante).selectinload(User.departamento),
+            )
             .filter(Solicitacao.solicitante_id == user_id)
         )
         return result.scalars().all()

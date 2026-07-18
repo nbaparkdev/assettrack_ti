@@ -52,6 +52,9 @@ async def gerenciar_modulos_page(
     smtp_from = await system_settings.get_setting(db, "smtp_from", default_value="")
     smtp_tls = await system_settings.get_setting(db, "smtp_tls", default_value="true")
     
+    # Custom Links Comum
+    custom_links_comum = await system_settings.get_setting(db, "custom_links_comum", default_value="")
+    
     # Carregar permissões de menu
     import json
     perms_str = await system_settings.get_setting(db, "menu_permissions")
@@ -128,6 +131,7 @@ async def gerenciar_modulos_page(
         "menu_permissions": menu_permissions,
         "roles": roles,
         "menus": menus,
+        "custom_links_comum": custom_links_comum,
         "success": success,
         "title": "Gerenciar Módulos e Acessos"
     })
@@ -157,7 +161,8 @@ async def gerenciar_modulos_submit(
     smtp_user: Optional[str] = Form(None),
     smtp_pass: Optional[str] = Form(None),
     smtp_from: Optional[str] = Form(None),
-    smtp_tls: Optional[str] = Form(None)
+    smtp_tls: Optional[str] = Form(None),
+    custom_links_comum: Optional[str] = Form(None)
 ):
     # Salvar módulos
     enabled_val = "true" if preventive_maintenance_enabled == "on" else "false"
@@ -227,6 +232,9 @@ async def gerenciar_modulos_submit(
     await system_settings.set_setting(db=db, setting_key="smtp_password", setting_value=smtp_pass or "")
     await system_settings.set_setting(db=db, setting_key="smtp_from", setting_value=smtp_from or "")
     await system_settings.set_setting(db=db, setting_key="smtp_tls", setting_value="true" if smtp_tls == "on" else "false")
+    
+    # Custom Links
+    await system_settings.set_setting(db=db, setting_key="custom_links_comum", setting_value=custom_links_comum or "")
 
     # Processar permissões do menu
     form_data = await request.form()

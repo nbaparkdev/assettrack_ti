@@ -145,7 +145,11 @@ async def view_solicitacao(
 ):
     result = await db.execute(
         select(Solicitacao)
-        .options(selectinload(Solicitacao.asset), selectinload(Solicitacao.solicitante), selectinload(Solicitacao.aprovador))
+        .options(
+            selectinload(Solicitacao.asset),
+            selectinload(Solicitacao.solicitante).selectinload(User.departamento),
+            selectinload(Solicitacao.aprovador),
+        )
         .filter(Solicitacao.id == solicitacao_id)
     )
     solicitacao = result.scalars().first()

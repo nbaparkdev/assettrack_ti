@@ -44,6 +44,16 @@ async def list_movimentacoes(
     # Filter by type if provided
     if tipo:
         stmt = stmt.where(Movimentacao.tipo == tipo)
+
+    # If common user, they can only see their own movements
+    if str(current_user.role.value).lower() == 'usuario_comum':
+        from sqlalchemy import or_
+        stmt = stmt.where(
+            or_(
+                Movimentacao.de_user_id == current_user.id,
+                Movimentacao.para_user_id == current_user.id
+            )
+        )
     
     # Order by date descending
     stmt = stmt.order_by(Movimentacao.data.desc())

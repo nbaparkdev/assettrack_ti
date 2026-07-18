@@ -163,6 +163,46 @@ async def dashboard(
             .order_by(Solicitacao.data_aprovacao.desc())
         )
         context["approved_solicitations_list"] = approved_solicitations_result.scalars().all()
+        
+    # Comum User Data
+    if user_role == "usuario_comum":
+        from app.models.service_desk import ServiceTicket
+        # My Active Assets (currently assigned)
+        my_assets_result = await db.execute(
+            select(Asset).filter(Asset.current_user_id == current_user.id)
+        )
+        context["my_assets"] = my_assets_result.scalars().all()
+
+        # My Recent Solicitations
+        my_solicitations_result = await db.execute(
+            select(Solicitacao)
+            .options(selectinload(Solicitacao.asset))
+            .filter(Solicitacao.solicitante_id == current_user.id)
+            .order_by(Solicitacao.data_solicitacao.desc())
+            .limit(5)
+        )
+        context["my_solicitations"] = my_solicitations_result.scalars().all()
+
+        # My Recent Tickets
+        my_tickets_result = await db.execute(
+            select(ServiceTicket)
+            .filter(ServiceTicket.solicitante_id == current_user.id)
+            .order_by(ServiceTicket.data_abertura.desc())
+            .limit(5)
+        )
+        context["my_tickets"] = my_tickets_result.scalars().all()
+        
+        # Load custom links
+        from app.crud.system_settings import system_settings
+        custom_links_str = await system_settings.get_setting(db, "custom_links_comum", default_value="")
+        custom_links = []
+        if custom_links_str:
+            for line in custom_links_str.split("\n"):
+                if "|" in line:
+                    title, url = line.split("|", 1)
+                    custom_links.append({"title": title.strip(), "url": url.strip()})
+        
+        context["custom_links"] = custom_links
 
     return templates.TemplateResponse("dashboard.html", context)
 

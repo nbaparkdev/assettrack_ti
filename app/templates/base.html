@@ -130,20 +130,24 @@
                             <div class="absolute left-6 top-full mt-0 w-64 border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50" style="background-color:#ffffff;">
                                 <div class="bg-black text-white px-4 py-1 text-[10px] font-mono uppercase tracking-widest">Module_02_Assets</div>
                                 <div class="p-1">
-                                    {% if user.role.value|lower in request.state.menu_permissions.get('ativos', ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador', 'usuario_comum']) %}
-                                    <a href="/assets" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Inventário</a>
-                                    <a href="/movimentacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Log Movimentações</a>
-                                    {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
-                                    <a href="/assets/admin/localizacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Localizações</a>
-                                    {% endif %}
-                                    {% endif %}
-                                    {% if user.role.value|lower in request.state.menu_permissions.get('fornecedores', ['admin', 'gerente_ti', 'gerente_infra', 'comprador']) %}
-                                    <div class="h-[2px] bg-gray-100 my-1 mx-2"></div>
-                                    <a href="/suppliers" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Fornecedores</a>
-                                    {% endif %}
-                                    {% if user.role.value|lower in request.state.menu_permissions.get('relatorios', ['admin', 'gerente_ti', 'gerente_infra', 'comprador']) %}
-                                    <div class="h-[2px] bg-gray-100 my-1 mx-2"></div>
-                                    <a href="/assets/reports" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Relatórios</a>
+                                    {% if user.role.value|lower == 'usuario_comum' %}
+                                    <a href="/" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Equipamentos Comigo</a>
+                                    {% else %}
+                                        {% if user.role.value|lower in request.state.menu_permissions.get('ativos', ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador', 'usuario_comum']) %}
+                                        <a href="/assets" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Inventário</a>
+                                        <a href="/movimentacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Log Movimentações</a>
+                                        {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
+                                        <a href="/assets/admin/localizacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Localizações</a>
+                                        {% endif %}
+                                        {% endif %}
+                                        {% if user.role.value|lower in request.state.menu_permissions.get('fornecedores', ['admin', 'gerente_ti', 'gerente_infra', 'comprador']) %}
+                                        <div class="h-[2px] bg-gray-100 my-1 mx-2"></div>
+                                        <a href="/suppliers" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Fornecedores</a>
+                                        {% endif %}
+                                        {% if user.role.value|lower in request.state.menu_permissions.get('relatorios', ['admin', 'gerente_ti', 'gerente_infra', 'comprador']) %}
+                                        <div class="h-[2px] bg-gray-100 my-1 mx-2"></div>
+                                        <a href="/assets/reports" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Relatórios</a>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </div>
@@ -187,6 +191,12 @@
                             <div class="absolute left-6 top-full mt-0 w-64 border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50" style="background-color:#ffffff;">
                                 <div class="bg-black text-white px-4 py-1 text-[10px] font-mono uppercase tracking-widest">Module_04_Access</div>
                                 <div class="p-1">
+                                    {% if user.role.value|lower == 'usuario_comum' %}
+                                    <a href="/servicos" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Meus Chamados</a>
+                                    <a href="/solicitacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Minhas Solicitações</a>
+                                    <div class="h-[2px] bg-gray-100 my-1 mx-2"></div>
+                                    <a href="/solicitacoes/new" class="block px-3 py-2 text-sm font-bold uppercase text-brand-600 hover:bg-brand-50">Nova Solicitação de Equipamento</a>
+                                    {% else %}
                                     <a href="/servicos" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Service Desk</a>
                                     <a href="/minhas-solicitacoes-manutencao" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Solicitar Manutenção Ativo</a>
                                     <a href="/aguardando-entrega" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Entregas Pendentes</a>
@@ -196,6 +206,7 @@
                                     {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico', 'gerente_infra'] %}
                                     <div class="h-[2px] bg-gray-100 my-1 mx-2"></div>
                                     <a href="/solicitacoes-manutencao/administrativo/relatorios" class="block px-3 py-2 text-sm font-bold uppercase text-gray-500 hover:text-black hover:bg-gray-100">Relatórios Manutenção</a>
+                                    {% endif %}
                                     {% endif %}
                                 </div>
                             </div>
@@ -333,17 +344,21 @@
             <!-- Seção: Ativos -->
             {% if user.role.value|lower in request.state.menu_permissions.get('ativos', ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador', 'usuario_comum']) %}
             <div class="{{ section_title }}">Ativos</div>
-            <a href="/assets" class="{{ mobile_link }} ml-2">Lista de Ativos</a>
-            <a href="/movimentacoes" class="{{ mobile_link }} ml-2">Movimentações</a>
-            {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
-            <a href="/assets/admin/localizacoes" class="{{ mobile_link }} ml-2">Localizações</a>
+            {% if user.role.value|lower == 'usuario_comum' %}
+                <a href="/" class="{{ mobile_link }} ml-2">Equipamentos Comigo</a>
+            {% else %}
+                <a href="/assets" class="{{ mobile_link }} ml-2">Lista de Ativos</a>
+                <a href="/movimentacoes" class="{{ mobile_link }} ml-2">Movimentações</a>
+                {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
+                <a href="/assets/admin/localizacoes" class="{{ mobile_link }} ml-2">Localizações</a>
+                {% endif %}
+                <a href="/assets/scanner" class="{{ mobile_link }} ml-2 flex items-center justify-between">
+                    Scanner
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                    </svg>
+                </a>
             {% endif %}
-            <a href="/assets/scanner" class="{{ mobile_link }} ml-2 flex items-center justify-between">
-                Scanner
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
-                </svg>
-            </a>
             {% endif %}
 
             <!-- Seção: Manutenção Preventiva -->
@@ -357,8 +372,14 @@
             <!-- Seção: Suporte -->
             {% if user.role.value|lower in request.state.menu_permissions.get('tickets', ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador', 'usuario_comum']) %}
             <div class="{{ section_title }}">Suporte</div>
-            <a href="/servicos" class="{{ mobile_link }} ml-2">Service Desk</a>
-            <a href="/minhas-solicitacoes-manutencao" class="{{ mobile_link }} ml-2">Minhas Solicitações</a>
+            {% if user.role.value|lower == 'usuario_comum' %}
+                <a href="/servicos" class="{{ mobile_link }} ml-2">Meus Chamados</a>
+                <a href="/solicitacoes" class="{{ mobile_link }} ml-2">Minhas Solicitações</a>
+                <a href="/solicitacoes/new" class="{{ mobile_link }} ml-2 text-brand-600 border-brand-100 hover:border-brand-600 hover:bg-brand-50">Nova Solicitação de Equipamento</a>
+            {% else %}
+                <a href="/servicos" class="{{ mobile_link }} ml-2">Service Desk</a>
+                <a href="/minhas-solicitacoes-manutencao" class="{{ mobile_link }} ml-2">Minhas Solicitações</a>
+            {% endif %}
             {% endif %}
 
             <!-- Seção: Compras -->

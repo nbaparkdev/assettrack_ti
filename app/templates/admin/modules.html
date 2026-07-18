@@ -20,6 +20,7 @@
     <!-- Tabs Header -->
     <div class="flex flex-wrap gap-0 mt-6 relative z-10 -mb-[2px] overflow-x-auto">
         <button type="button" class="tab-btn active px-4 sm:px-6 py-3 border-2 border-black border-b-0 bg-white font-bold uppercase text-black whitespace-nowrap focus:outline-none" data-target="tab-core">Módulos</button>
+        <button type="button" class="tab-btn px-4 sm:px-6 py-3 border-2 border-black border-b-0 border-l-0 bg-gray-200 font-bold uppercase text-gray-600 hover:bg-gray-100 hover:text-black transition-colors whitespace-nowrap focus:outline-none" data-target="tab-custom">Personalização</button>
         <button type="button" class="tab-btn px-4 sm:px-6 py-3 border-2 border-black border-b-0 border-l-0 bg-gray-200 font-bold uppercase text-gray-600 hover:bg-gray-100 hover:text-black transition-colors whitespace-nowrap focus:outline-none" data-target="tab-ai">I.A.</button>
         <button type="button" class="tab-btn px-4 sm:px-6 py-3 border-2 border-black border-b-0 border-l-0 bg-gray-200 font-bold uppercase text-gray-600 hover:bg-gray-100 hover:text-black transition-colors whitespace-nowrap focus:outline-none" data-target="tab-smtp">SMTP & E-mail</button>
         <button type="button" class="tab-btn px-4 sm:px-6 py-3 border-2 border-black border-b-0 border-l-0 bg-gray-200 font-bold uppercase text-gray-600 hover:bg-gray-100 hover:text-black transition-colors whitespace-nowrap focus:outline-none" data-target="tab-rbac">Permissões</button>
@@ -92,6 +93,22 @@
                         </p>
                     </div>
                     <span class="font-mono text-xs font-bold text-gray-500 uppercase tracking-widest px-3 py-1 border border-gray-300 bg-gray-200 cursor-not-allowed">Sempre Ativo</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: PERSONALIZAÇÃO -->
+        <div id="tab-custom" class="tab-content hidden space-y-6">
+            <div class="border-2 border-gray-200 p-6 hover:border-black transition-colors bg-gray-50">
+                <div class="space-y-4">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="font-bold text-lg text-black uppercase tracking-tight">Personalização Dashboard (Usuário Comum)</span>
+                    </div>
+                    <p class="text-sm text-gray-600 font-sans">
+                        Configure os botões/links úteis que serão exibidos no painel dos usuários comuns. 
+                        Insira <strong>um por linha</strong> no formato: <code>Nome do Botão | URL</code>
+                    </p>
+                    <textarea name="custom_links_comum" rows="6" placeholder="Base de Conhecimento | https://wiki.empresa.com&#10;Políticas de TI | https://intranet.empresa.com" class="w-full border-2 border-black p-3 font-mono text-sm">{{ custom_links_comum }}</textarea>
                 </div>
             </div>
         </div>
