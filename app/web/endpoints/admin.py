@@ -10,6 +10,7 @@ from app.models.user import User, UserRole
 from app.models.transaction import Solicitacao, StatusSolicitacao, Movimentacao, TipoMovimentacao
 from app.models.asset import Asset, AssetStatus
 from datetime import datetime
+from app.core.datetime_utils import now_sp
 
 router = APIRouter()
 
@@ -56,7 +57,7 @@ async def approve_solicitacao(
     # Update Solicitation
     solicitacao.status = StatusSolicitacao.APROVADA
     solicitacao.aprovador_id = admin.id
-    solicitacao.data_aprovacao = datetime.utcnow()
+    solicitacao.data_aprovacao = now_sp()
     
     # Update Asset Status (Already Reserved/ARMAZENADO, now keep it that way until delivery)
     asset.status = AssetStatus.ARMAZENADO
@@ -77,7 +78,7 @@ async def reject_solicitacao(
     
     solicitacao.status = StatusSolicitacao.REJEITADA
     solicitacao.aprovador_id = admin.id
-    solicitacao.data_aprovacao = datetime.utcnow()
+    solicitacao.data_aprovacao = now_sp()
     
     await db.commit()
     return RedirectResponse(url="/", status_code=303)
@@ -161,7 +162,7 @@ async def deliver_solicitacao_submit(
 
     # PROCEED WITH DELIVERY
     solicitacao.status = StatusSolicitacao.ENTREGUE
-    solicitacao.data_entrega = datetime.utcnow()
+    solicitacao.data_entrega = now_sp()
     solicitacao.confirmado_por_id = current_user.id
     solicitacao.confirmado_via_qr = True
     solicitacao.observacao_entrega = observacao

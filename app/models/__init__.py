@@ -55,6 +55,7 @@ from app.models.procurement import (
     MaterialStockTransaction
 )
 from app.models.email_log import EmailLog
+from app.models.aviso import Aviso
 from app.database import Base
 
 

@@ -37,3 +37,5 @@ from app.web.endpoints import ai_chat
 web_router.include_router(ai_chat.router, tags=["web_ai_chat"])
 from app.web.endpoints import admin_notifications
 web_router.include_router(admin_notifications.router, tags=["web_admin_notifications"])
+from app.web.endpoints import avisos
+web_router.include_router(avisos.router, tags=["web_avisos"])

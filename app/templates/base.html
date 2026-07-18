@@ -283,6 +283,7 @@
                                 {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
                                 <a href="/admin/modulos" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Módulos</a>
                                 <a href="/admin/notificacoes" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Notificações</a>
+                                <a href="/admin/avisos" class="block px-4 py-3 text-sm font-bold uppercase hover:bg-gray-100">Avisos TI</a>
                                 {% endif %}
                             </div>
                         </div>
@@ -416,6 +417,7 @@
             {% if user.role.value|lower in ['admin', 'gerente_ti'] %}
             <a href="/admin/modulos" class="{{ mobile_link }} ml-2">Módulos</a>
             <a href="/admin/notificacoes" class="{{ mobile_link }} ml-2">Notificações</a>
+            <a href="/admin/avisos" class="{{ mobile_link }} ml-2">Avisos TI</a>
             {% endif %}
             {% endif %}
 

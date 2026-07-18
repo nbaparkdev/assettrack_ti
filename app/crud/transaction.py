@@ -22,6 +22,7 @@ class CRUDMovimentacao(CRUDBase[Movimentacao, MovimentacaoCreate, MovimentacaoUp
         return result.scalars().all()
 
 from datetime import datetime
+from app.core.datetime_utils import now_sp
 from app.models.asset import Asset, AssetStatus
 from app.models.transaction import TipoMovimentacao
 
@@ -68,7 +69,7 @@ class CRUDSolicitacao(CRUDBase[Solicitacao, SolicitacaoCreate, SolicitacaoUpdate
         # 1. Update Solicitation
         solicitacao.status = StatusSolicitacao.APROVADA
         solicitacao.aprovador_id = aprovador_id
-        solicitacao.data_aprovacao = datetime.utcnow()
+        solicitacao.data_aprovacao = now_sp()
 
         # 2. Update Asset
         asset = await db.scalar(select(Asset).filter(Asset.id == solicitacao.asset_id))
@@ -83,7 +84,7 @@ class CRUDSolicitacao(CRUDBase[Solicitacao, SolicitacaoCreate, SolicitacaoUpdate
                 tipo=TipoMovimentacao.EMPRESTIMO,
                 de_user_id=aprovador_id, # Manager who approved
                 para_user_id=solicitacao.solicitante_id,
-                data=datetime.utcnow(),
+                data=now_sp(),
                 observacao=f"Solicitação {solicitacao.id} aprovada."
             )
             db.add(movimentacao)
@@ -100,7 +101,7 @@ class CRUDSolicitacao(CRUDBase[Solicitacao, SolicitacaoCreate, SolicitacaoUpdate
 
         solicitacao.status = StatusSolicitacao.REJEITADA
         solicitacao.aprovador_id = aprovador_id
-        solicitacao.data_aprovacao = datetime.utcnow()
+        solicitacao.data_aprovacao = now_sp()
         
         db.add(solicitacao)
         await db.commit()

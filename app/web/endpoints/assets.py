@@ -1122,7 +1122,7 @@ async def transfer_asset(
             asset_id=asset.id,
             motivo=f"[TRANSFERÊNCIA] Para user ID {destinatario_id}: {motivo}",
             status=StatusSolicitacao.PENDENTE,
-            data_solicitacao=datetime.utcnow()
+            data_solicitacao=now_sp()
         )
         
         # Override solicitante to be the target user (so the request shows up for them/admin as for them)

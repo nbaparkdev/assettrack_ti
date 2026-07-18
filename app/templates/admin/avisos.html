@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">PAINEL_AVISOS</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Gerenciamento de Comunicados e Novidades da TI</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="/" class="text-xs font-bold uppercase hover:underline">Voltar para o Painel</a>
+        </div>
+    </div>
+
+    <!-- Alert Messages -->
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-600 text-red-700 p-4 font-mono text-xs uppercase shadow-[4px_4px_0px_0px_rgba(220,38,38,0.2)]">
+        [ ERRO: {{ error }} ]
+    </div>
+    {% endif %}
+    {% if success %}
+    <div class="bg-green-50 border-2 border-green-600 text-green-700 p-4 font-mono text-xs uppercase shadow-[4px_4px_0px_0px_rgba(22,163,74,0.2)]">
+        [ SUCESSO: {{ success }} ]
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Column 1: New Announcement Form -->
+        <div class="lg:col-span-1">
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sticky top-8">
+                <h3 class="font-bold text-sm uppercase tracking-widest mb-6 border-b-2 border-black pb-2">Novo Aviso</h3>
+                <form action="/admin/avisos/new" method="POST" class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Título do Aviso *</label>
+                        <input type="text" name="titulo" required placeholder="Ex: Manutenção Programada"
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Texto / Descrição</label>
+                        <textarea name="texto" rows="3" placeholder="Insira o texto explicativo aqui..."
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500"></textarea>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">URL da Mídia (Imagem ou Vídeo)</label>
+                        <input type="url" name="midia_url" placeholder="https://exemplo.com/imagem.png"
+                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase text-gray-500">Tipo da Mídia</label>
+                        <select name="midia_tipo" class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                            <option value="">Nenhum / Texto Apenas</option>
+                            <option value="imagem">Imagem</option>
+                            <option value="video">Vídeo</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="block text-[10px] font-bold uppercase text-gray-500">Link URL (Botão)</label>
+                            <input type="text" name="link_url" placeholder="/servicos"
+                                class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-[10px] font-bold uppercase text-gray-500">Texto do Botão</label>
+                            <input type="text" name="link_texto" placeholder="Acessar"
+                                class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                        </div>
+                    </div>
+                    
+                    <div class="border-t-2 border-black pt-4">
+                        <h4 class="font-bold text-[10px] uppercase text-gray-400 mb-2">Controle de Tempo (Agendamento)</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="block text-[9px] font-bold uppercase text-gray-500">Início</label>
+                                <input type="datetime-local" name="programado_inicio"
+                                    class="w-full border-2 border-black p-1 text-xs font-mono focus:ring-0">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block text-[9px] font-bold uppercase text-gray-500">Fim</label>
+                                <input type="datetime-local" name="programado_fim"
+                                    class="w-full border-2 border-black p-1 text-xs font-mono focus:ring-0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-2">
+                        <input type="checkbox" id="ativo" name="ativo" value="true" checked
+                            class="border-2 border-black text-black focus:ring-0 rounded-none w-4 h-4">
+                        <label for="ativo" class="text-xs font-bold uppercase text-black">Ativo (Publicado)</label>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-black text-white font-bold uppercase text-xs py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition">
+                        Criar Aviso
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Column 2: Announcements List -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <h3 class="font-bold text-sm uppercase tracking-widest mb-6 border-b-2 border-black pb-2">Avisos Ativos e Agendados</h3>
+                
+                <div class="space-y-6">
+                    {% for aviso in avisos %}
+                    <div class="border-2 border-black p-4 bg-gray-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col md:flex-row justify-between gap-4">
+                        <div class="space-y-2 flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-base uppercase">{{ aviso.titulo }}</span>
+                                
+                                <!-- Status Badge -->
+                                <span id="badge-{{ aviso.id }}" class="text-[9px] font-mono px-2 py-0.5 border border-black font-bold uppercase
+                                    {% if aviso.ativo %}
+                                        bg-green-300 text-black
+                                    {% else %}
+                                        bg-red-300 text-black
+                                    {% endif %}">
+                                    {{ "ATIVO" if aviso.ativo else "INATIVO" }}
+                                </span>
+                            </div>
+                            
+                            <p class="text-xs text-gray-700 whitespace-pre-wrap font-mono">{{ aviso.texto or 'Nenhum texto adicional.' }}</p>
+                            
+                            {% if aviso.midia_url %}
+                            <div class="text-[10px] font-mono text-gray-500">
+                                <strong>Mídia ({{ aviso.midia_tipo }}):</strong> 
+                                <a href="{{ aviso.midia_url }}" target="_blank" class="underline hover:text-black truncate block max-w-md">{{ aviso.midia_url }}</a>
+                            </div>
+                            {% endif %}
+                            
+                            {% if aviso.link_url %}
+                            <div class="text-[10px] font-mono text-gray-500">
+                                <strong>Ação:</strong> <span class="bg-black text-white px-2 py-0.5 text-[8px]">{{ aviso.link_texto or 'Ver' }}</span> -> {{ aviso.link_url }}
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Schedule info -->
+                            <div class="text-[9px] font-mono text-gray-400 uppercase pt-2 border-t border-gray-200">
+                                📅 Agendamento: 
+                                {% if aviso.programado_inicio or aviso.programado_fim %}
+                                    de {{ aviso.programado_inicio.strftime('%d/%m/%Y %H:%M') if aviso.programado_inicio else 'Imediato' }}
+                                    até {{ aviso.programado_fim.strftime('%d/%m/%Y %H:%M') if aviso.programado_fim else 'Sempre' }}
+                                {% else %}
+                                    Sempre visível (sem agendamento)
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex md:flex-col justify-end items-end gap-2 md:w-48 border-t-2 md:border-t-0 md:border-l-2 border-black pt-4 md:pt-0 md:pl-4">
+                            <!-- Toggle Button (AJAX) -->
+                            <button onclick="toggleAviso({{ aviso.id }})" id="btn-toggle-{{ aviso.id }}"
+                                class="w-full text-center bg-yellow-300 border-2 border-black text-black font-bold uppercase text-[10px] py-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-yellow-400 transition">
+                                {{ "Desativar" if aviso.ativo else "Ativar" }}
+                            </button>
+                            
+                            <!-- Edit Button (Modal Trigger) -->
+                            <button onclick='openEditModal(
+                                "{{ aviso.id }}",
+                                "{{ (aviso.titulo or "") | replace("\"", "\\\"") }}",
+                                "{{ (aviso.texto or "") | replace("\n", "\\n") | replace("\r", "") | replace("\"", "\\\"") }}",
+                                "{{ (aviso.midia_url or "") | replace("\"", "\\\"") }}",
+                                "{{ (aviso.midia_tipo or "") }}",
+                                "{{ (aviso.link_url or "") | replace("\"", "\\\"") }}",
+                                "{{ (aviso.link_texto or "") | replace("\"", "\\\"") }}",
+                                "{{ aviso.programado_inicio.isoformat() if aviso.programado_inicio else "" }}",
+                                "{{ aviso.programado_fim.isoformat() if aviso.programado_fim else "" }}",
+                                {{ "true" if aviso.ativo else "false" }}
+                            )'
+                                class="w-full text-center bg-blue-300 border-2 border-black text-black font-bold uppercase text-[10px] py-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-blue-400 transition">
+                                Editar
+                            </button>
+
+                            <!-- Delete Button -->
+                            <form action="/admin/avisos/{{ aviso.id }}/delete" method="POST" class="w-full" onsubmit="return confirm('Deseja realmente excluir este aviso?')">
+                                <button type="submit"
+                                    class="w-full text-center bg-red-300 border-2 border-black text-black font-bold uppercase text-[10px] py-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-red-400 transition">
+                                    Excluir
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="p-8 text-center text-gray-400 font-mono text-xs uppercase border-2 border-dashed border-gray-300">
+                        Nenhum aviso ou comunicado cadastrado.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border-4 border-black p-6 max-w-lg w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+        <div class="flex justify-between items-center border-b-2 border-black pb-2">
+            <h3 class="font-bold text-sm uppercase tracking-widest">Editar Aviso</h3>
+            <button onclick="closeEditModal()" class="font-bold text-lg hover:text-red-600">&times;</button>
+        </div>
+        <form id="editForm" method="POST" class="space-y-4">
+            <div class="space-y-1">
+                <label class="block text-[10px] font-bold uppercase text-gray-500">Título do Aviso *</label>
+                <input type="text" name="titulo" id="edit_titulo" required
+                    class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-[10px] font-bold uppercase text-gray-500">Texto / Descrição</label>
+                <textarea name="texto" id="edit_texto" rows="3"
+                    class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0"></textarea>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-[10px] font-bold uppercase text-gray-500">URL da Mídia (Imagem ou Vídeo)</label>
+                <input type="url" name="midia_url" id="edit_midia_url"
+                    class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-[10px] font-bold uppercase text-gray-500">Tipo da Mídia</label>
+                <select name="midia_tipo" id="edit_midia_tipo" class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                    <option value="">Nenhum / Texto Apenas</option>
+                    <option value="imagem">Imagem</option>
+                    <option value="video">Vídeo</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-[10px] font-bold uppercase text-gray-500">Link URL (Botão)</label>
+                    <input type="text" name="link_url" id="edit_link_url"
+                        class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-[10px] font-bold uppercase text-gray-500">Texto do Botão</label>
+                    <input type="text" name="link_texto" id="edit_link_texto"
+                        class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                </div>
+            </div>
+            
+            <div class="border-t-2 border-black pt-4">
+                <h4 class="font-bold text-[10px] uppercase text-gray-400 mb-2">Agendamento</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="block text-[9px] font-bold uppercase text-gray-500">Início</label>
+                        <input type="datetime-local" name="programado_inicio" id="edit_programado_inicio"
+                            class="w-full border-2 border-black p-1 text-xs font-mono focus:ring-0">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[9px] font-bold uppercase text-gray-500">Fim</label>
+                        <input type="datetime-local" name="programado_fim" id="edit_programado_fim"
+                            class="w-full border-2 border-black p-1 text-xs font-mono focus:ring-0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 pt-2">
+                <input type="checkbox" id="edit_ativo" name="ativo" value="true"
+                    class="border-2 border-black text-black focus:ring-0 rounded-none w-4 h-4">
+                <label for="edit_ativo" class="text-xs font-bold uppercase text-black">Ativo</label>
+            </div>
+
+            <div class="flex gap-4 pt-2">
+                <button type="button" onclick="closeEditModal()"
+                    class="w-1/2 bg-white border-2 border-black text-black font-bold uppercase text-xs py-3 hover:bg-gray-100 transition">
+                    Cancelar
+                </button>
+                <button type="submit"
+                    class="w-1/2 bg-black text-white font-bold uppercase text-xs py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition">
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // AJAX toggle active/inactive in real time
+    async function toggleAviso(avisoId) {
+        try {
+            const response = await fetch(`/admin/avisos/${avisoId}/toggle`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Update badge state
+                const badge = document.getElementById(`badge-${avisoId}`);
+                const btn = document.getElementById(`btn-toggle-${avisoId}`);
+                
+                if (data.ativo) {
+                    badge.innerText = 'ATIVO';
+                    badge.className = 'text-[9px] font-mono px-2 py-0.5 border border-black font-bold uppercase bg-green-300 text-black';
+                    btn.innerText = 'Desativar';
+                } else {
+                    badge.innerText = 'INATIVO';
+                    badge.className = 'text-[9px] font-mono px-2 py-0.5 border border-black font-bold uppercase bg-red-300 text-black';
+                    btn.innerText = 'Ativar';
+                }
+            } else {
+                alert(`Erro: ${data.detail || 'Ocorreu um erro ao alternar o aviso.'}`);
+            }
+        } catch (error) {
+            console.error('Error toggling announcement:', error);
+            alert('Não foi possível conectar ao servidor.');
+        }
+    }
+
+    // Modal Control
+    function openEditModal(id, titulo, texto, midiaUrl, midiaTipo, linkUrl, linkTexto, progInicio, progFim, ativo) {
+        const modal = document.getElementById('editModal');
+        const form = document.getElementById('editForm');
+        
+        form.action = `/admin/avisos/${id}/edit`;
+        
+        document.getElementById('edit_titulo').value = titulo || '';
+        document.getElementById('edit_texto').value = texto || '';
+        document.getElementById('edit_midia_url').value = midiaUrl || '';
+        document.getElementById('edit_midia_tipo').value = midiaTipo || '';
+        document.getElementById('edit_link_url').value = linkUrl || '';
+        document.getElementById('edit_link_texto').value = linkTexto || '';
+        
+        // Format dates YYYY-MM-DDTHH:MM
+        if (progInicio) {
+            document.getElementById('edit_programado_inicio').value = progInicio.substring(0, 16);
+        } else {
+            document.getElementById('edit_programado_inicio').value = '';
+        }
+        
+        if (progFim) {
+            document.getElementById('edit_programado_fim').value = progFim.substring(0, 16);
+        } else {
+            document.getElementById('edit_programado_fim').value = '';
+        }
+        
+        document.getElementById('edit_ativo').checked = !!ativo;
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        const modal = document.getElementById('editModal');
+        modal.classList.add('hidden');
+    }
+</script>
+{% endblock %}
