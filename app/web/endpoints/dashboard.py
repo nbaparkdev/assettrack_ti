@@ -169,9 +169,29 @@ async def dashboard(
         from app.models.service_desk import ServiceTicket
         # My Active Assets (currently assigned)
         my_assets_result = await db.execute(
-            select(Asset).filter(Asset.current_user_id == current_user.id)
+            select(Asset).filter(Asset.current_user_id == current_user.id).order_by(Asset.nome)
         )
-        context["my_assets"] = my_assets_result.scalars().all()
+        my_assets = my_assets_result.scalars().all()
+        context["my_assets"] = my_assets
+
+        # Active maintenance requests for user's assets
+        from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
+        asset_maintenances = {}
+        for asset in my_assets:
+            maint_res = await db.execute(
+                select(SolicitacaoManutencao)
+                .filter(
+                    SolicitacaoManutencao.asset_id == asset.id,
+                    SolicitacaoManutencao.status != StatusSolicitacaoManutencao.CONCLUIDA,
+                    SolicitacaoManutencao.status != StatusSolicitacaoManutencao.REJEITADA
+                )
+                .order_by(SolicitacaoManutencao.id.desc())
+                .limit(1)
+            )
+            mreq = maint_res.scalar_one_or_none()
+            if mreq:
+                asset_maintenances[asset.id] = mreq
+        context["asset_maintenances"] = asset_maintenances
 
         # My Recent Solicitations
         my_solicitations_result = await db.execute(
@@ -191,6 +211,22 @@ async def dashboard(
             .limit(5)
         )
         context["my_tickets"] = my_tickets_result.scalars().all()
+
+        # My Pending Maintenance Requests (Ready for Pickup / Delivered)
+        from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
+        res_maint = await db.execute(
+            select(SolicitacaoManutencao)
+            .options(selectinload(SolicitacaoManutencao.asset))
+            .filter(
+                SolicitacaoManutencao.solicitante_id == current_user.id,
+                SolicitacaoManutencao.status.in_([
+                    StatusSolicitacaoManutencao.AGUARDANDO_ENTREGA,
+                    StatusSolicitacaoManutencao.ENTREGUE
+                ])
+            )
+            .order_by(SolicitacaoManutencao.data_conclusao_tecnico.desc())
+        )
+        context["my_pending_maintenances"] = res_maint.scalars().all()
         
         # Load custom links
         from app.crud.system_settings import system_settings

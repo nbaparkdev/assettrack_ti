@@ -348,6 +348,12 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         solicitacao.status = StatusSolicitacaoManutencao.CONCLUIDA
         # Data de entrega já foi setada quando o técnico entregou (ENTREGUE)
         
+        # Garante que o status do ativo está correto (EM_USO) e com o solicitante
+        asset = await db.get(Asset, solicitacao.asset_id)
+        if asset:
+            asset.status = AssetStatus.EM_USO
+            asset.current_user_id = solicitacao.solicitante_id
+        
         await db.commit()
         await db.refresh(solicitacao)
         return solicitacao

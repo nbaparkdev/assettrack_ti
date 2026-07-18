@@ -1,6 +1,6 @@
 
 # app/web/endpoints/maintenance_requests.py
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import APIRouter, Request, Depends, HTTPException, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -31,7 +31,8 @@ templates = Jinja2Templates(directory="app/templates")
 async def form_nova_solicitacao(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_active_user_web)]
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    asset_id: Optional[int] = None
 ):
     """Formulário para criar nova solicitação de manutenção"""
     # Buscar ativos do usuário (ou todos se for admin/gerente)
@@ -60,7 +61,8 @@ async def form_nova_solicitacao(
         "user": current_user,
         "title": "Solicitar Manutenção",
         "assets": assets,
-        "prioridades": PrioridadeSolicitacao
+        "prioridades": PrioridadeSolicitacao,
+        "selected_asset_id": asset_id
     })
 
 

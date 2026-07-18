@@ -194,7 +194,9 @@
                                     {% if user.role.value|lower == 'usuario_comum' %}
                                     <a href="/servicos" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Meus Chamados</a>
                                     <a href="/solicitacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Minhas Solicitações</a>
+                                    <a href="/minhas-solicitacoes-manutencao" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Minhas Manutenções</a>
                                     <div class="h-[2px] bg-gray-100 my-1 mx-2"></div>
+                                    <a href="/solicitar-manutencao" class="block px-3 py-2 text-sm font-bold uppercase text-brand-600 hover:bg-brand-50">Solicitar Manutenção</a>
                                     <a href="/solicitacoes/new" class="block px-3 py-2 text-sm font-bold uppercase text-brand-600 hover:bg-brand-50">Nova Solicitação de Equipamento</a>
                                     {% else %}
                                     <a href="/servicos" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Service Desk</a>
@@ -376,6 +378,8 @@
             {% if user.role.value|lower == 'usuario_comum' %}
                 <a href="/servicos" class="{{ mobile_link }} ml-2">Meus Chamados</a>
                 <a href="/solicitacoes" class="{{ mobile_link }} ml-2">Minhas Solicitações</a>
+                <a href="/minhas-solicitacoes-manutencao" class="{{ mobile_link }} ml-2">Minhas Manutenções</a>
+                <a href="/solicitar-manutencao" class="{{ mobile_link }} ml-2 text-brand-600 border-brand-100 hover:border-brand-600 hover:bg-brand-50">Solicitar Manutenção</a>
                 <a href="/solicitacoes/new" class="{{ mobile_link }} ml-2 text-brand-600 border-brand-100 hover:border-brand-600 hover:bg-brand-50">Nova Solicitação de Equipamento</a>
             {% else %}
                 <a href="/servicos" class="{{ mobile_link }} ml-2">Service Desk</a>

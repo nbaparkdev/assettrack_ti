@@ -47,8 +47,8 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {% for asset in assets %}
                 <label class="group relative cursor-pointer">
-                    <input type="radio" name="asset_id" value="{{ asset.id }}" class="peer sr-only" {% if loop.first
-                        %}checked{% endif %}>
+                    <input type="radio" name="asset_id" value="{{ asset.id }}" class="peer sr-only" 
+                           {% if (selected_asset_id and selected_asset_id|int == asset.id) or (not selected_asset_id and loop.first) %}checked{% endif %}>
                     <div
                         class="h-full p-4 border-2 border-gray-200 hover:border-gray-400 bg-white transition-all peer-checked:border-gray-900 peer-checked:bg-gray-50">
                         <div class="flex items-center justify-between mb-2">
