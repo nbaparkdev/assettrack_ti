@@ -16,6 +16,14 @@ async def create_superuser():
             print(f"User {admin_email} already exists.")
             return
 
+        from sqlalchemy import select
+        from app.models.user import User
+        res = await db.execute(select(User).filter(User.matricula == "AAAA001"))
+        existing_mat = res.scalars().first()
+        if existing_mat:
+            print("User with matricula AAAA001 already exists.")
+            return
+
         user_in = UserCreate(
             email=admin_email,
             password=admin_password,

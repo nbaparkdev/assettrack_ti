@@ -22,6 +22,14 @@ async def create_tecnico():
                 print("WARNING: Existing user is not TECNICO. Please update manually or delete user.")
             return
 
+        from sqlalchemy import select
+        from app.models.user import User
+        res = await db.execute(select(User).filter(User.matricula == "TEC001"))
+        existing_mat = res.scalars().first()
+        if existing_mat:
+            print("User with matricula TEC001 already exists.")
+            return
+
         user_in = UserCreate(
             email=email,
             password=password,
