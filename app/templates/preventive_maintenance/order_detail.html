@@ -13,7 +13,7 @@
                 <span class="text-xs font-mono text-gray-500 uppercase tracking-widest">Infra Predial // {{ order.infra_predial_servico }}</span>
                 {% endif %}
             </div>
-            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-tight">Manutenção {{ order.tipo.value }}</h1>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-tight">Manutenção {{ order.display_tipo }}</h1>
         </div>
         <div class="flex items-center gap-3">
             {% set status_val = order.status.value %}
@@ -356,7 +356,7 @@
 
                 <div>
                     <p class="text-[10px] text-gray-400 uppercase font-bold">Tipo</p>
-                    <p class="text-sm font-bold text-black uppercase">{{ order.tipo.value }}</p>
+                    <p class="text-sm font-bold text-black uppercase">{{ order.display_tipo }}</p>
                 </div>
 
                 <div>

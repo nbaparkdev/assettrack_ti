@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8 fade-in">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <a href="/manutencao-preventiva/ordens/nova" class="font-mono text-[10px] text-gray-400 uppercase tracking-widest hover:text-black transition">← Voltar para Nova OS</a>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none mt-1">Tipos de Manutenção</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Gerenciar categorias de serviço</p>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% if success %}
+    <div class="bg-green-50 border-2 border-green-600 p-4 font-mono text-sm text-green-800">✓ {{ success }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-600 p-4 font-mono text-sm text-red-800">✗ {{ error }}</div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+        <!-- LEFT: Tipos Únicos -->
+        <div class="md:col-span-2 space-y-4">
+            <!-- Tipos Cadastrados -->
+            {% if custom_types %}
+            <div class="bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                <div class="bg-black text-white p-3 flex items-center justify-between">
+                    <span class="font-bold uppercase text-xs tracking-widest">Tipos de Manutenção</span>
+                    <span class="font-mono text-[10px] text-gray-300">{{ custom_types|length }} cadastrados</span>
+                </div>
+                <div class="divide-y divide-gray-100">
+                    {% for tipo in custom_types %}
+                    <div class="flex items-center justify-between p-4 hover:bg-gray-50 group">
+                        <div>
+                            <div class="flex items-center gap-3">
+                                <span class="w-2 h-2 bg-amber-400 rounded-full inline-block"></span>
+                                <span class="font-bold text-sm uppercase">{{ tipo.nome }}</span>
+                            </div>
+                            {% if tipo.descricao %}
+                            <p class="text-xs text-gray-500 mt-1 ml-5">{{ tipo.descricao }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="flex items-center gap-2 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                            <a href="/manutencao-preventiva/tipos?edit_id={{ tipo.id }}"
+                                class="text-xs font-bold text-blue-600 border-2 border-transparent hover:border-blue-600 px-3 py-1.5 transition uppercase">
+                                Editar
+                            </a>
+                            <form action="/manutencao-preventiva/tipos/{{ tipo.id }}/delete" method="POST"
+                                onsubmit="return confirm('Excluir tipo {{ tipo.nome }}?')">
+                                <button type="submit"
+                                    class="text-xs font-bold text-red-500 border-2 border-transparent hover:border-red-500 px-3 py-1.5 transition uppercase">
+                                    Excluir
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="border-2 border-dashed border-gray-300 p-8 text-center bg-gray-50">
+                <p class="font-mono text-sm text-gray-400">Nenhum tipo de manutenção cadastrado.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- RIGHT: Form para novo tipo -->
+        <div>
+            <div class="bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] sticky top-6">
+                <div class="{% if tipo_edit %}bg-blue-600{% else %}bg-black{% endif %} text-white p-3 flex justify-between items-center">
+                    <span class="font-bold uppercase text-xs tracking-widest">
+                        {% if tipo_edit %}Editar Tipo{% else %}Novo Tipo{% endif %}
+                    </span>
+                    {% if tipo_edit %}
+                    <a href="/manutencao-preventiva/tipos" class="text-[10px] font-mono hover:underline">Cancelar</a>
+                    {% endif %}
+                </div>
+                <form action="{% if tipo_edit %}/manutencao-preventiva/tipos/{{ tipo_edit.id }}/edit{% else %}/manutencao-preventiva/tipos/novo{% endif %}" method="POST" class="p-6 space-y-4">
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase tracking-widest text-gray-500">Nome do Tipo *</label>
+                        <input type="text" name="nome" required placeholder="Ex: Limpeza de Filtros" value="{{ tipo_edit.nome if tipo_edit else '' }}"
+                            class="w-full border-2 border-black rounded-none px-3 py-2.5 focus:ring-0 font-mono text-sm uppercase">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold uppercase tracking-widest text-gray-500">Descrição (opcional)</label>
+                        <textarea name="descricao" rows="3" placeholder="Descreva quando usar este tipo..."
+                            class="w-full border-2 border-black rounded-none px-3 py-2.5 focus:ring-0 font-mono text-sm resize-none">{{ tipo_edit.descricao if tipo_edit else '' }}</textarea>
+                    </div>
+                    <button type="submit"
+                        class="w-full {% if tipo_edit %}bg-blue-600{% else %}bg-black{% endif %} text-white py-3 text-xs font-bold uppercase tracking-widest hover:opacity-80 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
+                        {% if tipo_edit %}Salvar Alterações{% else %}+ Criar Tipo{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

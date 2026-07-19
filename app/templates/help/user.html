@@ -11,7 +11,7 @@
         <div class="hidden sm:flex flex-col items-end gap-2 text-right">
             <span
                 class="inline-block bg-gray-100 border border-gray-200 px-2 py-1 text-xs font-bold uppercase tracking-wider">Perfil
-                Usuário</span>
+                {{ user.role.value }}</span>
             <a href="/help/export"
                 class="inline-block bg-black text-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider hover:bg-gray-800 transition">
                 📄 Baixar PDF Completo
@@ -137,7 +137,7 @@
             </div>
         </div>
         
-        {% if (user.role.value or user.role)|lower == 'rh' %}
+        {% if user.role.value|lower == 'rh' or user.role|lower == 'rh' %}
         <!-- Card 5: RH -->
         <div class="border-2 border-gray-200 p-6 hover:border-black transition group relative bg-white">
             <div class="absolute top-0 right-0 bg-pink-600 text-white text-[10px] uppercase font-bold px-2 py-1">Documentos

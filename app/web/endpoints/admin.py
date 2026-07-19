@@ -229,7 +229,10 @@ async def admin_audit_page(
     solicitacoes = []
     
     if user_id:
-        selected_user = await db.get(User, user_id, options=[selectinload(User.departamento)])
+        _u_res = await db.execute(
+            select(User).options(selectinload(User.departamento)).where(User.id == user_id)
+        )
+        selected_user = _u_res.scalar_one_or_none()
         if selected_user:
             # 1. Current assets
             assets_res = await db.execute(
@@ -307,7 +310,10 @@ async def admin_audit_pdf(
     """Gera um PDF detalhado da auditoria completa do usuário"""
     from weasyprint import HTML
     
-    selected_user = await db.get(User, user_id, options=[selectinload(User.departamento)])
+    _u_res = await db.execute(
+        select(User).options(selectinload(User.departamento)).where(User.id == user_id)
+    )
+    selected_user = _u_res.scalar_one_or_none()
     if not selected_user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
         

@@ -48,11 +48,14 @@
             <!-- Tipo e Prioridade -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-2">
-                    <label class="block text-xs font-bold uppercase tracking-widest text-black">Tipo de Manutenção</label>
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold uppercase tracking-widest text-black">Tipo de Manutenção</label>
+                        <a href="/manutencao-preventiva/tipos" class="font-mono text-[10px] text-gray-400 hover:text-black transition uppercase tracking-wider">⚙ Gerenciar Tipos</a>
+                    </div>
                     <select name="tipo" required
                         class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-brand-500 font-mono text-sm uppercase">
-                        {% for mt in maintenance_types %}
-                        <option value="{{ mt }}">{{ mt }}</option>
+                        {% for ct in custom_types %}
+                        <option value="custom:{{ ct.nome }}">{{ ct.nome|title }}</option>
                         {% endfor %}
                     </select>
                 </div>

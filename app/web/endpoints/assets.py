@@ -1326,3 +1326,78 @@ async def delete_armazenamento(
     db.delete(armazenamento)
     await db.commit()
     return RedirectResponse(url="/assets/admin/localizacoes?success=Armazenamento+excluído+com+sucesso!", status_code=303)
+
+
+@router.get("/{asset_id}/pdf-resumo")
+async def asset_pdf_resumo(
+    asset_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """Gera PDF com resumo completo e histórico do ativo."""
+    from weasyprint import HTML
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models.transaction import Movimentacao
+    from app.models.preventive_maintenance import MaintenanceOrder
+    from app.models.asset import Asset
+
+    asset = await db.get(Asset, asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Ativo não encontrado")
+
+    # Carregar relacionamentos do ativo
+    stmt = (
+        select(Asset)
+        .options(
+            selectinload(Asset.current_user),
+            selectinload(Asset.current_local),
+            selectinload(Asset.categoria),
+            selectinload(Asset.fornecedor),
+            selectinload(Asset.nota_fiscal),
+        )
+        .filter(Asset.id == asset_id)
+    )
+    result = await db.execute(stmt)
+    asset = result.scalar_one_or_none()
+
+    # Movimentações completas com usuários
+    from app.models.transaction import Movimentacao as Mov
+    from app.models.user import User as UserModel
+    mov_stmt = (
+        select(Mov)
+        .options(selectinload(Mov.de_user), selectinload(Mov.para_user))
+        .filter(Mov.asset_id == asset_id)
+        .order_by(Mov.data.desc())
+    )
+    mov_result = await db.execute(mov_stmt)
+    movimentacoes = mov_result.scalars().all()
+
+    # Ordens de serviço preventivas do ativo
+    from app.models.preventive_maintenance import MaintenanceOrder as MO
+    os_stmt = (
+        select(MO)
+        .options(selectinload(MO.tecnico), selectinload(MO.asset))
+        .filter(MO.asset_id == asset_id)
+        .order_by(MO.data_abertura.desc())
+    )
+    os_result = await db.execute(os_stmt)
+    manutencoes = os_result.scalars().all()
+
+    html_content = templates.get_template("assets/asset_history_pdf.html").render({
+        "request": request,
+        "asset": asset,
+        "movimentacoes": movimentacoes,
+        "manutencoes": manutencoes,
+        "generated_at": now_sp().strftime("%d/%m/%Y %H:%M")
+    })
+
+    pdf_bytes = HTML(string=html_content, base_url=str(request.base_url)).write_pdf()
+    filename = f"Resumo_Ativo_{asset.e_patrimonio}_{now_sp().strftime('%Y%m%d')}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

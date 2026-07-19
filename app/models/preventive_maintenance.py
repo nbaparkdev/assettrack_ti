@@ -17,6 +17,8 @@ class MaintenanceType(str, Enum):
     LUBRIFICACAO = "Lubrificação"
     LIMPEZA = "Limpeza"
     ATUALIZACAO = "Atualização"
+    CORRETIVA = "Corretiva"
+    PERSONALIZADA = "Personalizada"
 
 
 class MaintenancePeriodicity(str, Enum):
@@ -188,6 +190,15 @@ class MaintenanceOrder(Base):
     history = relationship("MaintenanceHistory", back_populates="order", cascade="all, delete-orphan")
     notifications = relationship("MaintenanceNotification", back_populates="order", cascade="all, delete-orphan")
 
+    @property
+    def display_tipo(self) -> str:
+        if self.tipo.value == "personalizada" and self.observacoes and self.observacoes.startswith("[TIPO: "):
+            import re
+            match = re.match(r'^\[TIPO: ([^\]]+)\]', self.observacoes)
+            if match:
+                return match.group(1)
+        return self.tipo.value
+
 
 class MaintenanceExecution(Base):
     __tablename__ = "maintenance_executions"
@@ -275,3 +286,12 @@ class MaintenanceNotification(Base):
     plan = relationship("MaintenancePlan", back_populates="notifications")
     usuario = relationship("User")
 
+
+class CustomMaintenanceType(Base):
+    """Tipos de manutenção customizados (além dos tipos fixos do Enum MaintenanceType)."""
+    __tablename__ = "custom_maintenance_types"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    nome: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
+    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, default=now_sp)

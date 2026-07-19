@@ -212,7 +212,11 @@ async def list_orders(
         try:
             stmt = stmt.filter(MaintenanceOrder.tipo == MaintenanceType(tipo))
         except ValueError:
-            pass
+            # Se for tipo customizado, buscamos por 'personalizada' e filtramos pelo termo [TIPO: ...] nas obs
+            stmt = stmt.filter(
+                MaintenanceOrder.tipo == MaintenanceType.PERSONALIZADA,
+                MaintenanceOrder.observacoes.like(f"%[TIPO: {tipo}]%")
+            )
     
     if prioridade:
         try:
@@ -228,11 +232,17 @@ async def list_orders(
     result = await db.execute(stmt)
     ordens = result.scalars().all()
     
+    # Obter tipos customizados para o filtro no HTML
+    from app.models.preventive_maintenance import CustomMaintenanceType
+    custom_types = await db.execute(select(CustomMaintenanceType).order_by(CustomMaintenanceType.nome))
+    custom_types = custom_types.scalars().all()
+
     return templates.TemplateResponse("preventive_maintenance/orders_list.html", {
         "request": request,
         "user": current_user,
         "ordens": ordens,
         "tecnicos": tecnicos,
+        "custom_types": custom_types,
         "filters": {
             "status": status or "",
             "tipo": tipo or "",
@@ -391,7 +401,8 @@ async def reports_page(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
     data_inicio: Optional[str] = None,
-    data_fim: Optional[str] = None
+    data_fim: Optional[str] = None,
+    tecnico_id: Optional[str] = None
 ):
     """Página de relatórios estatísticos e gerenciais de manutenção"""
     from datetime import datetime, timedelta
@@ -460,6 +471,7 @@ async def reports_page(
     # 4. Desempenho dos Técnicos
     stmt_tecnicos = (
         select(
+            User.id,
             User.nome,
             func.count(MaintenanceOrder.id).label("quantidade"),
             func.avg(MaintenanceOrder.tempo_total_minutos).label("tempo_medio")
@@ -468,10 +480,17 @@ async def reports_page(
         .filter(MaintenanceOrder.status == OrderStatus.CONCLUIDA)
         .filter(MaintenanceOrder.data_conclusao >= dt_inicio)
         .filter(MaintenanceOrder.data_conclusao <= dt_fim)
-        .group_by(User.nome)
+        .group_by(User.id, User.nome)
     )
     res_tecnicos = await db.execute(stmt_tecnicos)
-    tecnicos_stats = [{"nome": r[0], "quantidade": r[1], "tempo_medio": float(r[2] or 0.0)} for r in res_tecnicos.fetchall()]
+    tecnicos_stats = [{"id": r[0], "nome": r[1], "quantidade": r[2], "tempo_medio": float(r[3] or 0.0)} for r in res_tecnicos.fetchall()]
+
+    # 5. Lista de técnicos para o filtro do template
+    tec_stmt = select(User).filter(User.role.in_([
+        UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO, UserRole.GERENTE_INFRA
+    ])).order_by(User.nome)
+    tec_result = await db.execute(tec_stmt)
+    tecnicos_list = tec_result.scalars().all()
 
     # 5. Equipamentos com mais manutenções (Ativos Problemáticos)
     stmt_ativos = (
@@ -500,11 +519,13 @@ async def reports_page(
         "total_concluidas": total_concluidas,
         "custo_total": custo_total,
         "custo_materiais": custo_materiais,
-        "custo_materials": custo_materiais, # Fallback de segurança para o template
+        "custo_materials": custo_materiais,
         "custo_mao_de_obra": custo_mao_de_obra,
         "tempo_medio_minutos": tempo_medio_minutos,
         "tipos_stats": tipos_stats,
         "tecnicos_stats": tecnicos_stats,
+        "tecnicos_list": tecnicos_list,
+        "tecnico_id_filter": tecnico_id or "",
         "ativos_stats": ativos_stats,
         "title": "Relatórios de Manutenção"
     })
@@ -531,6 +552,11 @@ async def new_order_form(
     plans = await db.execute(select(MaintenancePlan).filter(MaintenancePlan.ativo == True))
     plans = plans.scalars().all()
     
+    # Obter tipos de manutenção customizados
+    from app.models.preventive_maintenance import CustomMaintenanceType
+    custom_types = await db.execute(select(CustomMaintenanceType).order_by(CustomMaintenanceType.nome))
+    custom_types = custom_types.scalars().all()
+    
     return templates.TemplateResponse("preventive_maintenance/order_form.html", {
         "request": request,
         "user": current_user,
@@ -538,6 +564,7 @@ async def new_order_form(
         "technicians": technicians,
         "plans": plans,
         "maintenance_types": [mt.value for mt in MaintenanceType],
+        "custom_types": custom_types,
         "maintenance_priorities": [mp.value for mp in MaintenancePriority],
         "title": "Nova Ordem de Serviço"
     })
@@ -574,14 +601,27 @@ async def create_order(
     if asset_id and asset_id.strip() and asset_id.strip() != "None" and asset_id.strip().isdigit():
         parsed_asset_id = int(asset_id)
         
+    # Processar tipo customizado
+    final_tipo = tipo
+    final_obs = descricao
+    system_enum_values = [mt.value.lower() for mt in MaintenanceType]
+    
+    if tipo.startswith("custom:"):
+        custom_name = tipo.replace("custom:", "").strip()
+        if custom_name.lower() in system_enum_values:
+            final_tipo = custom_name.lower()
+        else:
+            final_tipo = "personalizada"
+            final_obs = f"[TIPO: {custom_name}]\n{descricao}"
+        
     # Criar a ordem diretamente usando o model
     order = MaintenanceOrder(
         numero=numero,
         asset_id=parsed_asset_id,
         infra_predial_servico=infra_predial_servico if not parsed_asset_id else None,
-        tipo=MaintenanceType(tipo),
+        tipo=MaintenanceType(final_tipo),
         prioridade=MaintenancePriority(prioridade),
-        observacoes=descricao,
+        observacoes=final_obs,
         status=OrderStatus.ABERTA,
         data_abertura=now_sp()
     )
@@ -1411,12 +1451,22 @@ async def edit_order_form(
     res_tec = await db.execute(stmt_tec)
     tecnicos = res_tec.scalars().all()
 
+    # Obter tipos de manutenção customizados
+    from app.models.preventive_maintenance import CustomMaintenanceType
+    custom_types = await db.execute(select(CustomMaintenanceType).order_by(CustomMaintenanceType.nome))
+    custom_types = custom_types.scalars().all()
+
+    # Limpar tag [TIPO: ...] das observações para exibição no formulário
+    import re
+    cleaned_obs = re.sub(r'^\[TIPO: [^\]]+\]\n?', '', order.observacoes or '')
+
     return templates.TemplateResponse("preventive_maintenance/order_edit.html", {
         "request": request,
         "user": current_user,
         "order": order,
         "tecnicos": tecnicos,
-        "maintenance_types": [mt.value for mt in MaintenanceType],
+        "custom_types": custom_types,
+        "cleaned_obs": cleaned_obs,
         "priorities": [pr.value for pr in MaintenancePriority],
         "criticalities": [cr.value for cr in MaintenanceCriticality],
         "statuses": [st for st in OrderStatus],
@@ -1449,11 +1499,28 @@ async def update_order(
     novo_status = OrderStatus(status)
     novo_tecnico_id = int(tecnico_id) if tecnico_id and tecnico_id.strip() else None
 
-    order.tipo = MaintenanceType(tipo)
+    # Processar alteração de tipo customizado na edição
+    final_tipo = tipo
+    final_obs = observacoes
+    system_enum_values = [mt.value.lower() for mt in MaintenanceType]
+    
+    if tipo.startswith("custom:"):
+        custom_name = tipo.replace("custom:", "").strip()
+        if custom_name.lower() in system_enum_values:
+            final_tipo = custom_name.lower()
+            import re
+            final_obs = re.sub(r'^\[TIPO: [^\]]+\]\n?', '', final_obs)
+        else:
+            final_tipo = "personalizada"
+            import re
+            cleaned_old = re.sub(r'^\[TIPO: [^\]]+\]\n?', '', final_obs)
+            final_obs = f"[TIPO: {custom_name}]\n{cleaned_old}"
+
+    order.tipo = MaintenanceType(final_tipo)
     order.status = novo_status
     order.prioridade = MaintenancePriority(prioridade)
     order.criticidade = MaintenanceCriticality(criticidade)
-    order.observacoes = observacoes
+    order.observacoes = final_obs
     order.tecnico_id = novo_tecnico_id
     order.data_agendada = datetime.fromisoformat(data_agendada) if data_agendada and data_agendada.strip() else None
 
@@ -1840,3 +1907,271 @@ async def delete_order_photo(
     
     await db.commit()
     return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order_id}", status_code=303)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Gerenciamento de Tipos de Manutenção (CRUD)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/tipos", response_class=HTMLResponse)
+async def maintenance_types_page(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    success: Optional[str] = None,
+    error: Optional[str] = None,
+    edit_id: Optional[int] = None
+):
+    """Página de gerenciamento de tipos de manutenção."""
+    from app.models.preventive_maintenance import CustomMaintenanceType
+
+    # Tipos do banco
+    custom_result = await db.execute(
+        select(CustomMaintenanceType).order_by(CustomMaintenanceType.criado_em.desc())
+    )
+    custom_types = custom_result.scalars().all()
+
+    tipo_edit = None
+    if edit_id:
+        tipo_edit = next((t for t in custom_types if t.id == edit_id), None)
+
+    return templates.TemplateResponse("preventive_maintenance/maintenance_types.html", {
+        "request": request,
+        "user": current_user,
+        "custom_types": custom_types,
+        "tipo_edit": tipo_edit,
+        "success": success,
+        "error": error,
+        "title": "Tipos de Manutenção"
+    })
+
+
+@router.post("/tipos/novo")
+async def create_maintenance_type(
+    request: Request,
+    nome: Annotated[str, Form()],
+    descricao: Annotated[Optional[str], Form()] = None,
+    current_user: Annotated[User, Depends(get_active_user_web)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None
+):
+    """Cria um novo tipo de manutenção customizado."""
+    from app.models.preventive_maintenance import CustomMaintenanceType
+    from urllib.parse import quote_plus
+
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
+        return RedirectResponse(url="/manutencao-preventiva/tipos?error=Sem+permissão", status_code=303)
+
+    nome_upper = nome.strip().upper()
+
+    # O sistema agora aceita substituição e exclusão, portanto não precisamos 
+    # impedir que o usuário recrie um tipo com o mesmo nome de um sistema se ele excluiu.
+    # Apenas verificamos conflitos dentro da tabela CustomMaintenanceType.
+    
+    existing = await db.execute(
+        select(CustomMaintenanceType).filter(
+            CustomMaintenanceType.nome.ilike(nome.strip())
+        )
+    )
+    if existing.scalar_one_or_none():
+        msg = quote_plus(f"O tipo '{nome.strip()}' já está cadastrado.")
+        return RedirectResponse(url=f"/manutencao-preventiva/tipos?error={msg}", status_code=303)
+
+    new_type = CustomMaintenanceType(
+        nome=nome.strip(),
+        descricao=descricao.strip() if descricao else None,
+        criado_em=now_sp()
+    )
+    db.add(new_type)
+    await db.commit()
+
+    msg = quote_plus(f"Tipo '{nome.strip()}' criado com sucesso!")
+    return RedirectResponse(url=f"/manutencao-preventiva/tipos?success={msg}", status_code=303)
+
+
+@router.post("/tipos/{tipo_id}/delete")
+async def delete_maintenance_type(
+    tipo_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """Exclui um tipo de manutenção customizado."""
+    from app.models.preventive_maintenance import CustomMaintenanceType
+    from urllib.parse import quote_plus
+
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
+        return RedirectResponse(url="/manutencao-preventiva/tipos?error=Sem+permissão", status_code=303)
+
+    tipo = await db.get(CustomMaintenanceType, tipo_id)
+    if not tipo:
+        return RedirectResponse(url="/manutencao-preventiva/tipos?error=Tipo+não+encontrado", status_code=303)
+
+    await db.delete(tipo)
+    await db.commit()
+
+    msg = quote_plus(f"Tipo '{tipo.nome}' excluído com sucesso.")
+    return RedirectResponse(url=f"/manutencao-preventiva/tipos?success={msg}", status_code=303)
+
+
+@router.post("/tipos/{tipo_id}/edit")
+async def edit_maintenance_type(
+    tipo_id: int,
+    request: Request,
+    nome: Annotated[str, Form()],
+    descricao: Annotated[Optional[str], Form()] = None,
+    current_user: Annotated[User, Depends(get_active_user_web)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None
+):
+    """Edita um tipo de manutenção customizado."""
+    from app.models.preventive_maintenance import CustomMaintenanceType
+    from urllib.parse import quote_plus
+
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
+        return RedirectResponse(url="/manutencao-preventiva/tipos?error=Sem+permissão", status_code=303)
+
+    tipo = await db.get(CustomMaintenanceType, tipo_id)
+    if not tipo:
+        return RedirectResponse(url="/manutencao-preventiva/tipos?error=Tipo+não+encontrado", status_code=303)
+
+    nome_upper = nome.strip().upper()
+    
+    # Check for duplicates in custom types (excluding the current one)
+    existing = await db.execute(
+        select(CustomMaintenanceType).filter(
+            CustomMaintenanceType.nome.ilike(nome.strip()),
+            CustomMaintenanceType.id != tipo_id
+        )
+    )
+    if existing.scalar_one_or_none():
+        msg = quote_plus(f"O tipo '{nome.strip()}' já está cadastrado.")
+        return RedirectResponse(url=f"/manutencao-preventiva/tipos?error={msg}", status_code=303)
+
+    tipo.nome = nome.strip()
+    tipo.descricao = descricao.strip() if descricao else None
+    
+    await db.commit()
+
+    msg = quote_plus(f"Tipo '{tipo.nome}' atualizado com sucesso!")
+    return RedirectResponse(url=f"/manutencao-preventiva/tipos?success={msg}", status_code=303)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Relatório PDF por Técnico
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/relatorios/tecnico/{tecnico_id}/pdf")
+async def tecnico_report_pdf(
+    tecnico_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    data_inicio: Optional[str] = None,
+    data_fim: Optional[str] = None
+):
+    """Gera PDF completo de desempenho de um técnico específico."""
+    from weasyprint import HTML
+    from fastapi.responses import Response as FastResponse
+    from app.models.preventive_maintenance import MaintenanceExecution, MaintenanceMaterial, MaintenanceChecklistItem
+
+    # Datas
+    if data_inicio:
+        dt_inicio = datetime.fromisoformat(data_inicio)
+    else:
+        from datetime import timedelta
+        dt_inicio = now_sp() - timedelta(days=30)
+        dt_inicio = dt_inicio.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    if data_fim:
+        dt_fim = datetime.fromisoformat(data_fim).replace(hour=23, minute=59, second=59)
+    else:
+        dt_fim = now_sp().replace(hour=23, minute=59, second=59)
+
+    # Buscar técnico
+    tecnico_result = await db.execute(select(User).filter(User.id == tecnico_id))
+    tecnico = tecnico_result.scalar_one_or_none()
+    if not tecnico:
+        raise HTTPException(status_code=404, detail="Técnico não encontrado")
+
+    # Buscar ordens do técnico no período
+    from sqlalchemy.orm import selectinload
+    from app.models.asset import Asset
+    os_stmt = (
+        select(MaintenanceOrder)
+        .options(
+            selectinload(MaintenanceOrder.asset),
+            selectinload(MaintenanceOrder.tecnico),
+            selectinload(MaintenanceOrder.executions).selectinload(MaintenanceExecution.checklist_item),
+            selectinload(MaintenanceOrder.materials),
+        )
+        .filter(MaintenanceOrder.tecnico_id == tecnico_id)
+        .filter(MaintenanceOrder.data_abertura >= dt_inicio)
+        .filter(MaintenanceOrder.data_abertura <= dt_fim)
+        .order_by(MaintenanceOrder.data_abertura.desc())
+    )
+    os_result = await db.execute(os_stmt)
+    ordens = os_result.scalars().all()
+
+    # KPIs
+    concluidas = [o for o in ordens if o.status == OrderStatus.CONCLUIDA]
+    total_os = len(ordens)
+    tempo_medio = 0.0
+    custo_total = 0.0
+    if concluidas:
+        tempos = [o.tempo_total_minutos for o in concluidas if o.tempo_total_minutos]
+        tempo_medio = sum(tempos) / len(tempos) if tempos else 0.0
+        custo_total = sum(float(o.custo_total or 0) for o in concluidas)
+
+    # Checklists
+    checklist_data = []
+    total_checklist_items = 0
+    total_checklist_concluidos = 0
+    for os in ordens:
+        for exec in os.executions:
+            total_checklist_items += 1
+            if exec.concluido:
+                total_checklist_concluidos += 1
+            checklist_data.append({
+                "ordem_numero": os.numero,
+                "descricao": exec.checklist_item.descricao if exec.checklist_item else "—",
+                "obrigatorio": exec.checklist_item.obrigatorio if exec.checklist_item else False,
+                "concluido": exec.concluido,
+                "observacao": exec.observacao,
+                "data_execucao": exec.data_execucao,
+            })
+
+    # Materiais
+    materiais_data = []
+    for os in ordens:
+        for mat in os.materials:
+            materiais_data.append({
+                "ordem_numero": os.numero,
+                "produto": mat.produto,
+                "quantidade": float(mat.quantidade),
+                "valor_unitario": float(mat.valor_unitario),
+                "valor_total": float(mat.valor_total),
+                "observacao": mat.observacao,
+            })
+
+    html_content = templates.get_template("preventive_maintenance/tecnico_report_pdf.html").render({
+        "request": request,
+        "tecnico": tecnico,
+        "ordens": ordens,
+        "checklist_data": checklist_data,
+        "materiais_data": materiais_data,
+        "total_os": total_os,
+        "tempo_medio": tempo_medio,
+        "custo_total": custo_total,
+        "total_checklist_items": total_checklist_items,
+        "total_checklist_concluidos": total_checklist_concluidos,
+        "data_inicio": dt_inicio.strftime("%d/%m/%Y"),
+        "data_fim": dt_fim.strftime("%d/%m/%Y"),
+        "generated_at": now_sp().strftime("%d/%m/%Y %H:%M"),
+    })
+
+    pdf_bytes = HTML(string=html_content, base_url=str(request.base_url)).write_pdf()
+    filename = f"Relatorio_Tecnico_{tecnico.nome.replace(' ', '_')}_{now_sp().strftime('%Y%m%d')}.pdf"
+
+    return FastResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

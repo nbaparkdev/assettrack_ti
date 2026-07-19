@@ -60,8 +60,14 @@
                     <label class="block text-xs font-bold uppercase tracking-widest text-black">Tipo de Manutenção</label>
                     <select name="tipo" required
                         class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-black font-mono text-sm uppercase">
-                        {% for mt in maintenance_types %}
-                        <option value="{{ mt }}" {{ 'selected' if order.tipo.value == mt else '' }}>{{ mt }}</option>
+                        {% for ct in custom_types %}
+                        {% set is_selected = false %}
+                        {% if order.tipo.value == ct.nome %}
+                            {% set is_selected = true %}
+                        {% elif order.tipo.value == 'personalizada' and ('[TIPO: ' ~ ct.nome ~ ']') in order.observacoes %}
+                            {% set is_selected = true %}
+                        {% endif %}
+                        <option value="custom:{{ ct.nome }}" {{ 'selected' if is_selected else '' }}>{{ ct.nome|title }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -121,7 +127,7 @@
                 <label class="block text-xs font-bold uppercase tracking-widest text-black">Descrição / Observações</label>
                 <textarea name="observacoes" rows="6" required
                     placeholder="Detalhes ou problemas identificados no ativo..."
-                    class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-black font-mono text-sm">{{ order.observacoes }}</textarea>
+                    class="w-full border-2 border-black rounded-none px-4 py-3 focus:ring-0 focus:border-black font-mono text-sm">{{ cleaned_obs }}</textarea>
             </div>
         </div>
 

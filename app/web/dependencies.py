@@ -52,7 +52,7 @@ async def get_active_user_web(
     if isinstance(user.role, str):
         from app.models.user import UserRole
         try:
-            user.role = UserRole(user.role)
+            user.role = UserRole(user.role.lower())
         except ValueError:
             pass
             

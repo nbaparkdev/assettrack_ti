@@ -52,7 +52,7 @@
         <div class="flex-1 space-y-2">
             <h3 class="font-black uppercase text-amber-900 tracking-wider text-sm">Status Atual: Em Manutenção</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm font-mono text-amber-900/80">
-                <p><span class="font-bold opacity-50">TIPO:</span> {{ manutencao.tipo.value|upper }}</p>
+                <p><span class="font-bold opacity-50">TIPO:</span> {{ manutencao.display_tipo|upper }}</p>
                 <p><span class="font-bold opacity-50">ENTRADA:</span> {{ manutencao.data_entrada.strftime('%d/%m/%Y') }}
                 </p>
                 <p class="md:col-span-2 pt-2 border-t border-amber-200 mt-2"><span class="font-bold opacity-50">MOTIVO

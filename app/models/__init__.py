@@ -27,7 +27,8 @@ from app.models.preventive_maintenance import (
     MaintenancePriority,
     MaintenanceCriticality,
     OrderStatus,
-    PhotoType
+    PhotoType,
+    CustomMaintenanceType
 )
 from app.models.system_settings import SystemSettings
 from app.models.procurement import (

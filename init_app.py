@@ -71,6 +71,27 @@ async def create_admin_user():
             print("   Senha: admin")
 
 
+async def seed_maintenance_types():
+    print("🔧 Semeando tipos de manutenção padrão...")
+    from app.models.preventive_maintenance import CustomMaintenanceType, MaintenanceType
+    from app.core.datetime_utils import now_sp
+    from sqlalchemy.ext.asyncio import AsyncSession
+    
+    async with AsyncSession(engine) as db:
+        result = await db.execute(select(CustomMaintenanceType))
+        if not result.scalars().first():
+            for mt in MaintenanceType:
+                db.add(CustomMaintenanceType(
+                    nome=mt.value,
+                    descricao="Tipo padrão do sistema",
+                    criado_em=now_sp()
+                ))
+            await db.commit()
+            print("✅ Tipos de manutenção padrão semeados!")
+        else:
+            print("ℹ️ Tipos de manutenção já existem, pulando semeadura.")
+
+
 async def main():
     print("=" * 50)
     print("  AssetTrack TI - Inicialização do Sistema")
@@ -81,6 +102,8 @@ async def main():
         await init_database()
         print()
         await create_admin_user()
+        print()
+        await seed_maintenance_types()
         print()
         print("=" * 50)
         print("  ✅ Inicialização concluída com sucesso!")
