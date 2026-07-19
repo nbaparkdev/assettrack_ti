@@ -140,6 +140,12 @@ except Exception:
 done
 
 # ==========================================
+# Sincronizar Banco de Dados
+# ==========================================
+echo "👤 Sincronizando banco de dados (Garantindo tabelas e seeds)..."
+$COMPOSE_CMD exec -T web python init_app.py || echo "⚠️ Aviso: Falha ao rodar init_app.py, mas a atualização continuará."
+
+# ==========================================
 # Limpeza segura
 # ==========================================
 echo "🧹 Limpando imagens antigas..."

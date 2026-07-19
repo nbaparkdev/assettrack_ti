@@ -144,6 +144,19 @@ async def export_backup(
                             json_str = json.dumps(v, ensure_ascii=False)
                             escaped = json_str.replace("'", "''")
                             vals.append(f"'{escaped}'")
+                        elif isinstance(v, str):
+                            if (v.startswith("[") and v.endswith("]")) or (v.startswith("{") and v.endswith("}")):
+                                try:
+                                    json.loads(v)
+                                except json.JSONDecodeError:
+                                    try:
+                                        import ast
+                                        parsed = ast.literal_eval(v)
+                                        v = json.dumps(parsed, ensure_ascii=False)
+                                    except Exception:
+                                        pass
+                            escaped = v.replace("'", "''")
+                            vals.append(f"'{escaped}'")
                         else:
                             escaped = str(v).replace("'", "''")
                             vals.append(f"'{escaped}'")
