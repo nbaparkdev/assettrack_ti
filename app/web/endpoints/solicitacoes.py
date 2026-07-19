@@ -174,7 +174,31 @@ async def approve_solicitacao(
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/solicitacoes", status_code=303)
 
-    await transaction_crud.solicitacao.approve(db, solicitacao_id=solicitacao_id, aprovador_id=current_user.id)
+    sol = await transaction_crud.solicitacao.approve(db, solicitacao_id=solicitacao_id, aprovador_id=current_user.id)
+    if sol:
+        # Load asset and requester to check and notify
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
+        
+        stmt = select(Solicitacao).options(
+            selectinload(Solicitacao.asset),
+            selectinload(Solicitacao.solicitante)
+        ).filter(Solicitacao.id == solicitacao_id)
+        res = await db.execute(stmt)
+        sol_loaded = res.scalar_one_or_none()
+        
+        if sol_loaded and sol_loaded.asset and sol_loaded.asset.requer_termo_rh:
+            try:
+                from app.services.notification_service import notification_service
+                await notification_service.notify_rh_ready_asset(
+                    db=db,
+                    solicitacao_id=sol_loaded.id,
+                    asset_name=sol_loaded.asset.nome,
+                    requester_name=sol_loaded.solicitante.nome if sol_loaded.solicitante else "Colaborador"
+                )
+            except Exception as e:
+                print(f"[NOTIFICATION][ERR] Falha ao notificar RH para termo: {e}")
+
     return RedirectResponse(url="/solicitacoes", status_code=303)
 
 @router.post("/{solicitacao_id}/reject", response_class=HTMLResponse)

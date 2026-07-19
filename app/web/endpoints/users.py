@@ -29,6 +29,40 @@ async def list_users(
     result = await db.execute(select(User).order_by(User.nome))
     users = result.scalars().all()
     
+    # Dynamic Debug Logging
+    try:
+        import os
+        from app.models.asset import Asset
+        from app.models.transaction import Solicitacao
+        
+        # Fetch all assets
+        assets_res = await db.execute(select(Asset).order_by(Asset.id))
+        all_assets = assets_res.scalars().all()
+        
+        # Fetch all solicitations
+        sols_res = await db.execute(select(Solicitacao).options(selectinload(Solicitacao.asset), selectinload(Solicitacao.solicitante)).order_by(Solicitacao.id))
+        all_sols = sols_res.scalars().all()
+
+        debug_path = "/code/app/users_debug.txt" if os.path.exists("/code/app") else "app/users_debug.txt"
+        with open(debug_path, "w") as f:
+            f.write(f"DYNAMIC DUMP - TOTAL USERS: {len(users)}\n")
+            for u in users:
+                role_str = u.role.value if hasattr(u.role, 'value') else str(u.role)
+                f.write(f"ID: {u.id} | Nome: {u.nome} | Email: {u.email} | Role: {role_str} | Is Active: {u.is_active} | Matricula: {u.matricula!r} | Cargo: {u.cargo!r}\n")
+            
+            f.write(f"\nDYNAMIC DUMP - TOTAL ASSETS: {len(all_assets)}\n")
+            for a in all_assets:
+                f.write(f"ID: {a.id} | Nome: {a.nome} | Patrimônio: {a.e_patrimonio} | Status: {a.status} | Requer Termo RH: {a.requer_termo_rh}\n")
+                
+            f.write(f"\nDYNAMIC DUMP - TOTAL SOLICITATIONS: {len(all_sols)}\n")
+            for s in all_sols:
+                asset_name = s.asset.nome if s.asset else "None"
+                solicitante_nome = s.solicitante.nome if s.solicitante else "None"
+                f.write(f"ID: {s.id} | Solicitante: {solicitante_nome} | Asset: {asset_name} (ID: {s.asset_id}) | Status: {s.status.value if hasattr(s.status, 'value') else s.status}\n")
+                
+    except Exception as e:
+        print(f"[DEBUG][ERR] Failed to write users_debug.txt: {e}")
+
     return templates.TemplateResponse("users.html", {
         "request": request,
         "user": admin,
@@ -59,6 +93,7 @@ async def edit_user_form(
 
 @router.post("/{user_id}/edit")
 async def update_user(
+    request: Request,
     user_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     admin: Annotated[User, Depends(require_admin)],

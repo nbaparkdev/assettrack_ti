@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from app.database import engine, Base
 from app.models import User
-from sqlalchemy import select
+from sqlalchemy import select, text
 from passlib.context import CryptContext
 
 
@@ -17,6 +17,18 @@ async def init_database():
     # Criar todas as tabelas (incluindo as de Manutenção Preventiva)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Garantir que a coluna requer_termo_rh existe na tabela assets
+        try:
+            await conn.execute(text("ALTER TABLE assets ADD COLUMN requer_termo_rh BOOLEAN DEFAULT FALSE"))
+            print("🔧 Adicionada coluna 'requer_termo_rh' na tabela 'assets'...")
+        except Exception:
+            try:
+                await conn.execute(text("ALTER TABLE assets ADD COLUMN requer_termo_rh BOOLEAN DEFAULT 0"))
+                print("🔧 Adicionada coluna 'requer_termo_rh' na tabela 'assets' (fallback)...")
+            except Exception:
+                # Coluna já existe ou outra exceção ignorável
+                pass
     
     print("✅ Tabelas criadas!")
 

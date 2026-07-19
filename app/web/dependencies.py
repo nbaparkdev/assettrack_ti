@@ -48,6 +48,14 @@ async def get_active_user_web(
         raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/login"})
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+        
+    if isinstance(user.role, str):
+        from app.models.user import UserRole
+        try:
+            user.role = UserRole(user.role)
+        except ValueError:
+            pass
+            
     return user
 
 from app.crud.system_settings import system_settings

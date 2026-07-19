@@ -30,6 +30,7 @@ class Asset(Base):
     numero_serie: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
     em_posse_de: Mapped[str | None] = mapped_column(String, nullable=True)
     bloqueado: Mapped[bool] = mapped_column(Boolean, default=False)
+    requer_termo_rh: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Categoria
     categoria_id: Mapped[int | None] = mapped_column(ForeignKey("asset_categories.id"), nullable=True)

@@ -59,6 +59,7 @@ Credenciais sugeridas para teste:
 | Perfil | Email | Senha | Acesso |
 | :--- | :--- | :--- | :--- |
 | **Admin** | `admin@example.com` | `admin` | Total (Configurações, Usuários, Ativos) |
+| **RH** | `rh@example.com` | `123` | Emissão e gestão de Termos de Responsabilidade |
 | **Técnico** | `tecnico@example.com` | `123` | Operacional (Manutenções e Devoluções) |
 
 ### Gerenciar usuários via terminal (Docker)
@@ -151,12 +152,25 @@ Sistema completo de suprimentos integrado ao AssetTrack TI, permitindo ciclo pon
 
 ---
 
+## 🤝 Recursos Humanos (RH) e Termos de Responsabilidade
+
+Módulo dedicado à emissão e controle legal da entrega de ativos aos colaboradores.
+
+| Recurso | Descrição |
+| :--- | :--- |
+| **Emissão de Termos** | Geração automática de Termos de Responsabilidade (PDF) a partir de solicitações de ativos concluídas. |
+| **Gestão de Aceite** | Controle do status de assinatura pelo colaborador (Pendente/Assinado). |
+| **Armazenamento Seguro** | Upload do documento físico digitalizado (PDF ou Imagem) diretamente no sistema. |
+| **Visão Simplificada** | Usuários do perfil `RH` enxergam uma interface amigável e restrita (similar ao usuário comum), sem os menus técnicos complexos da TI. |
+
+---
+
 ## 🎛️ Gerenciador de Módulos e Controle de Acessos (RBAC Dinâmico)
 
 O sistema possui uma arquitetura modular e flexível que permite ao administrador gerenciar tanto os recursos globais quanto as permissões específicas de visualização de menus por perfil, diretamente pela interface e em tempo real:
 
 - **Habilitação de Recursos Globais:** Ativação/desativação sob demanda dos módulos de **Manutenção Preventiva** e **Compras**, ocultando rotas e menus associados.
-- **Controle de Acessos por Menu (Matriz RBAC):** Uma grade de controle onde o administrador define quais perfis de acesso (`ADMIN`, `GERENTE_TI`, `GERENTE_INFRA`, `TECNICO`, `COMPRADOR`, `USUARIO_COMUM`) podem visualizar e acessar cada menu da aplicação (`Ativos`, `Fornecedores`, `Manutenção`, `Tickets`, `Compras`, `Relatórios`, `Usuários`, `Backup`).
+- **Controle de Acessos por Menu (Matriz RBAC):** Uma grade de controle onde o administrador define quais perfis de acesso (`ADMIN`, `GERENTE_TI`, `GERENTE_INFRA`, `TECNICO`, `COMPRADOR`, `RH`, `USUARIO_COMUM`) podem visualizar e acessar cada menu da aplicação (`Ativos`, `Fornecedores`, `Manutenção`, `Tickets`, `Compras`, `Termos RH`, `Relatórios`, `Usuários`, `Backup`).
 - **Trava de Segurança:** O perfil `Administrador` possui permissões garantidas e travadas para leitura em todos os módulos, evitando bloqueios acidentais.
 - **Acesso:** Painel administrativo em `/admin/modulos`.
 

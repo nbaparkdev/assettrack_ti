@@ -13,6 +13,7 @@ class UserRole(str, Enum):
     GERENTE_INFRA = "gerente_infra"
     COMPRADOR = "comprador"
     USUARIO = "usuario_comum"
+    RH = "rh"
 
 class User(Base):
     __tablename__ = "users"

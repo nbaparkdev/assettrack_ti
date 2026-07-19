@@ -14,8 +14,8 @@ async def help_page(
     """
     Renderiza a página de ajuda baseada no perfil do usuário.
     """
-    # Se for usuario comum, renderiza help/user.html (Manual Reduzido)
-    if current_user.role == UserRole.USUARIO:
+    # Se for usuario comum ou RH, renderiza help/user.html (Manual Reduzido)
+    if current_user.role in [UserRole.USUARIO, UserRole.RH]:
         return templates.TemplateResponse(
             "help/user.html", 
             {"request": request, "user": current_user, "title": "Ajuda"}

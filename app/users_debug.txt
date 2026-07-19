@@ -1,0 +1,4 @@
+TOTAL USERS IN DB: 3
+ID: 1 | Nome: Administrador | Email: admin@example.com | Role: admin | Is Active: True | Matricula: 'AAAA001' | Cargo: 'Super Admin'
+ID: 2 | Nome: Ana Karina | Email: anakarina@nba.com | Role: usuario_comum | Is Active: True | Matricula: '132' | Cargo: 'Gerente RH'
+ID: 5 | Nome: Graziela | Email: graziela@nba.com | Role: rh | Is Active: True | Matricula: '00011' | Cargo: 'RH'

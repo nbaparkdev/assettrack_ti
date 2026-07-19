@@ -56,6 +56,7 @@ from app.models.procurement import (
 )
 from app.models.email_log import EmailLog
 from app.models.aviso import Aviso
+from app.models.termo_responsabilidade import TermoResponsabilidade
 from app.database import Base
 
 

@@ -23,6 +23,7 @@ class AssetBase(BaseModel):
     numero_serie: Optional[str] = None
     em_posse_de: Optional[str] = None
     bloqueado: bool = False
+    requer_termo_rh: bool = False
 
     categoria_id: Optional[int] = None
     created_by_id: Optional[int] = None
@@ -48,6 +49,7 @@ class AssetUpdate(BaseModel):
     numero_serie: Optional[str] = None
     em_posse_de: Optional[str] = None
     bloqueado: Optional[bool] = None
+    requer_termo_rh: Optional[bool] = None
     fornecedor_id: Optional[int] = None
     nota_fiscal_id: Optional[int] = None
     foto_path: Optional[str] = None

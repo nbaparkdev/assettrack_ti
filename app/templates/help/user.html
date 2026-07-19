@@ -136,6 +136,24 @@
                 </div>
             </div>
         </div>
-    </div>
+        
+        {% if (user.role.value or user.role)|lower == 'rh' %}
+        <!-- Card 5: RH -->
+        <div class="border-2 border-gray-200 p-6 hover:border-black transition group relative bg-white">
+            <div class="absolute top-0 right-0 bg-pink-600 text-white text-[10px] uppercase font-bold px-2 py-1">Documentos
+            </div>
+            <div class="text-4xl mb-4 text-pink-600">🤝</div>
+            <h3 class="font-bold text-xl uppercase mb-2 group-hover:underline">11. Recursos Humanos (RH)</h3>
+            <p class="text-sm text-gray-500 mb-6">Emissão e controle de termos de responsabilidade de equipamentos.</p>
+
+            <div class="bg-gray-50 p-4 border border-gray-100 text-sm space-y-3">
+                <ol class="list-decimal list-inside space-y-2">
+                    <li>Acesse <strong>"Recursos Humanos > Termos RH"</strong>.</li>
+                    <li>Emita o termo a partir de uma solicitação de entrega concluída.</li>
+                    <li>O colaborador assina e você faz upload do PDF/Imagem.</li>
+                </ol>
+            </div>
+        </div>
+        {% endif %}
 </div>
 {% endblock %}

@@ -39,3 +39,7 @@ from app.web.endpoints import admin_notifications
 web_router.include_router(admin_notifications.router, tags=["web_admin_notifications"])
 from app.web.endpoints import avisos
 web_router.include_router(avisos.router, tags=["web_avisos"])
+
+from app.web.endpoints import rh
+web_router.include_router(rh.router, prefix="/rh", tags=["web_rh"])
+

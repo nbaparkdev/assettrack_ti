@@ -122,8 +122,10 @@ async def dashboard(
                 })
         context["expiring_contracts"] = expiring_contracts_data
 
-        # Pending Users to Approve
-        pending_users_result = await db.execute(select(User).filter(User.is_active == False))
+        # Pending Users to Approve (handles both False and None/NULL)
+        pending_users_result = await db.execute(
+            select(User).filter((User.is_active == False) | (User.is_active.is_(None)))
+        )
         context["pending_users_list"] = pending_users_result.scalars().all()
 
         # Recent Deliveries (Last 5)

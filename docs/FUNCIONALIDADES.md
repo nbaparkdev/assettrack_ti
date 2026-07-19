@@ -11,7 +11,7 @@
 | **Login Tradicional** | Autenticação com email/senha e JWT. |
 | **Login via QR** | Autenticação rápida com Crachá Digital + PIN. |
 | **Meu QR Code** | Cada usuário possui um QR Code único para identificação e login. |
-| **Níveis de Acesso** | `ADMIN`, `GERENTE_TI`, `GERENTE_INFRA`, `TECNICO`, `USUARIO`. |
+| **Níveis de Acesso** | `ADMIN`, `GERENTE_TI`, `GERENTE_INFRA`, `TECNICO`, `RH`, `USUARIO`. |
 
 ---
 
@@ -72,6 +72,17 @@ Módulo completo integrado de suprimentos cobrindo do pedido ao recebimento.
 - **Pedidos de Compra (PO):** Emissão de pedidos formais de compra e monitoramento de entrega.
 - **Recebimento e Integração Patrimonial:** A entrada de itens físicos atualiza o estoque simples e cadastra automaticamente novos Ativos no inventário de TI.
 - **Gestão de Contratos:** Controle de prazos de validade com alertas visuais no painel geral, opções completas de edição/exclusão de registros, e armazenamento de PDFs de contratos e termos de garantia.
+
+---
+
+## 🤝 Recursos Humanos (RH) e Termos de Responsabilidade
+
+Módulo desenhado para fechar o ciclo de entrega de equipamentos, oferecendo respaldo legal.
+
+- **Fluxo Simplificado:** Usuários do perfil `RH` têm acesso a uma interface amigável (similar à do usuário comum), isolando a complexidade dos módulos técnicos da TI.
+- **Emissão Automática:** Geração instantânea de Termos de Responsabilidade em PDF a partir de tickets e solicitações concluídas de entrega de ativos.
+- **Gestão de Assinaturas:** Controle visual do status dos termos (Pendente de Assinatura vs. Assinado).
+- **Armazenamento de Comprovantes:** Upload de arquivos PDF ou imagens do documento físico assinado pelo colaborador, mantendo tudo centralizado.
 
 ---
 

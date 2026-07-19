@@ -181,6 +181,7 @@ async def create_asset(
     current_local_id: Annotated[Optional[str], Form()] = None,
     em_posse_de: Annotated[Optional[str], Form()] = None,
     bloqueado: Annotated[Optional[str], Form()] = None,
+    requer_termo_rh: Annotated[Optional[str], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
@@ -190,6 +191,7 @@ async def create_asset(
         def to_int(v: str | None) -> int | None:
             return int(v) if v and v.strip() else None
         bloqueado_flag = bloqueado is not None and bloqueado.strip() == 'true'
+        requer_termo_rh_flag = requer_termo_rh is not None and requer_termo_rh.strip() == 'true'
 
         # Handle empty strings from form
         dt_aquisicao = None
@@ -231,6 +233,7 @@ async def create_asset(
             current_local_id=to_int(current_local_id),
             em_posse_de=em_posse_de if em_posse_de else None,
             bloqueado=bloqueado_flag,
+            requer_termo_rh=requer_termo_rh_flag,
             foto_path=foto_path,
             created_by_id=current_user.id if current_user else None,
             status=AssetStatus.DISPONIVEL
@@ -675,6 +678,7 @@ async def update_asset(
     current_local_id: Annotated[Optional[str], Form()] = None,
     em_posse_de: Annotated[Optional[str], Form()] = None,
     bloqueado: Annotated[Optional[str], Form()] = None,
+    requer_termo_rh: Annotated[Optional[str], Form()] = None,
     foto: Annotated[Optional[UploadFile], File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
@@ -691,6 +695,7 @@ async def update_asset(
         def to_int(v: str | None) -> int | None:
             return int(v) if v and v.strip() else None
         bloqueado_flag = bloqueado is not None and bloqueado.strip() == 'true'
+        requer_termo_rh_flag = requer_termo_rh is not None and requer_termo_rh.strip() == 'true'
 
         # Handle empty strings from form
         dt_aquisicao = None
@@ -736,6 +741,7 @@ async def update_asset(
             current_local_id=to_int(current_local_id),
             em_posse_de=em_posse_de if em_posse_de else None,
             bloqueado=bloqueado_flag,
+            requer_termo_rh=requer_termo_rh_flag,
             status=novo_status,
             foto_path=foto_path
         )

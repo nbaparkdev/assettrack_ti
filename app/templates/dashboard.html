@@ -16,7 +16,7 @@
     </div>
 
     <!-- Admin/Tech Dashboard -->
-    {% if user.role.value|lower != 'usuario_comum' %}
+    {% if user.role.value|lower not in ['usuario_comum', 'rh'] %}
     
     <!-- Alerts -->
     {% if stats.pending_maintenance > 0 and user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] %}
@@ -240,7 +240,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
         <!-- Pending Users -->
-        {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
+        {% if (user.role.value or user.role)|lower in ['admin', 'gerente_ti', 'gerente_infra'] %}
         <div>
             <div class="flex items-center justify-between mb-4">
                 <h3 class="font-bold text-lg uppercase flex items-center gap-2">

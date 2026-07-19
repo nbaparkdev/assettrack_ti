@@ -157,12 +157,15 @@ async def register_submit(
         from app.schemas.user import UserCreate
         from app.models.user import UserRole
         
+        matricula_val = matricula.strip() if (matricula and matricula.strip()) else None
+        cargo_val = cargo.strip() if (cargo and cargo.strip()) else None
+
         user_in = UserCreate(
             nome=nome,
             email=email,
             password=password,
-            matricula=matricula,
-            cargo=cargo,
+            matricula=matricula_val,
+            cargo=cargo_val,
             role=UserRole(role)
         )
         await user_crud.user.create(db, obj_in=user_in)

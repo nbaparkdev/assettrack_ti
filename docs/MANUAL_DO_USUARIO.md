@@ -108,6 +108,7 @@ Mantenha o cadastro de fornecedores organizado e vinculado aos ativos.
 - **USUARIO:** Consulta seus ativos sob sua guarda, abre chamados de suporte e solicita manutenções.
 - **TECNICO:** Atende chamados no Service Desk, gerencia ordens de manutenção e realiza a entrega/devolução física de ativos via scanner QR.
 - **COMPRADOR:** Perfil focado em suprimentos. Realiza cotações, emite Pedidos de Compra (PO), gerencia fornecedores e faz o recebimento físico/estoque.
+- **RH:** Perfil administrativo simplificado focado na emissão e gestão de aceite de Termos de Responsabilidade para os ativos entregues.
 - **GERENTE_TI:** Aprova solicitações de ativos, gerencia o inventário técnico e administra usuários.
 - **GERENTE_INFRA:** Gestão do inventário geral de infraestrutura, contratos de fornecedores e categorias.
 - **ADMIN:** Controle absoluto e irrestrito sobre todas as configurações do sistema (System Owner).
@@ -136,3 +137,14 @@ Os administradores têm controle total sobre as seções de menu da aplicação 
 3. **Matriz de Permissões de Menu:** Abaixo dos módulos, use a tabela para conceder ou revogar o acesso de visualização de cada menu principal (Ex: *Ativos*, *Compras*, *Backup*, *Usuários*) para cada Perfil de Acesso do sistema.
 4. Clique em **Salvar Configurações** para aplicar instantaneamente na interface de todos os usuários.
 5. *Nota de segurança:* O perfil do Administrador é travado com acesso completo a tudo por padrão para prevenir bloqueios permanentes acidentais.
+
+---
+
+## 🤝 12. Recursos Humanos (RH) e Termos de Responsabilidade
+
+Para controle legal, o sistema oferece um módulo dedicado à emissão de **Termos de Responsabilidade**.
+
+1. **Emissão (RH):** No menu **Recursos Humanos > Termos RH**, visualize as solicitações de entrega de ativos e emita o documento gerado automaticamente.
+2. **Assinatura e Controle:** O colaborador assina o documento.
+3. **Armazenamento Seguro:** O usuário de RH faz o upload do arquivo digitalizado (PDF ou Imagem) e altera o status para "Assinado", garantindo o histórico digital do aceite.
+4. **Simplificação de Tela:** Usuários com o perfil `RH` acessam uma interface enxuta e objetiva, focando na sua atividade principal sem a complexidade dos módulos de Tecnologia da Informação.

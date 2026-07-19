@@ -286,7 +286,7 @@
                     placeholder="Nome da pessoa utilizando este equipamento">
             </div>
         </div>
-        {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
+        {% if (user.role.value or user.role)|lower in ['admin', 'gerente_ti', 'tecnico', 'gerente_infra'] %}
         <div class="mt-4 p-4 bg-amber-50 border-2 border-amber-300">
             <label class="block text-xs font-bold uppercase text-gray-900 mb-3">Disponibilidade do Ativo</label>
             <input type="hidden" name="bloqueado" id="bloqueado-input" value="{{ 'true' if asset and asset.bloqueado else 'false' }}">
@@ -317,6 +317,18 @@
                 Ativo disponível para empréstimo — usuários podem solicitar.
                 {% endif %}
             </p>
+        </div>
+
+        <!-- Rota de Termo de Responsabilidade do RH -->
+        <div class="mt-4 p-4 bg-blue-50 border-2 border-blue-300">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" name="requer_termo_rh" value="true" class="w-5 h-5 border-2 border-black rounded-none text-blue-600 focus:ring-0"
+                    {% if asset and asset.requer_termo_rh %}checked{% endif %}>
+                <div>
+                    <span class="block text-xs font-bold uppercase text-gray-900">Requer Termo do RH</span>
+                    <span class="block text-[10px] text-gray-500">Se marcado, a entrega do ativo exigirá a assinatura de um termo de responsabilidade gerado pelo RH.</span>
+                </div>
+            </label>
         </div>
         {% endif %}
     </div>

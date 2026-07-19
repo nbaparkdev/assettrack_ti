@@ -96,35 +96,45 @@
                             <span class="block font-mono text-[10px] text-gray-500">M: {{ u.matricula or '---' }}</span>
                         </td>
                         <td class="px-6 py-4">
-                            {% if u.role.value|lower == 'admin' %}
+                            {% if (u.role.value or u.role)|lower == 'admin' %}
                             <span
                                 class="inline-block bg-black text-white px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-black">
                                 [ KEY ] ADMIN
                             </span>
-                            {% elif u.role.value|lower == 'gerente_ti' %}
+                            {% elif (u.role.value or u.role)|lower == 'gerente_ti' %}
                             <span
                                 class="inline-block bg-white text-black px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-black">
                                 [ OPR ] GERENTE TI
                             </span>
-                            {% elif u.role.value|lower == 'gerente_infra' %}
+                            {% elif (u.role.value or u.role)|lower == 'gerente_infra' %}
                             <span
                                 class="inline-block bg-white text-black px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-black">
                                 [ OPR ] GERENTE INFRA
                             </span>
-                            {% elif u.role.value|lower == 'comprador' %}
+                            {% elif (u.role.value or u.role)|lower == 'comprador' %}
                             <span
                                 class="inline-block bg-white text-black px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-black">
                                 [ OPR ] COMPRADOR
                             </span>
-                            {% elif u.role.value|lower == 'tecnico' %}
+                            {% elif (u.role.value or u.role)|lower == 'tecnico' %}
                             <span
                                 class="inline-block bg-gray-100 text-black px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-gray-400">
                                 [ TEC ] TÉCNICO
                             </span>
-                            {% else %}
+                            {% elif (u.role.value or u.role)|lower == 'rh' %}
+                            <span
+                                class="inline-block bg-amber-50 text-amber-800 px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-amber-400">
+                                [ RH ] RECURSOS HUMANOS
+                            </span>
+                            {% elif (u.role.value or u.role)|lower == 'usuario_comum' %}
                             <span
                                 class="inline-block text-gray-500 px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-gray-300">
                                 [ USR ] COMUM
+                            </span>
+                            {% else %}
+                            <span
+                                class="inline-block text-gray-400 px-2 py-1 text-[10px] font-bold font-mono uppercase tracking-widest border border-gray-200">
+                                [ ??? ] {{ (u.role.value or u.role)|upper }}
                             </span>
                             {% endif %}
                         </td>

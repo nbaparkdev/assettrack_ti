@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-10 fade-in py-6">
+    <!-- Header Hero banner -->
+    <div class="bg-[#facc15] border-4 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
+        <div class="absolute right-0 top-0 translate-x-10 -translate-y-10 opacity-10">
+            <svg class="w-80 h-80 text-black" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v-2zm3-4H7v-2h10v-2zm0-4H7V7h10v2z"/>
+            </svg>
+        </div>
+        <div class="relative z-10">
+            <span class="font-mono text-xs text-black font-bold uppercase bg-white border-2 border-black px-3 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">RH_AUDIT_PROTOCOL</span>
+            <h1 class="text-4xl md:text-5xl font-black uppercase tracking-tight mt-4 text-black">Termos de Responsabilidade</h1>
+            <p class="text-black font-mono text-sm max-w-2xl mt-2 font-semibold">
+                Gestão e auditoria documental de ativos sob tutela de colaboradores. Crie, gerencie, edite e exporte termos oficiais para assinatura.
+            </p>
+        </div>
+    </div>
+
+    <!-- Main Workspace Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- Column 1: Pending (4 cols or 5 cols) -->
+        <div class="lg:col-span-5 space-y-6">
+            <div class="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <div class="bg-black text-white p-4 border-b-4 border-black flex items-center justify-between">
+                    <h2 class="text-lg font-black uppercase tracking-wider flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-[#ef4444] inline-block animate-pulse"></span>
+                        Aguardando Termo
+                    </h2>
+                    <span class="font-mono text-xs bg-white text-black font-bold px-2 py-0.5 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        {{ pending_sols|length }}
+                    </span>
+                </div>
+                <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                    {% if not pending_sols %}
+                    <div class="border-2 border-dashed border-gray-300 p-8 text-center bg-gray-50">
+                        <p class="font-mono text-xs text-gray-500 uppercase">Nenhum ativo aguardando termo de responsabilidade no momento.</p>
+                    </div>
+                    {% else %}
+                    {% for sol in pending_sols %}
+                    <div class="bg-white border-3 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all">
+                        <div class="flex justify-between items-start gap-2 mb-3">
+                            <span class="font-mono text-[10px] text-gray-400 font-bold uppercase">Solicitação #{{ sol.id }}</span>
+                            <span class="bg-[#3b82f6] text-white font-mono text-[9px] font-bold px-2 py-0.5 uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                {{ sol.status.value }}
+                            </span>
+                        </div>
+                        <h4 class="text-md font-black uppercase tracking-tight text-black">{{ sol.asset.nome }}</h4>
+                        <p class="text-xs font-mono text-gray-600 mt-1">Patrimônio: <span class="font-bold text-black">{{ sol.asset.e_patrimonio }}</span></p>
+                        
+                        <div class="border-t-2 border-black border-dashed my-3"></div>
+                        
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-gray-400 block uppercase">Solicitante</span>
+                                <span class="text-xs font-bold text-black uppercase">{{ sol.solicitante.nome if sol.solicitante else 'N/A' }}</span>
+                            </div>
+                            <a href="/rh/termos/criar/{{ sol.id }}" 
+                               class="px-3 py-1.5 bg-[#10b981] hover:bg-[#059669] text-white font-mono text-xs font-black uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
+                                Gerar Termo →
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2: Created terms (7 cols) -->
+        <div class="lg:col-span-7 space-y-6">
+            <div class="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <div class="bg-black text-white p-4 border-b-4 border-black flex items-center justify-between">
+                    <h2 class="text-lg font-black uppercase tracking-wider flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-[#10b981] inline-block"></span>
+                        Termos Emitidos
+                    </h2>
+                    <span class="font-mono text-xs bg-white text-black font-bold px-2 py-0.5 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        {{ termos|length }}
+                    </span>
+                </div>
+                
+                <div class="p-6">
+                    {% if not termos %}
+                    <div class="border-2 border-dashed border-gray-300 p-12 text-center bg-gray-50">
+                        <p class="font-mono text-xs text-gray-500 uppercase">Nenhum termo de responsabilidade gerado no histórico.</p>
+                    </div>
+                    {% else %}
+                    <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                        {% for t in termos %}
+                        <div class="bg-white border-3 border-black p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div class="space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono text-[10px] text-gray-400 font-bold uppercase">Termo #{{ t.id }}</span>
+                                    {% if t.status == 'Assinado' %}
+                                    <span class="bg-[#10b981] text-white font-mono text-[9px] font-bold px-2 py-0.5 uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                        Assinado
+                                    </span>
+                                    {% elif t.status == 'Cancelado' %}
+                                    <span class="bg-[#ef4444] text-white font-mono text-[9px] font-bold px-2 py-0.5 uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                        Cancelado
+                                    </span>
+                                    {% else %}
+                                    <span class="bg-[#facc15] text-black font-mono text-[9px] font-bold px-2 py-0.5 uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] animate-pulse">
+                                        Pendente
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <h3 class="text-md font-black uppercase text-black mb-1">
+                                    {{ t.usuario.nome if t.usuario else 'Colaborador' }}
+                                </h3>
+                                <p class="text-xs font-mono text-gray-700">
+                                    💻 Ativo: <span class="font-bold text-black">{{ t.asset.nome }}</span> ({{ t.asset.e_patrimonio }})
+                                </p>
+                                <p class="text-[10px] font-mono text-gray-500 uppercase">
+                                    Criado em: {{ t.data_criacao.strftime("%d/%m/%Y %H:%M") }}
+                                    {% if t.data_assinatura %}
+                                    | Assinado em: {{ t.data_assinatura.strftime("%d/%m/%Y %H:%M") }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
+                                <a href="/rh/termos/{{ t.id }}/pdf" 
+                                   class="px-3 py-1.5 bg-black hover:bg-gray-800 text-white font-mono text-xs font-bold uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center gap-1.5"
+                                   title="Exportar PDF">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                    </svg>
+                                    PDF
+                                </a>
+                                
+                                <a href="/rh/termos/{{ t.id }}/editar" 
+                                   class="px-3 py-1.5 bg-white hover:bg-gray-100 text-black font-mono text-xs font-bold uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+                                   title="Editar Conteúdo">
+                                    Editar
+                                </a>
+                                
+                                {% if t.status == 'Pendente' %}
+                                <form action="/rh/termos/{{ t.id }}/assinar" method="post" class="inline">
+                                    <button type="submit" 
+                                            class="px-3 py-1.5 bg-[#10b981] hover:bg-[#059669] text-white font-mono text-xs font-black uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+                                            onclick="return confirm('Confirmar recebimento do termo assinado?')">
+                                        Confirmar Assinatura
+                                    </button>
+                                </form>
+                                <form action="/rh/termos/{{ t.id }}/cancelar" method="post" class="inline">
+                                    <button type="submit" 
+                                            class="px-2.5 py-1.5 bg-[#ef4444] hover:bg-[#dc2626] text-white font-mono text-xs font-bold uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+                                            onclick="return confirm('Deseja realmente cancelar este termo?')"
+                                            title="Cancelar Termo">
+                                        ✕
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

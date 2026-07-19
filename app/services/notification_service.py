@@ -518,6 +518,52 @@ Acesse /compras/estoque e crie uma nova solicitação de compra para reposição
 
         print(f"[NOTIFICATION] Estoque baixo: '{product_name}' ({saldo_atual}) — {len(compradores)} notificados")
 
+    async def notify_rh_ready_asset(
+        self,
+        db: AsyncSession,
+        solicitacao_id: int,
+        asset_name: str,
+        requester_name: str
+    ):
+        """Notifica equipe de RH que um ativo está pronto para termo de responsabilidade"""
+        if not await self._is_enabled(db, "notify_rh_ready_asset"):
+            return
+            
+        rh_users = await self.get_staff_users(db, roles=[UserRole.RH])
+        if not rh_users:
+            print(f"[NOTIFICATION] Nenhum usuário com perfil RH cadastrado/ativo para receber notificação da solicitação #{solicitacao_id}")
+            return
+            
+        subject = f"📋 Termo de Responsabilidade Requerido: Solicitação #{solicitacao_id}"
+        message = f"""
+Olá equipe de RH,
+
+Um equipamento de TI está pronto para entrega e requer a elaboração e assinatura do Termo de Responsabilidade.
+
+📋 ID Solicitação: #{solicitacao_id}
+💻 Equipamento: {asset_name}
+👤 Colaborador Destinatário: {requester_name}
+
+Acesse o portal do RH (/rh/termos) para redigir o termo, salvar e gerar o PDF para assinatura do colaborador.
+"""
+        notified = []
+        for u in rh_users:
+            if not u.email or "@" not in u.email:
+                continue
+            try:
+                await self.email_service.send_notification(
+                    email_to=u.email,
+                    subject=subject,
+                    message=message,
+                    db=db
+                )
+                notified.append(u.email)
+            except Exception as e:
+                print(f"[NOTIFICATION][ERRO] notify_rh_ready_asset para {u.email}: {e}")
+
+        print(f"[NOTIFICATION] Notificação de Termo RH da solicitação #{solicitacao_id} — {len(notified)} RH notificados: {notified}")
+
+
 
 # Singleton
 notification_service = NotificationService()

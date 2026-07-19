@@ -1,8 +1,9 @@
-from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Form
+from typing import Annotated, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Form, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.web.dependencies import get_active_user_web
@@ -199,3 +200,186 @@ async def deliver_solicitacao_submit(
     )
 
     return RedirectResponse(url="/", status_code=303)
+
+
+# -------------------------------------------------------------------------
+# USER AUDIT & COMPREHENSIVE ACTIVITY HISTORY
+# -------------------------------------------------------------------------
+from fastapi.responses import HTMLResponse
+
+@router.get("/auditoria", response_class=HTMLResponse)
+async def admin_audit_page(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(check_admin_role)],
+    user_id: Optional[int] = None
+):
+    """Página de auditoria para visualizar o histórico completo de um usuário"""
+    # Fetch all active users
+    users_res = await db.execute(
+        select(User).order_by(User.nome)
+    )
+    users = users_res.scalars().all()
+    
+    selected_user = None
+    assets = []
+    movimentacoes = []
+    maintenances = []
+    tickets = []
+    solicitacoes = []
+    
+    if user_id:
+        selected_user = await db.get(User, user_id, options=[selectinload(User.departamento)])
+        if selected_user:
+            # 1. Current assets
+            assets_res = await db.execute(
+                select(Asset)
+                .options(selectinload(Asset.categoria))
+                .filter(Asset.current_user_id == user_id)
+                .order_by(Asset.nome)
+            )
+            assets = assets_res.scalars().all()
+            
+            # 2. History of movements (both from or to this user)
+            from app.models.transaction import Movimentacao
+            movs_res = await db.execute(
+                select(Movimentacao)
+                .options(
+                    selectinload(Movimentacao.asset),
+                    selectinload(Movimentacao.de_user),
+                    selectinload(Movimentacao.para_user)
+                )
+                .filter((Movimentacao.de_user_id == user_id) | (Movimentacao.para_user_id == user_id))
+                .order_by(Movimentacao.data.desc())
+            )
+            movimentacoes = movs_res.scalars().all()
+            
+            # 3. Maintenance requests
+            from app.models.maintenance_request import SolicitacaoManutencao
+            mreqs_res = await db.execute(
+                select(SolicitacaoManutencao)
+                .options(selectinload(SolicitacaoManutencao.asset))
+                .filter(SolicitacaoManutencao.solicitante_id == user_id)
+                .order_by(SolicitacaoManutencao.data_solicitacao.desc())
+            )
+            maintenances = mreqs_res.scalars().all()
+            
+            # 4. Service desk tickets
+            from app.models.service_desk import ServiceTicket
+            tickets_res = await db.execute(
+                select(ServiceTicket)
+                .filter(ServiceTicket.solicitante_id == user_id)
+                .order_by(ServiceTicket.data_abertura.desc())
+            )
+            tickets = tickets_res.scalars().all()
+            
+            # 5. Equipment requests
+            from app.models.transaction import Solicitacao
+            sols_res = await db.execute(
+                select(Solicitacao)
+                .options(selectinload(Solicitacao.asset))
+                .filter(Solicitacao.solicitante_id == user_id)
+                .order_by(Solicitacao.data_solicitacao.desc())
+            )
+            solicitacoes = sols_res.scalars().all()
+
+    return templates.TemplateResponse("admin/auditoria.html", {
+        "request": request,
+        "user": current_user,
+        "users": users,
+        "selected_user": selected_user,
+        "assets": assets,
+        "movimentacoes": movimentacoes,
+        "maintenances": maintenances,
+        "tickets": tickets,
+        "solicitacoes": solicitacoes,
+        "title": "Auditoria de Usuário"
+    })
+
+
+@router.get("/auditoria/{user_id}/pdf")
+async def admin_audit_pdf(
+    user_id: int,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(check_admin_role)]
+):
+    """Gera um PDF detalhado da auditoria completa do usuário"""
+    from weasyprint import HTML
+    
+    selected_user = await db.get(User, user_id, options=[selectinload(User.departamento)])
+    if not selected_user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        
+    # Fetch same data
+    # 1. Current assets
+    assets_res = await db.execute(
+        select(Asset)
+        .options(selectinload(Asset.categoria))
+        .filter(Asset.current_user_id == user_id)
+        .order_by(Asset.nome)
+    )
+    assets = assets_res.scalars().all()
+    
+    # 2. History of movements
+    from app.models.transaction import Movimentacao
+    movs_res = await db.execute(
+        select(Movimentacao)
+        .options(
+            selectinload(Movimentacao.asset),
+            selectinload(Movimentacao.de_user),
+            selectinload(Movimentacao.para_user)
+        )
+        .filter((Movimentacao.de_user_id == user_id) | (Movimentacao.para_user_id == user_id))
+        .order_by(Movimentacao.data.desc())
+    )
+    movimentacoes = movs_res.scalars().all()
+    
+    # 3. Maintenance requests
+    from app.models.maintenance_request import SolicitacaoManutencao
+    mreqs_res = await db.execute(
+        select(SolicitacaoManutencao)
+        .options(selectinload(SolicitacaoManutencao.asset))
+        .filter(SolicitacaoManutencao.solicitante_id == user_id)
+        .order_by(SolicitacaoManutencao.data_solicitacao.desc())
+    )
+    maintenances = mreqs_res.scalars().all()
+    
+    # 4. Service desk tickets
+    from app.models.service_desk import ServiceTicket
+    tickets_res = await db.execute(
+        select(ServiceTicket)
+        .filter(ServiceTicket.solicitante_id == user_id)
+        .order_by(ServiceTicket.data_abertura.desc())
+    )
+    tickets = tickets_res.scalars().all()
+    
+    # 5. Equipment requests
+    from app.models.transaction import Solicitacao
+    sols_res = await db.execute(
+        select(Solicitacao)
+        .options(selectinload(Solicitacao.asset))
+        .filter(Solicitacao.solicitante_id == user_id)
+        .order_by(Solicitacao.data_solicitacao.desc())
+    )
+    solicitacoes = sols_res.scalars().all()
+    
+    html_content = templates.get_template("admin/auditoria_pdf.html").render({
+        "request": request,
+        "selected_user": selected_user,
+        "assets": assets,
+        "movimentacoes": movimentacoes,
+        "maintenances": maintenances,
+        "tickets": tickets,
+        "solicitacoes": solicitacoes,
+        "generated_at": now_sp().strftime("%d/%m/%Y %H:%M:%S")
+    })
+    
+    pdf_bytes = HTML(string=html_content).write_pdf()
+    
+    filename = f"auditoria_{selected_user.nome.replace(' ', '_').lower()}_{now_sp().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

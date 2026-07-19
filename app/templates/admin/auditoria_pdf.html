@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Relatório de Auditoria - {{ selected_user.nome }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+            @bottom-right {
+                content: "Página " counter(page);
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 8pt;
+                color: #666;
+            }
+            @bottom-left {
+                content: "AssetTrack TI - Auditoria de Colaborador";
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 8pt;
+                color: #666;
+            }
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #000;
+            line-height: 1.4;
+            font-size: 9pt;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header-container {
+            border-bottom: 3px solid #000;
+            padding-bottom: 12px;
+            margin-bottom: 25px;
+        }
+
+        .header-title {
+            font-size: 20pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 0 0 5px 0;
+            letter-spacing: -0.5px;
+        }
+
+        .header-meta {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 8pt;
+            color: #555;
+            margin: 0;
+        }
+
+        .section-title {
+            font-size: 11pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            background-color: #000;
+            color: #fff;
+            padding: 4px 8px;
+            margin: 25px 0 12px 0;
+            letter-spacing: 0.5px;
+        }
+
+        .profile-table {
+            width: 100%;
+            margin-bottom: 20px;
+            border-collapse: collapse;
+        }
+
+        .profile-table td {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+        }
+
+        .profile-label {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 8pt;
+            color: #555;
+            width: 25%;
+            font-weight: bold;
+        }
+
+        .profile-value {
+            font-weight: bold;
+            font-size: 9.5pt;
+        }
+
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        table.data-table th, table.data-table td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        table.data-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 7.5pt;
+            letter-spacing: 0.5px;
+        }
+
+        table.data-table td {
+            font-size: 8.5pt;
+        }
+
+        .font-mono {
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .text-muted {
+            color: #666;
+            font-style: italic;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 1px 4px;
+            border: 1px solid #000;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 7pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            background-color: #f8f8f8;
+        }
+
+        .empty-message {
+            border: 1px dashed #ccc;
+            padding: 15px;
+            text-align: center;
+            font-style: italic;
+            color: #888;
+            font-size: 8.5pt;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header-container">
+        <h1 class="header-title">Relatório de Auditoria</h1>
+        <p class="header-meta">Gerado em: {{ generated_at }} | Confidencial - Apenas para uso interno</p>
+    </div>
+
+    <!-- Profile Details -->
+    <div class="section-title">Dados do Colaborador</div>
+    <table class="profile-table">
+        <tr>
+            <td class="profile-label">NOME COMPLETO</td>
+            <td class="profile-value" colspan="3">{{ selected_user.nome }}</td>
+        </tr>
+        <tr>
+            <td class="profile-label">E-MAIL</td>
+            <td class="profile-value" class="font-mono">{{ selected_user.email }}</td>
+            <td class="profile-label">CARGO</td>
+            <td class="profile-value">{{ selected_user.cargo or 'Não Informado' }}</td>
+        </tr>
+        <tr>
+            <td class="profile-label">DEPARTAMENTO</td>
+            <td class="profile-value">{{ selected_user.departamento.nome if selected_user.departamento else 'Não Vinculado' }}</td>
+            <td class="profile-label">MATRÍCULA</td>
+            <td class="profile-value" class="font-mono">{{ selected_user.matricula or 'Não Informada' }}</td>
+        </tr>
+        <tr>
+            <td class="profile-label">PERMISSÃO</td>
+            <td class="profile-value" class="font-mono">{{ selected_user.role.value }}</td>
+            <td class="profile-label">STATUS CONTA</td>
+            <td class="profile-value">{% if selected_user.is_active %}ATIVA{% else %}INATIVA{% endif %}</td>
+        </tr>
+    </table>
+
+    <!-- Current Assets -->
+    <div class="section-title">Ativos Atuais em Uso (Posses Ativas)</div>
+    {% if assets %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 20%;">Patrimônio</th>
+                <th style="width: 40%;">Equipamento</th>
+                <th style="width: 25%;">Categoria</th>
+                <th style="width: 15%;">Data Aquisição</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for asset in assets %}
+            <tr>
+                <td class="font-mono" style="font-weight: bold;">{{ asset.e_patrimonio }}</td>
+                <td style="font-weight: bold;">{{ asset.nome }}</td>
+                <td>{{ asset.categoria.nome if asset.categoria else '-' }}</td>
+                <td class="font-mono">{{ asset.data_aquisicao.strftime('%d/%m/%Y') if asset.data_aquisicao else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-message">Nenhum ativo atribuído atualmente a este colaborador.</div>
+    {% endif %}
+
+    <!-- History of Movements -->
+    <div class="section-title">Histórico de Movimentações</div>
+    {% if movimentacoes %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 15%;">Data/Hora</th>
+                <th style="width: 15%;">Tipo</th>
+                <th style="width: 25%;">Ativo</th>
+                <th style="width: 20%;">Origem</th>
+                <th style="width: 20%;">Destino</th>
+                <th style="width: 25%;">Observação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mov in movimentacoes %}
+            <tr>
+                <td class="font-mono" style="font-size: 7.5pt;">{{ mov.data.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td><span class="badge">{{ mov.tipo.value }}</span></td>
+                <td>
+                    <strong>{{ mov.asset.nome }}</strong>
+                    <span class="font-mono text-muted" style="display: block; font-size: 7.5pt;">{{ mov.asset.e_patrimonio }}</span>
+                </td>
+                <td>{{ mov.de_user.nome if mov.de_user else '-' }}</td>
+                <td>{{ mov.para_user.nome if mov.para_user else '-' }}</td>
+                <td class="text-muted" style="font-size: 7.5pt;">{{ mov.observacao or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-message">Nenhuma movimentação de ativo registrada envolvendo este colaborador.</div>
+    {% endif %}
+
+    <!-- Equipment Requests -->
+    <div class="section-title">Solicitações de Equipamento</div>
+    {% if solicitacoes %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 15%;">Data Solicitação</th>
+                <th style="width: 25%;">Ativo / Tipo</th>
+                <th style="width: 15%;">Status</th>
+                <th style="width: 25%;">Motivo</th>
+                <th style="width: 20%;">Entrega</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sol in solicitacoes %}
+            <tr>
+                <td class="font-mono">{{ sol.data_solicitacao.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td>
+                    <strong>{{ sol.asset.nome if sol.asset else 'Geral' }}</strong>
+                    {% if sol.asset %}
+                    <span class="font-mono text-muted" style="display: block; font-size: 7.5pt;">{{ sol.asset.e_patrimonio }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% set s_status = sol.status.value|default(sol.status) %}
+                    <span class="badge">{{ s_status }}</span>
+                </td>
+                <td style="font-size: 8pt;">{{ sol.motivo }}</td>
+                <td style="font-size: 8pt;">
+                    {% if sol.data_entrega %}
+                    Confirmada em: {{ sol.data_entrega.strftime('%d/%m/%Y') }}
+                    {% else %}
+                    Pendente
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-message">Nenhuma solicitação de equipamento registrada.</div>
+    {% endif %}
+
+    <!-- Support Tickets (Service Desk) -->
+    <div class="section-title">Chamados de Suporte (Service Desk)</div>
+    {% if tickets %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 12%;">Código</th>
+                <th style="width: 15%;">Abertura</th>
+                <th style="width: 40%;">Título / Descrição</th>
+                <th style="width: 18%;">Status</th>
+                <th style="width: 15%;">Conclusão</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in tickets %}
+            <tr>
+                <td class="font-mono" style="font-weight: bold;">#{{ ticket.codigo }}</td>
+                <td class="font-mono">{{ ticket.data_abertura.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td>
+                    <strong>{{ ticket.titulo }}</strong>
+                    <div class="text-muted" style="font-size: 7.5pt; margin-top: 3px;">{{ ticket.descricao }}</div>
+                </td>
+                <td>
+                    {% set t_status = ticket.status.value|default(ticket.status) %}
+                    <span class="badge">{{ t_status }}</span>
+                </td>
+                <td class="font-mono">
+                    {% if ticket.data_fechamento %}
+                    {{ ticket.data_fechamento.strftime('%d/%m/%Y') }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-message">Nenhum chamado de suporte aberto por este colaborador.</div>
+    {% endif %}
+
+    <!-- Maintenance History -->
+    <div class="section-title">Solicitações de Manutenção de Ativos</div>
+    {% if maintenances %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 15%;">Data Solicitação</th>
+                <th style="width: 25%;">Equipamento</th>
+                <th style="width: 15%;">Status</th>
+                <th style="width: 30%;">Defeito Relatado / Laudo</th>
+                <th style="width: 15%;">Conclusão</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for maint in maintenances %}
+            <tr>
+                <td class="font-mono">{{ maint.data_solicitacao.strftime('%d/%m/%Y') }}</td>
+                <td>
+                    <strong>{{ maint.asset.nome }}</strong>
+                    <span class="font-mono text-muted" style="display: block; font-size: 7.5pt;">{{ maint.asset.e_patrimonio }}</span>
+                </td>
+                <td>
+                    {% set m_status = maint.status.value|default(maint.status) %}
+                    <span class="badge">{{ m_status | replace('_', ' ') }}</span>
+                </td>
+                <td>
+                    <div><strong>Problema:</strong> {{ maint.descricao_problema }}</div>
+                    {% if maint.diagnostico_tecnico %}
+                    <div style="margin-top: 4px; font-size: 8pt; font-family: monospace;"><strong>Laudo:</strong> {{ maint.diagnostico_tecnico }}</div>
+                    {% endif %}
+                </td>
+                <td class="font-mono">
+                    {% if maint.data_conclusao %}
+                    {{ maint.data_conclusao.strftime('%d/%m/%Y') }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-message">Nenhuma solicitação de manutenção aberta por este colaborador.</div>
+    {% endif %}
+
+</body>
+</html>

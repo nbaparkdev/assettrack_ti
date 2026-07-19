@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8 fade-in py-6">
+    <!-- Breadcrumb / Header -->
+    <div class="flex items-center justify-between border-b-4 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-black uppercase text-black">
+                {% if termo %}Editar Termo de Responsabilidade{% else %}Redigir Termo de Responsabilidade{% endif %}
+            </h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase">
+                {% if termo %}ID Termo: #{{ termo.id }} // Ativo: {{ termo.asset.nome }}
+                {% else %}ID Solicitação: #{{ sol.id }} // Ativo: {{ sol.asset.nome }}
+                {% endif %}
+            </p>
+        </div>
+        <a href="/rh/termos" 
+           class="px-4 py-2 bg-black text-white hover:bg-gray-800 font-mono text-xs font-bold uppercase border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] transition-all">
+            ← Voltar
+        </a>
+    </div>
+
+    <!-- Metadata Details Card -->
+    <div class="bg-gray-50 border-3 border-black p-6 grid grid-cols-1 md:grid-cols-2 gap-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <!-- Colaborador details -->
+        <div class="space-y-2">
+            <h3 class="font-mono text-xs font-black uppercase text-gray-400 border-b border-gray-200 pb-1">👤 Colaborador Destinatário</h3>
+            <p class="text-sm font-bold text-black uppercase">
+                Nome: <span class="font-normal font-mono">
+                    {% if termo %}{{ termo.usuario.nome }}{% else %}{{ sol.solicitante.nome }}{% endif %}
+                </span>
+            </p>
+            <p class="text-sm font-bold text-black uppercase">
+                Matrícula: <span class="font-normal font-mono">
+                    {% if termo %}{{ termo.usuario.matricula or 'N/A' }}{% else %}{{ sol.solicitante.matricula or 'N/A' }}{% endif %}
+                </span>
+            </p>
+            <p class="text-sm font-bold text-black uppercase">
+                Cargo: <span class="font-normal font-mono">
+                    {% if termo %}{{ termo.usuario.cargo or 'N/A' }}{% else %}{{ sol.solicitante.cargo or 'N/A' }}{% endif %}
+                </span>
+            </p>
+        </div>
+
+        <!-- Asset details -->
+        <div class="space-y-2">
+            <h3 class="font-mono text-xs font-black uppercase text-gray-400 border-b border-gray-200 pb-1">💻 Detalhes do Equipamento</h3>
+            <p class="text-sm font-bold text-black uppercase">
+                Nome: <span class="font-normal font-mono">
+                    {% if termo %}{{ termo.asset.nome }}{% else %}{{ sol.asset.nome }}{% endif %}
+                </span>
+            </p>
+            <p class="text-sm font-bold text-black uppercase">
+                Patrimônio: <span class="font-normal font-mono">
+                    {% if termo %}{{ termo.asset.e_patrimonio }}{% else %}{{ sol.asset.e_patrimonio }}{% endif %}
+                </span>
+            </p>
+            <p class="text-sm font-bold text-black uppercase">
+                Nº de Série: <span class="font-normal font-mono text-xs">
+                    {% if termo %}{{ termo.asset.numero_serie or 'N/A' }}{% else %}{{ sol.asset.numero_serie or 'N/A' }}{% endif %}
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Editorial Form -->
+    <div class="bg-white border-4 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <div class="mb-4">
+            <h2 class="text-lg font-black uppercase text-black mb-1">Editor do Documento</h2>
+            <p class="text-xs font-mono text-gray-500 uppercase">
+                Revise o texto jurídico abaixo. Edite ou adicione cláusulas específicas conforme necessário antes de salvar.
+            </p>
+        </div>
+
+        <form action="{% if termo %}/rh/termos/{{ termo.id }}/editar{% else %}/rh/termos/criar/{{ sol.id }}{% endif %}" method="post" class="space-y-6">
+            <div>
+                <label for="conteudo_termo" class="sr-only">Conteúdo do Termo</label>
+                <textarea name="conteudo_termo" id="conteudo_termo" rows="20" required
+                          class="w-full border-3 border-black p-6 font-mono text-xs leading-relaxed bg-[#fbfbfb] focus:bg-white focus:outline-none focus:ring-0 focus:border-black transition-all">{{ conteudo_termo }}</textarea>
+            </div>
+
+            <div class="flex items-center gap-4 pt-4 border-t-3 border-black border-dashed">
+                <button type="submit" 
+                        class="px-6 py-3 bg-[#10b981] hover:bg-[#059669] text-white font-mono text-sm font-black uppercase border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] transition-all">
+                    💾 Salvar Termo de Responsabilidade
+                </button>
+                <a href="/rh/termos" 
+                   class="px-6 py-3 bg-white hover:bg-gray-50 text-black font-mono text-sm font-bold uppercase border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] transition-all">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

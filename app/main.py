@@ -27,27 +27,62 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Auto-migration de colunas para o Service Desk (transações isoladas)
+    # Garantir que a coluna requer_termo_rh existe na tabela assets
     from sqlalchemy import text
     try:
-        async with engine.connect() as conn:
-            await conn.execution_options(isolation_level="AUTOCOMMIT")
-            for val in ['COMPRADOR', 'GERENTE_INFRA', 'comprador', 'gerente_infra']:
-                try:
-                    await conn.execute(text(f"ALTER TYPE userrole ADD VALUE IF NOT EXISTS '{val}'"))
-                except Exception:
-                    pass
-    except Exception:
-        pass
-
-    # Sincronizar papéis na tabela de usuários para maiúsculo (padrão SQLAlchemy Enum)
-    try:
         async with engine.begin() as conn:
-            await conn.execute(text("UPDATE users SET role = 'COMPRADOR' WHERE role = 'comprador'"))
-            await conn.execute(text("UPDATE users SET role = 'GERENTE_INFRA' WHERE role = 'gerente_infra'"))
+            await conn.execute(text("ALTER TABLE assets ADD COLUMN requer_termo_rh BOOLEAN DEFAULT FALSE"))
     except Exception:
-        pass
-            
+        # Fallback para SQLite antigo caso não reconheça FALSE (embora reconheça)
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE assets ADD COLUMN requer_termo_rh BOOLEAN DEFAULT 0"))
+        except Exception:
+            pass
+
+    # Auto-migration: adicionar valores ao enum userrole no PostgreSQL
+    # ALTER TYPE ADD VALUE não pode rodar dentro de uma transação.
+    # Solução: asyncpg direto (já instalado como dependência).
+    # Conexões asyncpg são autocommit por padrão fora de transação.
+    # engine.url.password retorna a senha real (não mascarada como str(engine.url)).
+    _logger = logging.getLogger("app.main")
+    if "postgresql" in str(engine.url.drivername):
+        try:
+            import asyncpg as _asyncpg
+            _url = engine.url
+            _ac_conn = await _asyncpg.connect(
+                host=_url.host,
+                port=_url.port or 5432,
+                user=_url.username,
+                password=str(_url.password) if _url.password else None,
+                database=_url.database,
+            )
+            try:
+                for val in ['comprador', 'gerente_infra', 'rh']:
+                    try:
+                        exists = await _ac_conn.fetchval(
+                            "SELECT 1 FROM pg_enum e "
+                            "JOIN pg_type t ON e.enumtypid = t.oid "
+                            "WHERE t.typname = 'userrole' AND e.enumlabel = $1",
+                            val
+                        )
+                        if not exists:
+                            await _ac_conn.execute(f"ALTER TYPE userrole ADD VALUE '{val}'")
+                            _logger.info(f"✅ Enum userrole: adicionado valor '{val}'")
+                        else:
+                            _logger.info(f"Enum userrole: '{val}' já existe")
+                    except Exception as e:
+                        _logger.warning(f"⚠️ Enum userrole: falha ao adicionar '{val}': {e}")
+            finally:
+                await _ac_conn.close()
+        except Exception as e:
+            _logger.warning(f"⚠️ Enum userrole migration falhou: {e}")
+
+
+
+
+
+
     async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE service_tickets ADD COLUMN foto VARCHAR(255)"))
@@ -80,23 +115,24 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
-    # Adicionar 'comprador' ao enum userrole (PostgreSQL)
-    async with engine.begin() as conn:
-        try:
-            await conn.execute(text("ALTER TYPE userrole ADD VALUE 'comprador'"))
-        except Exception:
-            pass
+
+
 
     # Manutenção Preventiva - Alterações de tabela para infra predial
+    # Cada ALTER em transação separada: PostgreSQL aborta a transação inteira após qualquer erro
     async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE maintenance_orders ALTER COLUMN asset_id DROP NOT NULL"))
         except Exception:
             pass
+
+    async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE maintenance_orders ADD COLUMN infra_predial_servico VARCHAR(255)"))
         except Exception:
             pass
+
+    async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE maintenance_materials ADD COLUMN product_id INTEGER REFERENCES purchase_products(id)"))
         except Exception:
@@ -166,6 +202,26 @@ async def lifespan(app: FastAPI):
                 "usuarios": ["admin", "gerente_ti", "gerente_infra"],
                 "backup": ["admin", "gerente_ti", "gerente_infra"]
             }
+
+        # Debug: query and write users to a text file in the workspace
+        try:
+            from sqlalchemy import select
+            from app.models.user import User
+            res = await session.execute(select(User).order_by(User.id))
+            users = res.scalars().all()
+            import os
+            debug_path = "/code/app/users_debug.txt" if os.path.exists("/code/app") else "app/users_debug.txt"
+            with open(debug_path, "w") as f:
+                f.write(f"TOTAL USERS IN DB: {len(users)}\n")
+                for u in users:
+                    role_str = u.role.value if hasattr(u.role, 'value') else str(u.role)
+                    f.write(f"ID: {u.id} | Nome: {u.nome} | Email: {u.email} | Role: {role_str} | Is Active: {u.is_active} | Matricula: {u.matricula!r} | Cargo: {u.cargo!r}\n")
+        except Exception as e:
+            import traceback
+            import os
+            debug_path = "/code/app/users_debug.txt" if os.path.exists("/code/app") else "app/users_debug.txt"
+            with open(debug_path, "w") as f:
+                f.write(f"ERROR QUERYING USERS: {e}\n{traceback.format_exc()}\n")
 
     yield
     # Shutdown

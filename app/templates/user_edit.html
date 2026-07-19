@@ -73,18 +73,17 @@
                         <div class="relative">
                             <select name="role" id="role" required
                                 class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition appearance-none uppercase text-sm cursor-pointer">
-                                <option value="admin" {% if target_user.role.value|lower=='admin' %}selected{% endif %}>
+                                <option value="admin" {% if (target_user.role.value or target_user.role)|lower=='admin' %}selected{% endif %}>
                                     ADMINISTRADOR</option>
-                                <option value="gerente_ti" {% if target_user.role.value|lower=='gerente_ti' %}selected{%
+                                <option value="gerente_ti" {% if (target_user.role.value or target_user.role)|lower=='gerente_ti' %}selected{%
                                     endif %}>GERENTE TI</option>
-                                <option value="gerente_infra" {% if target_user.role.value|lower=='gerente_infra'
+                                <option value="gerente_infra" {% if (target_user.role.value or target_user.role)|lower=='gerente_infra'
                                     %}selected{% endif %}>GERENTE INFRA</option>
-                                <option value="tecnico" {% if target_user.role.value|lower=='tecnico' %}selected{% endif
+                                <option value="tecnico" {% if (target_user.role.value or target_user.role)|lower=='tecnico' %}selected{% endif
                                     %}>TÉCNICO</option>
-                                <option value="comprador" {% if target_user.role.value|lower=='comprador' %}selected{% endif
-                                    %}>COMPRADOR</option>
-                                <option value="usuario_comum" {% if target_user.role.value|lower=='usuario_comum'
-                                    %}selected{% endif %}>USUÁRIO COMUM</option>
+                                <option value="comprador" {% if (target_user.role.value or target_user.role)|lower=='comprador' %}selected{% endif %}>COMPRADOR</option>
+                                <option value="rh" {% if (target_user.role.value or target_user.role)|lower=='rh' %}selected{% endif %}>RECURSOS HUMANOS (RH)</option>
+                                <option value="usuario_comum" {% if (target_user.role.value or target_user.role)|lower=='usuario_comum' %}selected{% endif %}>USUÁRIO COMUM</option>
                             </select>
                             <div
                                 class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-700">
