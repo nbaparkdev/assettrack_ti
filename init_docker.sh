@@ -207,20 +207,9 @@ docker ps --format "table {{.Names}}\t{{.Status}}" 2>/dev/null || docker ps
 # ==========================================
 echo "👤 Configurando usuario administrador..."
 
-# Garantir estrutura de tabelas criada antes de rodar os scripts de admin
-echo "Garantindo estrutura de tabelas criada..."
-$COMPOSE_CMD exec -T web python -c "
-import asyncio
-from app.database import engine, Base
-async def init():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-asyncio.run(init())
-"
-
+# Garantir estrutura de tabelas, usuário administrador e sementes iniciais
 ADMIN_OK=true
-$COMPOSE_CMD exec -T web python create_admin.py || ADMIN_OK=false
-$COMPOSE_CMD exec -T web python activate_user_admin.py || ADMIN_OK=false
+$COMPOSE_CMD exec -T web python init_app.py || ADMIN_OK=false
 
 # ==========================================
 # Informacoes finais

@@ -6,7 +6,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 WORKDIR /code
 
 # Instalar dependências de sistema para zbar (QR Code) e postgres driver
-RUN apt-get update --allow-releaseinfo-change && apt-get install -y \
+RUN apt-get clean && apt-get update -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false --allow-releaseinfo-change && apt-get install -y \
     libzbar0 \
     gcc \
     libpq-dev \
