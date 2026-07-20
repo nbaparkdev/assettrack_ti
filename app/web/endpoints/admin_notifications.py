@@ -85,6 +85,17 @@ async def admin_notifications_submit(
         "notify_low_stock"
     ]
 
+    # Snapshot user attributes before any DB operation so the object
+    # stays usable even if the session is rolled back / expired.
+    user_snapshot = {
+        "id": current_user.id,
+        "nome": current_user.nome,
+        "email": current_user.email,
+        "role": current_user.role,
+        "is_active": current_user.is_active,
+        "avatar_url": getattr(current_user, "avatar_url", None),
+    }
+
     try:
         for key in notification_keys:
             value = "true" if form_data.get(key) == "on" else "false"
@@ -93,14 +104,14 @@ async def admin_notifications_submit(
     except Exception as e:
         await db.rollback()
         logger.error(f"Erro ao salvar configurações de notificação: {e}")
-        
-        # Fetch email logs for rendering error page gracefully
+
+        # Fetch email logs with a fresh query after rollback
         logs_result = await db.execute(select(EmailLog).order_by(desc(EmailLog.sent_at)).limit(50))
         email_logs = logs_result.scalars().all()
 
         return templates.TemplateResponse("admin/notifications.html", {
             "request": request,
-            "user": current_user,
+            "user": user_snapshot,
             "error": f"Erro ao salvar configurações: {str(e)}",
             "notify_new_user": form_data.get("notify_new_user") == "on",
             "notify_new_maintenance": form_data.get("notify_new_maintenance_request") == "on",
@@ -116,7 +127,7 @@ async def admin_notifications_submit(
             "email_logs": email_logs,
             "title": "Configuração de Notificações"
         })
-        
+
     return RedirectResponse(url="/admin/notificacoes?success=1", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.get("/debug")
