@@ -1,7 +1,6 @@
 # app/crud/system_settings.py
 from typing import Optional
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from app.crud.base import CRUDBase
@@ -26,17 +25,17 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, BaseModel, BaseModel]):
         descricao: Optional[str] = None,
         commit: bool = True,
     ) -> None:
-        """Upsert a setting by key. Uses ON CONFLICT DO UPDATE to avoid
-        duplicate-key errors when the PK sequence is out of sync."""
-        stmt = (
-            pg_insert(SystemSettings)
-            .values(setting_key=setting_key, setting_value=setting_value, descricao=descricao)
-            .on_conflict_do_update(
-                index_elements=["setting_key"],
-                set_={"setting_value": setting_value, "descricao": descricao},
-            )
-        )
-        await db.execute(stmt)
+        """Upsert a setting by key using raw SQL to avoid SQLAlchemy adding
+        RETURNING id, which would trigger the PK sequence and cause duplicate
+        key errors when the sequence is out of sync with existing data."""
+        stmt = text("""
+            INSERT INTO system_settings (setting_key, setting_value, descricao)
+            VALUES (:key, :value, :descricao)
+            ON CONFLICT (setting_key) DO UPDATE
+                SET setting_value = EXCLUDED.setting_value,
+                    descricao    = COALESCE(EXCLUDED.descricao, system_settings.descricao)
+        """)
+        await db.execute(stmt, {"key": setting_key, "value": setting_value, "descricao": descricao})
         if commit:
             await db.commit()
 

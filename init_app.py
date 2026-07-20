@@ -92,6 +92,30 @@ async def seed_maintenance_types():
             print("ℹ️ Tipos de manutenção já existem, pulando semeadura.")
 
 
+async def sync_sequences():
+    """Reset PostgreSQL sequences to max(id) for all tables that use serial PKs.
+    This prevents duplicate key violations when rows were inserted outside
+    normal ORM flows (e.g. direct SQL inserts, manual seeding, restores)."""
+    print("🔧 Sincronizando sequências de IDs do banco de dados...")
+    tables = [
+        "users", "assets", "system_settings", "email_logs",
+        "maintenance_requests", "maintenance_orders", "custom_maintenance_types",
+        "maintenance_plans", "maintenance_materials", "maintenance_executions",
+        "purchase_products", "purchase_requests", "purchase_orders",
+        "service_desk_tickets", "contracts", "suppliers",
+    ]
+    async with engine.begin() as conn:
+        for table in tables:
+            try:
+                await conn.execute(text(
+                    f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), "
+                    f"coalesce(max(id), 1), max(id) IS NOT NULL) FROM {table};"
+                ))
+            except Exception:
+                pass  # Table may not exist yet — skip silently
+    print("✅ Sequências sincronizadas!")
+
+
 async def main():
     print("=" * 50)
     print("  AssetTrack TI - Inicialização do Sistema")
@@ -100,6 +124,8 @@ async def main():
     
     try:
         await init_database()
+        print()
+        await sync_sequences()
         print()
         await create_admin_user()
         print()
