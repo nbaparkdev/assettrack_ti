@@ -25,17 +25,45 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, BaseModel, BaseModel]):
         descricao: Optional[str] = None,
         commit: bool = True,
     ) -> None:
-        """Upsert a setting by key using raw SQL to avoid SQLAlchemy adding
-        RETURNING id, which would trigger the PK sequence and cause duplicate
-        key errors when the sequence is out of sync with existing data."""
-        stmt = text("""
-            INSERT INTO system_settings (setting_key, setting_value, descricao)
-            VALUES (:key, :value, :descricao)
-            ON CONFLICT (setting_key) DO UPDATE
-                SET setting_value = EXCLUDED.setting_value,
-                    descricao    = COALESCE(EXCLUDED.descricao, system_settings.descricao)
-        """)
-        await db.execute(stmt, {"key": setting_key, "value": setting_value, "descricao": descricao})
+        """Set or update a system setting.
+        Uses explicit SELECT -> UPDATE or sync-sequence -> INSERT to avoid
+        PostgreSQL evaluating nextval() PK default during ON CONFLICT logic."""
+        # 1. Check if setting key already exists
+        check_stmt = text("SELECT id FROM system_settings WHERE setting_key = :key")
+        res = await db.execute(check_stmt, {"key": setting_key})
+        existing_id = res.scalar()
+
+        if existing_id is not None:
+            # Explicit UPDATE by ID — does not touch primary key sequence
+            update_stmt = text("""
+                UPDATE system_settings
+                SET setting_value = :value,
+                    descricao = COALESCE(:descricao, descricao)
+                WHERE id = :id
+            """)
+            await db.execute(
+                update_stmt,
+                {"id": existing_id, "value": setting_value, "descricao": descricao},
+            )
+        else:
+            # Resync sequence before inserting new row to guarantee clean ID
+            seq_stmt = text("""
+                SELECT setval(
+                    pg_get_serial_sequence('system_settings', 'id'),
+                    COALESCE((SELECT MAX(id) FROM system_settings), 1)
+                )
+            """)
+            await db.execute(seq_stmt)
+
+            insert_stmt = text("""
+                INSERT INTO system_settings (setting_key, setting_value, descricao)
+                VALUES (:key, :value, :descricao)
+            """)
+            await db.execute(
+                insert_stmt,
+                {"key": setting_key, "value": setting_value, "descricao": descricao},
+            )
+
         if commit:
             await db.commit()
 
