@@ -17,6 +17,15 @@
     </div>
     {% endif %}
 
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-600 p-4 shadow-[4px_4px_0px_0px_rgba(220,38,38,1)] flex items-center gap-3">
+        <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="font-mono text-xs font-bold text-red-800 uppercase tracking-wider">{{ error }}</span>
+    </div>
+    {% endif %}
+
     <!-- Tabs Header -->
     <div class="flex flex-wrap gap-0 mt-6 relative z-10 -mb-[2px] overflow-x-auto">
         <button type="button" class="tab-btn active px-4 sm:px-6 py-3 border-2 border-black border-b-0 bg-white font-bold uppercase text-black whitespace-nowrap focus:outline-none" data-target="tab-config">Configurações</button>

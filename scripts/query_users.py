@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.models.user import User
 
-DATABASE_URL = "postgresql+asyncpg://user:password@localhost:5455/assettrack"
+DATABASE_URL = "postgresql+asyncpg://user:password@localhost:5456/assettrack"
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 SessionLocal = async_sessionmaker(bind=engine)

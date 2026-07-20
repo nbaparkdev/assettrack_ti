@@ -58,6 +58,10 @@ async def admin_notifications_page(
         "title": "Configuração de Notificações"
     })
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 @router.post("")
 async def admin_notifications_submit(
     request: Request,
@@ -81,9 +85,37 @@ async def admin_notifications_submit(
         "notify_low_stock"
     ]
 
-    for key in notification_keys:
-        value = "true" if form_data.get(key) == "on" else "false"
-        await system_settings.set_setting(db, key, value)
+    try:
+        for key in notification_keys:
+            value = "true" if form_data.get(key) == "on" else "false"
+            await system_settings.set_setting(db, key, value, commit=False)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Erro ao salvar configurações de notificação: {e}")
+        
+        # Fetch email logs for rendering error page gracefully
+        logs_result = await db.execute(select(EmailLog).order_by(desc(EmailLog.sent_at)).limit(50))
+        email_logs = logs_result.scalars().all()
+
+        return templates.TemplateResponse("admin/notifications.html", {
+            "request": request,
+            "user": current_user,
+            "error": f"Erro ao salvar configurações: {str(e)}",
+            "notify_new_user": form_data.get("notify_new_user") == "on",
+            "notify_new_maintenance": form_data.get("notify_new_maintenance_request") == "on",
+            "notify_maintenance_accepted": form_data.get("notify_maintenance_accepted") == "on",
+            "notify_maintenance_rejected": form_data.get("notify_maintenance_rejected") == "on",
+            "notify_maintenance_delivery": form_data.get("notify_maintenance_delivery") == "on",
+            "notify_order_assigned": form_data.get("notify_order_assigned") == "on",
+            "notify_order_completed": form_data.get("notify_order_completed") == "on",
+            "notify_order_overdue": form_data.get("notify_order_overdue") == "on",
+            "notify_purchase_request": form_data.get("notify_purchase_request") == "on",
+            "notify_purchase_order": form_data.get("notify_purchase_order") == "on",
+            "notify_low_stock": form_data.get("notify_low_stock") == "on",
+            "email_logs": email_logs,
+            "title": "Configuração de Notificações"
+        })
         
     return RedirectResponse(url="/admin/notificacoes?success=1", status_code=status.HTTP_303_SEE_OTHER)
 

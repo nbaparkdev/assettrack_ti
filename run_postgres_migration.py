@@ -3,11 +3,11 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 
 async def main():
-    # Conecta no Postgres através da porta 5455 exposta pelo docker-compose
-    database_url = "postgresql+asyncpg://user:password@localhost:5455/assettrack"
+    # Conecta no Postgres através da porta 5456 exposta pelo docker-compose
+    database_url = "postgresql+asyncpg://user:password@localhost:5456/assettrack"
     engine = create_async_engine(database_url)
     
-    print("Conectando ao banco de dados em localhost:5455...")
+    print("Conectando ao banco de dados em localhost:5456...")
     async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE maintenance_materials ADD COLUMN product_id INTEGER REFERENCES purchase_products(id)"))

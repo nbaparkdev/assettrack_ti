@@ -90,21 +90,9 @@ for pid in [int(p) for p in os.listdir('/proc') if p.isdigit()]:
 # ==========================================
 echo "⏳ Parando containers..."
 
-# Tentar compose down normal com remove-orphans
-if ! $COMPOSE_CMD down --remove-orphans 2>/dev/null; then
-    echo "⚠️ Parada padrão falhou. Iniciando parada forçada..."
+if ! $COMPOSE_CMD down 2>/dev/null; then
     force_stop_web
-    
-    # Tenta derrubar com compose novamente
-    if ! $COMPOSE_CMD down --remove-orphans 2>/dev/null; then
-        # Se falhar, limpa manualmente qualquer container restante do projeto
-        REMAINING=$(docker ps -a --filter "name=assettrack" -q 2>/dev/null)
-        if [ -n "$REMAINING" ]; then
-            echo "🛑 Parando e removendo containers restantes do projeto..."
-            docker stop $REMAINING 2>/dev/null || true
-            docker rm -f $REMAINING 2>/dev/null || true
-        fi
-    fi
+    $COMPOSE_CMD down 2>/dev/null || true
 fi
 
 # ==========================================

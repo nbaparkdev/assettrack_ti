@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.models.email_log import EmailLog
 from app.crud.system_settings import system_settings
 
-DATABASE_URL = "postgresql+asyncpg://user:password@localhost:5455/assettrack"
+DATABASE_URL = "postgresql+asyncpg://user:password@localhost:5456/assettrack"
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 SessionLocal = async_sessionmaker(bind=engine)

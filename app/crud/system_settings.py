@@ -17,7 +17,7 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, BaseModel, BaseModel]):
         return default_value
 
     async def set_setting(
-        self, db: AsyncSession, setting_key: str, setting_value: str, descricao: Optional[str] = None
+        self, db: AsyncSession, setting_key: str, setting_value: str, descricao: Optional[str] = None, commit: bool = True
     ) -> SystemSettings:
         result = await db.execute(select(SystemSettings).filter(SystemSettings.setting_key == setting_key))
         obj = result.scalars().first()
@@ -26,8 +26,9 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, BaseModel, BaseModel]):
             if descricao is not None:
                 obj.descricao = descricao
             db.add(obj)
-            await db.commit()
-            await db.refresh(obj)
+            if commit:
+                await db.commit()
+                await db.refresh(obj)
             return obj
         else:
             obj_in = {
@@ -35,6 +36,11 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, BaseModel, BaseModel]):
                 "setting_value": setting_value,
                 "descricao": descricao
             }
-            return await self.create(db, obj_in=obj_in)
+            if commit:
+                return await self.create(db, obj_in=obj_in)
+            else:
+                db_obj = SystemSettings(**obj_in)
+                db.add(db_obj)
+                return db_obj
 
 system_settings = CRUDSystemSettings(SystemSettings)

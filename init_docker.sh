@@ -125,41 +125,30 @@ echo "🛑 Parando containers antigos..."
 
 # Tentar compose down normal primeiro
 if ! $COMPOSE_CMD down --remove-orphans 2>/dev/null; then
-    echo "⚠️ Parada padrão falhou. Iniciando parada forçada..."
+    # Fallback: force stop web
     force_stop_web
-    
-    # Tenta derrubar com compose novamente
-    if ! $COMPOSE_CMD down --remove-orphans 2>/dev/null; then
-        # Se falhar, limpa manualmente qualquer container restante do projeto
-        REMAINING=$(docker ps -a --filter "name=assettrack" -q 2>/dev/null)
-        if [ -n "$REMAINING" ]; then
-            echo "🛑 Parando e removendo containers restantes do projeto..."
-            docker stop $REMAINING 2>/dev/null || true
-            docker rm -f $REMAINING 2>/dev/null || true
-        fi
-    fi
 fi
+
+# Garantir remocao de qualquer container ocupando as portas 5456, 5455 e 8000
+PORT_5456=$(docker ps -a --filter "publish=5456" -q 2>/dev/null)
+PORT_5455=$(docker ps -a --filter "publish=5455" -q 2>/dev/null)
+PORT_8000=$(docker ps -a --filter "publish=8000" -q 2>/dev/null)
+CONFLICT_CONTAINERS=$(echo "$PORT_5456 $PORT_5455 $PORT_8000" | xargs)
+if [ -n "$CONFLICT_CONTAINERS" ]; then
+    echo "🧹 Removendo container(s) conflitantes nas portas 5456/5455/8000..."
+    docker rm -f $CONFLICT_CONTAINERS 2>/dev/null || true
+fi
+
+# Matar qualquer processo nativo uvicorn/python escutando na porta 8000 no host
+if command -v fuser &>/dev/null; then
+    fuser -k 8000/tcp 2>/dev/null || true
+fi
+pkill -f "uvicorn app.main:app" 2>/dev/null || true
 
 # ==========================================
 # Build e Start
 # ==========================================
-echo "🏗️ Iniciando banco de dados..."
-$COMPOSE_CMD up -d db
-
-echo "⏳ Aguardando banco de dados ficar pronto..."
-for i in $(seq 1 30); do
-    if $COMPOSE_CMD exec -T db pg_isready -U user -d assettrack 2>/dev/null; then
-        echo "✅ Banco de dados pronto!"
-        break
-    fi
-    if [ $i -eq 30 ]; then
-        echo "❌ Timeout aguardando banco de dados."
-        exit 1
-    fi
-    sleep 2
-done
-
-echo "🏗️ Construindo e iniciando demais containers..."
+echo "🏗️ Construindo containers..."
 $COMPOSE_CMD up -d --build
 
 # ==========================================
@@ -207,9 +196,9 @@ docker ps --format "table {{.Names}}\t{{.Status}}" 2>/dev/null || docker ps
 # ==========================================
 echo "👤 Configurando usuario administrador..."
 
-# Garantir estrutura de tabelas, usuário administrador e sementes iniciais
 ADMIN_OK=true
-$COMPOSE_CMD exec -T web python init_app.py || ADMIN_OK=false
+$COMPOSE_CMD exec -T web python create_admin.py || ADMIN_OK=false
+$COMPOSE_CMD exec -T web python activate_user_admin.py || ADMIN_OK=false
 
 # ==========================================
 # Informacoes finais
