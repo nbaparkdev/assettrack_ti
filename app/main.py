@@ -15,6 +15,9 @@ from app.web.endpoints import admin
 from app.core.rate_limit import limiter
 import app.models
 from slowapi.errors import RateLimitExceeded
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from app.web.dependencies import get_current_user_from_cookie
+from app.database import SessionLocal
 
 # Base directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -203,7 +206,8 @@ async def lifespan(app: FastAPI):
                 "backup": ["admin", "gerente_ti", "gerente_infra"]
             }
 
-        # Debug: query and write users to a text file in the workspace
+        # Debug: query and write users to a text file in the workspace.
+        # Este bloco é apenas diagnóstico e nunca pode impedir o startup.
         try:
             from sqlalchemy import select
             from app.models.user import User
@@ -217,11 +221,7 @@ async def lifespan(app: FastAPI):
                     role_str = u.role.value if hasattr(u.role, 'value') else str(u.role)
                     f.write(f"ID: {u.id} | Nome: {u.nome} | Email: {u.email} | Role: {role_str} | Is Active: {u.is_active} | Matricula: {u.matricula!r} | Cargo: {u.cargo!r}\n")
         except Exception as e:
-            import traceback
-            import os
-            debug_path = "/code/app/users_debug.txt" if os.path.exists("/code/app") else "app/users_debug.txt"
-            with open(debug_path, "w") as f:
-                f.write(f"ERROR QUERYING USERS: {e}\n{traceback.format_exc()}\n")
+            logging.getLogger("app.main").warning(f"Debug users_debug.txt falhou: {e}")
 
     yield
     # Shutdown
@@ -278,20 +278,66 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
         content={"detail": "Muitas tentativas. Aguarde antes de tentar novamente."}
     )
 
-@app.exception_handler(404)
-async def custom_404_handler(request: Request, exc):
-    return templates.TemplateResponse("errors/404.html", {
-        "request": request,
-        "title": "Página não Encontrada"
-    }, status_code=404)
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    is_api = (
+        request.url.path.startswith("/api/") or 
+        "application/json" in request.headers.get("accept", "").lower() or
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+    )
+
+    if exc.status_code == 403:
+        if is_api:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": exc.detail if exc.detail else "Acesso Negado."}
+            )
+        async with SessionLocal() as db:
+            user = await get_current_user_from_cookie(request, access_token=request.cookies.get("access_token"), db=db)
+        return templates.TemplateResponse("errors/403.html", {
+            "request": request,
+            "title": "Acesso Negado",
+            "user": user,
+            "detail": exc.detail if exc.detail and exc.detail != "Forbidden" else None
+        }, status_code=403)
+
+    elif exc.status_code == 404:
+        if is_api:
+            return JSONResponse(
+                status_code=404,
+                content={"detail": exc.detail if exc.detail else "Não encontrado."}
+            )
+        async with SessionLocal() as db:
+            user = await get_current_user_from_cookie(request, access_token=request.cookies.get("access_token"), db=db)
+        return templates.TemplateResponse("errors/404.html", {
+            "request": request,
+            "title": "Página não Encontrada",
+            "user": user
+        }, status_code=404)
+
+    elif exc.status_code == 401:
+        if is_api:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": exc.detail if exc.detail else "Não autorizado."}
+            )
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/login", status_code=302)
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
 
 @app.exception_handler(500)
 async def custom_500_handler(request: Request, exc):
-    # Log error here if logger configured
     print(f"ERROR: {exc}") 
+    async with SessionLocal() as db:
+        user = await get_current_user_from_cookie(request, access_token=request.cookies.get("access_token"), db=db)
     return templates.TemplateResponse("errors/500.html", {
         "request": request,
-        "title": "Erro Interno"
+        "title": "Erro Interno",
+        "user": user
     }, status_code=500)
 
 app.include_router(api_router, prefix=settings.API_V1_STR)

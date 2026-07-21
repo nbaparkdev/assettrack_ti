@@ -1,49 +1,49 @@
 {% extends "base.html" %}
 
-{% block title %}Erro Interno{% endblock %}
+{% block title %}{{ title if title else "Acesso Negado" }}{% endblock %}
 
 {% block content %}
 <div class="min-h-[65vh] flex flex-col items-center justify-center text-center px-4 py-8">
     <!-- Big Number + Neo-Brutalism Badge -->
     <div class="relative mb-10 flex flex-col items-center justify-center">
-        <h1 class="text-9xl font-black text-red-200/80 select-none tracking-tighter">500</h1>
+        <h1 class="text-9xl font-black text-amber-200/80 select-none tracking-tighter">403</h1>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full">
-            <span class="bg-red-500 text-white font-black text-xl md:text-2xl px-6 py-3 uppercase tracking-widest transform -rotate-2 inline-block border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                💥 Falha Crítica
+            <span class="bg-amber-400 text-black font-black text-xl md:text-2xl px-6 py-3 uppercase tracking-widest transform -rotate-2 inline-block border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                🔒 Acesso Negado
             </span>
         </div>
     </div>
 
     <div class="max-w-lg mx-auto space-y-6">
         <h2 class="text-2xl font-black text-gray-900 uppercase tracking-tight">
-            Erro Interno do Servidor
+            Área Restrita do Sistema
         </h2>
 
         <p class="text-gray-700 text-base md:text-lg font-medium leading-relaxed">
-            Ops! Algo deu errado do nosso lado. Ocorreu um erro inesperado ao processar sua solicitação. Nossos engenheiros foram notificados.
+            {% if detail and detail != "Forbidden" %}
+                {{ detail }}
+            {% else %}
+                Você não possui permissão suficiente para acessar este módulo ou realizar esta ação.
+            {% endif %}
         </p>
 
         <!-- Informative Neo-Brutalist Box -->
-        <div class="bg-red-50 border-2 border-black p-5 text-left shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div class="bg-amber-50 border-2 border-black p-5 text-left shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <div class="flex items-start gap-3">
-                <div class="p-2 bg-red-500 border border-black font-bold text-white rounded-none">
+                <div class="p-2 bg-amber-400 border border-black font-bold text-black rounded-none">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z">
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
                         </path>
                     </svg>
                 </div>
                 <div class="space-y-1">
                     <h3 class="font-bold text-black uppercase text-sm tracking-wider">
-                        Precisa de ajuda urgente?
+                        Como obter acesso?
                     </h3>
-                    <p class="text-xs md:text-sm text-gray-800 leading-normal mb-2">
-                        Por favor, contate o suporte técnico e relate o que você estava tentando fazer.
+                    <p class="text-xs md:text-sm text-gray-800 leading-normal">
+                        Caso necessite utilizar esta funcionalidade, solicite a atualização do seu Perfil (Role) ao Administrador do Sistema ou ao suporte de TI.
                     </p>
-                    <div class="font-mono text-xs bg-white border border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
-                        Email: suporte@nbaparkgramado.com.br<br>
-                        Ramal: 1010
-                    </div>
                 </div>
             </div>
         </div>
@@ -54,9 +54,9 @@
                 class="w-full sm:w-auto inline-flex items-center justify-center bg-white text-black font-bold py-3.5 px-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all uppercase tracking-wider text-sm">
                 &larr; Voltar ao Início
             </a>
-            <button onclick="window.location.reload()"
+            <button onclick="window.history.back()"
                 class="w-full sm:w-auto inline-flex items-center justify-center bg-black text-white font-bold py-3.5 px-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:bg-gray-800 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all uppercase tracking-wider text-sm">
-                Tentar Novamente
+                Página Anterior
             </button>
         </div>
     </div>
