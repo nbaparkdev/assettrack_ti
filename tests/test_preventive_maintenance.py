@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.crud import user as user_crud
 from app.schemas.user import UserCreate
 from app.models.preventive_maintenance import MaintenanceOrder, MaintenanceMaterial, OrderStatus
-from app.models.procurement import PurchaseProduct, MaterialStock
+from app.models.procurement import PurchaseProduct, PurchaseCategory, MaterialStock
 from app.crud.procurement import create_or_update_stock
 
 @pytest.fixture
@@ -31,13 +31,17 @@ async def admin_client(client: AsyncClient, admin_user):
 
 @pytest.mark.asyncio
 async def test_maintenance_material_stock_flow(admin_client: AsyncClient, db_session: AsyncSession):
-    # 1. Criar produto no banco
+    # 1. Criar categoria e produto no banco
+    category = PurchaseCategory(nome="Consumo")
+    db_session.add(category)
+    await db_session.flush()
+
     product = PurchaseProduct(
         nome="Filtro de Ar Condicionado",
         codigo="FILTRO-001",
         unidade="UN",
-        categoria="Consumo",
-        especificacao="Filtro de ar para manutenção de infra predial"
+        categoria_id=category.id,
+        descricao="Filtro de ar para manutenção de infra predial"
     )
     db_session.add(product)
     await db_session.flush()
@@ -65,7 +69,7 @@ async def test_maintenance_material_stock_flow(admin_client: AsyncClient, db_ses
         status=OrderStatus.ABERTA,
         prioridade="Alta",
         criticidade="Média",
-        descricao="Manutenção predial ar condicionado sala 2",
+        observacoes="Manutenção predial ar condicionado sala 2",
         infra_predial_servico="Limpeza e troca de filtro de ar",
         custo_total=0.0
     )

@@ -78,7 +78,7 @@ async def test_full_user_maintenance_workflow(
         "prioridade": "media"
     }
     response = await comum_client.post("/solicitar-manutencao", data=req_payload)
-    assert response.status_code == 303
+    assert response.status_code == 302
 
     # Fetch created maintenance request
     requests = await maintenance_request.list_by_user(db_session, user_id=test_users["comum"].id)
@@ -89,7 +89,7 @@ async def test_full_user_maintenance_workflow(
     # 3. Technician accepts the request
     accept_payload = {"observacao": "Iniciando reparo do teclado"}
     response = await tecnico_client.post(f"/solicitacoes-manutencao/{maint_req.id}/aceitar", data=accept_payload)
-    assert response.status_code == 303
+    assert response.status_code == 302
     
     await db_session.refresh(maint_req)
     await db_session.refresh(asset)
@@ -99,7 +99,7 @@ async def test_full_user_maintenance_workflow(
     # 4. Technician completes maintenance (status becomes aguardando_entrega)
     complete_payload = {"observacao": "Teclado trocado com sucesso, pronto para retirada."}
     response = await tecnico_client.post(f"/solicitacoes-manutencao/{maint_req.id}/concluir", data=complete_payload)
-    assert response.status_code == 303
+    assert response.status_code == 302
 
     await db_session.refresh(maint_req)
     assert maint_req.status == StatusSolicitacaoManutencao.AGUARDANDO_ENTREGA
@@ -107,7 +107,7 @@ async def test_full_user_maintenance_workflow(
     # 5. Technician confirms delivery (simulating user QR validation)
     delivery_payload = {"observation": "Equipamento entregue em mãos para o colaborador."}
     response = await tecnico_client.post(f"/solicitacoes-manutencao/{maint_req.id}/confirmar-entrega", data=delivery_payload)
-    assert response.status_code == 303
+    assert response.status_code == 302
 
     await db_session.refresh(maint_req)
     await db_session.refresh(asset)
@@ -117,7 +117,7 @@ async def test_full_user_maintenance_workflow(
 
     # 6. User confirms receipt of the asset (concludes the request)
     response = await comum_client.post(f"/solicitacoes-manutencao/{maint_req.id}/confirmar-recebimento")
-    assert response.status_code == 303
+    assert response.status_code == 302
 
     await db_session.refresh(maint_req)
     await db_session.refresh(asset)

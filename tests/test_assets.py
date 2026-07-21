@@ -87,14 +87,20 @@ async def test_maintenance_workflow(admin_client: AsyncClient, db_session: Async
     asset = await asset_crud.asset.create(db_session, obj_in=asset_in)
     
     # Act 1: Start Maintenance
-    response = await admin_client.post(f"/assets/{asset.id}/maintenance/start")
+    response = await admin_client.post(
+        f"/assets/{asset.id}/maintenance/start",
+        data={"motivo": "Troca de fonte de alimentação", "tipo": "corretiva"}
+    )
     assert response.status_code == 303
     
     await db_session.refresh(asset)
     assert asset.status == AssetStatus.MANUTENCAO
     
     # Act 2: Finish Maintenance
-    response = await admin_client.post(f"/assets/{asset.id}/maintenance/finish")
+    response = await admin_client.post(
+        f"/assets/{asset.id}/maintenance/finish",
+        data={"observacao_conclusao": "Fonte substituída e testada", "destino_tipo": "armazenamento"}
+    )
     assert response.status_code == 303
     
     await db_session.refresh(asset)

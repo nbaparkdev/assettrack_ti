@@ -11,7 +11,8 @@ async def test_register_user_success(client: AsyncClient, db_session: AsyncSessi
         "email": "test@example.com",
         "password": "strongpassword",
         "matricula": "12345",
-        "cargo": "Analyst"
+        "cargo": "Analyst",
+        "role": "usuario_comum"
     }
     response = await client.post("/register", data=payload)
     
@@ -34,7 +35,8 @@ async def test_register_duplicate_email(client: AsyncClient, db_session: AsyncSe
         "email": "existing@example.com",
         "password": "password",
         "matricula": "12345",
-        "cargo": "Analyst"
+        "cargo": "Analyst",
+        "role": "usuario_comum"
     }
     await client.post("/register", data=payload)
     

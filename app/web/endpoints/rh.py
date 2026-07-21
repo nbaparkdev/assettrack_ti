@@ -46,7 +46,7 @@ Mediante a assinatura deste termo, assumo o compromisso de zelar pela guarda, in
 
 E por estar de pleno acordo com os termos acima expostos, assino o presente Termo de Responsabilidade.
 
-São Paulo, {data_atual}.
+Gramado, RS, {data_atual}.
 
 __________________________________________________
 Assinatura do Colaborador
