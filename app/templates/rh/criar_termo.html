@@ -51,6 +51,11 @@
                 </span>
             </p>
             <p class="text-sm font-bold text-black uppercase">
+                Modelo: <span class="font-normal font-mono">
+                    {% if termo %}{{ termo.asset.modelo or 'N/A' }}{% else %}{{ sol.asset.modelo or 'N/A' }}{% endif %}
+                </span>
+            </p>
+            <p class="text-sm font-bold text-black uppercase">
                 Patrimônio: <span class="font-normal font-mono">
                     {% if termo %}{{ termo.asset.e_patrimonio }}{% else %}{{ sol.asset.e_patrimonio }}{% endif %}
                 </span>

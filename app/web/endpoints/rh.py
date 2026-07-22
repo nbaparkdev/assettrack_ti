@@ -33,6 +33,7 @@ DEFAULT_TEMPLATE = """TERMO DE RESPONSABILIDADE E COMPROMISSO DE USO DE EQUIPAME
 Pelo presente instrumento, eu, {nome_solicitante}, inscrito(a) sob a matrícula funcional nº {matricula}, ocupando o cargo de {cargo}, declaro para os devidos fins ter recebido da empresa, a título de empréstimo de uso profissional, o equipamento abaixo especificado:
 
 • EQUIPAMENTO: {nome_ativo}
+• MODELO: {modelo}
 • PATRIMÔNIO / REF: {e_patrimonio}
 • NÚMERO DE SÉRIE: {numero_serie}
 • VALOR ESTIMADO: R$ {valor_ativo:.2f}
@@ -112,6 +113,7 @@ async def create_term_page(
     matricula = sol.solicitante.matricula if (sol.solicitante and sol.solicitante.matricula) else "N/A"
     cargo = sol.solicitante.cargo if (sol.solicitante and sol.solicitante.cargo) else "Não especificado"
     nome_ativo = sol.asset.nome if sol.asset else "Não especificado"
+    modelo = sol.asset.modelo if (sol.asset and sol.asset.modelo) else "N/A"
     e_patrimonio = sol.asset.e_patrimonio if sol.asset else "N/A"
     numero_serie = sol.asset.numero_serie if (sol.asset and sol.asset.numero_serie) else "N/A"
     valor_ativo = float(sol.asset.valor) if (sol.asset and sol.asset.valor) else 0.0
@@ -132,6 +134,7 @@ async def create_term_page(
         matricula=matricula,
         cargo=cargo,
         nome_ativo=nome_ativo,
+        modelo=modelo,
         e_patrimonio=e_patrimonio,
         numero_serie=numero_serie,
         valor_ativo=valor_ativo,

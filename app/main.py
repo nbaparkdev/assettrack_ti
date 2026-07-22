@@ -324,9 +324,17 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/login", status_code=302)
 
+    headers = getattr(exc, "headers", None)
+    if exc.status_code in (301, 302, 303, 307, 308) and headers and "location" in {k.lower(): v for k, v in headers.items()}:
+        from fastapi.responses import RedirectResponse
+        # Reconstruct headers to preserve all of them, but let RedirectResponse handle the URL
+        url = {k.lower(): v for k, v in headers.items()}["location"]
+        return RedirectResponse(url=url, status_code=exc.status_code, headers=headers)
+
     return JSONResponse(
         status_code=exc.status_code,
-        content={"detail": exc.detail}
+        content={"detail": exc.detail},
+        headers=headers
     )
 
 @app.exception_handler(500)
