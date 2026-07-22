@@ -215,11 +215,20 @@
             <h3 class="text-lg font-bold text-purple-800 mb-4">⏳ Aguardando Confirmação do Usuário</h3>
             <p class="text-gray-700">
                 Você já registrou a entrega. Agora o usuário precisa confirmar no sistema que recebeu o equipamento.
+                Caso o usuário não possa confirmar, você pode forçar a conclusão abaixo para liberar o ativo para "Em Uso".
             </p>
             <p class="text-sm text-gray-500 mt-2">
                 Data da Entrega: {{ solicitacao.data_entrega.strftime('%d/%m/%Y %H:%M') if solicitacao.data_entrega else
                 '-' }}
             </p>
+
+            <form method="POST" action="/solicitacoes-manutencao/{{ solicitacao.id }}/forcar-conclusao" class="mt-6">
+                <button type="submit"
+                    onclick="return confirm('ATENÇÃO: Você está confirmando o recebimento no lugar do usuário. O status da manutenção ficará CONCLUÍDA e o ativo voltará para EM USO.\n\nTem certeza que deseja prosseguir?')"
+                    class="bg-purple-600 text-white px-6 py-3 font-bold uppercase text-sm hover:bg-purple-700 transition-colors shadow-md border-2 border-purple-800">
+                    Forçar Conclusão (Admin)
+                </button>
+            </form>
         </div>
     </div>
     {% endif %}

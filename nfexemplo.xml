@@ -5,10 +5,10 @@
       <ide>
         <cUF>35</cUF>
         <cNF>00000101</cNF>
-        <natOp>Venda de mercadoria</natOp>
+        <natOp>MERCADORIA INTERNA</natOp>
         <mod>55</mod>
         <serie>1</serie>
-        <nNF>1017</nNF>
+        <nNF>00001</nNF>
         <dhEmi>2026-05-10T14:30:00-03:00</dhEmi>
         <dhSaiEnt>2026-05-10T14:30:00-03:00</dhSaiEnt>
         <tpNF>1</tpNF>
@@ -27,16 +27,16 @@
       </ide>
       <emit>
         <CNPJ>12345678000199</CNPJ>
-        <xNome>TECH SUPPLY BRASIL LTDA</xNome>
-        <xFant>Tech Supply</xFant>
+        <xNome>NPG PARQUES TEMATICOS</xNome>
+        <xFant>NBAPARK</xFant>
         <enderEmit>
-          <xLgr>Av. Paulista</xLgr>
+          <xLgr>Av. HORTENCIA</xLgr>
           <nro>1000</nro>
-          <xBairro>Bela Vista</xBairro>
+          <xBairro>AVENIDA CENTRAL</xBairro>
           <cMun>3550308</cMun>
-          <xMun>Sao Paulo</xMun>
-          <UF>SP</UF>
-          <CEP>01310100</CEP>
+          <xMun>GRAMADO</xMun>
+          <UF>RS</UF>
+          <CEP>9567700</CEP>
           <cPais>1058</cPais>
           <xPais>BRASIL</xPais>
           <fone>1134567890</fone>
@@ -46,15 +46,15 @@
       </emit>
       <dest>
         <CNPJ>98765432000188</CNPJ>
-        <xNome>EMPRESA CLIENTE S.A.</xNome>
+        <xNome>NBA PARK GRAMADO</xNome>
         <enderDest>
-          <xLgr>Rua Augusta</xLgr>
+          <xLgr>AV HORTENCIAS</xLgr>
           <nro>500</nro>
           <xBairro>Consolacao</xBairro>
           <cMun>3550308</cMun>
-          <xMun>Sao Paulo</xMun>
-          <UF>SP</UF>
-          <CEP>01304000</CEP>
+          <xMun>GRAMADO</xMun>
+          <UF>RS</UF>
+          <CEP>95677000</CEP>
           <cPais>1058</cPais>
           <xPais>BRASIL</xPais>
         </enderDest>
@@ -65,13 +65,13 @@
         <prod>
           <cProd>NBK-001</cProd>
           <cEAN>SEM GTIN</cEAN>
-          <xProd>Notebook Dell Latitude 5540</xProd>
+          <xProd>PRODUTOS</xProd>
           <NCM>84713012</NCM>
           <CFOP>5102</CFOP>
           <uCom>UN</uCom>
-          <qCom>5.0000</qCom>
-          <vUnCom>4500.00</vUnCom>
-          <vProd>22500.00</vProd>
+          <qCom>0.0000</qCom>
+          <vUnCom>0.00</vUnCom>
+          <vProd>0.00</vProd>
           <cEANTrib>SEM GTIN</cEANTrib>
           <uTrib>UN</uTrib>
           <qTrib>5.0000</qTrib>
@@ -95,13 +95,13 @@
         <prod>
           <cProd>MON-002</cProd>
           <cEAN>SEM GTIN</cEAN>
-          <xProd>Monitor Dell 27 P2723QE</xProd>
+          <xProd>EQUIPAMENTOS</xProd>
           <NCM>85285220</NCM>
           <CFOP>5102</CFOP>
           <uCom>UN</uCom>
-          <qCom>5.0000</qCom>
-          <vUnCom>2200.00</vUnCom>
-          <vProd>11000.00</vProd>
+          <qCom>0.0000</qCom>
+          <vUnCom>0.00</vUnCom>
+          <vProd>0.00</vProd>
           <cEANTrib>SEM GTIN</cEANTrib>
           <uTrib>UN</uTrib>
           <qTrib>5.0000</qTrib>
@@ -125,17 +125,17 @@
         <prod>
           <cProd>TEC-003</cProd>
           <cEAN>SEM GTIN</cEAN>
-          <xProd>Teclado Mecanico Logitech MX Keys</xProd>
+          <xProd>EQUIPAMENTOS</xProd>
           <NCM>84716052</NCM>
           <CFOP>5102</CFOP>
           <uCom>UN</uCom>
-          <qCom>5.0000</qCom>
-          <vUnCom>550.00</vUnCom>
-          <vProd>2750.00</vProd>
+          <qCom>0.0000</qCom>
+          <vUnCom>0.00</vUnCom>
+          <vProd>0.00</vProd>
           <cEANTrib>SEM GTIN</cEANTrib>
           <uTrib>UN</uTrib>
           <qTrib>5.0000</qTrib>
-          <vUnTrib>550.00</vUnTrib>
+          <vUnTrib>0.00</vUnTrib>
           <indTot>1</indTot>
         </prod>
         <imposto>

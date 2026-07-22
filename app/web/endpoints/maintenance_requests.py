@@ -517,6 +517,40 @@ async def confirmar_recebimento_submit(
         status_code=status.HTTP_302_FOUND
     )
 
+@router.post("/solicitacoes-manutencao/{id}/forcar-conclusao", response_class=HTMLResponse)
+async def forcar_conclusao_admin(
+    request: Request,
+    id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_active_user_web)]
+):
+    """Admin/Tech força a conclusão ignorando a validação do usuário final"""
+    
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+        
+    solicitacao = await maintenance_request.get_with_relations(db, id=id)
+    if not solicitacao:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+    
+    if solicitacao.status != StatusSolicitacaoManutencao.ENTREGUE:
+        raise HTTPException(status_code=400, detail="Esta solicitação não está aguardando confirmação (Status Entregue)")
+    
+    # Atualiza diretamente os status, como faria o user
+    solicitacao.status = StatusSolicitacaoManutencao.CONCLUIDA
+    
+    # Garante que o status do ativo está correto (EM_USO) e com o solicitante
+    asset = await db.get(Asset, solicitacao.asset_id)
+    if asset:
+        asset.status = AssetStatus.EM_USO
+        asset.current_user_id = solicitacao.solicitante_id
+    
+    await db.commit()
+    
+    return RedirectResponse(
+        url=f"/solicitacoes-manutencao/{id}?success=completed_forced",
+        status_code=status.HTTP_302_FOUND
+    )
 
 # ===== Scanner de QR de Usuário =====
 
