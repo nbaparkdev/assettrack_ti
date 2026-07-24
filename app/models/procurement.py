@@ -127,7 +127,7 @@ class PurchaseRequestItem(Base):
     quantidade: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     valor_estimado: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     fornecedor_sugerido_id: Mapped[Optional[int]] = mapped_column(ForeignKey("fornecedores.id"), nullable=True)
-    observacao: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    observacao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     request = relationship("PurchaseRequest", back_populates="itens")
     product = relationship("PurchaseProduct")

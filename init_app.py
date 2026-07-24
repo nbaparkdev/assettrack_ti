@@ -27,8 +27,14 @@ async def init_database():
                 await conn.execute(text("ALTER TABLE assets ADD COLUMN requer_termo_rh BOOLEAN DEFAULT 0"))
                 print("🔧 Adicionada coluna 'requer_termo_rh' na tabela 'assets' (fallback)...")
             except Exception:
-                # Coluna já existe ou outra exceção ignorável
                 pass
+
+        # Garantir que a coluna aprovado existe na tabela purchase_research_items
+        try:
+            await conn.execute(text("ALTER TABLE purchase_research_items ADD COLUMN aprovado BOOLEAN DEFAULT TRUE"))
+            print("🔧 Adicionada coluna 'aprovado' na tabela 'purchase_research_items'...")
+        except Exception:
+            pass
     
     print("✅ Tabelas criadas!")
 

@@ -1901,7 +1901,7 @@ async def decide_research(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     # Apenas gerentes/admins podem decidir
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.DIRETOR]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         raise HTTPException(status_code=403, detail="Acesso não autorizado")
 
     research = await crud_proc.get_purchase_research(db, research_id)
@@ -1943,7 +1943,7 @@ async def decide_research(
             )
             
             await crud_proc.log_history(
-                db, "purchase_researches", research_id, current_user.id, "Aprovou Pesquisa e gerou Solicitação"
+                db, "purchase_researches", research_id, current_user.id, "Converteu Pesquisa em Solicitação de Compra"
             )
         else:
             # Rejeitar
@@ -1958,6 +1958,8 @@ async def decide_research(
         return RedirectResponse(url=f"/compras/pesquisas/{research_id}", status_code=303)
     except Exception as e:
         logger.error(f"Erro ao decidir pesquisa: {e}")
+        await db.rollback()
+        research = await crud_proc.get_purchase_research(db, research_id)
         cost_centers = (await db.execute(select(CostCenter))).scalars().all()
         return templates.TemplateResponse(
             "procurement/research_detail.html",
@@ -1967,6 +1969,7 @@ async def decide_research(
                 "user": current_user,
                 "current_user": current_user,
                 "cost_centers": cost_centers,
+                "sc_vinculada": None,
                 "error": str(e)
             }
         )

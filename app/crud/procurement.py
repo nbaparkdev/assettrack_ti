@@ -174,12 +174,16 @@ async def generate_request_number(db: AsyncSession) -> str:
     from app.core.datetime_utils import now_sp
     year = now_sp().year
     prefix = f"SC-{year}-"
-    # Find count of SCs this year
     result = await db.execute(
-        select(PurchaseRequest).filter(PurchaseRequest.numero.like(f"{prefix}%"))
+        select(PurchaseRequest.numero).filter(PurchaseRequest.numero.like(f"{prefix}%"))
     )
-    count = len(result.scalars().all()) + 1
-    return f"{prefix}{count:06d}"
+    existing_numbers = set(result.scalars().all())
+    count = len(existing_numbers) + 1
+    num = f"{prefix}{count:06d}"
+    while num in existing_numbers:
+        count += 1
+        num = f"{prefix}{count:06d}"
+    return num
 
 async def create_purchase_request(
     db: AsyncSession, request_in: PurchaseRequestCreate, solicitante_id: int, departamento_id: int, status: Optional[PurchaseRequestStatus] = None
@@ -464,17 +468,22 @@ async def generate_research_number(db: AsyncSession) -> str:
     year = now_sp().year
     prefix = f"PQ-{year}-"
     result = await db.execute(
-        select(PurchaseResearch).filter(PurchaseResearch.numero.like(f"{prefix}%"))
+        select(PurchaseResearch.numero).filter(PurchaseResearch.numero.like(f"{prefix}%"))
     )
-    count = len(result.scalars().all()) + 1
-    return f"{prefix}{count:06d}"
+    existing_numbers = set(result.scalars().all())
+    count = len(existing_numbers) + 1
+    num = f"{prefix}{count:06d}"
+    while num in existing_numbers:
+        count += 1
+        num = f"{prefix}{count:06d}"
+    return num
 
 
 async def create_purchase_research(
-    db: AsyncSession, research_in: PurchaseResearchCreate, solicitante_id: int, status: PurchaseResearchStatus = PurchaseResearchStatus.PENDENTE
+    db: AsyncSession, obj_in: PurchaseResearchCreate, solicitante_id: int, status: PurchaseResearchStatus = PurchaseResearchStatus.PENDENTE
 ) -> PurchaseResearch:
     num = await generate_research_number(db)
-    research_data = research_in.model_dump(exclude={"items"})
+    research_data = obj_in.model_dump(exclude={"items"})
     db_res = PurchaseResearch(
         numero=num,
         solicitante_id=solicitante_id,
@@ -484,7 +493,7 @@ async def create_purchase_research(
     db.add(db_res)
     await db.flush() # Obter ID
     
-    for item in research_in.items:
+    for item in obj_in.items:
         db_item = PurchaseResearchItem(
             research_id=db_res.id,
             **item.model_dump()

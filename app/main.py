@@ -76,10 +76,38 @@ async def lifespan(app: FastAPI):
                             _logger.info(f"Enum userrole: '{val}' já existe")
                     except Exception as e:
                         _logger.warning(f"⚠️ Enum userrole: falha ao adicionar '{val}': {e}")
+
+                for val in ['Rascunho', 'Pendente', 'Aprovada', 'Reprovada']:
+                    try:
+                        exists = await _ac_conn.fetchval(
+                            "SELECT 1 FROM pg_enum e "
+                            "JOIN pg_type t ON e.enumtypid = t.oid "
+                            "WHERE t.typname = 'purchaseresearchstatus' AND e.enumlabel = $1",
+                            val
+                        )
+                        if not exists:
+                            await _ac_conn.execute(f"ALTER TYPE purchaseresearchstatus ADD VALUE '{val}'")
+                            _logger.info(f"✅ Enum purchaseresearchstatus: adicionado valor '{val}'")
+                    except Exception as e:
+                        pass
             finally:
                 await _ac_conn.close()
         except Exception as e:
-            _logger.warning(f"⚠️ Enum userrole migration falhou: {e}")
+            _logger.warning(f"⚠️ Enum migration falhou: {e}")
+
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE purchase_research_items ADD COLUMN aprovado BOOLEAN DEFAULT TRUE"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE purchase_research_items ADD COLUMN tipo_produto VARCHAR(20) DEFAULT 'Consumo'"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE purchase_request_items ALTER COLUMN observacao TYPE TEXT"))
+        except Exception:
+            pass
 
 
 

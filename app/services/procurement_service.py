@@ -284,21 +284,33 @@ async def convert_research_to_purchase_request(
 
     # 3. Determinar departamento associado ao solicitante (ou usar um padrão)
     from app.models.user import User
+    from app.models.location import Departamento
     user_res = await db.execute(select(User).filter(User.id == current_user_id))
     user_obj = user_res.scalars().first()
-    dept_id = user_obj.departamento_id if (user_obj and user_obj.departamento_id) else 1
+    
+    dept_id = user_obj.departamento_id if (user_obj and user_obj.departamento_id) else None
+    if not dept_id:
+        dept_res = await db.execute(select(Departamento).order_by(Departamento.id))
+        first_dept = dept_res.scalars().first()
+        if first_dept:
+            dept_id = first_dept.id
+        else:
+            new_dept = Departamento(nome="Geral")
+            db.add(new_dept)
+            await db.flush()
+            dept_id = new_dept.id
 
     # 4. Criar a Solicitação de Compra (SC)
     sc_num = await generate_request_number(db)
     
     purchase_request = PurchaseRequest(
         numero=sc_num,
-        solicitante_id=research.solicitante_id,
+        solicitante_id=research.solicitante_id if research.solicitante_id else current_user_id,
         departamento_id=dept_id,
         centro_custo_id=centro_custo_id,
         justificativa=justificativa or f"Gerado a partir da Pesquisa de Compra {research.numero}",
         urgencia="Média",
-        status=PurchaseRequestStatus.APROVADA,
+        status=PurchaseRequestStatus.PENDENTE,
         data_criacao=now_sp()
     )
     db.add(purchase_request)

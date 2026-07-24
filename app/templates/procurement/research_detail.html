@@ -77,7 +77,7 @@
                         <div class="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <div class="flex items-start gap-4">
                                 <!-- Checkbox de aprovação se estiver pendente e for gestor -->
-                                {% if research.status.value == "Pendente" and current_user.role.value in ['admin', 'gerente', 'diretor'] %}
+                                {% if research.status.value == "Pendente" and current_user.role.value in ['admin', 'gerente_ti', 'gerente_infra'] %}
                                 <div class="pt-2">
                                     <input type="checkbox" name="approve_item_{{ item.id }}" id="approve_item_{{ item.id }}" checked
                                         class="w-5 h-5 border-2 border-black rounded-none text-black focus:ring-0 cursor-pointer">
@@ -126,7 +126,7 @@
                     </div>
 
                     <!-- Bloco de Aprovação/Decisão (Somente se pendente e perfil autorizado) -->
-                    {% if research.status.value == "Pendente" and current_user.role.value in ['admin', 'gerente', 'diretor'] %}
+                    {% if research.status.value == "Pendente" and current_user.role.value in ['admin', 'gerente_ti', 'gerente_infra'] %}
                     <div class="border-t-2 border-black pt-6 space-y-4 bg-gray-50 p-4 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                         <h4 class="font-bold text-xs uppercase tracking-wider text-black border-b border-gray-300 pb-1">Painel de Decisão</h4>
                         
