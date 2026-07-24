@@ -21,7 +21,8 @@ from app.models.procurement import (
     PurchaseQuotationItem, PurchaseOrder, PurchaseOrderItem, PurchaseReceiving,
     PurchaseReceivingItem, PurchaseCategory, PurchaseProduct, CostCenter,
     ProductType, MaterialStock, MaterialStockTransaction, PurchaseRequestStatus,
-    PurchaseOrderStatus, PurchaseApproval, PurchaseContract
+    PurchaseOrderStatus, PurchaseApproval, PurchaseContract,
+    PurchaseResearch, PurchaseResearchItem, PurchaseResearchStatus
 )
 from app.crud import procurement as crud_proc
 from app.services import procurement_service as serv_proc
@@ -30,7 +31,7 @@ from app.schemas.procurement import (
     PurchaseOrderCreate, PurchaseOrderItemCreate,
     PurchaseReceivingCreate, PurchaseReceivingItemCreate,
     PurchaseProductCreate, PurchaseProductUpdate, CostCenterCreate, PurchaseContractCreate, PurchaseContractUpdate,
-    PurchaseCategoryCreate
+    PurchaseCategoryCreate, PurchaseResearchCreate, PurchaseResearchItemCreate
 )
 
 router = APIRouter(dependencies=[Depends(check_purchases_enabled)])
@@ -1708,4 +1709,266 @@ async def export_procurement_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+# --------------------
+# PESQUISAS DE COMPRA (COTAÇÃO PRÉVIA)
+# --------------------
+@router.get("/pesquisas", response_class=HTMLResponse)
+async def list_researches(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    researches = await crud_proc.get_purchase_researches(db)
+    return templates.TemplateResponse(
+        "procurement/researches_list.html",
+        {"request": request, "researches": researches, "user": current_user, "current_user": current_user}
+    )
+
+
+@router.get("/pesquisas/new", response_class=HTMLResponse)
+async def new_research_form(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    return templates.TemplateResponse(
+        "procurement/research_form.html",
+        {"request": request, "user": current_user, "current_user": current_user}
+    )
+
+
+@router.post("/pesquisas/new")
+async def create_research_submit(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    import shutil
+    import os
+    import uuid
+
+    try:
+        form_data = await request.form()
+        titulo = form_data.get("titulo")
+        justificativa = form_data.get("justificativa")
+
+        if not titulo or not justificativa:
+            raise ValueError("Título e Justificativa são obrigatórios.")
+
+        # Buscar itens enviados dinamicamente
+        indices = []
+        for key in form_data.keys():
+            if key.startswith("item_nome_"):
+                try:
+                    idx = int(key.split("_")[-1])
+                    indices.append(idx)
+                except ValueError:
+                    pass
+
+        items_in = []
+        for idx in sorted(indices):
+            nome = form_data.get(f"item_nome_{idx}")
+            link = form_data.get(f"item_link_{idx}")
+            
+            valor_str = form_data.get(f"item_valor_{idx}") or "0.0"
+            valor_estimado = float(valor_str.replace(",", "."))
+            
+            qtd_str = form_data.get(f"item_qtd_{idx}") or "1.0"
+            quantidade = float(qtd_str.replace(",", "."))
+            
+            tipo_produto = form_data.get(f"item_tipo_{idx}") or "Consumo"
+
+            # Upload da Imagem
+            imagem_path = None
+            foto_file = form_data.get(f"item_foto_{idx}")
+            if foto_file and hasattr(foto_file, 'filename') and foto_file.filename:
+                os.makedirs("static/uploads", exist_ok=True)
+                filename = f"pesquisa_{uuid.uuid4().hex[:8]}_{foto_file.filename}"
+                save_path = os.path.join("static/uploads", filename)
+                with open(save_path, "wb") as f:
+                    shutil.copyfileobj(foto_file.file, f)
+                imagem_path = f"/static/uploads/{filename}"
+
+            if nome:
+                items_in.append(PurchaseResearchItemCreate(
+                    nome_produto=nome,
+                    link_produto=link,
+                    imagem_path=imagem_path,
+                    valor_estimado=valor_estimado,
+                    quantidade=quantidade,
+                    tipo_produto=tipo_produto
+                ))
+
+        if not items_in:
+            raise ValueError("A pesquisa precisa conter pelo menos um produto.")
+
+        research_create = PurchaseResearchCreate(
+            titulo=titulo,
+            justificativa=justificativa,
+            items=items_in
+        )
+
+        status_val = form_data.get("status") or "Pendente"
+        status = PurchaseResearchStatus.RASCUNHO if status_val == "Rascunho" else PurchaseResearchStatus.PENDENTE
+
+        research = await crud_proc.create_purchase_research(db, research_create, current_user.id, status=status)
+        # Registrar histórico
+        await crud_proc.log_history(
+            db, "purchase_researches", research.id, current_user.id, "Criou Pesquisa de Compra"
+        )
+
+        return RedirectResponse(url="/compras/pesquisas", status_code=303)
+    except Exception as e:
+        logger.error(f"Erro ao criar pesquisa de compra: {e}")
+        return templates.TemplateResponse(
+            "procurement/research_form.html",
+            {
+                "request": request,
+                "current_user": current_user,
+                "error": str(e)
+            }
+        )
+
+
+@router.get("/pesquisas/{research_id}", response_class=HTMLResponse)
+async def view_research(
+    research_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    research = await crud_proc.get_purchase_research(db, research_id)
+    if not research:
+        raise HTTPException(status_code=404, detail="Pesquisa não encontrada")
+
+    cost_centers = (await db.execute(select(CostCenter).filter(CostCenter.alerta_limite == True))).scalars().all()
+    # Caso a lista acima venha vazia, pegamos todos
+    if not cost_centers:
+        cost_centers = (await db.execute(select(CostCenter))).scalars().all()
+
+    # Verificar se já existe uma SC originada desta pesquisa
+    sc_vinculada = None
+    if research.status == PurchaseResearchStatus.APROVADA:
+        # Procurar SC cuja justificativa contenha o número da pesquisa
+        sc_res = await db.execute(
+            select(PurchaseRequest)
+            .filter(PurchaseRequest.justificativa.like(f"%{research.numero}%"))
+        )
+        sc_vinculada = sc_res.scalars().first()
+
+    return templates.TemplateResponse(
+        "procurement/research_detail.html",
+        {
+            "request": request,
+            "research": research,
+            "user": current_user,
+            "current_user": current_user,
+            "cost_centers": cost_centers,
+            "sc_vinculada": sc_vinculada
+        }
+    )
+
+@router.post("/pesquisas/{research_id}/enviar")
+async def send_research_for_approval(
+    research_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    research = await crud_proc.get_purchase_research(db, research_id)
+    if not research:
+        raise HTTPException(status_code=404, detail="Pesquisa não encontrada")
+        
+    if research.status != PurchaseResearchStatus.RASCUNHO:
+        raise HTTPException(status_code=400, detail="Esta pesquisa não está em rascunho")
+        
+    research.status = PurchaseResearchStatus.PENDENTE
+    db.add(research)
+    await db.commit()
+    
+    await crud_proc.log_history(
+        db, "purchase_researches", research_id, current_user.id, "Enviou pesquisa para aprovação"
+    )
+    
+    return RedirectResponse(url=f"/compras/pesquisas/{research_id}", status_code=303)
+
+@router.post("/pesquisas/{research_id}/decidir")
+async def decide_research(
+    research_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    # Apenas gerentes/admins podem decidir
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.DIRETOR]:
+        raise HTTPException(status_code=403, detail="Acesso não autorizado")
+
+    research = await crud_proc.get_purchase_research(db, research_id)
+    if not research:
+        raise HTTPException(status_code=404, detail="Pesquisa não encontrada")
+
+    try:
+        form_data = await request.form()
+        acao = form_data.get("acao") # "aprovar" ou "rejeitar"
+        justificativa_decisao = form_data.get("justificativa_decisao")
+        centro_custo_id_str = form_data.get("centro_custo_id")
+        
+        if acao == "aprovar":
+            if not centro_custo_id_str:
+                raise ValueError("Centro de Custo é obrigatório para aprovação.")
+            centro_custo_id = int(centro_custo_id_str)
+
+            # Obter lista de IDs dos itens aprovados
+            approved_item_ids = []
+            for key in form_data.keys():
+                if key.startswith("approve_item_"):
+                    try:
+                        item_id = int(key.split("_")[-1])
+                        approved_item_ids.append(item_id)
+                    except ValueError:
+                        pass
+
+            if not approved_item_ids:
+                raise ValueError("Selecione pelo menos um produto para aprovar.")
+
+            # Chamar conversão
+            sc = await serv_proc.convert_research_to_purchase_request(
+                research_id=research_id,
+                db=db,
+                current_user_id=current_user.id,
+                approved_item_ids=approved_item_ids,
+                centro_custo_id=centro_custo_id,
+                justificativa=justificativa_decisao
+            )
+            
+            await crud_proc.log_history(
+                db, "purchase_researches", research_id, current_user.id, "Aprovou Pesquisa e gerou Solicitação"
+            )
+        else:
+            # Rejeitar
+            research.status = PurchaseResearchStatus.REPROVADA
+            db.add(research)
+            await db.commit()
+            
+            await crud_proc.log_history(
+                db, "purchase_researches", research_id, current_user.id, f"Rejeitou Pesquisa: {justificativa_decisao or ''}"
+            )
+
+        return RedirectResponse(url=f"/compras/pesquisas/{research_id}", status_code=303)
+    except Exception as e:
+        logger.error(f"Erro ao decidir pesquisa: {e}")
+        cost_centers = (await db.execute(select(CostCenter))).scalars().all()
+        return templates.TemplateResponse(
+            "procurement/research_detail.html",
+            {
+                "request": request,
+                "research": research,
+                "user": current_user,
+                "current_user": current_user,
+                "cost_centers": cost_centers,
+                "error": str(e)
+            }
+        )
+
 

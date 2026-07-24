@@ -10,7 +10,8 @@ from app.models.procurement import (
     PurchaseRequest, PurchaseRequestItem, PurchaseQuotation, PurchaseQuotationSupplier,
     PurchaseQuotationItem, PurchaseOrder, PurchaseOrderItem, PurchaseReceiving,
     PurchaseReceivingItem, PurchaseCategory, PurchaseProduct, CostCenter,
-    ProductType, MaterialStock, MaterialStockTransaction, PurchaseRequestStatus
+    ProductType, MaterialStock, MaterialStockTransaction, PurchaseRequestStatus,
+    PurchaseResearch, PurchaseResearchItem, PurchaseResearchStatus
 )
 from app.models.asset import Asset, AssetStatus
 from app.models.maintenance import Manutencao
@@ -248,3 +249,130 @@ async def create_purchase_request_from_ticket(
     await db.commit()
     await db.refresh(db_req)
     return db_req
+
+
+async def convert_research_to_purchase_request(
+    research_id: int,
+    db: AsyncSession,
+    current_user_id: int,
+    approved_item_ids: List[int],
+    centro_custo_id: int,
+    justificativa: str
+) -> Optional[PurchaseRequest]:
+    """
+    Converte uma Pesquisa de Compra (PQ) aprovada em uma Solicitação de Compra (SC) "Aprovada"
+    e cadastra os itens aprovados como produtos internos (purchase_products).
+    Se for material de consumo, também inicializa a tabela de estoque (MaterialStock) com saldo zerado.
+    """
+    # 1. Buscar a Pesquisa
+    result = await db.execute(
+        select(PurchaseResearch)
+        .options(selectinload(PurchaseResearch.items))
+        .filter(PurchaseResearch.id == research_id)
+    )
+    research = result.scalars().first()
+    if not research or not approved_item_ids:
+        return None
+
+    # 2. Obter categoria padrão para os produtos
+    cat_result = await db.execute(select(PurchaseCategory).filter(PurchaseCategory.nome == "Geral"))
+    category = cat_result.scalars().first()
+    if not category:
+        category = PurchaseCategory(nome="Geral", descricao="Categoria padrão para produtos criados por cotação", ativo=True)
+        db.add(category)
+        await db.flush()
+
+    # 3. Determinar departamento associado ao solicitante (ou usar um padrão)
+    from app.models.user import User
+    user_res = await db.execute(select(User).filter(User.id == current_user_id))
+    user_obj = user_res.scalars().first()
+    dept_id = user_obj.departamento_id if (user_obj and user_obj.departamento_id) else 1
+
+    # 4. Criar a Solicitação de Compra (SC)
+    sc_num = await generate_request_number(db)
+    
+    purchase_request = PurchaseRequest(
+        numero=sc_num,
+        solicitante_id=research.solicitante_id,
+        departamento_id=dept_id,
+        centro_custo_id=centro_custo_id,
+        justificativa=justificativa or f"Gerado a partir da Pesquisa de Compra {research.numero}",
+        urgencia="Média",
+        status=PurchaseRequestStatus.APROVADA,
+        data_criacao=now_sp()
+    )
+    db.add(purchase_request)
+    await db.flush()
+
+    # 5. Processar cada item aprovado da Pesquisa
+    import uuid
+    for item in research.items:
+        if item.id not in approved_item_ids:
+            item.aprovado = False
+            db.add(item)
+            continue
+            
+        item.aprovado = True
+        db.add(item)
+
+        # 5.1. Verificar se o produto já existe ou criar um novo
+        from sqlalchemy import func
+        prod_res = await db.execute(
+            select(PurchaseProduct)
+            .filter(func.lower(PurchaseProduct.nome) == func.lower(item.nome_produto))
+        )
+        db_product = prod_res.scalars().first()
+
+        if not db_product:
+            prod_code = f"PRD-{uuid.uuid4().hex[:8].upper()}"
+            
+            # Mapear tipo do produto
+            prod_type = ProductType.MATERIAL_CONSUMO if item.tipo_produto == "Consumo" else ProductType.EQUIPAMENTO
+
+            db_product = PurchaseProduct(
+                codigo=prod_code,
+                nome=item.nome_produto,
+                categoria_id=category.id,
+                unidade="UN",
+                tipo=prod_type,
+                imagem_path=item.imagem_path,
+                descricao=f"Produto criado automaticamente a partir da Pesquisa de Compra {research.numero}",
+                ativo=True
+            )
+            db.add(db_product)
+            await db.flush()
+
+            # 5.2. Se for Consumo, inicializar o estoque zerado (MaterialStock)
+            if prod_type == ProductType.MATERIAL_CONSUMO:
+                stock = MaterialStock(product_id=db_product.id, quantidade_saldo=0.00)
+                db.add(stock)
+                
+                tx = MaterialStockTransaction(
+                    product_id=db_product.id,
+                    quantidade=0.00,
+                    tipo_movimentacao="Entrada",
+                    origem_tabela="purchase_researches",
+                    origem_id=research.id,
+                    user_id=current_user_id,
+                    justificativa=f"Inicialização de estoque para produto criado a partir de Pesquisa {research.numero}"
+                )
+                db.add(tx)
+
+        # 5.3. Adicionar o produto como item da Solicitação de Compra (PurchaseRequestItem)
+        sc_item = PurchaseRequestItem(
+            request_id=purchase_request.id,
+            product_id=db_product.id,
+            quantidade=item.quantidade,
+            valor_estimado=item.valor_estimado,
+            observacao=f"Origem: Link {item.link_produto}" if item.link_produto else ""
+        )
+        db.add(sc_item)
+
+    # 6. Atualizar status da pesquisa para APROVADA
+    research.status = PurchaseResearchStatus.APROVADA
+    db.add(research)
+
+    await db.commit()
+    await db.refresh(purchase_request)
+    return purchase_request
+

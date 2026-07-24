@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="border-b-2 border-black pb-4">
+        <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Nova Pesquisa de Compra</h1>
+        <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Preenchimento de Pesquisa // Cotação Prévia</p>
+    </div>
+
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-600 p-4 shadow-[4px_4px_0px_0px_rgba(220,38,38,1)] flex items-center gap-3">
+        <span class="font-mono text-xs font-bold text-red-800 uppercase tracking-wider">{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Form -->
+    <form action="/compras/pesquisas/new" method="POST" enctype="multipart/form-data" class="bg-white border-2 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+        
+        <!-- Título -->
+        <div>
+            <label for="titulo" class="block text-xs font-bold uppercase text-gray-900 mb-2">Título da Pesquisa *</label>
+            <input type="text" name="titulo" id="titulo" required class="w-full bg-white border-2 border-black p-3 font-sans text-sm focus:outline-none focus:bg-gray-50" placeholder="Ex: Aquisição de Laptops de Desenvolvimento para TI">
+        </div>
+
+        <!-- Justificativa -->
+        <div>
+            <label for="justificativa" class="block text-xs font-bold uppercase text-gray-900 mb-2">Justificativa / Motivação *</label>
+            <textarea name="justificativa" id="justificativa" rows="3" required class="w-full bg-white border-2 border-black p-3 font-sans text-sm focus:outline-none focus:bg-gray-50" placeholder="Descreva por que estes produtos são necessários e qual é o objetivo desta pesquisa..."></textarea>
+        </div>
+
+        <!-- Itens Pesquisados -->
+        <div class="border-2 border-black p-6 bg-gray-50 space-y-4">
+            <div class="border-b-2 border-black pb-2 flex items-center justify-between">
+                <h3 class="font-bold text-xs uppercase text-black tracking-wider">Produtos a Pesquisar</h3>
+                <button type="button" onclick="addItemRow()" class="font-mono text-xs font-bold bg-black text-white px-3 py-1 hover:bg-gray-800 transition">ADICIONAR PRODUTO</button>
+            </div>
+            
+            <div id="items-container" class="space-y-6">
+                <!-- Row template (index 0) -->
+                <div class="border-2 border-black bg-white p-4 space-y-4 item-row" data-index="0">
+                    <div class="flex justify-between items-center border-b border-black pb-2">
+                        <span class="font-mono text-xs font-bold uppercase tracking-wider text-gray-600">Produto #<span class="row-number">1</span></span>
+                        <button type="button" onclick="removeItemRow(this)" class="font-mono text-xs font-bold bg-red-600 border border-black text-white px-2 py-0.5 hover:bg-red-700 transition">REMOVER</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Nome -->
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Nome / Descrição do Produto *</label>
+                            <input type="text" name="item_nome_0" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" placeholder="Ex: Monitor Dell 27 Polegadas S2721DGF">
+                        </div>
+
+                        <!-- Link -->
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Link do Fornecedor / Produto (URL)</label>
+                            <input type="url" name="item_link_0" class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" placeholder="https://amazon.com.br/exemplo">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <!-- Valor Estimado -->
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Valor Unitário Est. (R$) *</label>
+                            <input type="number" step="0.01" name="item_valor_0" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" value="0.00">
+                        </div>
+
+                        <!-- Quantidade -->
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Quantidade *</label>
+                            <input type="number" step="0.01" name="item_qtd_0" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" value="1.00">
+                        </div>
+
+                        <!-- Tipo de Destino (Consumo vs Imobilizado) -->
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Classificação Interna *</label>
+                            <select name="item_tipo_0" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none">
+                                <option value="Consumo" selected>Material de Consumo (Estoque)</option>
+                                <option value="Imobilizado">Ativo Imobilizado (Equipamento/Patrimônio)</option>
+                            </select>
+                        </div>
+
+                        <!-- Upload de Foto -->
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Foto do Produto</label>
+                            <input type="file" name="item_foto_0" accept="image/*" class="w-full bg-white border-2 border-black p-1 text-xs focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="pt-6 border-t-2 border-black flex justify-end items-center gap-4">
+            <a href="/compras/pesquisas" class="btn-secondary">Cancelar</a>
+            <button type="submit" name="status" value="Rascunho" class="btn-secondary hover:bg-gray-100">Salvar Rascunho</button>
+            <button type="submit" name="status" value="Pendente" class="btn-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">Enviar para Aprovação</button>
+        </div>
+    </form>
+</div>
+
+<script>
+let rowCount = 1;
+
+function addItemRow() {
+    const container = document.getElementById('items-container');
+    const templateRow = container.querySelector('.item-row');
+    const newRow = templateRow.cloneNode(true);
+    
+    // Set index & update names
+    newRow.setAttribute('data-index', rowCount);
+    newRow.querySelector('.row-number').innerText = rowCount + 1;
+    
+    // Update input names for the backend
+    newRow.querySelector('input[placeholder="Ex: Monitor Dell 27 Polegadas S2721DGF"]').setAttribute('name', `item_nome_${rowCount}`);
+    newRow.querySelector('input[placeholder="https://amazon.com.br/exemplo"]').setAttribute('name', `item_link_${rowCount}`);
+    newRow.querySelector('input[name^="item_valor_"]').setAttribute('name', `item_valor_${rowCount}`);
+    newRow.querySelector('input[name^="item_qtd_"]').setAttribute('name', `item_qtd_${rowCount}`);
+    newRow.querySelector('select[name^="item_tipo_"]').setAttribute('name', `item_tipo_${rowCount}`);
+    newRow.querySelector('input[type="file"]').setAttribute('name', `item_foto_${rowCount}`);
+    
+    // Clear values
+    newRow.querySelector(`input[name="item_nome_${rowCount}"]`).value = "";
+    newRow.querySelector(`input[name="item_link_${rowCount}"]`).value = "";
+    newRow.querySelector(`input[name="item_valor_${rowCount}"]`).value = "0.00";
+    newRow.querySelector(`input[name="item_qtd_${rowCount}"]`).value = "1.00";
+    newRow.querySelector(`select[name="item_tipo_${rowCount}"]`).value = "Consumo";
+    newRow.querySelector(`input[name="item_foto_${rowCount}"]`).value = "";
+    
+    container.appendChild(newRow);
+    rowCount++;
+}
+
+function removeItemRow(btn) {
+    const container = document.getElementById('items-container');
+    if (container.querySelectorAll('.item-row').length > 1) {
+        btn.closest('.item-row').remove();
+        
+        // Re-adjust numbers
+        const rows = container.querySelectorAll('.item-row');
+        rows.forEach((row, index) => {
+            row.querySelector('.row-number').innerText = index + 1;
+        });
+    } else {
+        alert("A pesquisa precisa conter pelo menos um produto!");
+    }
+}
+</script>
+{% endblock %}

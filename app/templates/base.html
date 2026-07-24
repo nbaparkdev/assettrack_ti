@@ -230,6 +230,7 @@
                                 <div class="bg-black text-white px-4 py-1 text-[10px] font-mono uppercase tracking-widest">Module_05_Purchases</div>
                                 <div class="p-1">
                                     <a href="/compras" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Painel Compras</a>
+                                    <a href="/compras/pesquisas" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Pesquisas PQ</a>
                                     <a href="/compras/solicitacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Solicitações</a>
                                     <a href="/compras/cotacoes" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Cotações</a>
                                     <a href="/compras/pedidos" class="block px-3 py-2 text-sm font-bold uppercase hover:bg-gray-100">Pedidos PO</a>
@@ -403,6 +404,7 @@
             {% if request.state.purchases_enabled and user.role.value|lower in request.state.menu_permissions.get('compras', ['admin', 'gerente_ti', 'gerente_infra', 'comprador']) %}
             <div class="{{ section_title }}">Compras</div>
             <a href="/compras" class="{{ mobile_link }} ml-2 text-black border-black hover:bg-gray-50">Painel de Compras</a>
+            <a href="/compras/pesquisas" class="{{ mobile_link }} ml-2">Pesquisas PQ</a>
             <a href="/compras/solicitacoes" class="{{ mobile_link }} ml-2">Solicitações de Compra</a>
             <a href="/compras/cotacoes" class="{{ mobile_link }} ml-2">Cotações</a>
             <a href="/compras/pedidos" class="{{ mobile_link }} ml-2">Pedidos de Compra</a>

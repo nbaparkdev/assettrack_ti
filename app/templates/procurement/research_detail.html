@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="font-mono text-xs font-bold uppercase tracking-wider text-gray-500">Pesquisa {{ research.numero }}</span>
+                {% if research.status.value == "Rascunho" %}
+                <span class="font-mono text-[10px] px-2 py-0.5 bg-gray-100 text-gray-800 border border-gray-300 font-bold uppercase">{{ research.status.value }}</span>
+                {% elif research.status.value == "Pendente" %}
+                <span class="font-mono text-[10px] px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 font-bold uppercase">{{ research.status.value }}</span>
+                {% elif research.status.value == "Aprovada" %}
+                <span class="font-mono text-[10px] px-2 py-0.5 bg-green-100 text-green-800 border border-green-300 font-bold uppercase">{{ research.status.value }}</span>
+                {% elif research.status.value == "Reprovada" %}
+                <span class="font-mono text-[10px] px-2 py-0.5 bg-red-100 text-red-800 border border-red-300 font-bold uppercase">{{ research.status.value }}</span>
+                {% endif %}
+            </div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none mt-2">{{ research.titulo }}</h1>
+        </div>
+        <a href="/compras/pesquisas" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            Voltar
+        </a>
+    </div>
+
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-600 p-4 shadow-[4px_4px_0px_0px_rgba(220,38,38,1)] flex items-center gap-3">
+        <span class="font-mono text-xs font-bold text-red-800 uppercase tracking-wider">{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Banner para pesquisas em rascunho -->
+    {% if research.status.value == "Rascunho" %}
+    <div class="bg-amber-50 border-2 border-amber-500 p-4 shadow-[4px_4px_0px_0px_rgba(245,158,11,1)] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="space-y-1">
+            <h3 class="font-bold text-sm text-amber-900 uppercase">Pesquisa em Rascunho</h3>
+            <p class="text-xs text-amber-700 font-mono">Esta pesquisa está em rascunho. Envie-a para aprovação para que possa ser decidida e virar uma Solicitação de Compra.</p>
+        </div>
+        <form action="/compras/pesquisas/{{ research.id }}/enviar" method="POST" class="w-full sm:w-auto">
+            <button type="submit" class="w-full sm:w-auto font-mono text-xs font-bold bg-amber-400 text-black px-4 py-2 border-2 border-black hover:bg-amber-300 transition shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase">
+                Enviar para Aprovação &rarr;
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Link para a Solicitação Gerada, se houver -->
+    {% if sc_vinculada %}
+    <div class="bg-green-50 border-2 border-green-600 p-4 shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h3 class="font-bold text-sm text-green-900 uppercase">Solicitação de Compra Gerada!</h3>
+            <p class="text-xs text-green-700 font-mono mt-1">Esta pesquisa foi aprovada e gerou automaticamente a solicitação {{ sc_vinculada.numero }}.</p>
+        </div>
+        <a href="/compras/solicitacoes/{{ sc_vinculada.id }}" class="font-mono text-xs font-bold bg-green-600 text-white px-4 py-2 border border-black hover:bg-green-700 transition shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            Visualizar Solicitação
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Main details -->
+        <div class="md:col-span-2 space-y-6">
+            <!-- Justificativa -->
+            <div class="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <h3 class="font-mono text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Justificativa da Pesquisa</h3>
+                <p class="text-sm text-gray-800 whitespace-pre-line">{{ research.justificativa }}</p>
+            </div>
+
+            <!-- List of items -->
+            <div class="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] space-y-4">
+                <h3 class="font-mono text-xs font-bold uppercase tracking-wider text-black border-b-2 border-black pb-2">Produtos Cadastrados</h3>
+                
+                <form id="approval-form" action="/compras/pesquisas/{{ research.id }}/decidir" method="POST" class="space-y-6">
+                    <div class="divide-y divide-gray-200">
+                        {% for item in research.items %}
+                        <div class="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div class="flex items-start gap-4">
+                                <!-- Checkbox de aprovação se estiver pendente e for gestor -->
+                                {% if research.status.value == "Pendente" and current_user.role.value in ['admin', 'gerente', 'diretor'] %}
+                                <div class="pt-2">
+                                    <input type="checkbox" name="approve_item_{{ item.id }}" id="approve_item_{{ item.id }}" checked
+                                        class="w-5 h-5 border-2 border-black rounded-none text-black focus:ring-0 cursor-pointer">
+                                </div>
+                                {% endif %}
+
+                                <!-- Foto do produto se houver -->
+                                <div class="w-16 h-16 border-2 border-black bg-gray-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                                    {% if item.imagem_path %}
+                                    <img src="{{ item.imagem_path }}" class="object-cover w-full h-full" alt="{{ item.nome_produto }}">
+                                    {% else %}
+                                    <span class="text-xs text-gray-400 font-mono">SEM FOTO</span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Detalhes do Produto -->
+                                <div>
+                                    <h4 class="font-bold text-sm text-black">{{ item.nome_produto }}</h4>
+                                    <div class="flex flex-wrap gap-2 mt-1">
+                                        <span class="font-mono text-[9px] px-1.5 py-0.5 border border-black bg-gray-100 font-bold uppercase">
+                                            {{ item.tipo_produto }}
+                                        </span>
+                                        {% if research.status.value == "Aprovada" %}
+                                            {% if item.aprovado %}
+                                            <span class="font-mono text-[9px] px-1.5 py-0.5 border border-green-500 bg-green-50 text-green-700 font-bold uppercase">APROVADO</span>
+                                            {% else %}
+                                            <span class="font-mono text-[9px] px-1.5 py-0.5 border border-red-500 bg-red-50 text-red-700 font-bold uppercase">REJEITADO</span>
+                                            {% endif %}
+                                        {% endif %}
+                                        
+                                        {% if item.link_produto %}
+                                        <a href="{{ item.link_produto }}" target="_blank" class="font-mono text-[9px] text-blue-600 hover:underline uppercase">Abrir Link Fornecedor &rarr;</a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Preço e Qtd -->
+                            <div class="text-right sm:text-right font-mono text-xs w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
+                                <div>Qtd: <span class="font-bold">{{ "%.2f" | format(item.quantidade) }}</span></div>
+                                <div class="text-sm font-bold text-black mt-1">R$ {{ "%.2f" | format(item.valor_estimado) }}</div>
+                                <div class="text-[10px] text-gray-500 mt-0.5">Total: R$ {{ "%.2f" | format(item.valor_estimado * item.quantidade) }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Bloco de Aprovação/Decisão (Somente se pendente e perfil autorizado) -->
+                    {% if research.status.value == "Pendente" and current_user.role.value in ['admin', 'gerente', 'diretor'] %}
+                    <div class="border-t-2 border-black pt-6 space-y-4 bg-gray-50 p-4 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-black border-b border-gray-300 pb-1">Painel de Decisão</h4>
+                        
+                        <!-- Centro de Custo para a Solicitação -->
+                        <div>
+                            <label for="centro_custo_id" class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Centro de Custo Destino *</label>
+                            <select name="centro_custo_id" id="centro_custo_id" required class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none">
+                                <option value="">Selecione...</option>
+                                {% for cc in cost_centers %}
+                                <option value="{{ cc.id }}">{{ cc.nome }} [Disponível: R$ {{ "%.2f" | format(cc.orcamento_mensal - cc.orcamento_mensal_usado) }}]</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Justificativa da Decisão -->
+                        <div>
+                            <label for="justificativa_decisao" class="block text-[10px] font-bold uppercase text-gray-700 mb-1">Justificativa da Decisão / Observações</label>
+                            <textarea name="justificativa_decisao" id="justificativa_decisao" rows="2" class="w-full bg-white border-2 border-black p-2 text-xs focus:outline-none" placeholder="Opcional. Adicione anotações sobre a aprovação ou rejeição..."></textarea>
+                        </div>
+
+                        <!-- Ações -->
+                        <div class="flex gap-4 pt-2">
+                            <button type="submit" name="acao" value="rejeitar" class="flex-1 bg-white border-2 border-black text-black font-mono text-xs font-bold py-2 hover:bg-gray-100 transition shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase">
+                                Rejeitar Tudo
+                            </button>
+                            <button type="submit" name="acao" value="aprovar" class="flex-1 bg-black text-white font-mono text-xs font-bold py-2 hover:bg-gray-800 transition shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] uppercase">
+                                Aprovar Selecionados
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <!-- Sidebar Info -->
+        <div class="space-y-6">
+            <div class="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] space-y-4">
+                <h3 class="font-mono text-xs font-bold uppercase tracking-wider text-black border-b-2 border-black pb-2">Informações</h3>
+                
+                <div class="space-y-3 font-sans text-xs">
+                    <div>
+                        <span class="block text-[10px] font-mono uppercase text-gray-500">Solicitante</span>
+                        <span class="font-bold text-gray-900">{{ research.solicitante.nome if research.solicitante else 'N/A' }}</span>
+                    </div>
+                    <div>
+                        <span class="block text-[10px] font-mono uppercase text-gray-500">Email</span>
+                        <span class="font-mono text-gray-700">{{ research.solicitante.email if research.solicitante else 'N/A' }}</span>
+                    </div>
+                    <div>
+                        <span class="block text-[10px] font-mono uppercase text-gray-500">Data de Envio</span>
+                        <span class="font-mono text-gray-900">{{ research.data_criacao.strftime('%d/%m/%Y %H:%M') }}</span>
+                    </div>
+                    <div>
+                        <span class="block text-[10px] font-mono uppercase text-gray-500">Total de Itens</span>
+                        <span class="font-bold text-gray-900">{{ research.items|length }}</span>
+                    </div>
+                    {% set total_val = namespace(value=0) %}
+                    {% for item in research.items %}
+                        {% set total_val.value = total_val.value + (item.valor_estimado * item.quantidade) %}
+                    {% endfor %}
+                    <div>
+                        <span class="block text-[10px] font-mono uppercase text-gray-500">Custo Total Estimado</span>
+                        <span class="font-bold text-sm text-black font-mono">R$ {{ "%.2f" | format(total_val.value) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

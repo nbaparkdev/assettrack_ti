@@ -347,3 +347,41 @@ class MaterialStockTransactionResponse(BaseModel):
     user_id: int
     justificativa: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+# PurchaseResearchItem
+class PurchaseResearchItemBase(BaseModel):
+    nome_produto: str
+    link_produto: Optional[str] = None
+    imagem_path: Optional[str] = None
+    valor_estimado: float
+    quantidade: float = 1.0
+    tipo_produto: str = "Consumo"  # "Consumo" ou "Imobilizado"
+    aprovado: bool = True
+
+class PurchaseResearchItemCreate(PurchaseResearchItemBase):
+    pass
+
+class PurchaseResearchItemResponse(PurchaseResearchItemBase):
+    id: int
+    research_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+# PurchaseResearch
+class PurchaseResearchBase(BaseModel):
+    titulo: str
+    justificativa: str
+
+class PurchaseResearchCreate(PurchaseResearchBase):
+    items: List[PurchaseResearchItemCreate]
+
+class PurchaseResearchResponse(PurchaseResearchBase):
+    id: int
+    numero: str
+    solicitante_id: int
+    status: str
+    data_criacao: datetime
+    items: List[PurchaseResearchItemResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+

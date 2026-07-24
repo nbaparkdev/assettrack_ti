@@ -53,7 +53,10 @@ from app.models.procurement import (
     PurchaseHistory,
     PurchaseNotification,
     MaterialStock,
-    MaterialStockTransaction
+    MaterialStockTransaction,
+    PurchaseResearch,
+    PurchaseResearchItem,
+    PurchaseResearchStatus
 )
 from app.models.email_log import EmailLog
 from app.models.aviso import Aviso

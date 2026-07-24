@@ -339,3 +339,42 @@ class MaterialStockTransaction(Base):
 
     product = relationship("PurchaseProduct")
     user = relationship("User")
+
+
+class PurchaseResearchStatus(str, Enum):
+    RASCUNHO = "Rascunho"
+    PENDENTE = "Pendente"
+    APROVADA = "Aprovada"
+    REPROVADA = "Reprovada"
+
+
+class PurchaseResearch(Base):
+    __tablename__ = "purchase_researches"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    numero: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
+    solicitante_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    titulo: Mapped[str] = mapped_column(String(100), nullable=False)
+    justificativa: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[PurchaseResearchStatus] = mapped_column(SAEnum(PurchaseResearchStatus), default=PurchaseResearchStatus.RASCUNHO, index=True)
+    data_criacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
+
+    solicitante = relationship("User")
+    items = relationship("PurchaseResearchItem", back_populates="research", cascade="all, delete-orphan")
+
+
+class PurchaseResearchItem(Base):
+    __tablename__ = "purchase_research_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    research_id: Mapped[int] = mapped_column(ForeignKey("purchase_researches.id"), nullable=False)
+    nome_produto: Mapped[str] = mapped_column(String(150), index=True, nullable=False)
+    link_produto: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    imagem_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    valor_estimado: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    quantidade: Mapped[float] = mapped_column(Numeric(10, 2), default=1.0)
+    tipo_produto: Mapped[str] = mapped_column(String(20), default="Consumo") # "Consumo" ou "Imobilizado"
+    aprovado: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    research = relationship("PurchaseResearch", back_populates="items")
+

@@ -8,7 +8,8 @@ from app.models.procurement import (
     PurchaseApproval, PurchaseQuotation, PurchaseQuotationSupplier, PurchaseQuotationItem,
     PurchaseOrder, PurchaseOrderItem, PurchaseReceiving, PurchaseReceivingItem,
     PurchaseContract, MaterialStock, MaterialStockTransaction, PurchaseHistory,
-    PurchaseRequestStatus, PurchaseOrderStatus, PurchaseUnit
+    PurchaseRequestStatus, PurchaseOrderStatus, PurchaseUnit,
+    PurchaseResearch, PurchaseResearchItem, PurchaseResearchStatus
 )
 from app.schemas.procurement import (
     PurchaseCategoryCreate, PurchaseCategoryUpdate,
@@ -16,7 +17,8 @@ from app.schemas.procurement import (
     CostCenterCreate, CostCenterUpdate,
     PurchaseRequestCreate, PurchaseRequestUpdate,
     PurchaseOrderCreate, PurchaseReceivingCreate,
-    PurchaseContractCreate, PurchaseContractUpdate
+    PurchaseContractCreate, PurchaseContractUpdate,
+    PurchaseResearchCreate
 )
 
 # -----------------
@@ -427,3 +429,70 @@ async def log_history(
     )
     db.add(history)
     await db.commit()
+
+
+# -----------------
+# PURCHASE RESEARCH
+# -----------------
+async def get_purchase_research(db: AsyncSession, research_id: int) -> Optional[PurchaseResearch]:
+    result = await db.execute(
+        select(PurchaseResearch)
+        .options(
+            selectinload(PurchaseResearch.solicitante),
+            selectinload(PurchaseResearch.items)
+        )
+        .filter(PurchaseResearch.id == research_id)
+    )
+    return result.scalars().first()
+
+
+async def get_purchase_researches(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[PurchaseResearch]:
+    result = await db.execute(
+        select(PurchaseResearch)
+        .options(
+            selectinload(PurchaseResearch.solicitante),
+            selectinload(PurchaseResearch.items)
+        )
+        .order_by(desc(PurchaseResearch.data_criacao))
+        .offset(skip).limit(limit)
+    )
+    return result.scalars().all()
+
+
+async def generate_research_number(db: AsyncSession) -> str:
+    from app.core.datetime_utils import now_sp
+    year = now_sp().year
+    prefix = f"PQ-{year}-"
+    result = await db.execute(
+        select(PurchaseResearch).filter(PurchaseResearch.numero.like(f"{prefix}%"))
+    )
+    count = len(result.scalars().all()) + 1
+    return f"{prefix}{count:06d}"
+
+
+async def create_purchase_research(
+    db: AsyncSession, research_in: PurchaseResearchCreate, solicitante_id: int, status: PurchaseResearchStatus = PurchaseResearchStatus.PENDENTE
+) -> PurchaseResearch:
+    num = await generate_research_number(db)
+    research_data = research_in.model_dump(exclude={"items"})
+    db_res = PurchaseResearch(
+        numero=num,
+        solicitante_id=solicitante_id,
+        status=status,
+        **research_data
+    )
+    db.add(db_res)
+    await db.flush() # Obter ID
+    
+    for item in research_in.items:
+        db_item = PurchaseResearchItem(
+            research_id=db_res.id,
+            **item.model_dump()
+        )
+        db.add(db_item)
+    
+    await db.commit()
+    await db.refresh(db_res)
+    return db_res
+
+
