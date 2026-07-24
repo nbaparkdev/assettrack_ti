@@ -1,2 +1,1 @@
-TOTAL USERS IN DB: 1
-ID: 1 | Nome: Administrador | Email: admin@example.com | Role: admin | Is Active: True | Matricula: 'AAAA001' | Cargo: 'Super Admin'
+TOTAL USERS IN DB: 0

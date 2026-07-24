@@ -17,26 +17,38 @@ async def init_database():
     # Criar todas as tabelas (incluindo as de Manutenção Preventiva)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
-        # Garantir que a coluna requer_termo_rh existe na tabela assets
+    
+    print("✅ Tabelas criadas!")
+
+    # Migrações incrementais — cada uma em transação isolada
+    # (PostgreSQL aborta toda a transação se qualquer ALTER falhar)
+    async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE assets ADD COLUMN requer_termo_rh BOOLEAN DEFAULT FALSE"))
             print("🔧 Adicionada coluna 'requer_termo_rh' na tabela 'assets'...")
         except Exception:
-            try:
-                await conn.execute(text("ALTER TABLE assets ADD COLUMN requer_termo_rh BOOLEAN DEFAULT 0"))
-                print("🔧 Adicionada coluna 'requer_termo_rh' na tabela 'assets' (fallback)...")
-            except Exception:
-                pass
+            pass
 
-        # Garantir que a coluna aprovado existe na tabela purchase_research_items
+    async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE purchase_research_items ADD COLUMN aprovado BOOLEAN DEFAULT TRUE"))
             print("🔧 Adicionada coluna 'aprovado' na tabela 'purchase_research_items'...")
         except Exception:
             pass
-    
-    print("✅ Tabelas criadas!")
+
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE purchase_research_items ADD COLUMN tipo_produto VARCHAR(20) DEFAULT 'Consumo'"))
+            print("🔧 Adicionada coluna 'tipo_produto' na tabela 'purchase_research_items'...")
+        except Exception:
+            pass
+
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE purchase_request_items ALTER COLUMN observacao TYPE TEXT"))
+            print("🔧 Alterada coluna 'observacao' para TEXT na tabela 'purchase_request_items'...")
+        except Exception:
+            pass
 
 
 async def create_admin_user():

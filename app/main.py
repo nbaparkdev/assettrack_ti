@@ -100,10 +100,14 @@ async def lifespan(app: FastAPI):
             await conn.execute(text("ALTER TABLE purchase_research_items ADD COLUMN aprovado BOOLEAN DEFAULT TRUE"))
         except Exception:
             pass
+
+    async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE purchase_research_items ADD COLUMN tipo_produto VARCHAR(20) DEFAULT 'Consumo'"))
         except Exception:
             pass
+
+    async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE purchase_request_items ALTER COLUMN observacao TYPE TEXT"))
         except Exception:

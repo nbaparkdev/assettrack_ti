@@ -1,80 +1,81 @@
-<?xml version="1.0" encoding="utf-8"?>
-<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.portalfiscal.inf.br/nfe file:///C:/Users/s012305336/Documents/Schemas%20XML/PL_010b_NT2025_002_v1.30/PL_010b_NT2025_002_v1.30/procNFe_v4.00.xsd">
-  <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
-    <infNFe Id="NFe35250999999999000199550010000082961922091810" versao="4.00">
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe Id="NFe35221111111111111111550010000001011000001017" versao="4.00">
       <ide>
         <cUF>35</cUF>
-        <cNF>92209181</cNF>
-        <natOp>Venda de Mercadoria Adquirida</natOp>
+        <cNF>00000101</cNF>
+        <natOp>MERCADORIA INTERNA</natOp>
         <mod>55</mod>
         <serie>1</serie>
-        <nNF>9991</nNF>
-        <dhEmi>2025-11-06T09:49:49-03:00</dhEmi>
-        <dhSaiEnt>2025-09-06T09:49:49-03:00</dhSaiEnt>
+        <nNF>00001</nNF>
+        <dhEmi>2026-05-10T14:30:00-03:00</dhEmi>
+        <dhSaiEnt>2026-05-10T14:30:00-03:00</dhSaiEnt>
         <tpNF>1</tpNF>
         <idDest>1</idDest>
         <cMunFG>3550308</cMunFG>
         <tpImp>1</tpImp>
         <tpEmis>1</tpEmis>
-        <cDV>0</cDV>
-        <tpAmb>2</tpAmb>
+        <cDV>7</cDV>
+        <tpAmb>1</tpAmb>
         <finNFe>1</finNFe>
         <indFinal>1</indFinal>
-        <indPres>9</indPres>
+        <indPres>1</indPres>
         <indIntermed>0</indIntermed>
         <procEmi>0</procEmi>
-        <verProc>Omie-4.0.061110211</verProc>
+        <verProc>1.0</verProc>
       </ide>
       <emit>
-        <CNPJ>99999999000199</CNPJ>
-        <xNome>DELL LTDA</xNome>
-        <xFant>DELL COMPUTADORES</xFant>
+        <CNPJ>12345678000199</CNPJ>
+        <xNome>NPG PARQUES TEMATICOS</xNome>
+        <xFant>NBAPARK</xFant>
         <enderEmit>
-          <xLgr>RUA FICTICIA</xLgr>
-          <nro>123</nro>
-          <xBairro>BAIRRO FICTICIO</xBairro>
+          <xLgr>Av. HORTENCIA</xLgr>
+          <nro>1000</nro>
+          <xBairro>AVENIDA CENTRAL</xBairro>
           <cMun>3550308</cMun>
-          <xMun>CIDADE FICTICIA</xMun>
-          <UF>SP</UF>
-          <CEP>02113012</CEP>
+          <xMun>GRAMADO</xMun>
+          <UF>RS</UF>
+          <CEP>9567700</CEP>
           <cPais>1058</cPais>
-          <fone>11999999999</fone>
+          <xPais>BRASIL</xPais>
+          <fone>1134567890</fone>
         </enderEmit>
-        <IE>9999999999</IE>
-        <CRT>2</CRT>
+        <IE>111111111111</IE>
+        <CRT>1</CRT>
       </emit>
       <dest>
-        <CNPJ>99999999000199</CNPJ>
-        <xNome>NBAPARK</xNome>
+        <CNPJ>98765432000188</CNPJ>
+        <xNome>NBA PARK GRAMADO</xNome>
         <enderDest>
-          <xLgr>RUA FICTICIA</xLgr>
-          <nro>123</nro>
-          <xBairro>BAIRRO FICTICIO</xBairro>
+          <xLgr>AV HORTENCIAS</xLgr>
+          <nro>500</nro>
+          <xBairro>Consolacao</xBairro>
           <cMun>3550308</cMun>
-          <xMun>Gramado</xMun>
-          <UF>SP</UF>
-          <CEP>02113012</CEP>
+          <xMun>GRAMADO</xMun>
+          <UF>RS</UF>
+          <CEP>95677000</CEP>
           <cPais>1058</cPais>
           <xPais>BRASIL</xPais>
         </enderDest>
-        <indIEDest>9</indIEDest>
-        <email>contato@empresa.com</email>
+        <indIEDest>1</indIEDest>
+        <IE>222222222222</IE>
       </dest>
       <det nItem="1">
         <prod>
-          <cProd>432512.8001</cProd>
-          <cEAN>7891113161367</cEAN>
-          <xProd>Optiplex 7000</xProd>
-          <NCM>60033000</NCM>
+          <cProd>NBK-001</cProd>
+          <cEAN>SEM GTIN</cEAN>
+          <xProd>PRODUTOS</xProd>
+          <NCM>84713012</NCM>
           <CFOP>5102</CFOP>
-          <uCom>NV</uCom>
-          <qCom>10</qCom>
-          <vUnCom>2500.90</vUnCom>
-          <vProd>25009.00</vProd>
-          <cEANTrib>7891113161367</cEANTrib>
-          <uTrib>NV</uTrib>
-          <qTrib>22.0000</qTrib>
-          <vUnTrib>22.90</vUnTrib>
+          <uCom>UN</uCom>
+          <qCom>0.0000</qCom>
+          <vUnCom>0.00</vUnCom>
+          <vProd>0.00</vProd>
+          <cEANTrib>SEM GTIN</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>5.0000</qTrib>
+          <vUnTrib>4500.00</vUnTrib>
           <indTot>1</indTot>
         </prod>
         <imposto>
@@ -82,66 +83,29 @@
             <ICMS00>
               <orig>0</orig>
               <CST>00</CST>
-              <modBC>3</modBC>
-              <vBC>25009.00</vBC>
-              <pICMS>18.0000</pICMS>
-              <vICMS>4501.62</vICMS>
+              <modBC>0</modBC>
+              <vBC>22500.00</vBC>
+              <pICMS>18.00</pICMS>
+              <vICMS>4050.00</vICMS>
             </ICMS00>
           </ICMS>
-          <IPI>
-            <cEnq>999</cEnq>
-            <IPINT>
-              <CST>53</CST>
-            </IPINT>
-          </IPI>
-          <PIS>
-            <PISNT>
-              <CST>08</CST>
-            </PISNT>
-          </PIS>
-          <COFINS>
-            <COFINSNT>
-              <CST>08</CST>
-            </COFINSNT>
-          </COFINS>
-          <IBSCBS>
-            <CST>000</CST>
-            <cClassTrib>000001</cClassTrib>
-            <gIBSCBS>
-              <vBC>18.78</vBC>
-              <gIBSUF>
-                <pIBSUF>0.1000</pIBSUF>
-                <vIBSUF>0.02</vIBSUF>
-              </gIBSUF>
-              <gIBSMun>
-                <pIBSMun>0.0000</pIBSMun>
-                <vIBSMun>0.00</vIBSMun>
-              </gIBSMun>
-              <vIBS>0.02</vIBS>
-              <gCBS>
-                <pCBS>0.9000</pCBS>
-                <vCBS>0.17</vCBS>
-              </gCBS>
-            </gIBSCBS>
-          </IBSCBS>
         </imposto>
-        <vItem>25009.00</vItem>
       </det>
       <det nItem="2">
         <prod>
-          <cProd>4324312.8001</cProd>
-          <cEAN>7891113161367</cEAN>
-          <xProd>NOTEBOOK DELL VOSTRO i7</xProd>
-          <NCM>60033100</NCM>
+          <cProd>MON-002</cProd>
+          <cEAN>SEM GTIN</cEAN>
+          <xProd>EQUIPAMENTOS</xProd>
+          <NCM>85285220</NCM>
           <CFOP>5102</CFOP>
-          <uCom>NV</uCom>
-          <qCom>5</qCom>
-          <vUnCom>3500.90</vUnCom>
-          <vProd>17504.50</vProd>
-          <cEANTrib>7891113161367</cEANTrib>
-          <uTrib>NV</uTrib>
-          <qTrib>22.0000</qTrib>
-          <vUnTrib>22.90</vUnTrib>
+          <uCom>UN</uCom>
+          <qCom>0.0000</qCom>
+          <vUnCom>0.00</vUnCom>
+          <vProd>0.00</vProd>
+          <cEANTrib>SEM GTIN</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>5.0000</qTrib>
+          <vUnTrib>2200.00</vUnTrib>
           <indTot>1</indTot>
         </prod>
         <imposto>
@@ -149,150 +113,74 @@
             <ICMS00>
               <orig>0</orig>
               <CST>00</CST>
-              <modBC>3</modBC>
-              <vBC>17504.50</vBC>
-              <pICMS>18.0000</pICMS>
-              <vICMS>3150.81</vICMS>
+              <modBC>0</modBC>
+              <vBC>11000.00</vBC>
+              <pICMS>18.00</pICMS>
+              <vICMS>1980.00</vICMS>
             </ICMS00>
           </ICMS>
-          <IPI>
-            <cEnq>999</cEnq>
-            <IPINT>
-              <CST>53</CST>
-            </IPINT>
-          </IPI>
-          <PIS>
-            <PISNT>
-              <CST>08</CST>
-            </PISNT>
-          </PIS>
-          <COFINS>
-            <COFINSNT>
-              <CST>08</CST>
-            </COFINSNT>
-          </COFINS>
-          <IBSCBS>
-            <CST>000</CST>
-            <cClassTrib>000001</cClassTrib>
-            <gIBSCBS>
-              <vBC>18.78</vBC>
-              <gIBSUF>
-                <pIBSUF>0.1000</pIBSUF>
-                <vIBSUF>0.02</vIBSUF>
-              </gIBSUF>
-              <gIBSMun>
-                <pIBSMun>0.0000</pIBSMun>
-                <vIBSMun>0.00</vIBSMun>
-              </gIBSMun>
-              <vIBS>0.02</vIBS>
-              <gCBS>
-                <pCBS>0.9000</pCBS>
-                <vCBS>0.17</vCBS>
-              </gCBS>
-            </gIBSCBS>
-          </IBSCBS>
         </imposto>
-        <vItem>17504.50</vItem>
+      </det>
+      <det nItem="3">
+        <prod>
+          <cProd>TEC-003</cProd>
+          <cEAN>SEM GTIN</cEAN>
+          <xProd>EQUIPAMENTOS</xProd>
+          <NCM>84716052</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>0.0000</qCom>
+          <vUnCom>0.00</vUnCom>
+          <vProd>0.00</vProd>
+          <cEANTrib>SEM GTIN</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>5.0000</qTrib>
+          <vUnTrib>0.00</vUnTrib>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS>
+            <ICMS00>
+              <orig>0</orig>
+              <CST>00</CST>
+              <modBC>0</modBC>
+              <vBC>2750.00</vBC>
+              <pICMS>18.00</pICMS>
+              <vICMS>495.00</vICMS>
+            </ICMS00>
+          </ICMS>
+        </imposto>
       </det>
       <total>
         <ICMSTot>
-          <vBC>42513.50</vBC>
-          <vICMS>7652.43</vICMS>
+          <vBC>36250.00</vBC>
+          <vICMS>6525.00</vICMS>
           <vICMSDeson>0.00</vICMSDeson>
-          <vFCP>0.00</vFCP>
           <vBCST>0.00</vBCST>
           <vST>0.00</vST>
-          <vFCPST>0.00</vFCPST>
-          <vFCPSTRet>0.00</vFCPSTRet>
-          <vProd>42513.50</vProd>
+          <vProd>36250.00</vProd>
           <vFrete>0.00</vFrete>
           <vSeg>0.00</vSeg>
           <vDesc>0.00</vDesc>
           <vII>0.00</vII>
           <vIPI>0.00</vIPI>
-          <vIPIDevol>0.00</vIPIDevol>
           <vPIS>0.00</vPIS>
           <vCOFINS>0.00</vCOFINS>
           <vOutro>0.00</vOutro>
-          <vNF>42513.50</vNF>
+          <vNF>36250.00</vNF>
+          <vTotTrib>0.00</vTotTrib>
         </ICMSTot>
-        <IBSCBSTot>
-          <vBCIBSCBS>21.24</vBCIBSCBS>
-          <gIBS>
-            <gIBSUF>
-              <vDif>0.00</vDif>
-              <vDevTrib>0.00</vDevTrib>
-              <vIBSUF>0.02</vIBSUF>
-            </gIBSUF>
-            <gIBSMun>
-              <vDif>0.00</vDif>
-              <vDevTrib>0.00</vDevTrib>
-              <vIBSMun>0.00</vIBSMun>
-            </gIBSMun>
-            <vIBS>0.02</vIBS>
-            <vCredPres>0.00</vCredPres>
-            <vCredPresCondSus>0.00</vCredPresCondSus>
-          </gIBS>
-          <gCBS>
-            <vDif>0.00</vDif>
-            <vDevTrib>0.00</vDevTrib>
-            <vCBS>0.19</vCBS>
-            <vCredPres>0.00</vCredPres>
-            <vCredPresCondSus>0.00</vCredPresCondSus>
-          </gCBS>
-        </IBSCBSTot>
-        <vNFTot>42513.50</vNFTot>
       </total>
-      <transp>
-        <modFrete>9</modFrete>
-      </transp>
-      <pag>
-        <detPag>
-          <indPag>0</indPag>
-          <tPag>99</tPag>
-          <xPag>Outro Meio de Pagamento</xPag>
-          <vPag>42513.50</vPag>
-        </detPag>
-      </pag>
-      <infAdic>
-        <infCpl>Email do Destinatario: contato@empresa.com; Inf. Contribuinte: I-Documento emitido por ME ou EPP, optante pelo Simples Nacional. II-Nao gera direito a credito fiscal de IPI.; Estabelecimento impedido de recolher o ICMS/ISS pelo Simples Nacional, nos termos do paragrafo 1o do art. 20 da LC 123/2006.; Produto destinado a Consumidor Final.;</infCpl>
-      </infAdic>
-      <infRespTec>
-        <CNPJ>99999999000199</CNPJ>
-        <xContato>RESP FICTICIO</xContato>
-        <email>resp@empresa.com</email>
-        <fone>11999999999</fone>
-      </infRespTec>
     </infNFe>
-    <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
-      <SignedInfo>
-        <CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" />
-        <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" />
-        <Reference URI="#NFe35250999999999000199550010000082961922091810">
-          <Transforms>
-            <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" />
-            <Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" />
-          </Transforms>
-          <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
-          <DigestValue>Ay/GMaqPrwbxPTSCOfohqL4PXmM=</DigestValue>
-        </Reference>
-      </SignedInfo>
-      <SignatureValue>Zama1DdTv89n7/8nhaAevBUiPJNrPop53nE/8D0fmioAlnLEsjXi9ByIcNHRfHC+/nfepy7xUEd0cJoLlebAB1KPIiccDAue7WEK65nKKwOUPSNnQo2/nqsVVgyHk14AlXm1qSZh7mPvpOf7waSvyBCWGAdI6jvqFylrcWSnmjFowMa8Uk5rn27+QUZx6yNMCs12nLPaofhpdJl0fHYW+/vkcGQyxkAkPneOGvccrI8gYqeNtu34zOobcVjRHpirHk60rY31VUktIttK9yNtMXlPE4D98eeSVEYoW622hMcGOCIdka7ZxTmnxT4jx82OmKf8Z+h31KVEAmj8c5Bqhw==</SignatureValue>
-      <KeyInfo>
-        <X509Data>
-          <X509Certificate>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</X509Certificate>
-        </X509Data>
-      </KeyInfo>
-    </Signature>
   </NFe>
   <protNFe versao="4.00">
-    <infProt Id="NFe135250008547925">
-      <tpAmb>2</tpAmb>
-      <verAplic>SP_NFE_PL009_V4</verAplic>
-      <chNFe>35250999999999000199550010000082961922091810</chNFe>
-      <dhRecbto>2025-11-06T09:59:49-03:00</dhRecbto>
-      <nProt>135250008547925</nProt>
-      <digVal>Ay/GMaqPrwbxPTSCOfohqL4PXmM=</digVal>
+    <infProt>
+      <tpAmb>1</tpAmb>
+      <verAplic>SP-4.0</verAplic>
+      <chNFe>35221111111111111111550010000001011000001017</chNFe>
+      <dhRecbto>2026-05-10T14:30:00-03:00</dhRecbto>
+      <nProt>123456789012345</nProt>
+      <digVal>abcdef123456</digVal>
       <cStat>100</cStat>
       <xMotivo>Autorizado o uso da NF-e</xMotivo>
     </infProt>
