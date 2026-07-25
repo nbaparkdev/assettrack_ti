@@ -7,7 +7,7 @@ from app.models.procurement import (
     PurchaseCategory, PurchaseProduct, CostCenter, PurchaseRequest, PurchaseRequestItem,
     PurchaseApproval, PurchaseQuotation, PurchaseQuotationSupplier, PurchaseQuotationItem,
     PurchaseOrder, PurchaseOrderItem, PurchaseReceiving, PurchaseReceivingItem,
-    PurchaseContract, MaterialStock, MaterialStockTransaction, PurchaseHistory,
+    PurchaseContract, ContractType, MaterialStock, MaterialStockTransaction, PurchaseHistory,
     PurchaseRequestStatus, PurchaseOrderStatus, PurchaseUnit,
     PurchaseResearch, PurchaseResearchItem, PurchaseResearchStatus
 )
@@ -18,6 +18,7 @@ from app.schemas.procurement import (
     PurchaseRequestCreate, PurchaseRequestUpdate,
     PurchaseOrderCreate, PurchaseReceivingCreate,
     PurchaseContractCreate, PurchaseContractUpdate,
+    ContractTypeCreate, ContractTypeUpdate,
     PurchaseResearchCreate
 )
 
@@ -328,6 +329,44 @@ async def create_receiving(
     await db.commit()
     await db.refresh(db_rec)
     return db_rec
+
+
+# -----------------
+# CONTRACT TYPES
+# -----------------
+async def get_contract_type(db: AsyncSession, ct_id: int) -> Optional[ContractType]:
+    result = await db.execute(select(ContractType).filter(ContractType.id == ct_id))
+    return result.scalars().first()
+
+async def get_contract_types(db: AsyncSession, only_active: bool = False) -> List[ContractType]:
+    q = select(ContractType).order_by(ContractType.nome)
+    if only_active:
+        q = q.filter(ContractType.ativo == True)
+    result = await db.execute(q)
+    return result.scalars().all()
+
+async def create_contract_type(db: AsyncSession, ct: ContractTypeCreate) -> ContractType:
+    db_ct = ContractType(**ct.model_dump())
+    db.add(db_ct)
+    await db.commit()
+    await db.refresh(db_ct)
+    return db_ct
+
+async def update_contract_type(db: AsyncSession, db_ct: ContractType, ct: ContractTypeUpdate) -> ContractType:
+    update_data = ct.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_ct, key, value)
+    await db.commit()
+    await db.refresh(db_ct)
+    return db_ct
+
+async def delete_contract_type(db: AsyncSession, ct_id: int) -> bool:
+    db_ct = await get_contract_type(db, ct_id)
+    if not db_ct:
+        return False
+    await db.delete(db_ct)
+    await db.commit()
+    return True
 
 
 # -----------------

@@ -21,7 +21,7 @@ from app.models.procurement import (
     PurchaseQuotationItem, PurchaseOrder, PurchaseOrderItem, PurchaseReceiving,
     PurchaseReceivingItem, PurchaseCategory, PurchaseProduct, CostCenter,
     ProductType, MaterialStock, MaterialStockTransaction, PurchaseRequestStatus,
-    PurchaseOrderStatus, PurchaseApproval, PurchaseContract,
+    PurchaseOrderStatus, PurchaseApproval, PurchaseContract, ContractType,
     PurchaseResearch, PurchaseResearchItem, PurchaseResearchStatus
 )
 from app.crud import procurement as crud_proc
@@ -31,7 +31,8 @@ from app.schemas.procurement import (
     PurchaseOrderCreate, PurchaseOrderItemCreate,
     PurchaseReceivingCreate, PurchaseReceivingItemCreate,
     PurchaseProductCreate, PurchaseProductUpdate, CostCenterCreate, PurchaseContractCreate, PurchaseContractUpdate,
-    PurchaseCategoryCreate, PurchaseResearchCreate, PurchaseResearchItemCreate
+    PurchaseCategoryCreate, PurchaseResearchCreate, PurchaseResearchItemCreate,
+    ContractTypeCreate, ContractTypeUpdate
 )
 
 router = APIRouter(dependencies=[Depends(check_purchases_enabled)])
@@ -1290,6 +1291,164 @@ async def delete_cost_center(
             "title": "Centros de Custo"
         })
 
+# ----------------------
+# CONTRACT TYPES MANAGEMENT
+# ----------------------
+
+@router.get("/contratos/tipos", response_class=HTMLResponse)
+async def list_contract_types(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    tipos = await crud_proc.get_contract_types(db)
+    return templates.TemplateResponse("procurement/contract_types_list.html", {
+        "request": request,
+        "user": current_user,
+        "tipos": tipos,
+        "title": "Tipos de Contrato"
+    })
+
+
+@router.get("/contratos/tipos/new", response_class=HTMLResponse)
+async def new_contract_type_form(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    return templates.TemplateResponse("procurement/contract_type_form.html", {
+        "request": request,
+        "user": current_user,
+        "title": "Novo Tipo de Contrato"
+    })
+
+
+@router.post("/contratos/tipos/new")
+async def create_contract_type_submit(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    nome: str = Form(...),
+    descricao: Optional[str] = Form(None),
+    ativo: Optional[str] = Form(None)
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    try:
+        existing = (await db.execute(select(ContractType).filter(ContractType.nome == nome))).scalars().first()
+        if existing:
+            raise ValueError("Já existe um tipo de contrato com este nome!")
+        ct_in = ContractTypeCreate(
+            nome=nome,
+            descricao=descricao or None,
+            ativo=True if ativo else True
+        )
+        await crud_proc.create_contract_type(db, ct_in)
+        return RedirectResponse(url="/compras/contratos/tipos", status_code=303)
+    except Exception as e:
+        logger.error(f"Erro ao criar tipo de contrato: {e}")
+        return templates.TemplateResponse("procurement/contract_type_form.html", {
+            "request": request,
+            "user": current_user,
+            "error": str(e),
+            "title": "Novo Tipo de Contrato"
+        })
+
+
+@router.get("/contratos/tipos/{ct_id}/edit", response_class=HTMLResponse)
+async def edit_contract_type_form(
+    ct_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    tipo = await crud_proc.get_contract_type(db, ct_id)
+    if not tipo:
+        raise HTTPException(status_code=404, detail="Tipo de Contrato não encontrado")
+    return templates.TemplateResponse("procurement/contract_type_form.html", {
+        "request": request,
+        "user": current_user,
+        "tipo": tipo,
+        "title": f"Editar Tipo: {tipo.nome}"
+    })
+
+
+@router.post("/contratos/tipos/{ct_id}/edit")
+async def edit_contract_type_submit(
+    ct_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    nome: str = Form(...),
+    descricao: Optional[str] = Form(None),
+    ativo: Optional[str] = Form(None)
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    tipo = await crud_proc.get_contract_type(db, ct_id)
+    if not tipo:
+        raise HTTPException(status_code=404, detail="Tipo de Contrato não encontrado")
+    try:
+        existing = (await db.execute(
+            select(ContractType).filter(ContractType.nome == nome, ContractType.id != ct_id)
+        )).scalars().first()
+        if existing:
+            raise ValueError("Já existe outro tipo de contrato com este nome!")
+        ct_up = ContractTypeUpdate(
+            nome=nome,
+            descricao=descricao or None,
+            ativo=True if ativo else False
+        )
+        await crud_proc.update_contract_type(db, db_ct=tipo, ct=ct_up)
+        return RedirectResponse(url="/compras/contratos/tipos", status_code=303)
+    except Exception as e:
+        logger.error(f"Erro ao editar tipo de contrato: {e}")
+        return templates.TemplateResponse("procurement/contract_type_form.html", {
+            "request": request,
+            "user": current_user,
+            "tipo": tipo,
+            "error": str(e),
+            "title": f"Editar Tipo: {tipo.nome}"
+        })
+
+
+@router.post("/contratos/tipos/{ct_id}/delete")
+async def delete_contract_type_submit(
+    ct_id: int,
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    tipo = await crud_proc.get_contract_type(db, ct_id)
+    if not tipo:
+        raise HTTPException(status_code=404, detail="Tipo de Contrato não encontrado")
+    try:
+        linked = (await db.execute(
+            select(PurchaseContract).filter(PurchaseContract.tipo_id == ct_id)
+        )).scalars().first()
+        if linked:
+            raise ValueError("Não é possível excluir este tipo pois existem contratos vinculados a ele.")
+        await crud_proc.delete_contract_type(db, ct_id)
+        return RedirectResponse(url="/compras/contratos/tipos", status_code=303)
+    except Exception as e:
+        logger.error(f"Erro ao excluir tipo de contrato: {e}")
+        tipos = await crud_proc.get_contract_types(db)
+        return templates.TemplateResponse("procurement/contract_types_list.html", {
+            "request": request,
+            "user": current_user,
+            "tipos": tipos,
+            "error": str(e),
+            "title": "Tipos de Contrato"
+        })
+
 
 # --------------------
 # CONTRACTS LIFECYCLE MANAGEMENT
@@ -1348,10 +1507,12 @@ async def new_contract_form(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     suppliers = (await db.execute(select(Fornecedor))).scalars().all()
+    contract_types = await crud_proc.get_contract_types(db, only_active=True)
     return templates.TemplateResponse("procurement/contract_form.html", {
         "request": request,
         "user": current_user,
         "suppliers": suppliers,
+        "contract_types": contract_types,
         "title": "Novo Contrato"
     })
 
@@ -1366,6 +1527,7 @@ async def create_contract_submit(
     db: Annotated[AsyncSession, Depends(get_db)],
     numero: str = Form(...),
     fornecedor_id: int = Form(...),
+    tipo_id: Optional[int] = Form(None),
     tipo: str = Form(...),
     periodicidade: str = Form(...),
     data_inicio: str = Form(...),
@@ -1394,6 +1556,7 @@ async def create_contract_submit(
         contract_in = PurchaseContractCreate(
             fornecedor_id=fornecedor_id,
             tipo=tipo,
+            tipo_id=tipo_id,
             numero=numero,
             data_inicio=dt_ini,
             data_fim=dt_fim,
@@ -1408,10 +1571,12 @@ async def create_contract_submit(
     except Exception as e:
         logger.error(f"Erro ao cadastrar contrato: {e}")
         suppliers = (await db.execute(select(Fornecedor))).scalars().all()
+        contract_types = await crud_proc.get_contract_types(db, only_active=True)
         return templates.TemplateResponse("procurement/contract_form.html", {
             "request": request,
             "user": current_user,
             "suppliers": suppliers,
+            "contract_types": contract_types,
             "error": str(e),
             "title": "Novo Contrato"
         })
@@ -1476,11 +1641,13 @@ async def edit_contract_form(
         raise HTTPException(status_code=404, detail="Contrato não encontrado")
         
     suppliers = (await db.execute(select(Fornecedor))).scalars().all()
+    contract_types = await crud_proc.get_contract_types(db, only_active=True)
     return templates.TemplateResponse("procurement/contract_form.html", {
         "request": request,
         "user": current_user,
         "contrato": contrato,
         "suppliers": suppliers,
+        "contract_types": contract_types,
         "title": f"Editar Contrato {contrato.numero}"
     })
 
@@ -1493,6 +1660,7 @@ async def edit_contract_submit(
     db: Annotated[AsyncSession, Depends(get_db)],
     numero: str = Form(...),
     fornecedor_id: int = Form(...),
+    tipo_id: Optional[int] = Form(None),
     tipo: str = Form(...),
     periodicidade: str = Form(...),
     data_inicio: str = Form(...),
@@ -1528,6 +1696,7 @@ async def edit_contract_submit(
         contract_in = PurchaseContractUpdate(
             fornecedor_id=fornecedor_id,
             tipo=tipo,
+            tipo_id=tipo_id,
             numero=numero,
             data_inicio=dt_ini,
             data_fim=dt_fim,
@@ -1542,11 +1711,13 @@ async def edit_contract_submit(
     except Exception as e:
         logger.error(f"Erro ao editar contrato: {e}")
         suppliers = (await db.execute(select(Fornecedor))).scalars().all()
+        contract_types = await crud_proc.get_contract_types(db, only_active=True)
         return templates.TemplateResponse("procurement/contract_form.html", {
             "request": request,
             "user": current_user,
             "contrato": contrato,
             "suppliers": suppliers,
+            "contract_types": contract_types,
             "error": str(e),
             "title": f"Editar Contrato {contrato.numero}"
         })

@@ -38,6 +38,15 @@ Este documento registra as resoluções arquiteturais e correções críticas ap
 * **Problema:** Mudanças feitas no repositório de arquivos local não refletiam no container, obrigando o mantenedor a destruir e construir novamente os containers (`update_docker.sh`) a cada teste.
 * **Resolução:** Adicionada a flag `--reload` no comando base do uvicorn no arquivo `docker-compose.yml`. Agora, as mudanças no código-fonte Python refletem de forma imediata na aplicação em execução.
 
+## 3. Gerenciamento Dinâmico de Tipos de Contrato
+
+* **Problema:** Os tipos de contrato eram mantidos em uma lista estática (hardcoded) no template HTML do formulário de contratos, limitando a flexibilidade e escalabilidade do sistema.
+* **Resolução:**
+  1. **Modelo de Banco de Dados:** Criado o modelo `ContractType` no banco de dados e adicionada a relação `tipo_contrato` (via chave estrangeira `tipo_id`) na tabela `purchase_contracts`.
+  2. **Inicialização & Migrações:** Atualizado o arquivo `init_app.py` para criar a tabela `contract_types` e adicionar dinamicamente a coluna `tipo_id` nas instalações existentes do banco de dados, além de garantir a sincronização de sequências para prevenir conflitos de chaves primárias.
+  3. **Interface de Administração:** Criados endpoints administrativos (`/compras/contratos/tipos/*`) permitindo cadastrar, listar, editar, ativar/desativar e excluir tipos de contrato, respeitando o controle de acesso de papéis (RBAC).
+  4. **Formulário Dinâmico:** Atualizados os endpoints e os templates do formulário de contrato para carregar dinamicamente os tipos do banco de dados e sincronizar os IDs/nomes via JavaScript, preservando a retrocompatibilidade com contratos legados que não possuem `tipo_id`.
+
 ## Data da Intervenção
 * **Data:** Julho de 2026
-* **Módulos Afetados:** Procurement (Compras), Database Initialization (Core), Docker Configuration.
+* **Módulos Afetados:** Procurement (Compras), Database Initialization (Core), Front-end templates, Admin routes.

@@ -293,10 +293,30 @@ class PurchaseReceivingResponse(PurchaseReceivingBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ContractType
+class ContractTypeBase(BaseModel):
+    nome: str
+    descricao: Optional[str] = None
+    ativo: bool = True
+
+class ContractTypeCreate(ContractTypeBase):
+    pass
+
+class ContractTypeUpdate(BaseModel):
+    nome: Optional[str] = None
+    descricao: Optional[str] = None
+    ativo: Optional[bool] = None
+
+class ContractTypeResponse(ContractTypeBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+
+
 # PurchaseContract
 class PurchaseContractBase(BaseModel):
     fornecedor_id: int
     tipo: str
+    tipo_id: Optional[int] = None
     numero: str
     data_inicio: datetime
     data_fim: datetime
@@ -311,6 +331,7 @@ class PurchaseContractCreate(PurchaseContractBase):
 class PurchaseContractUpdate(BaseModel):
     fornecedor_id: Optional[int] = None
     tipo: Optional[str] = None
+    tipo_id: Optional[int] = None
     numero: Optional[str] = None
     data_inicio: Optional[datetime] = None
     data_fim: Optional[datetime] = None

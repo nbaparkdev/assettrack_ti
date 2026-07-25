@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-xl mx-auto space-y-8 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <p class="font-mono text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1">Compras / Contratos / Tipos</p>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">
+                {{ "Editar Tipo" if tipo else "Novo Tipo" }}
+            </h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">
+                {{ "Atualizar classificação de contrato" if tipo else "Definir categoria para organizar contratos de TI" }}
+            </p>
+        </div>
+        <a href="/compras/contratos/tipos" class="font-mono text-xs font-bold bg-white border-2 border-black text-black px-4 py-2 hover:bg-gray-100 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] whitespace-nowrap">
+            &larr; Cancelar
+        </a>
+    </div>
+
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-600 p-4 font-mono text-xs text-red-700 uppercase tracking-wide flex items-start gap-2">
+        <span class="font-black">!</span>
+        <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Form -->
+    <form action="{{ '/compras/contratos/tipos/' ~ tipo.id ~ '/edit' if tipo else '/compras/contratos/tipos/new' }}" method="POST"
+          class="bg-white border-2 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-6">
+
+        <!-- Nome -->
+        <div>
+            <label for="nome" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1 tracking-widest">
+                Nome do Tipo <span class="text-red-500">*</span>
+            </label>
+            <input
+                type="text"
+                id="nome"
+                name="nome"
+                value="{{ tipo.nome if tipo else '' }}"
+                required
+                maxlength="100"
+                placeholder="Ex: Licenciamento Software, Suporte Técnico..."
+                class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50 transition-colors"
+            >
+            <p class="font-mono text-[10px] text-gray-400 mt-1 uppercase">Máx. 100 caracteres. Deve ser único.</p>
+        </div>
+
+        <!-- Descrição -->
+        <div>
+            <label for="descricao" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1 tracking-widest">
+                Descrição <span class="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <textarea
+                id="descricao"
+                name="descricao"
+                rows="3"
+                maxlength="255"
+                placeholder="Descreva brevemente este tipo de contrato..."
+                class="w-full bg-white border-2 border-black p-3 font-mono text-sm focus:outline-none focus:bg-gray-50 transition-colors resize-none"
+            >{{ tipo.descricao if tipo and tipo.descricao else '' }}</textarea>
+            <p class="font-mono text-[10px] text-gray-400 mt-1 uppercase">Máx. 255 caracteres.</p>
+        </div>
+
+        {% if tipo %}
+        <!-- Status ativo (apenas em edição) -->
+        <div class="border-t border-gray-200 pt-4">
+            <div class="flex items-start gap-3">
+                <input
+                    type="checkbox"
+                    id="ativo"
+                    name="ativo"
+                    value="true"
+                    {% if tipo.ativo %}checked{% endif %}
+                    class="w-5 h-5 accent-black border-2 border-black rounded-none mt-0.5 cursor-pointer"
+                >
+                <div class="text-xs">
+                    <label for="ativo" class="font-bold text-black uppercase block cursor-pointer">Tipo Ativo</label>
+                    <span class="text-gray-500">Tipos inativos não aparecem na lista de seleção ao cadastrar contratos.</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Submit -->
+        <div class="border-t border-gray-100 pt-4">
+            <button
+                type="submit"
+                class="w-full bg-black text-white font-mono text-xs font-bold py-4 uppercase tracking-wider
+                       hover:bg-white hover:text-black border-2 border-black transition
+                       shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px]"
+            >
+                {{ "SALVAR ALTERAÇÕES" if tipo else "CADASTRAR TIPO" }}
+            </button>
+        </div>
+    </form>
+
+    <!-- Info box -->
+    <div class="bg-gray-50 border-2 border-gray-300 p-4 space-y-1">
+        <p class="font-mono text-[10px] font-bold uppercase text-gray-500 tracking-widest">Como funciona</p>
+        <p class="font-mono text-xs text-gray-600">
+            Os tipos de contrato são usados para classificar e filtrar contratos de TI.
+            Exemplos comuns: <em>Licenciamento Software</em>, <em>Cloud / Infraestrutura</em>,
+            <em>Suporte Técnico</em>, <em>Leasing de Hardware</em>.
+        </p>
+    </div>
+</div>
+{% endblock %}

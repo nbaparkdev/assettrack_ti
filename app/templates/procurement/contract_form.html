@@ -39,14 +39,42 @@
             </div>
 
             <div>
-                <label for="tipo" class="block font-mono text-[10px] font-bold uppercase text-gray-400 mb-1">Tipo de Contrato</label>
-                <select id="tipo" name="tipo" required class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50 font-mono">
-                    <option value="Licenciamento Software" {% if contrato and contrato.tipo == 'Licenciamento Software' %}selected{% endif %}>Licenciamento de Software (SaaS)</option>
-                    <option value="Hardware / Leasing" {% if contrato and contrato.tipo == 'Hardware / Leasing' %}selected{% endif %}>Leasing / Locação de Hardware</option>
-                    <option value="Cloud / Infraestrutura" {% if contrato and contrato.tipo == 'Cloud / Infraestrutura' %}selected{% endif %}>Cloud / Infraestrutura (AWS, GCP, Azure)</option>
-                    <option value="Suporte e Manutenção" {% if contrato and contrato.tipo == 'Suporte e Manutenção' %}selected{% endif %}>Suporte Técnico e Manutenção</option>
-                    <option value="Link de Internet / Telecom" {% if contrato and contrato.tipo == 'Link de Internet / Telecom' %}selected{% endif %}>Link de Internet / Telecom</option>
+                <div class="flex items-center justify-between mb-1">
+                    <label for="tipo_id" class="block font-mono text-[10px] font-bold uppercase text-gray-400 tracking-widest">Tipo de Contrato</label>
+                    <a href="/compras/contratos/tipos" target="_blank"
+                       class="font-mono text-[10px] text-gray-400 hover:text-black underline transition uppercase">
+                        Gerenciar tipos &nearr;
+                    </a>
+                </div>
+                <input type="hidden" id="tipo" name="tipo" value="{{ contrato.tipo if contrato else '' }}">
+                <input type="hidden" id="tipo_id" name="tipo_id" value="{{ contrato.tipo_id if contrato and contrato.tipo_id else '' }}">
+                <select id="tipo_select" name="_tipo_select"
+                        onchange="syncTipoFields(this)"
+                        class="w-full bg-white border-2 border-black p-3 text-sm focus:outline-none focus:bg-gray-50 font-mono">
+                    <option value="" disabled {% if not contrato or not contrato.tipo_id %}selected{% endif %}>
+                        -- Selecione o tipo --
+                    </option>
+                    {% if contract_types %}
+                        {% for ct in contract_types %}
+                        <option value="{{ ct.id }}" data-nome="{{ ct.nome }}"
+                                {% if contrato and contrato.tipo_id == ct.id %}selected{% endif %}>
+                            {{ ct.nome }}{% if ct.descricao %} — {{ ct.descricao[:40] }}{% if ct.descricao|length > 40 %}...{% endif %}{% endif %}
+                        </option>
+                        {% endfor %}
+                        {% if contrato and contrato.tipo and not contrato.tipo_id %}
+                        <!-- Legado: tipo texto sem ID -->
+                        <option value="__legado__" data-nome="{{ contrato.tipo }}" selected>
+                            {{ contrato.tipo }} (tipo legado)
+                        </option>
+                        {% endif %}
+                    {% else %}
+                    <option value="" disabled>Nenhum tipo cadastrado — clique em "Gerenciar tipos"</option>
+                    {% endif %}
                 </select>
+                <p class="font-mono text-[10px] text-gray-400 mt-1 uppercase">
+                    Sem o tipo desejado?
+                    <a href="/compras/contratos/tipos/new" target="_blank" class="underline hover:text-black transition">Cadastrar novo tipo</a>
+                </p>
             </div>
 
             <div>
@@ -97,4 +125,33 @@
         </button>
     </form>
 </div>
+
+<script>
+function syncTipoFields(selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const tipoIdInput = document.getElementById("tipo_id");
+    const tipoInput = document.getElementById("tipo");
+
+    if (selectedOption.value === "" || selectedOption.value === "__legado__") {
+        if (selectedOption.value === "__legado__") {
+            tipoIdInput.value = "";
+            tipoInput.value = selectedOption.getAttribute("data-nome");
+        } else {
+            tipoIdInput.value = "";
+            tipoInput.value = "";
+        }
+    } else {
+        tipoIdInput.value = selectedOption.value;
+        tipoInput.value = selectedOption.getAttribute("data-nome");
+    }
+}
+
+// Inicializar campos ao carregar caso já exista um selecionado
+document.addEventListener("DOMContentLoaded", function() {
+    const select = document.getElementById("tipo_select");
+    if (select && select.selectedIndex > 0) {
+        syncTipoFields(select);
+    }
+});
+</script>
 {% endblock %}

@@ -260,12 +260,24 @@ class PurchaseReceivingItem(Base):
     product = relationship("PurchaseProduct")
     ativo_criado = relationship("Asset")
 
+class ContractType(Base):
+    __tablename__ = "contract_types"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    nome: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    descricao: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    contracts = relationship("PurchaseContract", back_populates="tipo_contrato")
+
+
 class PurchaseContract(Base):
     __tablename__ = "purchase_contracts"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     fornecedor_id: Mapped[int] = mapped_column(ForeignKey("fornecedores.id"), nullable=False)
-    tipo: Mapped[str] = mapped_column(String(50), nullable=False) # Hardware, Software, cloud, etc.
+    tipo: Mapped[str] = mapped_column(String(100), nullable=False)
+    tipo_id: Mapped[Optional[int]] = mapped_column(ForeignKey("contract_types.id"), nullable=True)
     numero: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     data_inicio: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     data_fim: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
@@ -276,6 +288,7 @@ class PurchaseContract(Base):
     alertado_dias: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     fornecedor = relationship("Fornecedor")
+    tipo_contrato = relationship("ContractType", back_populates="contracts")
 
 class PurchaseAttachment(Base):
     __tablename__ = "purchase_attachments"

@@ -50,6 +50,13 @@ async def init_database():
         except Exception:
             pass
 
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE purchase_contracts ADD COLUMN tipo_id INTEGER REFERENCES contract_types(id)"))
+            print("🔧 Adicionada coluna 'tipo_id' na tabela 'purchase_contracts'...")
+        except Exception:
+            pass
+
 
 async def create_admin_user():
     print("🔧 Criando/Ativando usuário admin...")
@@ -120,7 +127,7 @@ async def sync_sequences():
         "maintenance_requests", "maintenance_orders", "custom_maintenance_types",
         "maintenance_plans", "maintenance_materials", "maintenance_executions",
         "purchase_products", "purchase_requests", "purchase_orders",
-        "service_desk_tickets", "contracts", "suppliers",
+        "service_desk_tickets", "contracts", "purchase_contracts", "contract_types", "suppliers",
     ]
     async with engine.begin() as conn:
         for table in tables:
