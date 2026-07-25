@@ -667,7 +667,8 @@ async def create_order(
                     technician_email=tech.email,
                     asset_name=asset_name,
                     priority=order.prioridade.value,
-                    data_agendada=order.data_agendada
+                    data_agendada=order.data_agendada,
+                    asset_patrimonio=asset.e_patrimonio if 'asset' in locals() and asset else None
                 )
                 await db.commit()
         except Exception as e:
@@ -977,7 +978,8 @@ async def complete_order(
             order_code=order.numero,
             technician_name=current_user.nome,
             asset_name=asset_name,
-            custo_total=float(order.custo_total or 0)
+            custo_total=float(order.custo_total or 0),
+            asset_patrimonio=asset.e_patrimonio if asset else None
         )
         await db.commit() # Commita a notificação criada internamente no serviço
     except Exception as e:
@@ -1563,7 +1565,8 @@ async def update_order(
                     technician_email=tech.email,
                     asset_name=asset.nome,
                     priority=order.prioridade.value,
-                    data_agendada=order.data_agendada
+                    data_agendada=order.data_agendada,
+                    asset_patrimonio=asset.e_patrimonio
                 )
                 await db.commit() # Commita a notificação criada
         except Exception as e:

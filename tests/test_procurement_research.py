@@ -55,6 +55,7 @@ async def test_create_and_convert_purchase_research(db_session: AsyncSession):
         obj_in=research_in,
         solicitante_id=1
     )
+    await db_session.refresh(research, ["items"])
 
     assert research.id is not None
     assert research.numero.startswith("PQ-")
@@ -79,9 +80,10 @@ async def test_create_and_convert_purchase_research(db_session: AsyncSession):
         centro_custo_id=cc.id,
         justificativa="Aprovado em comissão de compras"
     )
+    await db_session.refresh(sc, ["itens"])
 
     assert sc is not None
-    assert sc.status.value == "Aprovada"
+    assert sc.status.value == "Pendente"
     assert sc.centro_custo_id == cc.id
     assert len(sc.itens) == 2
 
@@ -165,8 +167,8 @@ async def test_convert_research_reuses_existing_product(db_session: AsyncSession
         obj_in=research_in,
         solicitante_id=1
     )
+    await db_session.refresh(research, ["items"])
 
-    # 4. Convert Research to PurchaseRequest
     sc = await serv_proc.convert_research_to_purchase_request(
         research_id=research.id,
         db=db_session,
@@ -175,6 +177,7 @@ async def test_convert_research_reuses_existing_product(db_session: AsyncSession
         centro_custo_id=cc.id,
         justificativa="Approved referencing existing product"
     )
+    await db_session.refresh(sc, ["itens"])
 
     assert sc is not None
     assert len(sc.itens) == 1

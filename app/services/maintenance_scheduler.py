@@ -157,7 +157,8 @@ async def check_and_generate_preventive_orders():
                                     technician_email=tech.email,
                                     asset_name=asset.nome,
                                     priority=order.prioridade.value,
-                                    data_agendada=order.data_agendada
+                                    data_agendada=order.data_agendada,
+                                    asset_patrimonio=asset.e_patrimonio
                                 )
                         except Exception as ne:
                             logger.error(f"Erro ao notificar técnico designado pelo plano: {ne}")
@@ -249,7 +250,8 @@ async def check_and_notify_overdue_orders():
                     technician_id=tech_id,
                     technician_email=tech_email,
                     asset_name=asset_name,
-                    data_agendada=order.data_agendada
+                    data_agendada=order.data_agendada,
+                    asset_patrimonio=order.asset.e_patrimonio if order.asset else None
                 )
             
             await db.commit()

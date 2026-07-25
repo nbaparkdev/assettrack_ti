@@ -45,7 +45,8 @@ class NotificationService:
         asset_name: str,
         requester_name: str,
         priority: str,
-        description: str
+        description: str,
+        asset_patrimonio: Optional[str] = None
     ):
         """
         Notifica técnicos, gerentes e admins sobre nova solicitação de manutenção
@@ -61,7 +62,7 @@ class NotificationService:
 Nova solicitação de manutenção recebida:
 
 📋 ID: #{request_id}
-💻 Equipamento: {asset_name}
+💻 Equipamento: {asset_name}{f' (Patrimônio: {asset_patrimonio})' if asset_patrimonio else ''}
 👤 Solicitante: {requester_name}
 ⚠️ Prioridade: {priority.upper()}
 
@@ -93,7 +94,8 @@ Acesse o painel de solicitações para mais detalhes.
         requester_email: str,
         asset_name: str,
         technician_name: str,
-        observation: Optional[str] = None
+        observation: Optional[str] = None,
+        asset_patrimonio: Optional[str] = None
     ):
         if not await self._is_enabled(db, "notify_maintenance_accepted"):
             return None
@@ -104,7 +106,7 @@ Acesse o painel de solicitações para mais detalhes.
 Sua solicitação de manutenção foi aceita!
 
 📋 ID: #{request_id}
-💻 Equipamento: {asset_name}
+💻 Equipamento: {asset_name}{f' (Patrimônio: {asset_patrimonio})' if asset_patrimonio else ''}
 👨‍🔧 Técnico Responsável: {technician_name}
 
 {f'Observação: {observation}' if observation else ''}
@@ -129,7 +131,8 @@ A manutenção foi iniciada. Você receberá atualizações sobre o andamento.
         requester_email: str,
         asset_name: str,
         technician_name: str,
-        reason: str
+        reason: str,
+        asset_patrimonio: Optional[str] = None
     ):
         if not await self._is_enabled(db, "notify_maintenance_rejected"):
             return None
@@ -140,7 +143,7 @@ A manutenção foi iniciada. Você receberá atualizações sobre o andamento.
 Sua solicitação de manutenção foi analisada e não pôde ser atendida no momento.
 
 📋 ID: #{request_id}
-💻 Equipamento: {asset_name}
+💻 Equipamento: {asset_name}{f' (Patrimônio: {asset_patrimonio})' if asset_patrimonio else ''}
 👨‍🔧 Analisado por: {technician_name}
 
 📝 Motivo:
@@ -166,7 +169,8 @@ Caso discorde ou tenha dúvidas, entre em contato com a equipe de TI.
         asset_name: str,
         requester_name: str,
         technician_name: str,
-        observation: Optional[str] = None
+        observation: Optional[str] = None,
+        asset_patrimonio: Optional[str] = None
     ):
         """
         Notifica Gerentes e Admins que uma entrega foi realizada pelo técnico.
@@ -183,7 +187,7 @@ Caso discorde ou tenha dúvidas, entre em contato com a equipe de TI.
 Uma entrega de equipamento foi confirmada pelo técnico.
 
 📋 ID Solicitação: #{request_id}
-💻 Equipamento: {asset_name}
+💻 Equipamento: {asset_name}{f' (Patrimônio: {asset_patrimonio})' if asset_patrimonio else ''}
 👤 Solicitante (Recebedor): {requester_name}
 👨‍🔧 Técnico (Entregador): {technician_name}
 
@@ -216,7 +220,8 @@ Esta solicitação mudou para status ENTREGUE/CONCLUÍDA.
         technician_email: str,
         asset_name: str,
         priority: str,
-        data_agendada: Optional[datetime] = None
+        data_agendada: Optional[datetime] = None,
+        asset_patrimonio: Optional[str] = None
     ):
         """Notifica o técnico quando uma ordem de serviço é atribuída a ele"""
         from app.models.preventive_maintenance import MaintenanceNotification
@@ -228,7 +233,7 @@ Esta solicitação mudou para status ENTREGUE/CONCLUÍDA.
 Você foi designado como responsável por uma nova Ordem de Serviço de manutenção.
 
 📋 OS Código: {order_code}
-💻 Equipamento/Ativo: {asset_name}
+💻 Equipamento/Ativo: {asset_name}{f' (Patrimônio: {asset_patrimonio})' if asset_patrimonio else ''}
 ⚠️ Prioridade: {priority.upper()}
 📅 Data Agendada: {data_str}
 
@@ -239,7 +244,7 @@ Acesse o módulo de Manutenção Preventiva para iniciar a execução desta orde
             order_id=order_id,
             usuario_id=technician_id,
             tipo="ATRIBUICAO",
-            mensagem=f"Você foi designado para a OS {order_code} ({asset_name}) agendada para {data_str}."
+            mensagem=f"Você foi designado para a OS {order_code} ({asset_name}{f' - Patrimônio: {asset_patrimonio}' if asset_patrimonio else ''}) agendada para {data_str}."
         )
         db.add(notification)
         
@@ -264,7 +269,8 @@ Acesse o módulo de Manutenção Preventiva para iniciar a execução desta orde
         order_code: str,
         technician_name: str,
         asset_name: str,
-        custo_total: float
+        custo_total: float,
+        asset_patrimonio: Optional[str] = None
     ):
         """Notifica os administradores e gerentes que uma OS foi concluída"""
         from app.models.preventive_maintenance import MaintenanceNotification
@@ -277,7 +283,7 @@ Acesse o módulo de Manutenção Preventiva para iniciar a execução desta orde
 A Ordem de Serviço {order_code} foi concluída pelo técnico responsável.
 
 📋 Código: {order_code}
-💻 Equipamento: {asset_name}
+💻 Equipamento: {asset_name}{f' (Patrimônio: {asset_patrimonio})' if asset_patrimonio else ''}
 👨‍🔧 Técnico: {technician_name}
 💰 Custo Total: R$ {custo_total:.2f}
 
@@ -290,7 +296,7 @@ Acesse a plataforma para auditar os detalhes e materiais aplicados.
                 order_id=order_id,
                 usuario_id=mgr.id,
                 tipo="CONCLUSAO",
-                mensagem=f"A OS {order_code} ({asset_name}) foi concluída por {technician_name}. Custo: R$ {custo_total:.2f}."
+                mensagem=f"A OS {order_code} ({asset_name}{f' - Patrimônio: {asset_patrimonio}' if asset_patrimonio else ''}) foi concluída por {technician_name}. Custo: R$ {custo_total:.2f}."
             )
             db.add(notification)
             
@@ -315,7 +321,8 @@ Acesse a plataforma para auditar os detalhes e materiais aplicados.
         technician_id: Optional[int],
         technician_email: Optional[str],
         asset_name: str,
-        data_agendada: datetime
+        data_agendada: datetime,
+        asset_patrimonio: Optional[str] = None
     ):
         """Notifica sobre OS preventiva atrasada"""
         from app.models.preventive_maintenance import MaintenanceNotification
@@ -327,7 +334,7 @@ Acesse a plataforma para auditar os detalhes e materiais aplicados.
 Atenção, a Ordem de Serviço {order_code} está vencida e ainda não foi iniciada.
 
 📋 Código: {order_code}
-💻 Equipamento: {asset_name}
+💻 Equipamento: {asset_name}{f' (Patrimônio: {asset_patrimonio})' if asset_patrimonio else ''}
 📅 Vencimento original: {data_str}
 
 Favor verificar com urgência a situação desta manutenção.
@@ -340,7 +347,7 @@ Favor verificar com urgência a situação desta manutenção.
                 order_id=order_id,
                 usuario_id=technician_id,
                 tipo="ATRASO",
-                mensagem=f"A OS {order_code} ({asset_name}) sob sua responsabilidade está vencida desde {data_str}."
+                mensagem=f"A OS {order_code} ({asset_name}{f' - Patrimônio: {asset_patrimonio}' if asset_patrimonio else ''}) sob sua responsabilidade está vencida desde {data_str}."
             )
             db.add(notification)
             if notify_email:
@@ -361,7 +368,7 @@ Favor verificar com urgência a situação desta manutenção.
                 order_id=order_id,
                 usuario_id=mgr.id,
                 tipo="ATRASO_GESTOR",
-                mensagem=f"ALERTA: A OS {order_code} ({asset_name}) está vencida desde {data_str}."
+                mensagem=f"ALERTA: A OS {order_code} ({asset_name}{f' - Patrimônio: {asset_patrimonio}' if asset_patrimonio else ''}) está vencida desde {data_str}."
             )
             db.add(notification)
             if notify_email:
@@ -523,7 +530,8 @@ Acesse /compras/estoque e crie uma nova solicitação de compra para reposição
         db: AsyncSession,
         solicitacao_id: int,
         asset_name: str,
-        requester_name: str
+        requester_name: str,
+        asset_patrimonio: Optional[str] = None
     ):
         """Notifica equipe de RH que um ativo está pronto para termo de responsabilidade"""
         if not await self._is_enabled(db, "notify_rh_ready_asset"):
@@ -541,7 +549,7 @@ Olá equipe de RH,
 Um equipamento de TI está pronto para entrega e requer a elaboração e assinatura do Termo de Responsabilidade.
 
 📋 ID Solicitação: #{solicitacao_id}
-💻 Equipamento: {asset_name}
+💻 Equipamento: {asset_name}{f' (Patrimônio: {asset_patrimonio})' if asset_patrimonio else ''}
 👤 Colaborador Destinatário: {requester_name}
 
 Acesse o portal do RH (/rh/termos) para redigir o termo, salvar e gerar o PDF para assinatura do colaborador.

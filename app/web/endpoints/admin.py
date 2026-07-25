@@ -196,7 +196,8 @@ async def deliver_solicitacao_submit(
         asset_name=asset.nome,
         requester_name=solicitacao.solicitante.nome,
         technician_name=current_user.nome,
-        observation=observacao
+        observation=observacao,
+        asset_patrimonio=asset.e_patrimonio
     )
 
     return RedirectResponse(url="/", status_code=303)

@@ -9,6 +9,8 @@ from app.schemas.asset import AssetCreate
 from app.models.asset import AssetStatus
 from app.models.maintenance_request import StatusSolicitacaoManutencao
 from datetime import date
+from app.main import app
+from app.database import get_db
 
 @pytest.fixture
 async def test_users(db_session: AsyncSession):
@@ -35,22 +37,32 @@ async def test_users(db_session: AsyncSession):
     return {"comum": user_comum, "tecnico": tecnico}
 
 @pytest.fixture
-async def comum_client(client: AsyncClient, test_users):
-    # Log in as common user
-    await client.post("/login", data={
-        "email": "comum@example.com", 
-        "password": "password123"
-    })
-    return client
+async def comum_client(db_session: AsyncSession, test_users):
+    # Log in as common user in a separate client instance
+    async def override_get_db():
+        yield db_session
+    app.dependency_overrides[get_db] = override_get_db
+    
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        await ac.post("/login", data={
+            "email": "comum@example.com", 
+            "password": "password123"
+        })
+        yield ac
 
 @pytest.fixture
-async def tecnico_client(client: AsyncClient, test_users):
-    # Log in as technician
-    await client.post("/login", data={
-        "email": "tecnico@example.com", 
-        "password": "password123"
-    })
-    return client
+async def tecnico_client(db_session: AsyncSession, test_users):
+    # Log in as technician in a separate client instance
+    async def override_get_db():
+        yield db_session
+    app.dependency_overrides[get_db] = override_get_db
+    
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        await ac.post("/login", data={
+            "email": "tecnico@example.com", 
+            "password": "password123"
+        })
+        yield ac
 
 @pytest.mark.asyncio
 async def test_full_user_maintenance_workflow(
@@ -105,7 +117,14 @@ async def test_full_user_maintenance_workflow(
     assert maint_req.status == StatusSolicitacaoManutencao.AGUARDANDO_ENTREGA
 
     # 5. Technician confirms delivery (simulating user QR validation)
-    delivery_payload = {"observation": "Equipamento entregue em mãos para o colaborador."}
+    test_users["comum"].qr_token = "TEST_QR_COMUM"
+    db_session.add(test_users["comum"])
+    await db_session.commit()
+
+    delivery_payload = {
+        "qr_token": "TEST_QR_COMUM",
+        "observacao": "Equipamento entregue em mãos para o colaborador."
+    }
     response = await tecnico_client.post(f"/solicitacoes-manutencao/{maint_req.id}/confirmar-entrega", data=delivery_payload)
     assert response.status_code == 302
 

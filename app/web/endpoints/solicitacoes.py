@@ -194,7 +194,8 @@ async def approve_solicitacao(
                     db=db,
                     solicitacao_id=sol_loaded.id,
                     asset_name=sol_loaded.asset.nome,
-                    requester_name=sol_loaded.solicitante.nome if sol_loaded.solicitante else "Colaborador"
+                    requester_name=sol_loaded.solicitante.nome if sol_loaded.solicitante else "Colaborador",
+                    asset_patrimonio=sol_loaded.asset.e_patrimonio
                 )
             except Exception as e:
                 print(f"[NOTIFICATION][ERR] Falha ao notificar RH para termo: {e}")

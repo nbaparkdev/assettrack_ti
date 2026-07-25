@@ -100,7 +100,8 @@ async def submit_nova_solicitacao(
             asset_name=asset.nome if asset else "Equipamento",
             requester_name=current_user.nome,
             priority=prioridade,
-            description=descricao
+            description=descricao,
+            asset_patrimonio=asset.e_patrimonio if asset else None
         )
         
         return RedirectResponse(
@@ -255,7 +256,8 @@ async def aceitar_solicitacao(
         requester_email=solicitacao.solicitante.email,
         asset_name=solicitacao.asset.nome,
         technician_name=current_user.nome,
-        observation=observacao if observacao else None
+        observation=observacao if observacao else None,
+        asset_patrimonio=solicitacao.asset.e_patrimonio
     )
     
     return RedirectResponse(
@@ -301,7 +303,8 @@ async def rejeitar_solicitacao(
         requester_email=solicitacao.solicitante.email,
         asset_name=solicitacao.asset.nome,
         technician_name=current_user.nome,
-        reason=observacao
+        reason=observacao,
+        asset_patrimonio=solicitacao.asset.e_patrimonio
     )
     
     return RedirectResponse(
@@ -345,7 +348,8 @@ async def concluir_manutencao(
         requester_email=solicitacao.solicitante.email,
         asset_name=solicitacao.asset.nome,
         technician_name=current_user.nome,
-        observation=f"Manutenção concluída! {observacao if observacao else 'Seu equipamento está pronto para retirada.'}"
+        observation=f"Manutenção concluída! {observacao if observacao else 'Seu equipamento está pronto para retirada.'}",
+        asset_patrimonio=solicitacao.asset.e_patrimonio
     )
     
     return RedirectResponse(
@@ -474,7 +478,8 @@ async def confirmar_entrega_submit(
         asset_name=result.asset.nome,
         requester_name=result.solicitante.nome,
         technician_name=current_user.nome,
-        observation=observacao
+        observation=observacao,
+        asset_patrimonio=result.asset.e_patrimonio
     )
     
     return RedirectResponse(
