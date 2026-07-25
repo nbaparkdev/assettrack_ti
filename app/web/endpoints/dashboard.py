@@ -167,7 +167,7 @@ async def dashboard(
         context["approved_solicitations_list"] = approved_solicitations_result.scalars().all()
         
     # Comum User Data
-    if user_role == "usuario_comum":
+    if user_role in ["usuario_comum", "rh"]:
         from app.models.service_desk import ServiceTicket
         # My Active Assets (currently assigned)
         my_assets_result = await db.execute(

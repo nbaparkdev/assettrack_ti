@@ -47,6 +47,23 @@ Este documento registra as resoluções arquiteturais e correções críticas ap
   3. **Interface de Administração:** Criados endpoints administrativos (`/compras/contratos/tipos/*`) permitindo cadastrar, listar, editar, ativar/desativar e excluir tipos de contrato, respeitando o controle de acesso de papéis (RBAC).
   4. **Formulário Dinâmico:** Atualizados os endpoints e os templates do formulário de contrato para carregar dinamicamente os tipos do banco de dados e sincronizar os IDs/nomes via JavaScript, preservando a retrocompatibilidade com contratos legados que não possuem `tipo_id`.
 
+## 4. Exportação de PDF no Almoxarifado de Consumo
+
+* **Problema:** A equipe de compras e almoxarifado não possuía uma forma de exportar ou imprimir de maneira formatada os saldos atuais e inventário do estoque de insumos e consumo de TI.
+* **Resolução:**
+  1. **Novo Endpoint de Exportação:** Adicionado o endpoint `/compras/estoque/exportar` em `app/web/endpoints/procurement.py` para gerar sob demanda o relatório.
+  2. **Motor de Renderização PDF:** Integrado o uso do `weasyprint` (assim como no manual do sistema) para gerar um arquivo PDF estruturado a partir de um template HTML.
+  3. **Visual e Design Customizado:** Criado o template `app/templates/procurement/stock_pdf.html` aplicando estilizações limpas para o formato de folha A4 com cabeçalho contendo metadados (quem gerou, data/hora) e tabela de itens com sinalizadores visuais de estoque crítico.
+  4. **Integração na Interface:** Adicionado um botão "Exportar PDF" estilo Neo-Brutalista no cabeçalho do Almoxarifado de Consumo (`stock_list.html`).
+
+## 5. Personalização de Dashboard e Compatibilidade (Usuário Comum & RH)
+
+* **Problema:** A personalização de links úteis no painel ("Personalização Dashboard (Usuário Comum)") não era carregada para usuários com perfil de `rh`, apesar de estes visualizarem o mesmo layout simplificado do painel de usuário comum. Adicionalmente, as chamadas de configuração de banco de dados (`set_setting`) geravam erro no ambiente de teste com SQLite devido a comandos nativos PostgreSQL (`pg_get_serial_sequence`).
+* **Resolução:**
+  1. **Compatibilidade de Perfis no Dashboard:** Refatorado o endpoint do dashboard (`app/web/endpoints/dashboard.py`) para tratar os perfis `usuario_comum` e `rh` de forma unificada no carregamento de links úteis, ativos vinculados, chamados recentes e ordens pendentes.
+  2. **Tratamento de Dialeto de Banco de Dados:** Atualizado o método `set_setting` em `app/crud/system_settings.py` para executar a instrução `setval` do PostgreSQL somente quando o dialeto do banco ativo for `"postgresql"`, permitindo que os testes locais baseados em SQLite rodem com sucesso.
+  3. **Validação:** Criados testes automatizados em `tests/test_dashboard_custom_links.py` que cobrem a persistência e renderização dos links customizados para usuários comuns e de RH.
+
 ## Data da Intervenção
 * **Data:** Julho de 2026
-* **Módulos Afetados:** Procurement (Compras), Database Initialization (Core), Front-end templates, Admin routes.
+* **Módulos Afetados:** Dashboard, Admin Modules, CRUD Settings, Core DB Dialects, Testing Suite.

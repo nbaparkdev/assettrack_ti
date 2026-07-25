@@ -47,13 +47,14 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, BaseModel, BaseModel]):
             )
         else:
             # Resync sequence before inserting new row to guarantee clean ID
-            seq_stmt = text("""
-                SELECT setval(
-                    pg_get_serial_sequence('system_settings', 'id'),
-                    COALESCE((SELECT MAX(id) FROM system_settings), 1)
-                )
-            """)
-            await db.execute(seq_stmt)
+            if db.bind.dialect.name == "postgresql":
+                seq_stmt = text("""
+                    SELECT setval(
+                        pg_get_serial_sequence('system_settings', 'id'),
+                        COALESCE((SELECT MAX(id) FROM system_settings), 1)
+                    )
+                """)
+                await db.execute(seq_stmt)
 
             insert_stmt = text("""
                 INSERT INTO system_settings (setting_key, setting_value, descricao)

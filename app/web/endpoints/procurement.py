@@ -821,6 +821,39 @@ async def list_stock(
     })
 
 
+@router.get("/estoque/exportar")
+async def export_stock_pdf(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    from weasyprint import HTML
+    from app.core.datetime_utils import now_sp
+    from fastapi.responses import Response
+
+    stocks = (await db.execute(
+        select(MaterialStock)
+        .options(selectinload(MaterialStock.product).selectinload(PurchaseProduct.categoria))
+    )).scalars().all()
+
+    html_content = templates.get_template("procurement/stock_pdf.html").render({
+        "request": request,
+        "user": current_user,
+        "estoques": stocks,
+        "generated_at": now_sp().strftime("%d/%m/%Y %H:%M")
+    })
+
+    pdf_bytes = HTML(string=html_content).write_pdf()
+
+    filename = f"Relatorio_Estoque_{now_sp().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+
 # --------------------
 # AUXILIARY REGISTERS (PRODUCTS & COST CENTERS)
 # --------------------
