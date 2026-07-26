@@ -327,23 +327,28 @@ async def reports_page(
     categoria_id: Optional[str] = None,
     fornecedor_id: Optional[str] = None,
     nfe: Optional[str] = None,
-    patrimonio: Optional[str] = None
+    patrimonio: Optional[str] = None,
+    usuario_id: Optional[str] = None
 ):
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from app.models.invoice import NotaFiscal
+    from app.crud.user import user as user_crud_obj
 
     # Convert empty string params to int
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
     forn_id = int(fornecedor_id) if fornecedor_id and fornecedor_id.strip() else None
+    user_id = int(usuario_id) if usuario_id and usuario_id.strip() else None
 
     categories = await asset_category_crud.category.get_multi(db)
     fornecedores = await crud_supplier.get_fornecedores(db)
+    usuarios_filtro = await user_crud_obj.get_multi(db, limit=1000)
 
     query = select(asset_crud.asset.model).options(
         selectinload(asset_crud.asset.model.categoria),
         selectinload(asset_crud.asset.model.fornecedor),
-        selectinload(asset_crud.asset.model.nota_fiscal)
+        selectinload(asset_crud.asset.model.nota_fiscal),
+        selectinload(asset_crud.asset.model.current_user)
     )
 
     has_filters = False
@@ -394,6 +399,12 @@ async def reports_page(
         has_filters = True
         active_filters.append(f"Patrimonio: {patrimonio}")
 
+    if user_id:
+        query = query.filter(asset_crud.asset.model.current_user_id == user_id)
+        has_filters = True
+        usuario_filtro = next((u for u in usuarios_filtro if u.id == user_id), None)
+        active_filters.append(f"Usuario: {usuario_filtro.nome if usuario_filtro else user_id}")
+
     result = await db.execute(query)
     assets = result.scalars().all()
 
@@ -403,6 +414,7 @@ async def reports_page(
         "assets": assets,
         "categories": categories,
         "fornecedores": fornecedores,
+        "usuarios_filtro": usuarios_filtro,
         "has_filters": has_filters,
         "filtros": {
             "data_inicio": data_inicio or "",
@@ -411,7 +423,8 @@ async def reports_page(
             "categoria_id": cat_id or "",
             "fornecedor_id": forn_id or "",
             "nfe": nfe or "",
-            "patrimonio": patrimonio or ""
+            "patrimonio": patrimonio or "",
+            "usuario_id": user_id or ""
         },
         "title": "Relatorio de Ativos"
     })
@@ -428,20 +441,29 @@ async def reports_pdf(
     categoria_id: Optional[str] = None,
     fornecedor_id: Optional[str] = None,
     nfe: Optional[str] = None,
-    patrimonio: Optional[str] = None
+    patrimonio: Optional[str] = None,
+    usuario_id: Optional[str] = None
 ):
     from weasyprint import HTML
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from app.models.invoice import NotaFiscal
+    from app.crud.user import user as user_crud_obj
 
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
     forn_id = int(fornecedor_id) if fornecedor_id and fornecedor_id.strip() else None
+    user_id = int(usuario_id) if usuario_id and usuario_id.strip() else None
+
+    if user_id:
+        usuarios_filtro = await user_crud_obj.get_multi(db, limit=1000)
+    else:
+        usuarios_filtro = []
 
     query = select(asset_crud.asset.model).options(
         selectinload(asset_crud.asset.model.categoria),
         selectinload(asset_crud.asset.model.fornecedor),
-        selectinload(asset_crud.asset.model.nota_fiscal)
+        selectinload(asset_crud.asset.model.nota_fiscal),
+        selectinload(asset_crud.asset.model.current_user)
     )
 
     has_filters = False
@@ -487,6 +509,12 @@ async def reports_pdf(
         query = query.filter(asset_crud.asset.model.e_patrimonio.ilike(f"%{patrimonio}%"))
         has_filters = True
         active_filters.append(f"Patrimonio: {patrimonio}")
+
+    if user_id:
+        query = query.filter(asset_crud.asset.model.current_user_id == user_id)
+        has_filters = True
+        usuario_filtro = next((u for u in usuarios_filtro if u.id == user_id), None)
+        active_filters.append(f"Usuario: {usuario_filtro.nome if usuario_filtro else user_id}")
 
     result = await db.execute(query)
     assets = result.scalars().all()

@@ -92,6 +92,7 @@
                 <th>Categoria</th>
                 <th>Fornecedor</th>
                 <th>NFe</th>
+                <th>Usuario Atual</th>
                 <th>Aquisicao</th>
                 <th class="right">Valor</th>
                 <th>Status</th>
@@ -105,6 +106,7 @@
                 <td>{{ asset.categoria.nome if asset.categoria else '-' }}</td>
                 <td>{{ asset.fornecedor.nome if asset.fornecedor else '-' }}</td>
                 <td>{{ asset.nota_fiscal.numero_nota if asset.nota_fiscal else '-' }}</td>
+                <td>{{ asset.current_user.nome if asset.current_user else '-' }}</td>
                 <td>{{ asset.data_aquisicao.strftime('%d/%m/%Y') if asset.data_aquisicao else '-' }}</td>
                 <td class="right">{{ "R$ %.2f"|format(asset.valor) if asset.valor else '-' }}</td>
                 <td>{{ asset.status.value }}</td>

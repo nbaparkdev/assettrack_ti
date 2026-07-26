@@ -61,6 +61,15 @@
                     <input type="text" name="patrimonio" value="{{ filtros.patrimonio }}" placeholder="Numero de Patrimonio..."
                         class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
                 </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Usuario Atual</label>
+                    <select name="usuario_id" class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                        <option value="">Todos</option>
+                        {% for u in usuarios_filtro %}
+                        <option value="{{ u.id }}" {% if filtros.usuario_id == u.id|string %}selected{% endif %}>{{ u.nome }}{% if u.matricula %} ({{ u.matricula }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="flex items-end gap-2">
                     <button type="submit"
                         class="bg-black text-white px-8 py-2 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition">
@@ -98,6 +107,7 @@
                         <th class="px-6 py-3 border-b border-gray-800">Categoria</th>
                         <th class="px-6 py-3 border-b border-gray-800">Fornecedor</th>
                         <th class="px-6 py-3 border-b border-gray-800">NFe</th>
+                        <th class="px-6 py-3 border-b border-gray-800">Usuario Atual</th>
                         <th class="px-6 py-3 border-b border-gray-800">Aquisicao</th>
                         <th class="px-6 py-3 border-b border-gray-800 text-right">Valor</th>
                         <th class="px-6 py-3 border-b border-gray-800">Status</th>
@@ -113,6 +123,7 @@
                         <td class="px-6 py-3 text-xs uppercase">{{ asset.categoria.nome if asset.categoria else '-' }}</td>
                         <td class="px-6 py-3 text-xs">{{ asset.fornecedor.nome if asset.fornecedor else '-' }}</td>
                         <td class="px-6 py-3 font-mono text-xs">{{ asset.nota_fiscal.numero_nota if asset.nota_fiscal else '-' }}</td>
+                        <td class="px-6 py-3 text-xs">{{ asset.current_user.nome if asset.current_user else '-' }}</td>
                         <td class="px-6 py-3 font-mono text-xs">{{ asset.data_aquisicao.strftime('%d/%m/%Y') if asset.data_aquisicao else '-' }}</td>
                         <td class="px-6 py-3 text-right font-mono text-xs">{{ "R$ %.2f"|format(asset.valor) if asset.valor else '-' }}</td>
                         <td class="px-6 py-3">
@@ -127,7 +138,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="px-6 py-12 text-center text-gray-400 font-mono text-xs uppercase">
+                        <td colspan="9" class="px-6 py-12 text-center text-gray-400 font-mono text-xs uppercase">
                             {% if has_filters %}Nenhum ativo encontrado com os filtros aplicados.{% else %}Use os filtros acima para buscar ativos.{% endif %}
                         </td>
                     </tr>
