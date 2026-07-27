@@ -122,6 +122,18 @@
                 <label class="block text-xs font-bold uppercase tracking-widest text-gray-700 mb-1">Data Fim</label>
                 <input type="date" name="data_fim" value="{{ filters.data_fim }}" class="w-full border-2 border-black p-2 text-sm focus:outline-none focus:ring-0 focus:border-brand-500 rounded-none bg-gray-50 uppercase">
             </div>
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] %}
+            <!-- Solicitante -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-widest text-gray-700 mb-1">Solicitante</label>
+                <select name="solicitante_id" class="w-full border-2 border-black p-2 text-sm focus:outline-none focus:ring-0 focus:border-brand-500 rounded-none bg-gray-50 uppercase">
+                    <option value="">Todos</option>
+                    {% for u in usuarios_filtro %}
+                    <option value="{{ u.id }}" {% if filters.solicitante_id == u.id|string %}selected{% endif %}>{{ u.nome }}{% if u.matricula %} ({{ u.matricula }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
         </div>
         <div class="flex gap-2 justify-end">
             <a href="/servicos/" class="px-4 py-2 border-2 border-black text-black text-xs font-bold uppercase tracking-widest hover:bg-gray-100 transition">Limpar</a>

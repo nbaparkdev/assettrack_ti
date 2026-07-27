@@ -35,11 +35,15 @@ async def service_desk_home(
     prioridade: Optional[str] = None,
     categoria_id: Optional[str] = None,
     data_inicio: Optional[str] = None,
-    data_fim: Optional[str] = None
+    data_fim: Optional[str] = None,
+    solicitante_id: Optional[str] = None
 ):
     """Página principal do Service Desk - Lista de chamados do usuário ou todos para admin/técnico"""
+    from app.crud.user import user as user_crud_obj
+
     user_role = str(current_user.role.value).lower()
-    
+    is_staff = current_user.role in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO, UserRole.GERENTE_INFRA]
+
     # Process dates if provided
     dt_inicio = None
     dt_fim = None
@@ -53,24 +57,29 @@ async def service_desk_home(
             dt_fim = datetime.strptime(data_fim, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
         except ValueError:
             pass
-            
+
     # Process categoria_id
     cat_id = None
     if categoria_id and categoria_id.isdigit():
         cat_id = int(categoria_id)
-            
+
     # Determine scope
-    solicitante_id = None
-    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO, UserRole.GERENTE_INFRA]:
-        solicitante_id = current_user.id
-        
+    filter_solicitante_id = None
+    if is_staff:
+        if solicitante_id and solicitante_id.isdigit():
+            filter_solicitante_id = int(solicitante_id)
+    else:
+        filter_solicitante_id = current_user.id
+
+    usuarios_filtro = await user_crud_obj.get_multi(db, limit=1000) if is_staff else []
+
     tickets = await service_desk_crud.ticket.search_tickets(
-        db, 
-        query=query, 
+        db,
+        query=query,
         status=ServiceStatus(status) if status else None,
         prioridade=ServicePriority(prioridade) if prioridade else None,
         categoria_id=cat_id,
-        solicitante_id=solicitante_id,
+        solicitante_id=filter_solicitante_id,
         data_inicio=dt_inicio,
         data_fim=dt_fim
     )
@@ -150,10 +159,12 @@ async def service_desk_home(
             "prioridade": prioridade or "",
             "categoria_id": categoria_id or "",
             "data_inicio": data_inicio or "",
-            "data_fim": data_fim or ""
+            "data_fim": data_fim or "",
+            "solicitante_id": filter_solicitante_id or ""
         },
         "statuses": [s.value for s in ServiceStatus],
-        "priorities": [p.value for p in ServicePriority]
+        "priorities": [p.value for p in ServicePriority],
+        "usuarios_filtro": usuarios_filtro
     })
 
 @router.get("/novo", response_class=HTMLResponse)
