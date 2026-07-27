@@ -88,6 +88,17 @@ O sistema possui um módulo completo para controle e relacionamento de Fornecedo
 | **Rastreabilidade** | Vínculo automático de Nota Fiscal ao fornecedor |
 | **Upload de Imagens** | Foto/comprovante do equipamento no servidor |
 
+## 📊 Relatórios de Ativos (`/assets/reports`)
+
+Tela dedicada para geração de relatórios e exportação em PDF dos ativos cadastrados.
+
+| Recurso | Descrição |
+| :--- | :--- |
+| **Filtros Combinados** | Data início/fim, nome do ativo, categoria, fornecedor, número de NFe, E-Patrimônio e **usuário atual**. |
+| **Filtro por Usuário Atual** | Dropdown com todos os usuários do sistema (nome + matrícula), permitindo listar todos os ativos alocados a um colaborador específico. |
+| **Coluna "Usuário Atual"** | Exibição do colaborador que possui o ativo alocado no momento (termo de responsabilidade vigente), tanto na tabela HTML quanto no PDF exportado. |
+| **Exportação PDF** | Geração do PDF via WeasyPrint com todos os filtros aplicados preservados (incluindo `usuario_id`). |
+
 ## 🎧 Service Desk (Help Desk)
 
 Módulo integrado e moderno para gestão de chamados de suporte técnico.

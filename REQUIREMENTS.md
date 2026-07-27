@@ -66,3 +66,4 @@ Estas dependências já estão incluídas na imagem Docker, mas são listadas pa
 - **Postgres 15-alpine:** Banco de dados.
 - **libzbar0:** Biblioteca para processamento de QR Codes.
 - **libpq-dev & gcc:** Drivers para conexão com PostgreSQL.
+- **WeasyPrint:** Renderização de relatórios em PDF (Relatórios de Ativos, Termos de Responsabilidade, etc.).

@@ -170,3 +170,11 @@ app/
 
 Todas as fases do plano de implantação foram executadas com sucesso.
 O módulo cobre o ciclo completo: SC → Aprovação → Cotação → PO → Recebimento → Contratos, com relatórios, exportação CSV, alertas de vencimento, integrações com Manutenção e Service Desk, e controle de orçamento por Centro de Custo.
+
+---
+
+## 🔄 Notas de Manutenção / Mudanças Pontuais
+
+Registro de alterações menores (fora do escopo original do plano) que afetam o módulo de compras ou módulos vizinhos integrados.
+
+- **Filtro por Usuário Atual em `/assets/reports`**: adicionado dropdown para filtro por colaborador em `assets/reports` e `assets/reports/pdf` (parâmetro `usuario_id`). Coluna "Usuário Atual" exibida na tabela HTML e no PDF. Implementado em `app/web/endpoints/assets.py` e templates `app/templates/assets/reports.html` + `reports_pdf.html`.
