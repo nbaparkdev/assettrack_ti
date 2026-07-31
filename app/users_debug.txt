@@ -1,3 +1,3 @@
 TOTAL USERS IN DB: 2
-ID: 1 | Nome: Administrador | Email: admin@example.com | Role: admin | Is Active: True | Matricula: None | Cargo: None
-ID: 2 | Nome: Ana Karina | Email: anakarina@nba.com | Role: usuario_comum | Is Active: True | Matricula: None | Cargo: None
+ID: 1 | Nome: Administrador | Email: admin@example.com | Role: admin | Is Active: True | Matricula: 'AAAA001' | Cargo: 'Super Admin'
+ID: 2 | Nome: Humberto da Silva | Email: humbertomoura.neto@gmail.com | Role: usuario_comum | Is Active: True | Matricula: None | Cargo: None

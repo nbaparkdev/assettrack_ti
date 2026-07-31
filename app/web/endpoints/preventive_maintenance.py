@@ -614,13 +614,32 @@ async def create_order(
             final_tipo = "personalizada"
             final_obs = f"[TIPO: {custom_name}]\n{descricao}"
         
+    # Obter os Enums correspondentes de forma case-insensitive
+    from app.models.preventive_maintenance import MaintenancePriority
+    
+    matched_tipo = None
+    for mt in MaintenanceType:
+        if mt.value.lower() == final_tipo.lower() or mt.name.lower() == final_tipo.lower():
+            matched_tipo = mt
+            break
+    if not matched_tipo:
+        matched_tipo = MaintenanceType.PERSONALIZADA
+
+    matched_prioridade = None
+    for mp in MaintenancePriority:
+        if mp.value.lower() == prioridade.lower() or mp.name.lower() == prioridade.lower():
+            matched_prioridade = mp
+            break
+    if not matched_prioridade:
+        matched_prioridade = MaintenancePriority.MEDIA
+        
     # Criar a ordem diretamente usando o model
     order = MaintenanceOrder(
         numero=numero,
         asset_id=parsed_asset_id,
         infra_predial_servico=infra_predial_servico if not parsed_asset_id else None,
-        tipo=MaintenanceType(final_tipo),
-        prioridade=MaintenancePriority(prioridade),
+        tipo=matched_tipo,
+        prioridade=matched_prioridade,
         observacoes=final_obs,
         status=OrderStatus.ABERTA,
         data_abertura=now_sp()

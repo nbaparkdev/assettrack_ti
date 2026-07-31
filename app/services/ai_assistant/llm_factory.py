@@ -4,8 +4,14 @@ from app.services.ai_assistant.gemini_service import GeminiService
 from app.services.ai_assistant.groq_service import GroqService
 from app.services.ai_assistant.openrouter_service import OpenRouterService
 from app.services.ai_assistant.kimi_service import KimiService
+from app.services.ai_assistant.ollama_service import OllamaService
 
-def get_llm_service(provider: str, api_key: str, model_name: str = "") -> LLMBaseService:
+def get_llm_service(provider: str, api_key: str, model_name: str = "", base_url: str = "") -> LLMBaseService:
+    if provider.lower() == "ollama":
+        model = model_name if model_name else "gemma2:2b"
+        url = base_url if base_url else "http://localhost:11434"
+        return OllamaService(api_key=api_key or "ollama", model=model, base_url=url)
+
     if not api_key:
         raise ValueError(f"API Key for provider {provider} is not configured.")
         
@@ -29,3 +35,4 @@ def get_llm_service(provider: str, api_key: str, model_name: str = "") -> LLMBas
         return KimiService(api_key=api_key, model=model)
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")
+

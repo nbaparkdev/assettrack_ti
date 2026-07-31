@@ -43,6 +43,9 @@ async def gerenciar_modulos_page(
     kimi_api_key = await system_settings.get_setting(db, "kimi_api_key", default_value="")
     openrouter_model = await system_settings.get_setting(db, "openrouter_model", default_value="meta-llama/llama-3.1-8b-instruct:free")
     kimi_model = await system_settings.get_setting(db, "kimi_model", default_value="kimi-k2.6")
+    ollama_base_url = await system_settings.get_setting(db, "ollama_base_url", default_value="http://localhost:11434")
+    ollama_model = await system_settings.get_setting(db, "ollama_model", default_value="gemma2:2b")
+    ollama_api_key = await system_settings.get_setting(db, "ollama_api_key", default_value="")
     
     # SMTP Configs (chave padronizada: smtp_password)
     smtp_host = await system_settings.get_setting(db, "smtp_host", default_value="")
@@ -122,6 +125,9 @@ async def gerenciar_modulos_page(
         "groq_model": groq_model,
         "openrouter_model": openrouter_model,
         "kimi_model": kimi_model,
+        "ollama_base_url": ollama_base_url,
+        "ollama_model": ollama_model,
+        "ollama_api_key": ollama_api_key,
         "smtp_host": smtp_host,
         "smtp_port": smtp_port,
         "smtp_user": smtp_user,
@@ -156,6 +162,9 @@ async def gerenciar_modulos_submit(
     openrouter_model: Optional[str] = Form(None),
     kimi_api_key: Optional[str] = Form(None),
     kimi_model: Optional[str] = Form(None),
+    ollama_base_url: Optional[str] = Form(None),
+    ollama_model: Optional[str] = Form(None),
+    ollama_api_key: Optional[str] = Form(None),
     smtp_host: Optional[str] = Form(None),
     smtp_port: Optional[str] = Form(None),
     smtp_user: Optional[str] = Form(None),
@@ -223,6 +232,12 @@ async def gerenciar_modulos_submit(
         await system_settings.set_setting(db=db, setting_key="openrouter_model", setting_value=openrouter_model, descricao="Modelo OpenRouter")
     if kimi_model:
         await system_settings.set_setting(db=db, setting_key="kimi_model", setting_value=kimi_model, descricao="Modelo Kimi")
+    if ollama_base_url:
+        await system_settings.set_setting(db=db, setting_key="ollama_base_url", setting_value=ollama_base_url, descricao="Base URL Ollama Local")
+    if ollama_model:
+        await system_settings.set_setting(db=db, setting_key="ollama_model", setting_value=ollama_model, descricao="Modelo Ollama")
+    if ollama_api_key is not None:
+        await system_settings.set_setting(db=db, setting_key="ollama_api_key", setting_value=ollama_api_key, descricao="Chave de API Ollama (Opcional)")
 
     # Salvar configurações SMTP (chave padronizada: smtp_password)
     await system_settings.set_setting(db=db, setting_key="smtp_host", setting_value=smtp_host or "")

@@ -34,11 +34,15 @@ async def ai_chat_endpoint(
     model_field = f"{ai_provider}_model"
     model_name = await system_settings.get_setting(db, model_field, default_value="")
     
-    if not api_key:
+    base_url = ""
+    if ai_provider.lower() == "ollama":
+        base_url = await system_settings.get_setting(db, "ollama_base_url", default_value="http://localhost:11434")
+    elif not api_key:
         raise HTTPException(status_code=500, detail=f"Chave de API não configurada para {ai_provider}")
         
     ai_advanced_str = await system_settings.get_setting(db, "ai_advanced_functions", default_value="false")
-    allow_advanced = (ai_advanced_str.lower() == "true")
+    # Restrict advanced functions to admin users only
+    allow_advanced = (ai_advanced_str.lower() == "true") and (current_user.role.value == "admin")
     
     # Build user context to inject into the system prompt
     user_context = {
@@ -48,7 +52,7 @@ async def ai_chat_endpoint(
     }
     
     try:
-        llm_service = get_llm_service(provider=ai_provider, api_key=api_key, model_name=model_name)
+        llm_service = get_llm_service(provider=ai_provider, api_key=api_key, model_name=model_name, base_url=base_url)
         response_text = await llm_service.chat(
             db=db, 
             user_id=current_user.id, 
@@ -56,7 +60,9 @@ async def ai_chat_endpoint(
             allow_advanced_tools=allow_advanced,
             user_context=user_context
         )
-        return ChatResponse(response=response_text)
+        from app.services.ai_assistant.tools import clean_unwanted_tool_tags
+        clean_response = clean_unwanted_tool_tags(response_text)
+        return ChatResponse(response=clean_response)
     except Exception as e:
         import traceback
         print(f"AI Chat Error: {traceback.format_exc()}")

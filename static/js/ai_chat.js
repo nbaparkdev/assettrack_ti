@@ -3,14 +3,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const bubble = document.getElementById('ai-chat-bubble');
     const windowEl = document.getElementById('ai-chat-window');
     const closeBtn = document.getElementById('ai-chat-close-btn');
+    const clearBtn = document.getElementById('ai-chat-clear-btn');
     const header = document.getElementById('ai-chat-header');
     const input = document.getElementById('ai-chat-input');
     const sendBtn = document.getElementById('ai-chat-send-btn');
     const messagesContainer = document.getElementById('ai-chat-messages');
     const typingIndicator = document.getElementById('ai-chat-typing');
 
-    // Keep chat history in memory for context
+    const widgetEl = document.getElementById('ai-chat-widget');
+    const userEmail = widgetEl ? widgetEl.getAttribute('data-user-email') || 'anonymous' : 'anonymous';
+    const userName = widgetEl ? widgetEl.getAttribute('data-user-name') || 'usuário' : 'usuário';
+    const userRole = widgetEl ? widgetEl.getAttribute('data-user-role') || 'usuario_comum' : 'usuario_comum';
+    const storageKey = `ai_chat_history_${userEmail}`;
+
+    // Keep chat history
     let chatHistory = [];
+
+    // Save history
+    const saveHistory = () => {
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(chatHistory));
+        } catch (e) {
+            console.error("Failed to save chat history", e);
+        }
+    };
 
     // Toggle Window
     const toggleChat = () => {
@@ -18,21 +34,35 @@ document.addEventListener('DOMContentLoaded', () => {
             windowEl.classList.remove('hidden');
             bubble.classList.add('hidden');
             input.focus();
+            localStorage.setItem('ai_chat_open', 'true');
         } else {
             windowEl.classList.add('hidden');
             bubble.classList.remove('hidden');
+            localStorage.setItem('ai_chat_open', 'false');
         }
     };
 
     bubble.addEventListener('click', toggleChat);
     closeBtn.addEventListener('click', toggleChat);
     header.addEventListener('click', (e) => {
-        if (e.target !== closeBtn && !closeBtn.contains(e.target)) {
+        if (e.target !== closeBtn && !closeBtn.contains(e.target) && e.target !== clearBtn && !clearBtn.contains(e.target)) {
             toggleChat();
         }
     });
 
-    const appendMessage = (role, text) => {
+    if (clearBtn) {
+        clearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm("Deseja limpar todo o histórico de conversas com o Assistente?")) {
+                chatHistory = [];
+                localStorage.removeItem(storageKey);
+                sessionStorage.removeItem('ai_welcome_shown');
+                renderHistory();
+            }
+        });
+    }
+
+    const appendMessage = (role, text, save = true) => {
         const div = document.createElement('div');
         div.className = 'flex items-start gap-2 ' + (role === 'user' ? 'flex-row-reverse' : '');
         
@@ -62,6 +92,11 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         messagesContainer.appendChild(div);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        if (save) {
+            chatHistory.push({ role, content: text });
+            saveHistory();
+        }
     };
 
     const sendMessage = async () => {
@@ -70,7 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Add user message to UI and history
         appendMessage('user', text);
-        chatHistory.push({ role: 'user', content: text });
         input.value = '';
 
         // Show typing
@@ -95,7 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Add AI response to UI and history
             appendMessage('assistant', aiText);
-            chatHistory.push({ role: 'assistant', content: aiText });
 
         } catch (error) {
             console.error(error);
@@ -112,59 +145,79 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Auto-open welcome logic (only once per session)
-    if (!sessionStorage.getItem('ai_welcome_shown')) {
-        setTimeout(async () => {
-            // Read user info from widget dataset
-            const widgetEl = document.getElementById('ai-chat-widget');
-            const userName = widgetEl ? widgetEl.getAttribute('data-user-name') : 'usuário';
-            const userRole = widgetEl ? widgetEl.getAttribute('data-user-role') : 'usuario_comum';
+    const fetchWelcomeOverview = async () => {
+        typingIndicator.classList.remove('hidden');
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        
+        try {
+            chatHistory.push({ role: 'user', content: 'Me dê um resumo geral do sistema agora: chamados, ativos e manutenções.' });
+            saveHistory();
             
-            // Open window
-            toggleChat();
+            const response = await fetch('/api/v1/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: chatHistory })
+            });
             
+            if (response.ok) {
+                const data = await response.json();
+                appendMessage('assistant', data.response);
+                chatHistory.push({ role: 'assistant', content: data.response });
+                saveHistory();
+            } else {
+                appendMessage('assistant', 'Não consegui buscar o panorama agora. Me pergunte qualquer coisa!');
+            }
+        } catch (err) {
+            appendMessage('assistant', 'Estou pronto para ajudar! Me pergunte sobre chamados, ativos ou manutenções.');
+        } finally {
+            typingIndicator.classList.add('hidden');
+        }
+    };
+
+    const renderHistory = () => {
+        messagesContainer.innerHTML = '';
+        if (chatHistory.length === 0) {
             const isManager = ['admin', 'gerente_ti', 'gerente_infra'].includes(userRole);
-            
             if (isManager) {
-                // For admins/managers: auto-fetch system overview
                 const greetingText = `Olá, **${userName}**! 👋 Bem-vindo ao AssetTrack. Deixa eu buscar o panorama atual do sistema para você...`;
                 appendMessage('assistant', greetingText);
-                
-                // Show typing while fetching
-                typingIndicator.classList.remove('hidden');
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                
-                try {
-                    // Send an automatic request to get the system overview
-                    chatHistory.push({ role: 'user', content: 'Me dê um resumo geral do sistema agora: chamados, ativos e manutenções.' });
-                    
-                    const response = await fetch('/api/v1/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ messages: chatHistory })
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        appendMessage('assistant', data.response);
-                        chatHistory.push({ role: 'assistant', content: data.response });
-                    } else {
-                        appendMessage('assistant', 'Não consegui buscar o panorama agora. Me pergunte qualquer coisa!');
-                    }
-                } catch (err) {
-                    appendMessage('assistant', 'Estou pronto para ajudar! Me pergunte sobre chamados, ativos ou manutenções.');
-                } finally {
-                    typingIndicator.classList.add('hidden');
-                }
+                fetchWelcomeOverview();
             } else {
-                // For regular users: simple greeting
-                const greetingText = `Olá, **${userName}**! Sou o seu Assistente Virtual. 👋\n\nEstou aqui para te ajudar com consultas, informações sobre seus chamados ou procurar equipamentos. Como posso ajudar hoje?`;
+                const greetingText = `Olá, **${userName}**! Sou o seu Assistente Virtual. 👋\n\nEstou aqui para te ajudar a navegar e utilizar todo o sistema. Se tiver qualquer dúvida de como fazer algo, pode me perguntar! Posso ajudar você a:\n\n• Consultar seus ativos sob sua guarda\n• Criar e acompanhar chamados de suporte (Service Desk)\n• Solicitar manutenções de equipamentos\n• Utilizar seu QR Code pessoal (Crachá Digital) para login rápido\n• Consultar o Manual do Usuário para qualquer dúvida sobre a aplicação\n\nComo posso te ajudar hoje?`;
                 appendMessage('assistant', greetingText);
-                chatHistory.push({ role: 'assistant', content: greetingText });
             }
-            
-            // Mark as shown
-            sessionStorage.setItem('ai_welcome_shown', 'true');
-        }, 1500);
+        } else {
+            chatHistory.forEach(msg => {
+                appendMessage(msg.role, msg.content, false);
+            });
+        }
+    };
+
+    // Load stored history
+    try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+            chatHistory = JSON.parse(stored);
+        }
+    } catch (e) {
+        console.error("Failed to load chat history", e);
+    }
+
+    // Render loaded history (or welcome message)
+    renderHistory();
+
+    // Toggle Chat window if it was left open in previous page
+    if (localStorage.getItem('ai_chat_open') === 'true') {
+        windowEl.classList.remove('hidden');
+        bubble.classList.add('hidden');
+        input.focus();
+    } else {
+        // Auto-open welcome logic (only once per session if not already conversing)
+        if (chatHistory.length === 0 && !sessionStorage.getItem('ai_welcome_shown')) {
+            setTimeout(() => {
+                toggleChat();
+                sessionStorage.setItem('ai_welcome_shown', 'true');
+            }, 1500);
+        }
     }
 });

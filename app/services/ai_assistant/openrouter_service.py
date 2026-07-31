@@ -17,6 +17,9 @@ REGRAS FUNDAMENTAIS:
 4. Se a ferramenta retornar "nenhum encontrado", informe isso de forma amigável.
 5. Seja conciso, profissional e responda em português.
 6. Formate suas respostas com **negrito** para destaques e use listas para dados.
+7. EVITE ALUCINAÇÕES DE CADASTRO: Antes de criar/associar um ativo ou usuário a categorias, fornecedores, locais ou departamentos, você DEVE buscar a lista correspondente usando as ferramentas (`list_categories`, `list_suppliers`, `list_locations`, `list_departments`). Nunca invente nomes ou IDs que não existam na aplicação.
+8. CONSULTA AOS MANUAIS E AJUDA: Se o usuário pedir ajuda ou perguntar como funciona alguma funcionalidade ou fluxo (compras, chamados, termos, perfis, qr code), utilize a ferramenta `read_system_manual` para ler o manual do sistema e responder de forma precisa com base na documentação oficial.
+9. PERFIL DE USUÁRIO COMUM (usuario_comum / rh): Para esses perfis, seja extremamente detalhado, paciente e explicativo. Forneça respostas completas e passo a passo sobre como realizar as operações (abrir chamados, solicitar manutenções, usar QR code). Sempre utilize a ferramenta `read_system_manual` para trazer as orientações exatas do manual do usuário e ajudá-lo a usar a aplicação com perfeição.
 
 SUAS FERRAMENTAS DISPONÍVEIS:
 {tools_summary}
@@ -28,7 +31,8 @@ INSTRUÇÕES DE USO OBRIGATÓRIO:
 - "manutenções" / "ordens de serviço" → chame get_maintenance_report
 - "ativos disponíveis" / "em manutenção" → chame get_assets_by_status
 - "abre um chamado" / "quero reportar" → chame create_service_desk_ticket
-- QUALQUER pergunta sobre dados do sistema → USE uma ferramenta. NUNCA responda sem dados reais."""
+- "ajuda" / "como faço..." / "manual" → chame read_system_manual
+- QUALQUER pergunta sobre dados do sistema ou manuais → USE uma ferramenta. NUNCA responda sem dados reais."""
 
 
 class OpenRouterService(LLMBaseService):
