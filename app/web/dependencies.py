@@ -42,7 +42,8 @@ async def get_current_user_from_cookie(
 
 async def get_active_user_web(
     request: Request,
-    user: Annotated[Optional[User], Depends(get_current_user_from_cookie)]
+    user: Annotated[Optional[User], Depends(get_current_user_from_cookie)],
+    db: AsyncSession = Depends(get_db)
 ) -> User:
     if not user:
         raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/login"})
@@ -55,7 +56,15 @@ async def get_active_user_web(
             user.role = UserRole(user.role.lower())
         except ValueError:
             pass
-            
+
+    role_str = user.role.value.lower() if hasattr(user.role, 'value') else str(user.role).lower()
+    if role_str in ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "rh"]:
+        request.state.user_has_kanban = True
+    else:
+        from app.crud.kanban import crud_kanban
+        count = await crud_kanban.count_user_active_projects(db, user)
+        request.state.user_has_kanban = (count > 0)
+
     return user
 
 from app.crud.system_settings import system_settings
@@ -74,4 +83,16 @@ async def check_preventive_maintenance_enabled(request: Request):
 async def check_purchases_enabled(request: Request):
     if not getattr(request.app.state, "purchases_enabled", True):
         raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/assets/"})
+
+async def check_kanban_enabled(
+    request: Request,
+    user: Annotated[User, Depends(get_active_user_web)]
+):
+    if not getattr(request.app.state, "kanban_enabled", True):
+        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/assets/"})
+    
+    if not getattr(request.state, "user_has_kanban", False):
+        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/assets/"})
+
+
 

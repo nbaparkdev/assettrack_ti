@@ -43,3 +43,7 @@ web_router.include_router(avisos.router, tags=["web_avisos"])
 from app.web.endpoints import rh
 web_router.include_router(rh.router, prefix="/rh", tags=["web_rh"])
 
+from app.web.endpoints import kanban
+web_router.include_router(kanban.router, tags=["web_kanban"])
+
+

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8 fade-in max-w-[1600px] mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">Projetos Internos</h1>
+                <span class="font-mono text-[10px] px-2 py-0.5 bg-black text-white font-bold uppercase tracking-widest">KANBAN</span>
+            </div>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">
+                Gestão visual de fluxos de trabalho e iniciativas da TI // Integrated Workspace
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a href="/kanban?ver_arquivados={% if ver_arquivados %}0{% else %}1{% endif %}" 
+               class="btn-secondary flex items-center gap-2 font-mono text-xs">
+                {% if ver_arquivados %}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                Ver Projetos Ativos
+                {% else %}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                Ver Arquivados
+                {% endif %}
+            </a>
+
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador', 'rh'] %}
+            <a href="/kanban/projetos/novo" class="btn-primary flex items-center gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Novo Projeto
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Projects Grid -->
+    {% if projects_with_stats %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for item in projects_with_stats %}
+        {% set proj = item.project %}
+        <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all flex flex-col justify-between relative group">
+            
+            {% if proj.is_archived %}
+            <div class="absolute top-3 right-3">
+                <span class="font-mono text-[9px] bg-gray-200 text-gray-700 px-2 py-0.5 border border-black font-bold uppercase tracking-widest">ARQUIVADO</span>
+            </div>
+            {% elif not proj.is_active %}
+            <div class="absolute top-3 right-3">
+                <span class="font-mono text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 border border-amber-600 font-bold uppercase tracking-widest">INATIVO</span>
+            </div>
+            {% endif %}
+
+            <div class="space-y-4">
+                <div>
+                    <span class="font-mono text-[10px] text-gray-400 uppercase tracking-widest">PROJETO #{{ proj.id }}</span>
+                    <h2 class="text-xl font-bold text-black uppercase tracking-tight group-hover:underline mt-0.5">
+                        <a href="/kanban/projetos/{{ proj.id }}">{{ proj.titulo }}</a>
+                    </h2>
+                    {% if proj.descricao %}
+                    <p class="text-sm text-gray-600 line-clamp-2 mt-2 font-sans">
+                        {{ proj.descricao }}
+                    </p>
+                    {% endif %}
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between text-xs font-mono">
+                        <span class="text-gray-500 uppercase">Progresso</span>
+                        <span class="font-bold text-black">{{ item.done_cards }}/{{ item.total_cards }} tarefas ({{ item.progress }}%)</span>
+                    </div>
+                    <div class="w-full h-3 bg-gray-100 border-2 border-black">
+                        <div class="h-full bg-black transition-all duration-500" style="width: {{ item.progress }}%;"></div>
+                    </div>
+                </div>
+
+                <!-- Participants Avatars -->
+                <div class="pt-2 border-t border-gray-100 flex items-center justify-between">
+                    <div class="flex items-center -space-x-2 overflow-hidden">
+                        {% for part in proj.participantes[:5] %}
+                        <div class="w-8 h-8 rounded-none border-2 border-black bg-gray-900 text-white font-mono font-bold text-xs flex items-center justify-center uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                             title="{{ part.nome or part.email }}">
+                            {{ (part.nome or part.email)[:2] }}
+                        </div>
+                        {% endfor %}
+                        {% if proj.participantes|length > 5 %}
+                        <div class="w-8 h-8 rounded-none border-2 border-black bg-gray-200 text-black font-mono font-bold text-xs flex items-center justify-center">
+                            +{{ proj.participantes|length - 5 }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <span class="font-mono text-[10px] text-gray-400 uppercase">
+                        Criado por {{ proj.criador.nome or proj.criador.email }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="mt-6 pt-4 border-t-2 border-black flex items-center justify-between">
+                <a href="/kanban/projetos/{{ proj.id }}" class="btn-primary text-xs py-1.5 px-4 font-mono uppercase tracking-wider flex items-center gap-1">
+                    Abrir Quadro
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </a>
+
+                {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] or proj.criador_id == user.id %}
+                <a href="/kanban/projetos/{{ proj.id }}/editar" class="text-xs font-mono font-bold uppercase text-gray-600 hover:text-black border-b border-black">
+                    Configurações
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white border-2 border-black p-12 text-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] space-y-4">
+        <svg class="w-12 h-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 01-2 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 01-2 2"></path>
+        </svg>
+        <div class="space-y-1">
+            <h3 class="font-bold text-lg text-black uppercase tracking-tight">Nenhum projeto encontrado</h3>
+            <p class="text-sm font-mono text-gray-500 uppercase">Você não possui projetos vinculados no momento.</p>
+        </div>
+        {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador', 'rh'] %}
+        <div class="pt-2">
+            <a href="/kanban/projetos/novo" class="btn-primary inline-flex items-center gap-2">
+                Criar Primeiro Projeto
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

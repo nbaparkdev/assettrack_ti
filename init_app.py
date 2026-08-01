@@ -57,6 +57,27 @@ async def init_database():
         except Exception:
             pass
 
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE kanban_cards ADD COLUMN purchase_request_id INTEGER REFERENCES purchase_requests(id) ON DELETE SET NULL"))
+            print("🔧 Adicionada coluna 'purchase_request_id' na tabela 'kanban_cards'...")
+        except Exception:
+            pass
+
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE kanban_cards ADD COLUMN material_stock_id INTEGER REFERENCES material_stocks(id) ON DELETE SET NULL"))
+            print("🔧 Adicionada coluna 'material_stock_id' na tabela 'kanban_cards'...")
+        except Exception:
+            pass
+
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE kanban_cards ADD COLUMN tipo_item_necessario VARCHAR(50)"))
+            print("🔧 Adicionada coluna 'tipo_item_necessario' na tabela 'kanban_cards'...")
+        except Exception:
+            pass
+
 
 async def create_admin_user():
     print("🔧 Criando/Ativando usuário admin...")
@@ -128,6 +149,7 @@ async def sync_sequences():
         "maintenance_plans", "maintenance_materials", "maintenance_executions",
         "purchase_products", "purchase_requests", "purchase_orders",
         "service_desk_tickets", "contracts", "purchase_contracts", "contract_types", "suppliers",
+        "kanban_projects", "kanban_columns", "kanban_cards", "kanban_attachments",
     ]
     async with engine.begin() as conn:
         for table in tables:

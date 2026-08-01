@@ -36,6 +36,7 @@ services:
     volumes:
       - ./app:/code/app
       - ./static:/code/static
+      - ./tests:/code/tests
 
     depends_on:
       db:

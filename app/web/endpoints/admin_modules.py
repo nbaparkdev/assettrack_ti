@@ -26,6 +26,9 @@ async def gerenciar_modulos_page(
     purchases_enabled_str = await system_settings.get_setting(db, "purchases_enabled", default_value="true")
     purchases_enabled = purchases_enabled_str.lower() == "true"
     
+    kanban_enabled_str = await system_settings.get_setting(db, "kanban_enabled", default_value="true")
+    kanban_enabled = kanban_enabled_str.lower() == "true"
+    
     ai_enabled_str = await system_settings.get_setting(db, "ai_enabled", default_value="false")
     ai_enabled = ai_enabled_str.lower() == "true"
     
@@ -76,6 +79,7 @@ async def gerenciar_modulos_page(
         "manutencao": ["admin", "gerente_ti", "gerente_infra", "tecnico"],
         "tickets": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "usuario_comum"],
         "compras": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+        "kanban": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "rh"],
         "relatorios": ["admin", "gerente_ti", "gerente_infra", "comprador"],
         "usuarios": ["admin", "gerente_ti", "gerente_infra"],
         "backup": ["admin", "gerente_ti", "gerente_infra"]
@@ -102,6 +106,7 @@ async def gerenciar_modulos_page(
         {"key": "manutencao", "label": "Manutenção Preventiva"},
         {"key": "tickets", "label": "Service Desk / Tickets"},
         {"key": "compras", "label": "Compras & Almoxarifado"},
+        {"key": "kanban", "label": "Projetos Internos (Kanban)"},
         {"key": "relatorios", "label": "Relatórios"},
         {"key": "usuarios", "label": "Gerenciar Usuários (Admin)"},
         {"key": "backup", "label": "Backup do Sistema (Admin)"}
@@ -112,6 +117,7 @@ async def gerenciar_modulos_page(
         "user": current_user,
         "pm_enabled": pm_enabled,
         "purchases_enabled": purchases_enabled,
+        "kanban_enabled": kanban_enabled,
         "ai_enabled": ai_enabled,
         "ai_advanced_functions": ai_advanced_functions,
         "ai_provider": ai_provider,
@@ -149,6 +155,7 @@ async def gerenciar_modulos_submit(
     db: Annotated[AsyncSession, Depends(get_db)],
     preventive_maintenance_enabled: Optional[str] = Form(None),
     purchases_enabled: Optional[str] = Form(None),
+    kanban_enabled: Optional[str] = Form(None),
     ai_enabled: Optional[str] = Form(None),
     ai_advanced_functions: Optional[str] = Form(None),
     ai_provider: Optional[str] = Form(None),
@@ -191,6 +198,15 @@ async def gerenciar_modulos_submit(
         descricao="Ativação do módulo de Compras (Procurement)"
     )
     request.app.state.purchases_enabled = (pur_enabled_val == "true")
+
+    kanban_enabled_val = "true" if kanban_enabled == "on" else "false"
+    await system_settings.set_setting(
+        db=db,
+        setting_key="kanban_enabled",
+        setting_value=kanban_enabled_val,
+        descricao="Ativação do módulo de Projetos Internos (Kanban)"
+    )
+    request.app.state.kanban_enabled = (kanban_enabled_val == "true")
 
     ai_enabled_val = "true" if ai_enabled == "on" else "false"
     await system_settings.set_setting(
@@ -253,7 +269,7 @@ async def gerenciar_modulos_submit(
 
     # Processar permissões do menu
     form_data = await request.form()
-    menus = ["ativos", "fornecedores", "manutencao", "tickets", "compras", "relatorios", "usuarios", "backup"]
+    menus = ["ativos", "fornecedores", "manutencao", "tickets", "compras", "kanban", "relatorios", "usuarios", "backup"]
     
     new_permissions = {m: [] for m in menus}
     for key, val in form_data.items():

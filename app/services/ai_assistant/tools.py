@@ -605,7 +605,10 @@ async def read_system_manual(db: AsyncSession, user_id: int, document_name: str 
     """Retorna o conteúdo do manual ou guia do sistema selecionado."""
     import os
     
-    docs_dir = "/home/humberto/Aplicativos/Assettrackti/assettrack_ti/docs"
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    docs_dir = os.path.join(base_dir, "docs")
+    if not os.path.exists(docs_dir):
+        docs_dir = base_dir
     
     mapping = {
         "manual_do_usuario": "MANUAL_DO_USUARIO.md",

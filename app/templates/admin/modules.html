@@ -81,6 +81,31 @@
                 </div>
             </div>
 
+            <div class="border-2 border-gray-200 p-6 hover:border-black transition-colors bg-gray-50">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-lg text-black uppercase tracking-tight">Projetos Internos (Kanban)</span>
+                            <span class="font-mono text-[10px] px-2 py-0.5 bg-black text-white font-bold uppercase tracking-widest">MOD_07</span>
+                        </div>
+                        <p class="text-sm text-gray-600 font-sans leading-relaxed">
+                            Gestão visual estilo Trello para acompanhar projetos da empresa, com colunas customizáveis, avatares, Markdown e integração direta com o cadastro de Ativos.
+                        </p>
+                        <div class="pt-2 flex items-center gap-4 text-xs font-mono text-gray-500">
+                             <span>Impacto: Rotas <code class="bg-gray-200 px-1 py-0.5 text-black">/kanban/*</code></span>
+                             <span>•</span>
+                             <span>Persistência: Imediata</span>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Switch Literal HTML/Tailwind -->
+                    <label class="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-1">
+                        <input type="checkbox" name="kanban_enabled" class="sr-only peer" {% if kanban_enabled %}checked{% endif %}>
+                        <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none border-2 border-black peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
+                    </label>
+                </div>
+            </div>
+
             <div class="border-2 border-gray-200 p-6 bg-gray-100 opacity-60">
                 <div class="flex items-start justify-between gap-4">
                     <div class="space-y-2">

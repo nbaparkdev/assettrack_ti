@@ -199,6 +199,12 @@ async def lifespan(app: FastAPI):
             app.state.purchases_enabled = True
 
         try:
+            val_kanban = await system_settings.get_setting(session, "kanban_enabled", default_value="true")
+            app.state.kanban_enabled = (val_kanban.lower() == "true")
+        except Exception:
+            app.state.kanban_enabled = True
+
+        try:
             val_ai = await system_settings.get_setting(session, "ai_enabled", default_value="false")
             app.state.ai_enabled = (val_ai.lower() == "true")
         except Exception:
@@ -222,6 +228,7 @@ async def lifespan(app: FastAPI):
                     "manutencao": ["admin", "gerente_ti", "gerente_infra", "tecnico"],
                     "tickets": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "usuario_comum"],
                     "compras": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+                    "kanban": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "rh"],
                     "relatorios": ["admin", "gerente_ti", "gerente_infra", "comprador"],
                     "usuarios": ["admin", "gerente_ti", "gerente_infra"],
                     "backup": ["admin", "gerente_ti", "gerente_infra"]
@@ -233,6 +240,7 @@ async def lifespan(app: FastAPI):
                 "manutencao": ["admin", "gerente_ti", "gerente_infra", "tecnico"],
                 "tickets": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "usuario_comum"],
                 "compras": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+                "kanban": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "rh"],
                 "relatorios": ["admin", "gerente_ti", "gerente_infra", "comprador"],
                 "usuarios": ["admin", "gerente_ti", "gerente_infra"],
                 "backup": ["admin", "gerente_ti", "gerente_infra"]
@@ -277,6 +285,7 @@ app = FastAPI(
 async def add_module_state(request: Request, call_next):
     request.state.pm_enabled = getattr(request.app.state, "pm_enabled", True)
     request.state.purchases_enabled = getattr(request.app.state, "purchases_enabled", True)
+    request.state.kanban_enabled = getattr(request.app.state, "kanban_enabled", True)
     request.state.ai_enabled = getattr(request.app.state, "ai_enabled", False)
     request.state.ai_advanced_functions = getattr(request.app.state, "ai_advanced_functions", False)
     request.state.menu_permissions = getattr(request.app.state, "menu_permissions", {
@@ -285,6 +294,7 @@ async def add_module_state(request: Request, call_next):
         "manutencao": ["admin", "gerente_ti", "gerente_infra", "tecnico"],
         "tickets": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "usuario_comum"],
         "compras": ["admin", "gerente_ti", "gerente_infra", "comprador"],
+        "kanban": ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "rh"],
         "relatorios": ["admin", "gerente_ti", "gerente_infra", "comprador"],
         "usuarios": ["admin", "gerente_ti", "gerente_infra"],
         "backup": ["admin", "gerente_ti", "gerente_infra"]

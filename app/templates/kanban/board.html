@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6 fade-in -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 max-w-none">
+    <!-- Header & Actions -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <a href="/kanban" class="font-mono text-xs text-gray-500 hover:text-black border-b border-black">← PROJETOS</a>
+                <span class="text-gray-400 font-mono">//</span>
+                <span class="font-mono text-xs text-gray-500 uppercase">PROJETO #{{ project.id }}</span>
+            </div>
+            <div class="flex items-center gap-3 mt-1">
+                <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">{{ project.titulo }}</h1>
+                {% if project.is_archived %}
+                <span class="font-mono text-[10px] bg-gray-200 text-gray-700 px-2 py-0.5 border border-black font-bold uppercase tracking-widest">ARQUIVADO</span>
+                {% elif not project.is_active %}
+                <span class="font-mono text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 border border-amber-600 font-bold uppercase tracking-widest">INATIVO</span>
+                {% endif %}
+            </div>
+            {% if project.descricao %}
+            <p class="text-sm text-gray-600 font-sans mt-1 max-w-3xl">{{ project.descricao }}</p>
+            {% endif %}
+        </div>
+
+        <!-- Header Controls -->
+        <div class="flex items-center gap-3 flex-wrap">
+            <!-- Members Avatars Bar -->
+            <div class="flex items-center -space-x-2 border-r-2 border-gray-200 pr-4">
+                {% for part in project.participantes %}
+                <div class="w-8 h-8 rounded-none border-2 border-black bg-gray-900 text-white font-mono font-bold text-xs flex items-center justify-center uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                     title="{{ part.nome or part.email }}">
+                    {{ (part.nome or part.email)[:2] }}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Add Column Button -->
+            <button type="button" onclick="document.getElementById('new-column-modal').classList.remove('hidden')" class="btn-secondary flex items-center gap-2 text-xs font-mono">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Nova Coluna
+            </button>
+
+            <!-- Edit Project Button -->
+            {% if user.role.value|lower in ['admin', 'gerente_ti', 'gerente_infra'] or project.criador_id == user.id %}
+            <a href="/kanban/projetos/{{ project.id }}/editar" class="btn-secondary text-xs font-mono uppercase">
+                Editar Projeto
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Global Progress Bar -->
+    <div class="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div class="flex items-center justify-between mb-2">
+            <span class="font-mono text-xs font-bold text-black uppercase tracking-widest">Progresso Geral</span>
+            <span id="board-progress-label" class="font-mono text-sm font-bold text-black">{{ board_progress }}%</span>
+        </div>
+        <div class="w-full h-3 bg-gray-100 border-2 border-black overflow-hidden">
+            <div id="board-progress-bar" class="h-full transition-all duration-700 ease-out
+                {% if board_progress >= 100 %}bg-emerald-500
+                {% elif board_progress >= 60 %}bg-blue-500
+                {% elif board_progress >= 30 %}bg-amber-400
+                {% else %}bg-gray-400{% endif %}"
+                 style="width: {{ board_progress }}%;"></div>
+        </div>
+        <div class="flex items-center justify-between mt-1.5">
+            <span id="board-progress-total" class="font-mono text-[10px] text-gray-500 uppercase">{{ total_cards }} tarefa{{ 's' if total_cards != 1 else '' }} no projeto</span>
+            <div class="flex items-center gap-3">
+                {% for col in project.colunas %}
+                <span class="font-mono text-[9px] text-gray-400 flex items-center gap-1">
+                    <span class="w-2 h-2 border border-black inline-block" style="background-color: {{ col.cor }};"></span>
+                    {{ col.nome }}: <span id="col-legend-{{ col.id }}">{{ col.cards|length }}</span>
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Board Columns Horizontal Container -->
+    <div class="flex gap-6 overflow-x-auto pb-8 items-start min-h-[75vh] w-full">
+        {% for col in project.colunas %}
+        <div class="w-84 sm:w-96 flex-shrink-0 bg-gray-100 border-2 border-black p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col max-h-[82vh]">
+            
+            <!-- Column Header -->
+            <div class="flex items-center justify-between border-b-2 border-black pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 border border-black" style="background-color: {{ col.cor }};"></div>
+                    <h2 class="font-bold text-sm text-black uppercase tracking-tight">{{ col.nome }}</h2>
+                    <span id="col-count-{{ col.id }}" class="font-mono text-xs bg-white border border-black px-1.5 py-0.2 font-bold">
+                        {{ col.cards|length }}
+                    </span>
+                    <span id="col-pct-{{ col.id }}" class="font-mono text-[9px] px-1.5 py-0.5 font-bold border
+                        {% if col_progress_map[col.id] >= 100 %}bg-emerald-100 text-emerald-800 border-emerald-400
+                        {% elif col_progress_map[col.id] >= 50 %}bg-blue-100 text-blue-800 border-blue-400
+                        {% elif col_progress_map[col.id] > 0 %}bg-amber-100 text-amber-800 border-amber-400
+                        {% else %}bg-gray-100 text-gray-600 border-gray-400{% endif %}">
+                        {{ col_progress_map[col.id] }}%
+                    </span>
+                </div>
+
+                <!-- Add Card Button for this column -->
+                <button type="button" 
+                        onclick="openNewCardModal('{{ col.id }}', '{{ col.nome }}')"
+                        class="text-black hover:bg-black hover:text-white border border-black px-1.5 py-0.5 font-mono text-xs font-bold transition-colors"
+                        title="Adicionar tarefa nesta coluna">
+                    + Tarefa
+                </button>
+            </div>
+
+            <!-- Cards Container inside Column -->
+            <div id="column-cards-{{ col.id }}" 
+                 data-column-id="{{ col.id }}"
+                 class="kanban-cards-container space-y-3 overflow-y-auto pr-1 flex-1 min-h-[100px] p-1">
+                {% for card in col.cards %}
+                {% include "kanban/partials/card_item.html" %}
+                {% else %}
+                <div class="p-6 border-2 border-dashed border-gray-300 text-center font-mono text-xs text-gray-400 uppercase">
+                    Sem tarefas
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal Container for Card Details (HTMX Target) -->
+<div id="modal-container"></div>
+
+<!-- Modal: New Column -->
+<div id="new-column-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white border-4 border-black w-full max-w-md p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+        <div class="flex items-center justify-between border-b-2 border-black pb-3">
+            <h3 class="font-bold text-lg text-black uppercase">Nova Coluna</h3>
+            <button type="button" onclick="document.getElementById('new-column-modal').classList.add('hidden')" class="font-mono font-bold text-lg">✕</button>
+        </div>
+        <form action="/kanban/projetos/{{ project.id }}/colunas/nova" method="POST" class="space-y-4">
+            <div class="space-y-1">
+                <label class="font-mono text-xs font-bold text-black uppercase">Nome da Coluna *</label>
+                <input type="text" name="nome" required placeholder="Ex: Validação QA" class="w-full border-2 border-black p-2 text-sm">
+            </div>
+            <div class="space-y-1">
+                <label class="font-mono text-xs font-bold text-black uppercase">Cor da Etiqueta</label>
+                <input type="color" name="cor" value="#6B7280" class="w-full h-10 border-2 border-black p-1 bg-white cursor-pointer">
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('new-column-modal').classList.add('hidden')" class="btn-secondary">Cancelar</button>
+                <button type="submit" class="btn-primary">Criar Coluna</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: New Card -->
+<div id="new-card-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white border-4 border-black w-full max-w-lg p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b-2 border-black pb-3">
+            <div>
+                <span class="font-mono text-[10px] text-gray-500 uppercase block">Coluna: <span id="new-card-col-name"></span></span>
+                <h3 class="font-bold text-lg text-black uppercase">Nova Tarefa</h3>
+            </div>
+            <button type="button" onclick="document.getElementById('new-card-modal').classList.add('hidden')" class="font-mono font-bold text-lg">✕</button>
+        </div>
+        <form action="/kanban/cards/novo" method="POST" class="space-y-4">
+            <input type="hidden" name="project_id" value="{{ project.id }}">
+            <input type="hidden" name="column_id" id="new-card-col-id">
+
+            <div class="space-y-1">
+                <label class="font-mono text-xs font-bold text-black uppercase">Título da Tarefa *</label>
+                <input type="text" name="titulo" required placeholder="Ex: Configurar backup diário no S3" class="w-full border-2 border-black p-2 text-sm font-sans">
+            </div>
+
+            <div class="space-y-1">
+                <label class="font-mono text-xs font-bold text-black uppercase">Descrição (Markdown)</label>
+                <textarea name="descricao" rows="3" placeholder="Instruções e escopo da tarefa..." class="w-full border-2 border-black p-2 text-sm font-mono"></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1">
+                    <label class="font-mono text-xs font-bold text-black uppercase">Prioridade</label>
+                    <select name="prioridade" class="w-full border-2 border-black p-2 text-sm bg-white font-mono">
+                        <option value="baixa">Baixa</option>
+                        <option value="media" selected>Média</option>
+                        <option value="alta">Alta</option>
+                        <option value="urgente">Urgente</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="font-mono text-xs font-bold text-black uppercase">Data Entrega</label>
+                    <input type="date" name="data_entrega" class="w-full border-2 border-black p-2 text-sm font-mono">
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <label class="font-mono text-xs font-bold text-black uppercase">Responsável Principal</label>
+                <select name="responsavel_id" class="w-full border-2 border-black p-2 text-sm bg-white font-mono">
+                    <option value="0">Sem responsável</option>
+                    {% for u in users %}
+                    <option value="{{ u.id }}">{{ u.nome or u.email }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="space-y-1">
+                <label class="font-mono text-xs font-bold text-black uppercase">Vincular Ativos</label>
+                <div class="max-h-32 overflow-y-auto border-2 border-black p-2 bg-gray-50 space-y-1">
+                    {% for a in all_assets %}
+                    <label class="flex items-center gap-2 text-xs font-mono uppercase cursor-pointer">
+                        <input type="checkbox" name="ativo_ids" value="{{ a.id }}" class="w-3.5 h-3.5 rounded-none border-2 border-black text-black">
+                        [{{ a.tag_patrimonio }}] {{ a.nome }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('new-card-modal').classList.add('hidden')" class="btn-secondary">Cancelar</button>
+                <button type="submit" class="btn-primary">Criar Tarefa</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Include Marked.js & Sortable.js CDNs -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+<script>
+function openNewCardModal(colId, colName) {
+    document.getElementById('new-card-col-id').value = colId;
+    document.getElementById('new-card-col-name').innerText = colName;
+    document.getElementById('new-card-modal').classList.remove('hidden');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initKanbanDragAndDrop();
+});
+
+function initKanbanDragAndDrop() {
+    const containers = document.querySelectorAll('.kanban-cards-container');
+    containers.forEach(container => {
+        new Sortable(container, {
+            group: 'kanban-board-group',
+            animation: 200,
+            ghostClass: 'opacity-40',
+            chosenClass: 'bg-amber-100',
+            dragClass: 'shadow-2xl',
+            delay: 50, // Permite distinção entre clique (abrir modal) e arrasto
+            delayOnTouchOnly: true,
+            onEnd: async function(evt) {
+                const cardEl = evt.item;
+                const targetColumnId = evt.to.getAttribute('data-column-id');
+                const cardId = cardEl.getAttribute('data-card-id');
+                const newIndex = evt.newIndex;
+
+                if (cardId && targetColumnId) {
+                    const formData = new FormData();
+                    formData.append('column_id', targetColumnId);
+                    formData.append('ordem', newIndex);
+
+                    try {
+                        const response = await fetch(`/kanban/cards/${cardId}/mover`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (!response.ok) {
+                            console.error("Erro ao persistir movimentação do cartão.");
+                        }
+                    } catch (err) {
+                        console.error("Falha ao comunicar com o servidor:", err);
+                    }
+                }
+
+                // Update progress counters client-side
+                updateBoardProgress();
+                updateColumnCounts();
+            }
+        });
+    });
+}
+
+function updateBoardProgress() {
+    const containers = document.querySelectorAll('.kanban-cards-container');
+    const numCols = containers.length;
+    if (numCols <= 1) return;
+
+    let totalCards = 0;
+    let weightedSum = 0;
+
+    containers.forEach(function(container, idx) {
+        const cardCount = container.querySelectorAll('[data-card-id]').length;
+        totalCards += cardCount;
+        const colPct = idx / (numCols - 1);
+        weightedSum += cardCount * colPct;
+    });
+
+    const progress = totalCards > 0 ? Math.round((weightedSum / totalCards) * 100) : 0;
+
+    // Update global progress bar
+    const progressBar = document.getElementById('board-progress-bar');
+    const progressLabel = document.getElementById('board-progress-label');
+    const progressTotal = document.getElementById('board-progress-total');
+
+    if (progressBar) {
+        progressBar.style.width = progress + '%';
+        // Remove old color classes
+        ['bg-emerald-500', 'bg-blue-500', 'bg-amber-400', 'bg-gray-400'].forEach(function(c) {
+            progressBar.classList.remove(c);
+        });
+        // Apply new color class
+        if (progress >= 100) progressBar.classList.add('bg-emerald-500');
+        else if (progress >= 60) progressBar.classList.add('bg-blue-500');
+        else if (progress >= 30) progressBar.classList.add('bg-amber-400');
+        else progressBar.classList.add('bg-gray-400');
+    }
+    if (progressLabel) progressLabel.textContent = progress + '%';
+    if (progressTotal) progressTotal.textContent = totalCards + ' tarefa' + (totalCards !== 1 ? 's' : '') + ' no projeto';
+}
+
+function updateColumnCounts() {
+    const containers = document.querySelectorAll('.kanban-cards-container');
+    const numCols = containers.length;
+
+    const colorSets = [
+        ['bg-emerald-100', 'text-emerald-800', 'border-emerald-400'],
+        ['bg-blue-100', 'text-blue-800', 'border-blue-400'],
+        ['bg-amber-100', 'text-amber-800', 'border-amber-400'],
+        ['bg-gray-100', 'text-gray-600', 'border-gray-400']
+    ];
+    const allColorClasses = colorSets.flat();
+
+    containers.forEach(function(container, idx) {
+        const colId = container.getAttribute('data-column-id');
+        const cardCount = container.querySelectorAll('[data-card-id]').length;
+        const colPct = numCols > 1 ? Math.round((idx / (numCols - 1)) * 100) : 0;
+
+        // Update card count badge
+        const countBadge = document.getElementById('col-count-' + colId);
+        if (countBadge) countBadge.textContent = cardCount;
+
+        // Update column progress badge
+        const pctBadge = document.getElementById('col-pct-' + colId);
+        if (pctBadge) {
+            pctBadge.textContent = colPct + '%';
+            allColorClasses.forEach(function(c) { pctBadge.classList.remove(c); });
+            var newColors;
+            if (colPct >= 100) newColors = colorSets[0];
+            else if (colPct >= 50) newColors = colorSets[1];
+            else if (colPct > 0) newColors = colorSets[2];
+            else newColors = colorSets[3];
+            newColors.forEach(function(c) { pctBadge.classList.add(c); });
+        }
+
+        // Update legend count in progress bar footer
+        const legendCount = document.getElementById('col-legend-' + colId);
+        if (legendCount) legendCount.textContent = cardCount;
+    });
+}
+</script>
+{% endblock %}
