@@ -163,6 +163,21 @@ Sistema completo de suprimentos integrado ao AssetTrack TI, permitindo ciclo pon
 
 ---
 
+## 📋 Kanban (Projetos Internos)
+
+Módulo visual estilo Trello para gestão ágil de projetos, iniciativas e tarefas da equipe de TI.
+
+| Recurso | Descrição |
+| :--- | :--- |
+| **Quadros Customizáveis** | Criação de projetos com colunas flexíveis (ex: Backlog, Em Andamento, Concluído). |
+| **Gestão de Tarefas (Cards)** | Cards detalhados com descrição Markdown, prioridade, data de entrega e responsáveis. |
+| **Integração Drag & Drop** | Mova cards entre colunas com atualização instantânea de progresso em tempo real. |
+| **Métricas de Progresso** | Barra de progresso global calculada automaticamente pela posição dos cards nas colunas. |
+| **Vinculação de Ativos** | Associação de múltiplos equipamentos (E-Patrimônio) diretamente a um card. |
+| **Integração com Suprimentos** | Vinculação de tarefas a Solicitações de Compra ou retiradas do Estoque. |
+
+---
+
 ## 🤝 Recursos Humanos (RH) e Termos de Responsabilidade
 
 Módulo dedicado à emissão e controle legal da entrega de ativos aos colaboradores.

@@ -75,6 +75,20 @@ Módulo completo integrado de suprimentos cobrindo do pedido ao recebimento.
 
 ---
 
+## 📋 Kanban (Projetos Internos)
+
+Módulo visual e ágil (estilo Trello) para gestão de projetos, iniciativas e tarefas da equipe de TI.
+
+- **Quadros Customizáveis (Boards):** Criação de múltiplos projetos com fluxos e colunas flexíveis (ex: Backlog, Em Andamento, Homologação, Concluído).
+- **Gestão de Tarefas (Cards):** Criação de cards detalhados com título, descrição em Markdown, datas de entrega, prioridade (Baixa, Média, Alta, Urgente), responsáveis e anexos.
+- **Integração Drag & Drop:** Interface totalmente interativa permitindo arrastar cards entre colunas, com atualização de progresso em tempo real e de forma transparente.
+- **Integração com Suprimentos:** Vinculação direta de tarefas a **Solicitações de Compra (SC)** ou a retiradas de materiais do **Estoque**.
+- **Vinculação de Ativos:** Associação de múltiplos equipamentos (E-Patrimônio) a uma tarefa, facilitando rastreio em manutenções longas ou projetos de infraestrutura.
+- **Métricas de Progresso:** Barra de progresso global ponderada, calculada automaticamente pela posição e avanço dos cards ao longo das colunas.
+- **Privacidade e Acessos:** Visibilidade baseada na participação do usuário, respeitando os níveis de acesso (RBAC), e módulo ativável globalmente via Feature Toggle.
+
+---
+
 ## 🤝 Recursos Humanos (RH) e Termos de Responsabilidade
 
 Módulo desenhado para fechar o ciclo de entrega de equipamentos, oferecendo respaldo legal.

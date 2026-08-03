@@ -45,6 +45,10 @@ Controle o ciclo de vida: quando entrou em manutenção, qual o problema, quando
 
 Visão executiva com métricas que importam: ativos disponíveis, em uso, em manutenção e pendências de aprovação.
 
+### ✅ Projetos Internos (Kanban)
+
+Gerencie as demandas, implantações e tarefas da sua equipe de TI usando quadros visuais. Arraste cards, delegue responsáveis e acompanhe o progresso em tempo real integrado com o inventário e compras.
+
 ---
 
 ## Por Que Escolher o AssetTrack TI?
@@ -85,6 +89,7 @@ Solicite equipamentos e acompanhe suas solicitações com transparência.
 - 👥 **Usuários** — Controle de acesso por perfil
 - 🛠️ **Manutenções** — Ciclo de vida do equipamento
 - 🎧 **Service Desk** — Central de chamados e suporte integrada
+- 📋 **Kanban (Projetos)** — Gestão ágil de tarefas e demandas internas
 - 📊 **Dashboard** — Métricas em tempo real
 
 ---

@@ -178,7 +178,7 @@
                                 <button type="button" onclick="toggleProcurementForm('none')" class="font-mono text-xs font-bold">✕</button>
                             </div>
 
-                            <form action="/kanban/cards/{{ card.id }}/solicitar-compra" method="POST" class="space-y-3">
+                            <form hx-post="/kanban/cards/{{ card.id }}/solicitar-compra" hx-target="#modal-container" class="space-y-3">
                                 <div class="grid grid-cols-2 gap-2">
                                     <div class="space-y-1">
                                         <label class="font-mono text-[10px] font-bold text-black uppercase">Tipo de Item</label>
@@ -235,7 +235,7 @@
                                 <button type="button" onclick="toggleProcurementForm('none')" class="font-mono text-xs font-bold">✕</button>
                             </div>
 
-                            <form action="/kanban/cards/{{ card.id }}/vincular-estoque" method="POST" class="space-y-3">
+                            <form hx-post="/kanban/cards/{{ card.id }}/vincular-estoque" hx-target="#modal-container" class="space-y-3">
                                 <div class="space-y-1">
                                     <label class="font-mono text-[10px] font-bold text-black uppercase">Item Disponível em Estoque</label>
                                     <select name="stock_id" required class="w-full border-2 border-black p-1.5 text-xs bg-white font-mono">
@@ -306,7 +306,7 @@
                             </div>
                         </div>
 
-                        <form action="/kanban/anexos/{{ att.id }}/deletar" method="POST">
+                        <form hx-post="/kanban/anexos/{{ att.id }}/deletar" hx-target="#modal-container">
                             <button type="submit" class="text-red-600 hover:text-red-800 p-1 font-bold text-xs" title="Remover anexo">✕</button>
                         </form>
                     </div>
@@ -321,7 +321,7 @@
                 <div class="pt-4 border-t-2 border-black space-y-4">
                     <h4 class="font-bold text-xs text-black uppercase">Adicionar Anexo</h4>
                     
-                    <form action="/kanban/cards/{{ card.id }}/anexo" method="POST" enctype="multipart/form-data" class="space-y-3">
+                    <form hx-post="/kanban/cards/{{ card.id }}/anexo" hx-encoding="multipart/form-data" hx-target="#modal-container" class="space-y-3">
                         <div class="space-y-1">
                             <label class="font-mono text-[10px] font-bold text-black uppercase">Tipo de Anexo</label>
                             <select name="tipo_anexo" id="attachment-type-select" onchange="toggleAttachmentTypeInput()" class="w-full border-2 border-black p-1.5 text-xs bg-white font-mono">
