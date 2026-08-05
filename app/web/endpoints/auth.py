@@ -1,6 +1,6 @@
 
 # app/web/endpoints/auth.py
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import APIRouter, Request, Form, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -11,6 +11,7 @@ from app.database import get_db
 from app.crud import user as user_crud
 from app.api.v1.endpoints.auth import create_access_token
 from app.config import settings
+from app.core.rate_limit import limiter, get_rate_limit
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -20,12 +21,14 @@ async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @router.post("/login", response_class=HTMLResponse)
+@limiter.limit(get_rate_limit("login"))
 async def login_submit(
     request: Request,
     email: Annotated[str, Form()],
     password: Annotated[str, Form()],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
+
     user = await user_crud.user.get_by_email(db, email=email)
     if not user or not user_crud.user.verify_password(password, user.hashed_password):
         # Retorna template com erro
@@ -94,7 +97,9 @@ async def login_qr_validate(
     })
 
 @router.post("/login/qr-confirm")
+@limiter.limit(get_rate_limit("pin_verify"))
 async def login_qr_confirm(
+
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     token: str = Form(...),
@@ -143,9 +148,9 @@ async def register_submit(
     nome: Annotated[str, Form()],
     email: Annotated[str, Form()],
     password: Annotated[str, Form()],
-    role: Annotated[str, Form()],
-    matricula: Annotated[str, Form()] = None,
-    cargo: Annotated[str, Form()] = None,
+    role: Annotated[Optional[str], Form()] = "usuario_comum",
+    matricula: Annotated[Optional[str], Form()] = None,
+    cargo: Annotated[Optional[str], Form()] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     # Check if user exists
@@ -166,8 +171,9 @@ async def register_submit(
             password=password,
             matricula=matricula_val,
             cargo=cargo_val,
-            role=UserRole(role)
+            role=UserRole.USUARIO
         )
+
         await user_crud.user.create(db, obj_in=user_in)
         # Notificar admins/gerentes sobre o novo cadastro aguardando aprovação
         try:
@@ -176,15 +182,19 @@ async def register_submit(
                 db=db,
                 user_nome=nome,
                 user_email=email,
-                user_role=role
+                user_role=UserRole.USUARIO.value
             )
+
         except Exception as e:
             print(f"[NOTIFICATION][ERRO] notify_new_user no registro: {e}")
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+
     except Exception as e:
         await db.rollback()
         from app.core.errors import get_friendly_db_error
         return templates.TemplateResponse("register.html", {"request": request, "error": f"Erro ao cadastrar: {get_friendly_db_error(e)}"})
+
+
 
 @router.get("/logout")
 async def logout():

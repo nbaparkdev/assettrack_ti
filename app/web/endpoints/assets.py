@@ -212,12 +212,16 @@ async def create_asset(
 
         foto_path = None
         if foto and foto.filename:
-            upload_dir = "static/uploads"
+            from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_IMAGE_EXTENSIONS
+            ext = validate_uploaded_file(foto, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
+            upload_dir = "static/uploads/assets"
             os.makedirs(upload_dir, exist_ok=True)
-            file_path = os.path.join(upload_dir, f"{e_patrimonio}_{foto.filename}")
+            unique_filename = generate_safe_filename(ext, prefix=f"asset_{e_patrimonio}")
+            file_path = os.path.join(upload_dir, unique_filename)
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(foto.file, buffer)
             foto_path = f"/{file_path}"
+
 
         asset_in = AssetCreate(
             nome=nome,
@@ -745,12 +749,16 @@ async def update_asset(
         
         foto_path = asset.foto_path
         if foto and foto.filename:
-            upload_dir = "static/uploads"
+            from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_IMAGE_EXTENSIONS
+            ext = validate_uploaded_file(foto, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
+            upload_dir = "static/uploads/assets"
             os.makedirs(upload_dir, exist_ok=True)
-            file_path = os.path.join(upload_dir, f"{e_patrimonio}_{foto.filename}")
+            unique_filename = generate_safe_filename(ext, prefix=f"asset_{e_patrimonio}")
+            file_path = os.path.join(upload_dir, unique_filename)
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(foto.file, buffer)
             foto_path = f"/{file_path}"
+
 
         # Preserve existing status; bloqueado is independent
         novo_status = asset.status

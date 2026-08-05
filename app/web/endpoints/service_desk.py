@@ -196,13 +196,16 @@ async def create_ticket(
 ):
     foto_path = None
     if foto and foto.filename:
+        from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_IMAGE_EXTENSIONS
+        ext = validate_uploaded_file(foto, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
         upload_dir = "static/uploads/tickets"
         os.makedirs(upload_dir, exist_ok=True)
-        unique_filename = f"{int(now_sp().timestamp())}_{foto.filename}"
+        unique_filename = generate_safe_filename(ext, prefix="ticket")
         file_path = os.path.join(upload_dir, unique_filename)
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(foto.file, buffer)
         foto_path = f"/{file_path}"
+
 
     ticket_in = ServiceTicketCreate(
         titulo=titulo,
@@ -379,13 +382,16 @@ async def create_interaction(
         
     foto_path = None
     if foto and foto.filename:
+        from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_IMAGE_EXTENSIONS
+        ext = validate_uploaded_file(foto, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
         upload_dir = "static/uploads/tickets"
         os.makedirs(upload_dir, exist_ok=True)
-        unique_filename = f"{int(now_sp().timestamp())}_{foto.filename}"
+        unique_filename = generate_safe_filename(ext, prefix="interaction")
         file_path = os.path.join(upload_dir, unique_filename)
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(foto.file, buffer)
         foto_path = f"/{file_path}"
+
 
     obj_in = ServiceTicketInteractionCreate(
         ticket_id=ticket.id,

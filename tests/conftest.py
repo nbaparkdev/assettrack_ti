@@ -47,8 +47,11 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
+    if hasattr(app.state, "limiter"):
+        app.state.limiter.enabled = False
     
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
+
     
     del app.dependency_overrides[get_db]

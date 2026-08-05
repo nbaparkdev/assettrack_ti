@@ -446,12 +446,12 @@ async def upload_attachment_submit(
         final_nome = nome_anexo or link_url
         await crud_kanban.add_attachment(db, card_id=card_id, nome=final_nome, tipo="link", url=link_url)
     elif arquivo and arquivo.filename:
-        # Save file to uploads/kanban
+        from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_DOCUMENT_EXTENSIONS
+        ext = validate_uploaded_file(arquivo, allowed_extensions=ALLOWED_DOCUMENT_EXTENSIONS)
         upload_dir = os.path.join("static", "uploads", "kanban")
         os.makedirs(upload_dir, exist_ok=True)
         
-        ext = os.path.splitext(arquivo.filename)[1]
-        unique_name = f"{uuid.uuid4().hex}{ext}"
+        unique_name = generate_safe_filename(ext, prefix="kanban")
         filepath = os.path.join(upload_dir, unique_name)
         
         content = await arquivo.read()
@@ -460,7 +460,9 @@ async def upload_attachment_submit(
             
         file_url = f"/static/uploads/kanban/{unique_name}"
         att_type = "imagem" if ext.lower() in [".png", ".jpg", ".jpeg", ".webp", ".gif"] else "arquivo"
-        await crud_kanban.add_attachment(db, card_id=card_id, nome=arquivo.filename, tipo=att_type, url=file_url)
+        safe_orig_name = os.path.basename(arquivo.filename)
+        await crud_kanban.add_attachment(db, card_id=card_id, nome=safe_orig_name, tipo=att_type, url=file_url)
+
 
     return RedirectResponse(url=f"/kanban/cards/{card_id}", status_code=status.HTTP_303_SEE_OTHER)
 

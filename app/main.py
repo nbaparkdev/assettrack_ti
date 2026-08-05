@@ -16,7 +16,7 @@ from app.core.rate_limit import limiter
 import app.models
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from app.web.dependencies import get_current_user_from_cookie
+from app.web.dependencies import get_current_user_from_cookie, get_admin_user_web
 from app.database import SessionLocal
 
 # Base directory
@@ -282,6 +282,15 @@ app = FastAPI(
 )
 
 @app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
+@app.middleware("http")
 async def add_module_state(request: Request, call_next):
     request.state.pm_enabled = getattr(request.app.state, "pm_enabled", True)
     request.state.purchases_enabled = getattr(request.app.state, "purchases_enabled", True)
@@ -300,6 +309,7 @@ async def add_module_state(request: Request, call_next):
         "backup": ["admin", "gerente_ti", "gerente_infra"]
     })
     return await call_next(request)
+
 
 
 # Templates instantiation
@@ -394,12 +404,16 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(web_router)
 
 @app.get("/debug-db")
-async def debug_db(db = Depends(get_db)):
+async def debug_db(
+    admin_user = Depends(get_admin_user_web),
+    db = Depends(get_db)
+):
     from sqlalchemy import select
     from app.models.system_settings import SystemSettings
     result = await db.execute(select(SystemSettings))
     settings_list = result.scalars().all()
     return [{"id": s.id, "setting_key": s.setting_key, "setting_value": s.setting_value, "descricao": s.descricao} for s in settings_list]
+
 
 @app.get("/health")
 def health_check():

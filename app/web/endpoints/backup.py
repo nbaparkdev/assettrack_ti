@@ -229,13 +229,19 @@ async def import_backup(
                 async with engine.connect() as raw_conn:
                     await raw_conn.run_sync(lambda conn: _import_sql(conn, sql_content))
 
-            # Restore uploaded files
+            # Restore uploaded files safely (Zip Slip / Path Traversal prevention)
+            base_dir = os.path.abspath(os.path.join("static", "uploads"))
             for name in zf.namelist():
                 if name.startswith("uploads/") and not name.endswith("/"):
-                    target = os.path.join("static", name)
+                    # Calculate safe target path
+                    rel_name = os.path.relpath(name, "uploads")
+                    target = os.path.abspath(os.path.join(base_dir, rel_name))
+                    if not target.startswith(base_dir + os.sep) and target != base_dir:
+                        raise ValueError(f"Caminho inválido detectado no arquivo zip: {name}")
                     os.makedirs(os.path.dirname(target), exist_ok=True)
                     with open(target, "wb") as f:
                         f.write(zf.read(name))
+
 
         return RedirectResponse(
             url="/admin/backup?success=Backup+restaurado+com+sucesso!",

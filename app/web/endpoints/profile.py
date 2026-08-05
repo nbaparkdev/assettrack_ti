@@ -70,23 +70,18 @@ async def update_profile(
 
     # Handle Avatar Upload
     if avatar and avatar.filename:
-        # Generate unique filename
-        ext = os.path.splitext(avatar.filename)[1]
-        filename = f"user_{user_db.id}_{uuid.uuid4().hex[:8]}{ext}"
+        from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_IMAGE_EXTENSIONS
+        ext = validate_uploaded_file(avatar, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
+        filename = generate_safe_filename(ext, prefix=f"user_{user_db.id}")
         file_path = UPLOAD_DIR / filename
         
         try:
             with file_path.open("wb") as buffer:
                 shutil.copyfileobj(avatar.file, buffer)
-            
-            # Remove old avatar if exists (optional but good for cleanup)
-            # if user_db.avatar_url: ...
-            
-            # Update DB path (store relative to static or full url? usually relative)
             user_db.avatar_url = f"/static/img/avatars/{filename}"
         except Exception as e:
             print(f"Error saving file: {e}")
-            # Could return error to user
+
 
     await db.commit()
     await db.refresh(user_db)
