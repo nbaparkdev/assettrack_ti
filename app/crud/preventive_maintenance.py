@@ -95,14 +95,29 @@ class CRUDMaintenancePlan(CRUDBase[MaintenancePlan, MaintenancePlanCreate, Maint
         return result.scalars().all()
 
     async def generate_codigo(self, db: AsyncSession) -> str:
+        import re
         now = now_sp()
         year = now.year
+        prefix = f"PLAN-{year}-"
         result = await db.execute(
-            select(func.count(MaintenancePlan.id))
-            .filter(func.extract('year', MaintenancePlan.data_criacao) == year)
+            select(MaintenancePlan.codigo)
+            .filter(MaintenancePlan.codigo.like(f"{prefix}%"))
         )
-        count = result.scalar() or 0
-        return f"PLAN-{year}-{count + 1:05d}"
+        existing = set(result.scalars().all())
+        
+        max_seq = 0
+        for cod in existing:
+            match = re.search(r'PLAN-\d{4}-(\d+)', cod)
+            if match:
+                val = int(match.group(1))
+                if val > max_seq:
+                    max_seq = val
+                    
+        seq = max(max_seq + 1, len(existing) + 1)
+        while f"{prefix}{seq:05d}" in existing:
+            seq += 1
+            
+        return f"{prefix}{seq:05d}"
 
 
 class CRUDMaintenancePlanAsset(CRUDBase[MaintenancePlanAsset, MaintenancePlanAssetCreate, MaintenancePlanAssetCreate]):
@@ -287,14 +302,29 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         return result.scalars().all()
 
     async def generate_numero(self, db: AsyncSession) -> str:
+        import re
         now = now_sp()
         year = now.year
+        prefix = f"OS-{year}-"
         result = await db.execute(
-            select(func.count(MaintenanceOrder.id))
-            .filter(func.extract('year', MaintenanceOrder.data_abertura) == year)
+            select(MaintenanceOrder.numero)
+            .filter(MaintenanceOrder.numero.like(f"{prefix}%"))
         )
-        count = result.scalar() or 0
-        return f"OS-{year}-{count + 1:05d}"
+        existing = set(result.scalars().all())
+        
+        max_seq = 0
+        for num in existing:
+            match = re.search(r'OS-\d{4}-(\d+)', num)
+            if match:
+                val = int(match.group(1))
+                if val > max_seq:
+                    max_seq = val
+                    
+        seq = max(max_seq + 1, len(existing) + 1)
+        while f"{prefix}{seq:05d}" in existing:
+            seq += 1
+            
+        return f"{prefix}{seq:05d}"
 
 
 class CRUDMaintenanceExecution(CRUDBase[MaintenanceExecution, MaintenanceExecutionCreate, MaintenanceExecutionUpdate]):

@@ -1,3 +1,4 @@
-TOTAL USERS IN DB: 2
+TOTAL USERS IN DB: 3
 ID: 1 | Nome: Administrador | Email: admin@example.com | Role: admin | Is Active: True | Matricula: None | Cargo: None
 ID: 2 | Nome: Ana Karina | Email: anakarina@nba.com | Role: rh | Is Active: True | Matricula: None | Cargo: None
+ID: 3 | Nome: Matheus Moreira | Email: matheus.moreira@nbaparkgramado.com.br | Role: usuario_comum | Is Active: True | Matricula: None | Cargo: None

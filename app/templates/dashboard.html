@@ -414,6 +414,27 @@
     </div>
     {% endif %}
 
+    <!-- KANBAN NOTIFICATIONS & PROGRESS WIDGET -->
+    {% if request.state.kanban_enabled and request.state.user_has_kanban %}
+    <div class="border-2 border-black bg-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] mb-8">
+        <div class="bg-black text-white p-4 border-b-2 border-black flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-purple-500"></span>
+                </span>
+                <h3 class="font-bold text-sm uppercase tracking-widest">Notificações e Andamentos do Kanban</h3>
+            </div>
+            <a href="/kanban" class="text-xs font-mono font-bold uppercase underline hover:text-purple-300">
+                Ver Quadro Kanban &rarr;
+            </a>
+        </div>
+        <div id="dashboard-notif-widget-list" class="max-h-64 overflow-y-auto">
+            <!-- Loaded dynamically via loadNotifList() -->
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Quick Actions (Grid) -->
     <div>
         <h3 class="font-bold text-lg uppercase mb-4">Comandos Rápidos</h3>

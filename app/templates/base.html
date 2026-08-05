@@ -314,6 +314,26 @@
                         </div>
                         {% endif %}
 
+                        <!-- NOTIFICATION BELL (KANBAN & SYSTEM) -->
+                        <div class="relative group/notif" id="kanban-notif-container">
+                            <button onclick="toggleNotifDropdown(event)" class="p-2 border-2 border-transparent hover:border-black transition-all text-gray-500 hover:text-black relative" title="Notificações do Kanban">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                </svg>
+                                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-white font-mono text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-white">0</span>
+                            </button>
+                            <!-- Dropdown Panel -->
+                            <div id="notif-dropdown-menu" class="hidden absolute right-0 top-full mt-2 w-80 bg-white border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-50 overflow-hidden">
+                                <div class="bg-black text-white px-4 py-2 text-xs font-mono uppercase tracking-widest flex items-center justify-between">
+                                    <span>Notificações Kanban</span>
+                                    <button onclick="markAllNotifsRead()" class="text-[10px] text-gray-300 hover:text-white underline">Limpar todas</button>
+                                </div>
+                                <div id="notif-list-body" class="max-h-80 overflow-y-auto">
+                                    <!-- Dynamic content via JS/HTMX -->
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- TOOLS -->
                         <div class="relative group/tools">
                             <button class="p-2 border-2 border-transparent hover:border-black transition-all text-gray-400 hover:text-black" title="Tools">
@@ -487,6 +507,107 @@
     {% endif %}
 
     {% block scripts %}{% endblock %}
+
+    {% if user %}
+    <script>
+        let notifDropdownOpen = false;
+
+        async function fetchUnreadNotifCount() {
+            try {
+                const resp = await fetch('/kanban/notificacoes/unread-count');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    const badge = document.getElementById('notif-badge');
+                    if (badge) {
+                        if (data.unread_count > 0) {
+                            badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+                            badge.classList.remove('hidden');
+                        } else {
+                            badge.classList.add('hidden');
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao buscar contagem de notificações:", err);
+            }
+        }
+
+        async function loadNotifList() {
+            const listBody = document.getElementById('notif-list-body');
+            const dashBody = document.getElementById('dashboard-notif-widget-list');
+            try {
+                const resp = await fetch('/kanban/notificacoes/lista');
+                if (resp.ok) {
+                    const html = await resp.text();
+                    if (listBody) listBody.innerHTML = html;
+                    if (dashBody) dashBody.innerHTML = html;
+                }
+            } catch (err) {
+                console.error("Erro ao carregar lista de notificações:", err);
+            }
+        }
+
+        function toggleNotifDropdown(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('notif-dropdown-menu');
+            if (!menu) return;
+            notifDropdownOpen = !notifDropdownOpen;
+            if (notifDropdownOpen) {
+                menu.classList.remove('hidden');
+                loadNotifList();
+            } else {
+                menu.classList.add('hidden');
+            }
+        }
+
+        async function markNotifRead(notifId, el) {
+            try {
+                await fetch(`/kanban/notificacoes/${notifId}/lida`, { method: 'POST' });
+                fetchUnreadNotifCount();
+                if (el) {
+                    const container = el.closest('.p-3');
+                    if (container) {
+                        container.classList.remove('bg-blue-50/50');
+                    }
+                    el.remove();
+                }
+            } catch (err) {
+                console.error("Erro ao marcar notificação como lida:", err);
+            }
+        }
+
+        async function markAllNotifsRead() {
+            try {
+                await fetch('/kanban/notificacoes/limpar-todas', { method: 'POST' });
+                fetchUnreadNotifCount();
+                loadNotifList();
+            } catch (err) {
+                console.error("Erro ao limpar notificações:", err);
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            const container = document.getElementById('kanban-notif-container');
+            const menu = document.getElementById('notif-dropdown-menu');
+            if (container && !container.contains(e.target) && menu && !menu.classList.contains('hidden')) {
+                menu.classList.add('hidden');
+                notifDropdownOpen = false;
+            }
+        });
+
+        // Initialize and Poll every 10 seconds
+        fetchUnreadNotifCount();
+        if (document.getElementById('dashboard-notif-widget-list')) {
+            loadNotifList();
+        }
+        setInterval(function() {
+            fetchUnreadNotifCount();
+            if (document.getElementById('dashboard-notif-widget-list')) {
+                loadNotifList();
+            }
+        }, 10000);
+    </script>
+    {% endif %}
 </body>
 
 </html>

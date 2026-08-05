@@ -588,14 +588,7 @@ async def create_order(
     from sqlalchemy import func
     
     # Gerar o número da ordem
-    now = now_sp()
-    year = now.year
-    result = await db.execute(
-        select(func.count(MaintenanceOrder.id))
-        .filter(func.extract('year', MaintenanceOrder.data_abertura) == year)
-    )
-    count = result.scalar() or 0
-    numero = f"OS-{year}-{count + 1:05d}"
+    numero = await pm_crud.maintenance_order.generate_numero(db)
     
     parsed_asset_id = None
     if asset_id and asset_id.strip() and asset_id.strip() != "None" and asset_id.strip().isdigit():
@@ -1385,10 +1378,14 @@ async def update_plan(
     if not plan:
         raise HTTPException(status_code=404)
 
+    matched_tipo = next((mt for mt in MaintenanceType if mt.value.lower() == tipo.lower() or mt.name.lower() == tipo.lower()), MaintenanceType.PREVENTIVA)
+    matched_period = next((p for p in MaintenancePeriodicity if p.value.lower() == periodicidade.lower() or p.name.lower() == periodicidade.lower()), MaintenancePeriodicity.MENSAL)
+    matched_crit = next((mc for mc in MaintenanceCriticality if mc.value.lower() == criticidade.lower() or mc.name.lower() == criticidade.lower()), MaintenanceCriticality.MEDIA)
+
     plan.nome = nome
-    plan.tipo = MaintenanceType(tipo)
-    plan.periodicidade = MaintenancePeriodicity(periodicidade)
-    plan.criticidade = MaintenanceCriticality(criticidade)
+    plan.tipo = matched_tipo
+    plan.periodicidade = matched_period
+    plan.criticidade = matched_crit
     plan.descricao = descricao
     plan.ativo = ativo == "true"
     plan.dias_personalizado = int(dias_personalizado) if dias_personalizado and periodicidade == "Personalizada" else None
@@ -1537,10 +1534,34 @@ async def update_order(
             cleaned_old = re.sub(r'^\[TIPO: [^\]]+\]\n?', '', final_obs)
             final_obs = f"[TIPO: {custom_name}]\n{cleaned_old}"
 
-    order.tipo = MaintenanceType(final_tipo)
+    matched_tipo = None
+    for mt in MaintenanceType:
+        if mt.value.lower() == final_tipo.lower() or mt.name.lower() == final_tipo.lower():
+            matched_tipo = mt
+            break
+    if not matched_tipo:
+        matched_tipo = MaintenanceType.PERSONALIZADA
+
+    matched_prioridade = None
+    for mp in MaintenancePriority:
+        if mp.value.lower() == prioridade.lower() or mp.name.lower() == prioridade.lower():
+            matched_prioridade = mp
+            break
+    if not matched_prioridade:
+        matched_prioridade = MaintenancePriority.MEDIA
+
+    matched_criticidade = None
+    for mc in MaintenanceCriticality:
+        if mc.value.lower() == criticidade.lower() or mc.name.lower() == criticidade.lower():
+            matched_criticidade = mc
+            break
+    if not matched_criticidade:
+        matched_criticidade = MaintenanceCriticality.MEDIA
+
+    order.tipo = matched_tipo
     order.status = novo_status
-    order.prioridade = MaintenancePriority(prioridade)
-    order.criticidade = MaintenanceCriticality(criticidade)
+    order.prioridade = matched_prioridade
+    order.criticidade = matched_criticidade
     order.observacoes = final_obs
     order.tecnico_id = novo_tecnico_id
     order.data_agendada = datetime.fromisoformat(data_agendada) if data_agendada and data_agendada.strip() else None

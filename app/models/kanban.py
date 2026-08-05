@@ -104,8 +104,8 @@ class KanbanCard(Base):
     tipo_item_necessario: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     # Relationships
-    project: Mapped["KanbanProject"] = relationship("KanbanProject", back_populates="cards")
-    column: Mapped["KanbanColumn"] = relationship("KanbanColumn", back_populates="cards")
+    project: Mapped["KanbanProject"] = relationship("KanbanProject", back_populates="cards", lazy="selectin")
+    column: Mapped["KanbanColumn"] = relationship("KanbanColumn", back_populates="cards", lazy="selectin")
     criador: Mapped["User"] = relationship("User", foreign_keys=[criador_id], lazy="selectin")
     responsavel: Mapped[Optional["User"]] = relationship("User", foreign_keys=[responsavel_id], lazy="selectin")
     participantes: Mapped[List["User"]] = relationship(
@@ -139,3 +139,25 @@ class KanbanAttachment(Base):
 
     # Relationship
     card: Mapped["KanbanCard"] = relationship("KanbanCard", back_populates="anexos")
+
+
+class KanbanNotification(Base):
+    __tablename__ = "kanban_notifications"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    project_id: Mapped[Optional[int]] = mapped_column(ForeignKey("kanban_projects.id", ondelete="CASCADE"), nullable=True)
+    card_id: Mapped[Optional[int]] = mapped_column(ForeignKey("kanban_cards.id", ondelete="CASCADE"), nullable=True)
+    autor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    tipo: Mapped[str] = mapped_column(String(50), nullable=False) # PROJETO_ADICIONADO, CARTAO_ATRIBUIDO, CARTAO_MOVIMENTADO, ANEXO_ADICIONADO
+    titulo: Mapped[str] = mapped_column(String(255), nullable=False)
+    mensagem: Mapped[str] = mapped_column(Text, nullable=False)
+    link: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    lida: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_sp, nullable=False)
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+    autor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[autor_id])
+    project: Mapped[Optional["KanbanProject"]] = relationship("KanbanProject")
+    card: Mapped[Optional["KanbanCard"]] = relationship("KanbanCard")

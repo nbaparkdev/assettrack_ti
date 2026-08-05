@@ -22,9 +22,11 @@ from app.crud.procurement import generate_request_number, create_or_update_stock
 from app.crud.kanban import crud_kanban
 from app.crud import user as user_crud
 from app.web.dependencies import get_active_user_web, check_kanban_enabled
+from app.services import kanban_notification_service as notif_service
 
 router = APIRouter(prefix="/kanban", tags=["Kanban Projects"])
 templates = Jinja2Templates(directory="app/templates")
+
 
 # Utility to check project access for common users
 def user_can_access_project(user: User, project) -> bool:
@@ -111,6 +113,8 @@ async def create_project_submit(
         criador_id=current_user.id,
         participant_ids=participante_ids
     )
+    if participante_ids:
+        await notif_service.notify_users_added_to_project(db, project, participante_ids, current_user)
     return RedirectResponse(url=f"/kanban/projetos/{project.id}", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.get("/projetos/{project_id}", response_class=HTMLResponse)
@@ -212,6 +216,8 @@ async def edit_project_submit(
     active_bool = (is_active == "on")
     archived_bool = (is_archived == "on")
 
+    old_participant_ids = {p.id for p in project.participantes}
+
     await crud_kanban.update_project(
         db=db,
         project=project,
@@ -221,6 +227,11 @@ async def edit_project_submit(
         is_active=active_bool,
         is_archived=archived_bool
     )
+
+    new_assigned_ids = [uid for uid in participante_ids if uid not in old_participant_ids]
+    if new_assigned_ids:
+        await notif_service.notify_users_added_to_project(db, project, new_assigned_ids, current_user)
+
     return RedirectResponse(url=f"/kanban/projetos/{project_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/projetos/{project_id}/status")
@@ -292,6 +303,10 @@ async def create_card_submit(
         prioridade=prioridade,
         data_entrega=due_dt
     )
+
+    targets = list(set(participante_ids + ([resp_id] if resp_id else [])))
+    if targets:
+        await notif_service.notify_card_assigned(db, card, targets, current_user)
 
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse("kanban/partials/card_item.html", {
@@ -383,6 +398,10 @@ async def update_card_submit(
     due_dt = datetime.strptime(data_entrega, "%Y-%m-%d") if data_entrega else None
     resp_id = responsavel_id if (responsavel_id and responsavel_id > 0) else None
 
+    old_assignees = {p.id for p in card.participantes}
+    if card.responsavel_id:
+        old_assignees.add(card.responsavel_id)
+
     updated_card = await crud_kanban.update_card(
         db=db,
         card=card,
@@ -396,6 +415,10 @@ async def update_card_submit(
         data_entrega=due_dt
     )
 
+    new_targets = [uid for uid in set(participante_ids + ([resp_id] if resp_id else [])) if uid not in old_assignees]
+    if new_targets:
+        await notif_service.notify_card_assigned(db, updated_card, new_targets, current_user)
+
     return RedirectResponse(url=f"/kanban/projetos/{updated_card.project_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/cards/{card_id}/mover")
@@ -407,7 +430,22 @@ async def move_card_submit(
     column_id: int = Form(...),
     ordem: int = Form(0)
 ):
+    from app.models.kanban import KanbanCard, KanbanColumn
+    card = await db.get(KanbanCard, card_id)
+    source_col_name = "Coluna"
+    if card and card.column_id:
+        source_col = await db.get(KanbanColumn, card.column_id)
+        if source_col:
+            source_col_name = source_col.nome
+
     await crud_kanban.move_card(db, card_id=card_id, target_column_id=column_id, target_order=ordem)
+
+    target_col = await db.get(KanbanColumn, column_id)
+    target_col_name = target_col.nome if target_col else "Coluna"
+
+    if card and source_col_name != target_col_name:
+        await notif_service.notify_card_moved(db, card, source_col_name, target_col_name, current_user)
+
     return {"status": "ok", "card_id": card_id, "column_id": column_id}
 
 @router.post("/cards/{card_id}/deletar")
@@ -442,8 +480,10 @@ async def upload_attachment_submit(
     if not card:
         raise HTTPException(status_code=404, detail="Card não encontrado.")
 
+    att_name = "anexo"
     if tipo_anexo == "link" and link_url:
         final_nome = nome_anexo or link_url
+        att_name = final_nome
         await crud_kanban.add_attachment(db, card_id=card_id, nome=final_nome, tipo="link", url=link_url)
     elif arquivo and arquivo.filename:
         from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_DOCUMENT_EXTENSIONS
@@ -461,8 +501,10 @@ async def upload_attachment_submit(
         file_url = f"/static/uploads/kanban/{unique_name}"
         att_type = "imagem" if ext.lower() in [".png", ".jpg", ".jpeg", ".webp", ".gif"] else "arquivo"
         safe_orig_name = os.path.basename(arquivo.filename)
+        att_name = safe_orig_name
         await crud_kanban.add_attachment(db, card_id=card_id, nome=safe_orig_name, tipo=att_type, url=file_url)
 
+    await notif_service.notify_attachment_added(db, card, att_name, current_user)
 
     return RedirectResponse(url=f"/kanban/cards/{card_id}", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -620,4 +662,70 @@ async def link_stock_to_card(
 
     await db.commit()
     return RedirectResponse(url=f"/kanban/cards/{card_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# --- KANBAN NOTIFICATION ENDPOINTS ---
+
+@router.get("/notificacoes/unread-count")
+async def get_unread_notification_count(
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """Return the unread notification count for the logged user."""
+    from app.models.kanban import KanbanNotification
+    stmt = select(KanbanNotification).where(
+        KanbanNotification.user_id == current_user.id,
+        KanbanNotification.lida == False
+    )
+    res = await db.execute(stmt)
+    unreads = list(res.scalars().all())
+    return {"unread_count": len(unreads)}
+
+@router.get("/notificacoes/lista", response_class=HTMLResponse)
+async def get_notifications_list(
+    request: Request,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """Return HTML partial of recent notifications for header dropdown and dashboard."""
+    from app.models.kanban import KanbanNotification
+    stmt = select(KanbanNotification).where(
+        KanbanNotification.user_id == current_user.id
+    ).order_by(KanbanNotification.created_at.desc()).limit(15)
+    res = await db.execute(stmt)
+    notifications = list(res.scalars().all())
+
+    return templates.TemplateResponse("kanban/partials/notification_list.html", {
+        "request": request,
+        "notifications": notifications
+    })
+
+@router.post("/notificacoes/{notif_id}/lida")
+async def mark_notification_read(
+    notif_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    from app.models.kanban import KanbanNotification
+    notif = await db.get(KanbanNotification, notif_id)
+    if notif and notif.user_id == current_user.id:
+        notif.lida = True
+        await db.commit()
+    return {"status": "ok"}
+
+@router.post("/notificacoes/limpar-todas")
+async def mark_all_notifications_read(
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    from app.models.kanban import KanbanNotification
+    from sqlalchemy import update
+    stmt = update(KanbanNotification).where(
+        KanbanNotification.user_id == current_user.id,
+        KanbanNotification.lida == False
+    ).values(lida=True)
+    await db.execute(stmt)
+    await db.commit()
+    return {"status": "ok"}
+
 

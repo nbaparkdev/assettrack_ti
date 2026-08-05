@@ -1282,15 +1282,16 @@ async def list_locais(
 @router.post("/admin/localizacoes")
 async def create_local(
     nome: Annotated[str, Form()],
-    departamento_id: Annotated[Optional[int], Form()] = None,
+    departamento_id: Annotated[Optional[str], Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/assets", status_code=303)
 
+    dept_id = int(departamento_id) if departamento_id and departamento_id.strip() else None
     from app.schemas.location import LocalizacaoCreate
-    local_in = LocalizacaoCreate(nome=nome, departamento_id=departamento_id)
+    local_in = LocalizacaoCreate(nome=nome, departamento_id=dept_id)
     await location.localizacao.create(db, obj_in=local_in)
     return RedirectResponse(url="/assets/admin/localizacoes?success=Localização+cadastrada+com+sucesso!", status_code=303)
 
@@ -1316,7 +1317,7 @@ async def delete_local(
 @router.post("/admin/armazenamentos")
 async def create_armazenamento(
     nome: Annotated[str, Form()],
-    capacidade_max: Annotated[Optional[int], Form()] = 0,
+    capacidade_max: Annotated[Optional[str], Form()] = "0",
     tipo_itens: Annotated[Optional[str], Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
@@ -1324,16 +1325,18 @@ async def create_armazenamento(
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/assets", status_code=303)
         
+    cap_max = int(capacidade_max) if capacidade_max and capacidade_max.strip() and capacidade_max.strip().isdigit() else 0
     from app.models.location import Armazenamento
     from sqlalchemy import select
     existing = await db.scalar(select(Armazenamento).filter(Armazenamento.nome == nome))
     if existing:
         return RedirectResponse(url="/assets/admin/localizacoes?error=Já+existe+um+armazenamento+com+este+nome!", status_code=303)
         
-    armazenamento = Armazenamento(nome=nome, capacidade_max=capacidade_max, tipo_itens=tipo_itens)
+    armazenamento = Armazenamento(nome=nome, capacidade_max=cap_max, tipo_itens=tipo_itens)
     db.add(armazenamento)
     await db.commit()
     return RedirectResponse(url="/assets/admin/localizacoes?success=Armazenamento+cadastrado+com+sucesso!", status_code=303)
+
 
 
 @router.post("/admin/armazenamentos/{armazenamento_id}/delete")
