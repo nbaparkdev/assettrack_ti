@@ -113,8 +113,7 @@ async def create_project_submit(
         criador_id=current_user.id,
         participant_ids=participante_ids
     )
-    if participante_ids:
-        await notif_service.notify_users_added_to_project(db, project, participante_ids, current_user)
+    await notif_service.notify_project_created(db, project, participante_ids, current_user)
     return RedirectResponse(url=f"/kanban/projetos/{project.id}", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.get("/projetos/{project_id}", response_class=HTMLResponse)
@@ -228,10 +227,7 @@ async def edit_project_submit(
         is_archived=archived_bool
     )
 
-    new_assigned_ids = [uid for uid in participante_ids if uid not in old_participant_ids]
-    if new_assigned_ids:
-        await notif_service.notify_users_added_to_project(db, project, new_assigned_ids, current_user)
-
+    await notif_service.notify_project_updated(db, project, current_user)
     return RedirectResponse(url=f"/kanban/projetos/{project_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/projetos/{project_id}/status")
@@ -304,9 +300,7 @@ async def create_card_submit(
         data_entrega=due_dt
     )
 
-    targets = list(set(participante_ids + ([resp_id] if resp_id else [])))
-    if targets:
-        await notif_service.notify_card_assigned(db, card, targets, current_user)
+    await notif_service.notify_card_created(db, card, current_user)
 
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse("kanban/partials/card_item.html", {
@@ -415,10 +409,7 @@ async def update_card_submit(
         data_entrega=due_dt
     )
 
-    new_targets = [uid for uid in set(participante_ids + ([resp_id] if resp_id else [])) if uid not in old_assignees]
-    if new_targets:
-        await notif_service.notify_card_assigned(db, updated_card, new_targets, current_user)
-
+    await notif_service.notify_card_updated(db, updated_card, current_user)
     return RedirectResponse(url=f"/kanban/projetos/{updated_card.project_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/cards/{card_id}/mover")
@@ -623,6 +614,7 @@ async def create_purchase_request_from_card(
     card.tipo_item_necessario = tipo_item
 
     await db.commit()
+    await notif_service.notify_purchase_request_created(db, card, num, current_user)
     return RedirectResponse(url=f"/kanban/cards/{card_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -661,6 +653,8 @@ async def link_stock_to_card(
         )
 
     await db.commit()
+    prod_name = stock.product.nome if (stock and hasattr(stock, "product") and stock.product) else "Material"
+    await notif_service.notify_stock_linked(db, card, prod_name, current_user)
     return RedirectResponse(url=f"/kanban/cards/{card_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 

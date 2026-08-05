@@ -13,21 +13,21 @@ async def test_kanban_notifications_workflow(db_session: AsyncSession):
         nome="Kanban Author User",
         email="kanban_author@example.com",
         hashed_password="hashedpassword",
-        role=UserRole.ADMIN,
-        is_active=True
-    )
-    user2 = User(
-        nome="Kanban Target User",
-        email="kanban_target@example.com",
-        hashed_password="hashedpassword",
         role=UserRole.USUARIO,
         is_active=True
     )
+    admin = User(
+        nome="Kanban Admin User",
+        email="kanban_admin@example.com",
+        hashed_password="hashedpassword",
+        role=UserRole.ADMIN,
+        is_active=True
+    )
     db_session.add(author)
-    db_session.add(user2)
+    db_session.add(admin)
     await db_session.commit()
     await db_session.refresh(author)
-    await db_session.refresh(user2)
+    await db_session.refresh(admin)
 
     # 2. Create project
     proj = KanbanProject(
@@ -39,16 +39,16 @@ async def test_kanban_notifications_workflow(db_session: AsyncSession):
     await db_session.commit()
     await db_session.refresh(proj)
 
-    # 3. Trigger notification: User added to project
-    await notif_service.notify_users_added_to_project(
+    # 3. Trigger notification: Project created
+    await notif_service.notify_project_created(
         db=db_session,
         project=proj,
-        user_ids=[user2.id],
+        user_ids=[],
         author=author
     )
 
-    # 4. Query unread count for user2 via db
-    stmt = KanbanNotification.__table__.select().where(KanbanNotification.user_id == user2.id)
+    # 4. Query unread count for admin via db
+    stmt = KanbanNotification.__table__.select().where(KanbanNotification.user_id == admin.id)
     res = await db_session.execute(stmt)
     notif = res.first()
 
