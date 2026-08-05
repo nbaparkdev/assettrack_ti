@@ -47,7 +47,7 @@ Visão executiva com métricas que importam: ativos disponíveis, em uso, em man
 
 ### ✅ Projetos Internos (Kanban)
 
-Gerencie as demandas, implantações e tarefas da sua equipe de TI usando quadros visuais. Arraste cards, delegue responsáveis e acompanhe o progresso em tempo real integrado com o inventário e compras.
+Gerencie as demandas, implantações e tarefas da sua equipe de TI usando quadros visuais. Arraste cards, delegue responsáveis e acompanhe o progresso em tempo real integrado com o inventário e compras. Receba notificações e acompanhe o feed de andamentos em tempo real direto no Dashboard e Menu Superior.
 
 ---
 
@@ -89,7 +89,7 @@ Solicite equipamentos e acompanhe suas solicitações com transparência.
 - 👥 **Usuários** — Controle de acesso por perfil
 - 🛠️ **Manutenções** — Ciclo de vida do equipamento
 - 🎧 **Service Desk** — Central de chamados e suporte integrada
-- 📋 **Kanban (Projetos)** — Gestão ágil de tarefas e demandas internas
+- 📋 **Kanban (Projetos)** — Gestão ágil de tarefas e demandas internas com feed de notificações e andamentos em tempo real
 - 📊 **Dashboard** — Métricas em tempo real
 
 ---

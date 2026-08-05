@@ -86,6 +86,7 @@ Módulo visual e ágil (estilo Trello) para gestão de projetos, iniciativas e t
 - **Vinculação de Ativos:** Associação de múltiplos equipamentos (E-Patrimônio) a uma tarefa, facilitando rastreio em manutenções longas ou projetos de infraestrutura.
 - **Métricas de Progresso:** Barra de progresso global ponderada, calculada automaticamente pela posição e avanço dos cards ao longo das colunas.
 - **Privacidade e Acessos:** Visibilidade baseada na participação do usuário, respeitando os níveis de acesso (RBAC), e módulo ativável globalmente via Feature Toggle.
+- **Notificações e Andamentos em Tempo Real:** Feed de atividades integrado ao Dashboard e menu superior (Sininho) com polling dinâmico. Registra e notifica imediatamente a criação de projetos, movimentação de cards, novas atribuições, anexos e vínculos de materiais para manter administradores e participantes 100% atualizados.
 
 ---
 

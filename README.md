@@ -175,6 +175,7 @@ Módulo visual estilo Trello para gestão ágil de projetos, iniciativas e taref
 | **Métricas de Progresso** | Barra de progresso global calculada automaticamente pela posição dos cards nas colunas. |
 | **Vinculação de Ativos** | Associação de múltiplos equipamentos (E-Patrimônio) diretamente a um card. |
 | **Integração com Suprimentos** | Vinculação de tarefas a Solicitações de Compra ou retiradas do Estoque. |
+| **Notificações em Tempo Real** | Feed de andamentos integrado ao Dashboard informando movimentações de forma dinâmica. |
 
 ---
 
