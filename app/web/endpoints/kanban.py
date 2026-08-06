@@ -682,8 +682,10 @@ async def get_notifications_list(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Return HTML partial of recent notifications for header dropdown and dashboard."""
-    from app.models.kanban import KanbanNotification
-    stmt = select(KanbanNotification).where(
+    from app.models.kanban import KanbanNotification, KanbanCard
+    stmt = select(KanbanNotification).options(
+        selectinload(KanbanNotification.card).selectinload(KanbanCard.column)
+    ).where(
         KanbanNotification.user_id == current_user.id
     ).order_by(KanbanNotification.created_at.desc()).limit(15)
     res = await db.execute(stmt)

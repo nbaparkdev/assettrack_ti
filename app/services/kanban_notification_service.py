@@ -208,6 +208,14 @@ async def notify_card_moved(
 
     recipients = await get_project_recipients(db, card.project_id, extra)
 
+    target_lower = target_col_name.lower()
+    if "concluid" in target_lower or "finaliz" in target_lower or "done" in target_lower:
+        notif_titulo = f"Concluído: {card.titulo}"
+        notif_msg = f"{autor_nome} concluiu o cartão '{card.titulo}' (movido para '{target_col_name}') no projeto '{proj_title}'."
+    else:
+        notif_titulo = f"{target_col_name}: {card.titulo}"
+        notif_msg = f"{autor_nome} moveu o cartão '{card.titulo}' de '{source_col_name}' para '{target_col_name}' no projeto '{proj_title}'."
+
     for uid in recipients:
         await create_kanban_notification(
             db=db,
@@ -216,8 +224,8 @@ async def notify_card_moved(
             card_id=card.id,
             autor_id=author.id if author else None,
             tipo="CARTAO_MOVIMENTADO",
-            titulo=f"Progresso: {card.titulo}",
-            mensagem=f"{autor_nome} moveu o cartão '{card.titulo}' para '{target_col_name}' no projeto '{proj_title}'.",
+            titulo=notif_titulo,
+            mensagem=notif_msg,
             link=f"/kanban/projetos/{card.project_id}?card={card.id}"
         )
     await db.commit()

@@ -11,8 +11,28 @@
                         <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
                         <span class="font-mono text-[9px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 uppercase">Tarefa</span>
                     {% elif n.tipo == 'CARTAO_MOVIMENTADO' %}
-                        <span class="inline-block w-2 h-2 rounded-full bg-green-500"></span>
-                        <span class="font-mono text-[9px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 uppercase">Andamento</span>
+                        {% if n.card and n.card.column %}
+                            {% set col_lower = n.card.column.nome | lower %}
+                            {% if 'concluid' in col_lower or 'finaliz' in col_lower or 'done' in col_lower %}
+                                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                                <span class="font-mono text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 uppercase">{{ n.card.column.nome }}</span>
+                            {% elif 'andamento' in col_lower or 'progresso' in col_lower or 'doing' in col_lower %}
+                                <span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+                                <span class="font-mono text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 uppercase">{{ n.card.column.nome }}</span>
+                            {% elif 'fazer' in col_lower or 'todo' in col_lower %}
+                                <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                                <span class="font-mono text-[9px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 uppercase">{{ n.card.column.nome }}</span>
+                            {% else %}
+                                <span class="inline-block w-2 h-2 rounded-full bg-indigo-500"></span>
+                                <span class="font-mono text-[9px] font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 uppercase">{{ n.card.column.nome }}</span>
+                            {% endif %}
+                        {% elif 'conclu' in n.titulo | lower or 'concluid' in n.mensagem | lower %}
+                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span class="font-mono text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 uppercase">Concluído</span>
+                        {% else %}
+                            <span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+                            <span class="font-mono text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 uppercase">Movimentado</span>
+                        {% endif %}
                     {% elif n.tipo == 'ANEXO_ADICIONADO' %}
                         <span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
                         <span class="font-mono text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 uppercase">Anexo</span>
