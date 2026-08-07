@@ -28,30 +28,42 @@ async def require_rh_or_admin(current_user: Annotated[User, Depends(get_active_u
         )
     return current_user
 
-DEFAULT_TEMPLATE = """TERMO DE RESPONSABILIDADE E COMPROMISSO DE USO DE EQUIPAMENTO DE TI
+DEFAULT_TEMPLATE = """TERMO DE RESPONSABILIDADE PELA GUARDA E USO DE EQUIPAMENTO
 
-Pelo presente instrumento, eu, {nome_solicitante}, inscrito(a) sob a matrícula funcional nº {matricula}, ocupando o cargo de {cargo}, declaro para os devidos fins ter recebido da empresa, a título de empréstimo de uso profissional, o equipamento abaixo especificado:
+Eu, {nome_solicitante}, denominado USUÁRIO, inscrito(a) no CPF sob o nº {matricula}, declaro que recebi de NPG BRASIL PARQUES TEMÁTICOS LTDA, inscrita no CNPJ sob o nº.47.911.142/0001-74, com sede à Av. Das Hortênsias, nº 4795, Gramado/RS, a título de comodato, para uso exclusivo, os equipamentos abaixo especificados:
 
 • EQUIPAMENTO: {nome_ativo}
 • MODELO: {modelo}
 • PATRIMÔNIO / REF: {e_patrimonio}
 • NÚMERO DE SÉRIE: {numero_serie}
-• VALOR ESTIMADO: R$ {valor_ativo:.2f}
 
-Mediante a assinatura deste termo, assumo o compromisso de zelar pela guarda, integridade e correta utilização do equipamento acima descrito, ciente das seguintes obrigações:
 
-1. O equipamento destina-se exclusivamente ao uso em atividades profissionais de interesse da empresa.
-2. Comprometo-me a não efetuar alterações de hardware, consertos ou desconfigurações sem a prévia autorização por escrito do departamento de TI.
-3. Responsabilizo-me por qualquer dano, quebra, extravio ou perda decorrente de negligência, imperícia ou má utilização do equipamento.
-4. Em caso de desligamento da empresa (por qualquer motivo), comprometo-me a devolver o equipamento imediatamente nas mesmas condições em que o recebi.
+TERMOS E CONDIÇÕES
+------------------
 
-E por estar de pleno acordo com os termos acima expostos, assino o presente Termo de Responsabilidade.
+1. O equipamento deverá ser utilizado ÚNICA e EXCLUSIVAMENTE a serviço da empresa, tendo em vista a atividade a ser exercida pelo USUÁRIO;
+2. Ficará o USUÁRIO responsável pelo uso e conservação do equipamento;
+3. O USUÁRIO tem somente a posse do(s) item(ns) acima descrito(s), não detendo qualquer propriedade do equipamento, tendo em vista o uso exclusivo para prestação dos serviços profissionais para o qual fora contratado, sendo terminantemente proibido o empréstimo, locação e/ou cessão deste a terceiros;
+4. Ao término da prestação de serviço ou do contrato individual de trabalho, o USUÁRIO compromete-se a devolver o equipamento em perfeito estado de conservação e no mesmo dia em que tiver ciência de seu desligamento, salvo o desgaste natural pelo uso natural do equipamento.
+5. O USUÁRIO fica autorizado o equipamento acima descrito para sua residência, devendo seu uso ser voltado exclusivamente para fins corporativos e em viagens a trabalho, comprometendo-se a não utilizá-lo para outros fins. 
+6. Na hipótese de haver roubo ou furto do equipamento, o USUÁRIO compromete-se a realizar registro de Boletim de Ocorrência junto à Autoridade Policial competente, bem como, informar a empresa de forma imediata, para que esta possa realizar o bloqueio de acesso aos dados empresariais contidos no equipamento.
+7. Se o equipamento for danificado e/ou inutilizado por emprego inadequado do equipamento, mau uso, negligência, imprudência, imperícia e/ou extravio, ficará obrigado a ressarcir os prejuízos decorrentes à empresa, que cobrará o valor de 1 (um) equipamento novo da mesma marca e modelo ou similar. 
+
+Declaro estar ciente e de acordo com as cláusulas acima.
+
 
 Gramado, RS, {data_atual}.
 
+
+
 __________________________________________________
-Assinatura do Colaborador
-({nome_solicitante})
+             Assinatura Usuario
+
+
+
+
+_________________________________________________
+               Assinatura RH
 """
 
 @router.get("/termos", response_class=HTMLResponse)
