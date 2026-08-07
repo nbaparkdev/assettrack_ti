@@ -176,6 +176,13 @@ async def painel_solicitacoes(
     else:
         solicitacoes = await maintenance_request.list_pending(db)
     
+    result_ativos = await db.execute(
+        select(Asset)
+        .options(selectinload(Asset.current_user))
+        .filter(Asset.status == AssetStatus.MANUTENCAO)
+    )
+    ativos_em_manutencao = result_ativos.scalars().all()
+    
     success_msg = None
     if request.query_params.get("success") == "accepted":
         success_msg = "Solicitação aceita! Manutenção iniciada."
@@ -187,6 +194,7 @@ async def painel_solicitacoes(
         "user": current_user,
         "title": "Painel de Solicitações de Manutenção",
         "solicitacoes": solicitacoes,
+        "ativos_em_manutencao": ativos_em_manutencao,
         "status_filter": status_filter,
         "success": success_msg
     })

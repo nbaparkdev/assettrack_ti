@@ -113,7 +113,18 @@
                     {% endfor %}
                 </select>
             </div>
-            {% if filters and filters.categoria_id %}
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Filtrar por Status</label>
+                <select name="status" class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0"
+                    onchange="this.form.submit()">
+                    <option value="">Todos os Status</option>
+                    <option value="Disponível" {% if filters and filters.status == 'Disponível' %}selected{% endif %}>Disponível</option>
+                    <option value="Em uso" {% if filters and filters.status == 'Em uso' %}selected{% endif %}>Em Uso</option>
+                    <option value="Manutenção" {% if filters and filters.status == 'Manutenção' %}selected{% endif %}>Manutenção</option>
+                    <option value="Baixado" {% if filters and filters.status == 'Baixado' %}selected{% endif %}>Baixado</option>
+                </select>
+            </div>
+            {% if filters and (filters.categoria_id or filters.status) %}
             <a href="/assets" class="text-xs font-bold uppercase text-gray-500 hover:text-black border-b-2 border-transparent hover:border-black pb-1">
                 Limpar Filtro
             </a>

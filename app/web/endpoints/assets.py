@@ -33,36 +33,42 @@ async def list_assets(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    categoria_id: Optional[str] = None
+    categoria_id: Optional[str] = None,
+    status: Optional[str] = None
 ):
     # Calculate stats for the header
     from sqlalchemy import func, select
 
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+    status_filter = status.strip() if status and status.strip() else None
 
     total_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)))
     available_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.DISPONIVEL))
     in_use_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.EM_USO))
     maintenance_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.MANUTENCAO))
 
+    from sqlalchemy.orm import selectinload
+    query = select(asset_crud.asset.model).options(
+        selectinload(asset_crud.asset.model.current_user),
+        selectinload(asset_crud.asset.model.current_departamento),
+        selectinload(asset_crud.asset.model.current_local),
+        selectinload(asset_crud.asset.model.current_armazenamento),
+        selectinload(asset_crud.asset.model.fornecedor),
+        selectinload(asset_crud.asset.model.nota_fiscal),
+        selectinload(asset_crud.asset.model.categoria)
+    )
+
     if cat_id:
-        from sqlalchemy.orm import selectinload
-        result = await db.execute(
-            select(asset_crud.asset.model)
-            .options(
-                selectinload(asset_crud.asset.model.current_user),
-                selectinload(asset_crud.asset.model.current_departamento),
-                selectinload(asset_crud.asset.model.current_local),
-                selectinload(asset_crud.asset.model.current_armazenamento),
-                selectinload(asset_crud.asset.model.fornecedor),
-                selectinload(asset_crud.asset.model.nota_fiscal),
-                selectinload(asset_crud.asset.model.categoria)
-            )
-            .filter(asset_crud.asset.model.categoria_id == cat_id)
-        )
-        assets = result.scalars().all()
-    else:
-        assets = await asset_crud.asset.get_multi(db)
+        query = query.filter(asset_crud.asset.model.categoria_id == cat_id)
+
+    if status_filter:
+        try:
+            query = query.filter(asset_crud.asset.model.status == AssetStatus(status_filter))
+        except ValueError:
+            pass
+
+    result = await db.execute(query)
+    assets = result.scalars().all()
 
     categories = await asset_category_crud.category.get_multi(db)
 
@@ -72,7 +78,8 @@ async def list_assets(
         "assets": assets,
         "categories": categories,
         "filters": {
-            "categoria_id": str(cat_id) if cat_id else ""
+            "categoria_id": str(cat_id) if cat_id else "",
+            "status": status_filter or ""
         },
         "stats": {
             "total": total_assets or 0,
