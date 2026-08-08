@@ -724,6 +724,18 @@
                 document.body.style.overflow = 'hidden';
             }
 
+            // Incrementar contadores ao vivo no dashboard
+            const dashTotal = document.getElementById('dashEmergencyTotal');
+            const dashPending = document.getElementById('dashEmergencyPending');
+            if (dashTotal) {
+                const currentTotal = parseInt(dashTotal.textContent || '0', 10);
+                dashTotal.textContent = currentTotal + 1;
+            }
+            if (dashPending) {
+                const currentPending = parseInt(dashPending.textContent || '0', 10);
+                dashPending.textContent = currentPending + 1;
+            }
+
             playEmergencySound();
         }
 
@@ -737,6 +749,163 @@
                 emergencyAudio.pause();
                 emergencyAudio.currentTime = 0;
             } catch (e) {}
+        }
+
+        // FUNÇÕES DO HISTÓRICO DE ALERTAS EMERGENCIAIS (STAFF)
+        function openEmergencyHistoryModal() {
+            const modal = document.getElementById('staffEmergencyHistoryModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                loadEmergencyHistory();
+            } else {
+                console.warn("[EMERGENCY_HISTORY] Modal #staffEmergencyHistoryModal não encontrado no DOM.");
+            }
+        }
+
+        function closeEmergencyHistoryModal() {
+            const modal = document.getElementById('staffEmergencyHistoryModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+        }
+
+        let currentEmergencyFilter = 'todos';
+
+        function filterEmergencyHistory(filter) {
+            currentEmergencyFilter = filter;
+            ['emFilterTodos', 'emFilterPendentes', 'emFilterAtendidos'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.className = "px-3 py-1.5 font-mono text-xs font-bold uppercase border-2 border-black bg-white text-black hover:bg-gray-100";
+                }
+            });
+
+            if (filter === 'todos') {
+                const btn = document.getElementById('emFilterTodos');
+                if (btn) btn.className = "px-3 py-1.5 font-mono text-xs font-bold uppercase border-2 border-black bg-black text-white";
+            } else if (filter === 'pendentes') {
+                const btn = document.getElementById('emFilterPendentes');
+                if (btn) btn.className = "px-3 py-1.5 font-mono text-xs font-bold uppercase border-2 border-black bg-red-600 text-white";
+            } else if (filter === 'atendidos') {
+                const btn = document.getElementById('emFilterAtendidos');
+                if (btn) btn.className = "px-3 py-1.5 font-mono text-xs font-bold uppercase border-2 border-black bg-green-600 text-white";
+            }
+
+            const items = document.querySelectorAll('.em-history-item');
+            items.forEach(item => {
+                const atendido = item.getAttribute('data-atendido') === 'true';
+                if (filter === 'todos') {
+                    item.style.display = '';
+                } else if (filter === 'pendentes') {
+                    item.style.display = atendido ? 'none' : '';
+                } else if (filter === 'atendidos') {
+                    item.style.display = atendido ? '' : 'none';
+                }
+            });
+        }
+
+        async function loadEmergencyHistory() {
+            const listEl = document.getElementById('emergencyHistoryList');
+            if (!listEl) return;
+
+            try {
+                const res = await fetch('/emergencia/historico');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const dashTotal = document.getElementById('dashEmergencyTotal');
+                const dashPending = document.getElementById('dashEmergencyPending');
+                const histTotal = document.getElementById('emHistTotalCount');
+                const histPending = document.getElementById('emHistPendingCount');
+
+                if (dashTotal) dashTotal.textContent = data.total;
+                if (dashPending) dashPending.textContent = data.pendentes;
+                if (histTotal) histTotal.textContent = data.total;
+                if (histPending) histPending.textContent = data.pendentes;
+
+                if (!data.alertas || data.alertas.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="p-8 text-center font-mono text-sm font-bold text-gray-500 border-2 border-dashed border-gray-300">
+                            Nenhum alerta emergencial registrado até o momento.
+                        </div>`;
+                    return;
+                }
+
+                let html = '';
+                data.alertas.forEach(alert => {
+                    html += `
+                    <div class="em-history-item border-2 border-black p-4 bg-gray-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                         data-atendido="${alert.atendido}">
+                        <div class="space-y-1 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-mono text-xs font-bold px-2 py-0.5 border border-black bg-yellow-300 text-black">
+                                    📅 ${alert.created_at}
+                                </span>
+                                <span class="font-black text-sm uppercase text-black">
+                                    👤 ${alert.usuario_nome}
+                                </span>
+                                <span class="font-mono text-xs font-bold text-gray-600">
+                                    🏢 ${alert.setor_nome}
+                                </span>
+                            </div>
+                            
+                            <div class="font-mono text-xs text-blue-800 font-bold">
+                                💻 Equipamento: ${alert.ativo_nome}
+                            </div>
+
+                            <div class="bg-white border border-gray-300 p-2.5 mt-2 font-mono text-xs italic text-gray-800">
+                                “${alert.motivo}”
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col items-end gap-2 flex-shrink-0 w-full md:w-auto">
+                            ${alert.atendido ? `
+                                <span class="inline-flex items-center gap-1 font-mono text-xs font-bold text-green-700 bg-green-100 border border-green-500 px-3 py-1">
+                                    ✓ Atendido por ${alert.atendido_por_nome || 'Sistema'}
+                                </span>
+                            ` : `
+                                <button onclick="markAlertAtendido(${alert.id}, this)"
+                                    class="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-black uppercase text-xs px-4 py-2 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                                    ✓ Marcar Atendido
+                                </button>
+                            `}
+                        </div>
+                    </div>`;
+                });
+
+                listEl.innerHTML = html;
+                filterEmergencyHistory(currentEmergencyFilter);
+            } catch (err) {
+                console.error("Erro ao carregar histórico de alertas:", err);
+            }
+        }
+
+        async function markAlertAtendido(alertId, btnEl) {
+            if (!alertId) return;
+            if (btnEl) {
+                btnEl.disabled = true;
+                btnEl.textContent = 'Salvando...';
+            }
+            try {
+                const res = await fetch(`/emergencia/${alertId}/atender`, { method: 'POST' });
+                if (res.ok) {
+                    loadEmergencyHistory();
+                } else {
+                    alert("Erro ao marcar alerta como atendido.");
+                    if (btnEl) {
+                        btnEl.disabled = false;
+                        btnEl.textContent = '✓ Marcar Atendido';
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao atender alerta:", err);
+                if (btnEl) {
+                    btnEl.disabled = false;
+                    btnEl.textContent = '✓ Marcar Atendido';
+                }
+            }
         }
 
         function connectEmergencySSE() {

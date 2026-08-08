@@ -168,3 +168,77 @@ async def emergency_alert_stream(
             "X-Accel-Buffering": "no"
         }
     )
+
+@router.get("/historico", response_class=JSONResponse)
+async def get_emergency_history(
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """
+    Retorna o histórico de alertas emergenciais e contadores para equipe técnica/admin.
+    """
+    user_role = (current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)).lower()
+    staff_roles = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'gerente']
+    
+    if user_role not in staff_roles:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+
+    res = await db.execute(
+        select(EmergencyAlert)
+        .options(selectinload(EmergencyAlert.atendido_por))
+        .order_by(EmergencyAlert.created_at.desc())
+        .limit(100)
+    )
+    alerts = res.scalars().all()
+
+    total_count = len(alerts)
+    pendentes_count = sum(1 for a in alerts if not a.atendido)
+
+    data = []
+    for a in alerts:
+        atendido_por_nome = a.atendido_por.nome if (a.atendido and a.atendido_por) else "Sistema"
+        data.append({
+            "id": a.id,
+            "usuario_nome": a.usuario_nome,
+            "setor_nome": a.setor_nome or "Não informado",
+            "ativo_nome": a.ativo_nome or "Nenhum ativo vinculado",
+            "motivo": a.motivo,
+            "atendido": a.atendido,
+            "atendido_por_nome": atendido_por_nome if a.atendido else None,
+            "created_at": a.created_at.strftime("%d/%m/%Y %H:%M:%S")
+        })
+
+    return JSONResponse({
+        "total": total_count,
+        "pendentes": pendentes_count,
+        "alertas": data
+    })
+
+@router.post("/{alert_id}/atender", response_class=JSONResponse)
+async def mark_emergency_alert_atendido(
+    alert_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """
+    Marca um alerta emergencial como atendido pelo administrador/técnico.
+    """
+    user_role = (current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)).lower()
+    staff_roles = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'gerente']
+    
+    if user_role not in staff_roles:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+
+    alert = await db.get(EmergencyAlert, alert_id)
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerta não encontrado.")
+
+    alert.atendido = True
+    alert.atendido_por_id = current_user.id
+    await db.commit()
+
+    return JSONResponse({
+        "status": "success",
+        "message": f"Alerta #{alert_id} marcado como atendido por {current_user.nome}.",
+        "atendido_por_nome": current_user.nome
+    })

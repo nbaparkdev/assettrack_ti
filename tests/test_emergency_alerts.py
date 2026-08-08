@@ -58,3 +58,56 @@ async def test_send_emergency_alert_blank_reason(client: AsyncClient, db_session
     response = await client.post("/emergencia/alertar", data={"motivo": "   "})
     assert response.status_code == 400
     assert "motivo" in response.json()["detail"].lower()
+
+@pytest.mark.asyncio
+async def test_emergency_history_and_atender(client: AsyncClient, db_session: AsyncSession):
+    # 1. Arrange: Create common user and admin user
+    user_in = UserCreate(
+        nome="João Silva",
+        email="joao@example.com",
+        password="password123",
+        role="usuario_comum",
+        is_active=True
+    )
+    admin_in = UserCreate(
+        nome="Admin Suporte",
+        email="adminsup@example.com",
+        password="password123",
+        role="admin",
+        is_active=True
+    )
+    u_comum = await user_crud.user.create(db_session, obj_in=user_in)
+    u_admin = await user_crud.user.create(db_session, obj_in=admin_in)
+
+    # User triggers alert
+    alert = EmergencyAlert(
+        usuario_id=u_comum.id,
+        usuario_nome=u_comum.nome,
+        setor_nome="TI",
+        ativo_nome="Notebook Dell",
+        motivo="Servidor inacessível",
+        atendido=False
+    )
+    db_session.add(alert)
+    await db_session.commit()
+    await db_session.refresh(alert)
+
+    # 2. Login as admin
+    await client.post("/login", data={"email": "adminsup@example.com", "password": "password123"})
+
+    # 3. Check history endpoint
+    resp_hist = await client.get("/emergencia/historico")
+    assert resp_hist.status_code == 200
+    data_hist = resp_hist.json()
+    assert data_hist["total"] >= 1
+    assert data_hist["pendentes"] >= 1
+
+    # 4. Mark as atendido
+    resp_atender = await client.post(f"/emergencia/{alert.id}/atender")
+    assert resp_atender.status_code == 200
+    assert resp_atender.json()["status"] == "success"
+
+    # Verify DB
+    await db_session.refresh(alert)
+    assert alert.atendido is True
+    assert alert.atendido_por_id == u_admin.id

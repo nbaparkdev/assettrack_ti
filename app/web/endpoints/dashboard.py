@@ -43,10 +43,15 @@ async def dashboard(
     # Pending Maintenance Requests (for alert)
     pending_maintenance_count = 0
     pending_tickets_count = 0
-    # Maintenance and Tickets alerts for staff
-    if user_role in ["admin", "gerente_ti", "tecnico", "gerente_infra"]:
+    total_emergency_count = 0
+    pending_emergency_count = 0
+    emergency_alerts_list = []
+
+    # Maintenance, Tickets and Emergency alerts for staff
+    if user_role in ["admin", "gerente_ti", "tecnico", "gerente_infra", "gerente"]:
         from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
         from app.models.service_desk import ServiceTicket, ServiceStatus
+        from app.models.emergency_alert import EmergencyAlert
         
         pending_maintenance_count = await db.scalar(
             select(func.count(SolicitacaoManutencao.id))
@@ -57,6 +62,19 @@ async def dashboard(
             select(func.count(ServiceTicket.id))
             .filter(ServiceTicket.status == ServiceStatus.ABERTO)
         )
+
+        total_emergency_count = await db.scalar(select(func.count(EmergencyAlert.id))) or 0
+        pending_emergency_count = await db.scalar(
+            select(func.count(EmergencyAlert.id)).filter(EmergencyAlert.atendido == False)
+        ) or 0
+
+        res_em = await db.execute(
+            select(EmergencyAlert)
+            .options(selectinload(EmergencyAlert.atendido_por))
+            .order_by(EmergencyAlert.created_at.desc())
+            .limit(50)
+        )
+        emergency_alerts_list = res_em.scalars().all()
 
     # Context data
     context = {
@@ -69,8 +87,11 @@ async def dashboard(
             "maintenance_assets": maintenance_assets or 0,
             "pending_solicitations": pending_solicitations or 0,
             "pending_maintenance": pending_maintenance_count or 0,
-            "pending_tickets": pending_tickets_count or 0
+            "pending_tickets": pending_tickets_count or 0,
+            "total_emergency": total_emergency_count or 0,
+            "pending_emergency": pending_emergency_count or 0
         },
+        "emergency_alerts_list": emergency_alerts_list,
         "title": "Dashboard"
     }
 
