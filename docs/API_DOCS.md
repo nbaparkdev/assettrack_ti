@@ -255,6 +255,17 @@ As rotas abaixo retornam páginas HTML renderizadas pelo servidor.
 
 ---
 
+## 🚨 Alertas de Emergência (`/emergencia`)
+
+| Método | Rota | Descrição | Acesso |
+|--------|------|-----------|--------|
+| POST | `/emergencia/alert` | Acionar chamado de emergência | Usuários autenticados |
+| GET | `/emergencia/stream` | Stream SSE em tempo real de novos alertas | Técnico/Admin/Gerente |
+| GET | `/emergencia/historico` | Consulta de lista de alertas e contadores agregados | Técnico/Admin/Gerente |
+| POST | `/emergencia/{alert_id}/atender` | Marcar alerta emergencial como atendido | Técnico/Admin/Gerente |
+
+---
+
 ## 🛠️ Manutenção
 
 | Método | Rota | Descrição | Acesso |

@@ -113,6 +113,18 @@ Módulo integrado e moderno para gestão de chamados de suporte técnico.
 | **QR Code do Chamado** | Código QR gerado automaticamente e impresso acima do código do chamado para acesso e acompanhamento mobile rápido. |
 | **Fuso Horário Local Preciso** | Registro de abertura e interações ajustado perfeitamente ao fuso horário `America/Sao_Paulo` (UTC-3). |
 
+## 🚨 Alertas de Emergência em Tempo Real
+
+Sistema de notificação de alta prioridade para chamados de emergência de TI e infraestrutura.
+
+| Recurso | Descrição |
+| :--- | :--- |
+| **Botão de Emergência** | Botão destacado no dashboard de usuários comuns para abertura instantânea de chamados urgentes. |
+| **Transmissão SSE (Server-Sent Events)** | Transmissão de alertas sem atraso e sem necessidade de recarregar a página (`/emergencia/stream`). |
+| **Aviso Sonoro de Notificação** | Emissão automática de áudio de alerta (`notificacao_alerta.mp3`) para a equipe de atendimento (Admin, Gerente, Técnico). |
+| **Banner e Contadores no Dashboard** | Exibição de contadores ao vivo (`Total Recebidos` e `Pendentes`) no painel da equipe staff. |
+| **Histórico e Atendimento de Alertas** | Modal interativo com filtros por status (Todos/Pendentes/Atendidos) e botão para marcar como "Atendido", vinculando o responsável técnico. |
+
 ## 📱 Sistema de QR Code
 
 Funcionalidades de identificação, login rápido e acompanhamento ágil.

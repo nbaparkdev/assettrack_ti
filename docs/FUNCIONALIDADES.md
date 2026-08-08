@@ -55,6 +55,18 @@ Módulo integrado e profissional de suporte técnico para agilização operacion
 
 ---
 
+## 🚨 Alertas de Emergência em Tempo Real
+
+Módulo de alta prioridade para notificação instantânea de incidentes críticos.
+
+- **Acionamento Rápido:** Botão de emergência em destaque no dashboard de usuários comuns com modal para justificativa detalhada e vínculo automático do setor/equipamento.
+- **Transmissão SSE (Server-Sent Events):** Notificações enviadas em tempo real via streaming de eventos sem necessidade de atualização manual de página.
+- **Notificação Sonora de Alerta:** Emissão automática de som de alerta (`notificacao_alerta.mp3`) no navegador da equipe técnica e administrativa (`ADMIN`, `GERENTE_TI`, `GERENTE_INFRA`, `TECNICO`, `GERENTE`).
+- **Dashboard com Contadores em Tempo Real:** Banner no topo do dashboard com contagem de alertas totais recebidos e chamados pendentes.
+- **Histórico e Marcação de Atendimento:** Modal com visualização completa de histórico, filtros de busca por status (*Todos*, *Pendentes*, *Atendidos*) e ação de encerramento/atendimento registrando a identidade do técnico responsável.
+
+---
+
 ## 🛠️ Manutenção
 
 - **Solicitação de Reparo:** Usuários podem relatar defeitos em seus equipamentos.

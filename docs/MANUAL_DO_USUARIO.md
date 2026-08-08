@@ -61,7 +61,25 @@ Para solicitações de suporte que não envolvem reparo físico de hardware (ex:
 
 ---
 
-## 📱 5. Meu QR Code
+## 🚨 5. Chamados de Emergência (Alerta Crítico em Tempo Real)
+
+Para incidentes de extrema gravidade em equipamentos ou infraestrutura que exigem parada total ou risco iminente:
+
+### Como Acionar (Usuários Comuns):
+1. No seu **Dashboard principal**, clique no botão vermelho **🚨 ACIONAR EMERGÊNCIA**.
+2. No modal que se abrirá, confirme o setor e equipamento afetado (se houver).
+3. Descreva brevemente o motivo da emergência e clique em **TRANSMITIR ALERTA EMERGENCIAIS**.
+4. O chamado é enviado instantaneamente em tempo real para toda a equipe de TI.
+
+### Como Atender e Acompanhar (Equipe Técnica e Gestores):
+1. Quando uma emergência é acionada, um **alerta sonoro** é emitido no navegador e um modal popup vermelho aparece na tela.
+2. No topo do seu Dashboard, um **Banner Vermelho** exibirá os contadores em tempo real (`Total Recebidos` e `Pendentes`).
+3. Clique em **`[ 📋 VER HISTÓRICO DE ALERTAS ]`** para abrir a central de histórico de emergências.
+4. Utilize os filtros (*Todos*, *Pendentes*, *Atendidos*) e clique em **`✓ Marcar Atendido`** para assumir e concluir o atendimento. O sistema registrará seu nome e horário no histórico.
+
+---
+
+## 📱 6. Meu QR Code
 
 Seu **Crachá Digital** serve para:
 - Identificação rápida perante a equipe de TI.
@@ -72,7 +90,7 @@ Seu **Crachá Digital** serve para:
 
 ---
 
-## 📂 6. Categorias de Ativos
+## 📂 7. Categorias de Ativos
 
 Os administradores podem organizar os ativos em categorias customizáveis para facilitar a gestão.
 
@@ -82,7 +100,7 @@ Os administradores podem organizar os ativos em categorias customizáveis para f
 
 ---
 
-## 📊 7. Relatórios de Ativos
+## 📊 8. Relatórios de Ativos
 
 O sistema oferece relatórios gerenciais com filtros avançados.
 
@@ -92,7 +110,7 @@ O sistema oferece relatórios gerenciais com filtros avançados.
 
 ---
 
-## 🏢 8. Fornecedores
+## 🏢 9. Fornecedores
 
 Mantenha o cadastro de fornecedores organizado e vinculado aos ativos.
 
@@ -103,7 +121,7 @@ Mantenha o cadastro de fornecedores organizado e vinculado aos ativos.
 
 ---
 
-## 👥 9. Perfis de Acesso
+## 👥 10. Perfis de Acesso
 
 - **USUARIO:** Consulta seus ativos sob sua guarda, abre chamados de suporte e solicita manutenções.
 - **TECNICO:** Atende chamados no Service Desk, gerencia ordens de manutenção e realiza a entrega/devolução física de ativos via scanner QR.
@@ -115,7 +133,7 @@ Mantenha o cadastro de fornecedores organizado e vinculado aos ativos.
 
 ---
 
-## 🛒 10. Módulo de Compras (Procurement)
+## 🛒 11. Módulo de Compras (Procurement)
 
 O ciclo de compras no sistema é completamente integrado e segue o fluxo abaixo:
 
@@ -128,7 +146,7 @@ O ciclo de compras no sistema é completamente integrado e segue o fluxo abaixo:
 
 ---
 
-## 🎛️ 11. Configurações de Módulos e Acessos por Menu (RBAC)
+## 🎛️ 12. Configurações de Módulos e Acessos por Menu (RBAC)
 
 Os administradores têm controle total sobre as seções de menu da aplicação através do painel de Módulos:
 
@@ -140,7 +158,7 @@ Os administradores têm controle total sobre as seções de menu da aplicação 
 
 ---
 
-## 🤝 12. Recursos Humanos (RH) e Termos de Responsabilidade
+## 🤝 13. Recursos Humanos (RH) e Termos de Responsabilidade
 
 Para controle legal, o sistema oferece um módulo dedicado à emissão de **Termos de Responsabilidade**.
 
