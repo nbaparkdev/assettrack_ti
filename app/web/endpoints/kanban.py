@@ -666,14 +666,15 @@ async def get_unread_notification_count(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Return the unread notification count for the logged user."""
+    from sqlalchemy import func
     from app.models.kanban import KanbanNotification
-    stmt = select(KanbanNotification).where(
+    stmt = select(func.count(KanbanNotification.id)).where(
         KanbanNotification.user_id == current_user.id,
         KanbanNotification.lida == False
     )
     res = await db.execute(stmt)
-    unreads = list(res.scalars().all())
-    return {"unread_count": len(unreads)}
+    unread_count = res.scalar() or 0
+    return {"unread_count": unread_count}
 
 @router.get("/notificacoes/lista", response_class=HTMLResponse)
 async def get_notifications_list(

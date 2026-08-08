@@ -61,6 +61,7 @@ from app.models.procurement import (
 from app.models.email_log import EmailLog
 from app.models.aviso import Aviso
 from app.models.termo_responsabilidade import TermoResponsabilidade
+from app.models.emergency_alert import EmergencyAlert
 from app.models.kanban import KanbanProject, KanbanColumn, KanbanCard, KanbanAttachment, KanbanNotification, kanban_project_participants, kanban_card_assignees, kanban_card_assets
 from app.database import Base
 

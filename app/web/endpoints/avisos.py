@@ -13,9 +13,17 @@ from app.web.dependencies import get_active_user_web
 from app.models.user import User, UserRole
 from app.models.aviso import Aviso
 from app.crud.aviso import aviso as aviso_crud
+import time
 
 router = APIRouter(prefix="/admin/avisos", tags=["admin-avisos"])
 templates = Jinja2Templates(directory="app/templates")
+
+_AVISO_CACHE = {"data": None, "timestamp": 0.0}
+_CACHE_TTL_SECONDS = 10.0
+
+def invalidate_aviso_cache():
+    _AVISO_CACHE["data"] = None
+    _AVISO_CACHE["timestamp"] = 0.0
 
 async def require_admin(current_user: Annotated[User, Depends(get_active_user_web)]):
     """Verifica se o usuário é Administrador ou Gerente"""
@@ -91,6 +99,7 @@ async def create_aviso(
         )
         db.add(new_aviso)
         await db.commit()
+        invalidate_aviso_cache()
         
         return RedirectResponse(url="/admin/avisos?success=Aviso+criado+com+sucesso", status_code=303)
     except Exception as e:
@@ -135,6 +144,7 @@ async def edit_aviso(
         aviso_obj.programado_fim = parse_date(programado_fim)
         
         await db.commit()
+        invalidate_aviso_cache()
         return RedirectResponse(url="/admin/avisos?success=Aviso+atualizado+com+sucesso", status_code=303)
     except Exception as e:
         await db.rollback()
@@ -154,6 +164,7 @@ async def toggle_aviso(
         
     aviso_obj.ativo = not aviso_obj.ativo
     await db.commit()
+    invalidate_aviso_cache()
     
     return JSONResponse(content={
         "status": "success",
@@ -174,6 +185,7 @@ async def delete_aviso(
          
     await db.delete(aviso_obj)
     await db.commit()
+    invalidate_aviso_cache()
     return RedirectResponse(url="/admin/avisos?success=Aviso+excluído+com+sucesso", status_code=303)
 
 # Rota pública para retornar avisos ativos em tempo real (JSON)
@@ -183,7 +195,11 @@ async def get_active_avisos_api(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_active_user_web)]
 ):
-    """Retorna os avisos ativos para exibição em tempo real na Home/Dashboard"""
+    """Retorna os avisos ativos para exibição em tempo real na Home/Dashboard (com cache em memória TTL de 10s)"""
+    now = time.time()
+    if _AVISO_CACHE["data"] is not None and (now - _AVISO_CACHE["timestamp"]) < _CACHE_TTL_SECONDS:
+        return JSONResponse(content={"avisos": _AVISO_CACHE["data"]})
+
     active_avisos = await aviso_crud.get_active_announcements(db)
     
     # Serializa os objetos SQLAlchemy para JSON seguro
@@ -198,4 +214,8 @@ async def get_active_avisos_api(
             "link_url": a.link_url,
             "link_texto": a.link_texto or "Ver Detalhes"
         })
+
+    _AVISO_CACHE["data"] = data
+    _AVISO_CACHE["timestamp"] = now
+
     return JSONResponse(content={"avisos": data})

@@ -678,6 +678,13 @@
                             </svg>
                             Solicitar Equipamento
                         </a>
+                        <button type="button" onclick="openEmergencyModal()"
+                            class="bg-red-600 hover:bg-red-700 text-white border-2 border-black px-6 py-3 font-black uppercase text-sm tracking-widest hover:-translate-y-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-2">
+                            <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                            🚨 Alertar Emergência
+                        </button>
                     </div>
                 </div>
                 <!-- Decorative background elements -->
@@ -914,6 +921,7 @@
     let activeAvisos = [];
 
     async function checkActiveAvisos() {
+        if (document.hidden) return;
         try {
             const response = await fetch('/admin/avisos/active-list');
             if (!response.ok) return;
@@ -935,6 +943,37 @@
             console.error("Erro ao buscar avisos:", err);
         }
     }
+
+    // Initialise smart polling for avisos with Page Visibility API (30s interval)
+    let avisosIntervalId = null;
+
+    function startAvisosPolling() {
+        checkActiveAvisos();
+        if (!avisosIntervalId) {
+            avisosIntervalId = setInterval(checkActiveAvisos, 30000);
+        }
+    }
+
+    function stopAvisosPolling() {
+        if (avisosIntervalId) {
+            clearInterval(avisosIntervalId);
+            avisosIntervalId = null;
+        }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            stopAvisosPolling();
+        } else {
+            startAvisosPolling();
+        }
+    });
+
+    window.addEventListener('focus', checkActiveAvisos);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        startAvisosPolling();
+    });
 
     function mostrarAvisoModal() {
         const listEl = document.getElementById('aviso-modal-content-list');
@@ -1013,12 +1052,124 @@
         document.body.style.overflow = '';
     }
 
+    // EMERGENCY MODAL FUNCTIONS
+    function openEmergencyModal() {
+        const modal = document.getElementById('userEmergencyModal');
+        if (modal) {
+            document.getElementById('emergencyReason').value = '';
+            const fb = document.getElementById('emergencyAlertFeedback');
+            if (fb) { fb.className = 'hidden p-3 font-mono text-xs font-bold border-2'; fb.innerText = ''; }
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeEmergencyModal() {
+        const modal = document.getElementById('userEmergencyModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+    }
+
+    async function submitEmergencyAlert(e) {
+        e.preventDefault();
+        const reasonInput = document.getElementById('emergencyReason');
+        const submitBtn = document.getElementById('submitEmergencyBtn');
+        const feedback = document.getElementById('emergencyAlertFeedback');
+        
+        if (!reasonInput || !reasonInput.value.trim()) return;
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Enviando...';
+
+        try {
+            const formData = new FormData();
+            formData.append('motivo', reasonInput.value.trim());
+
+            const response = await fetch('/emergencia/alertar', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                feedback.className = 'p-3 font-mono text-xs font-bold border-2 border-green-600 bg-green-50 text-green-800 block';
+                feedback.innerText = '✓ Alerta enviado com sucesso! Administradores, gerentes e técnicos foram notificados em tempo real.';
+                setTimeout(() => {
+                    closeEmergencyModal();
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<span>🚨 Enviar Alerta</span>';
+                }, 1800);
+            } else {
+                feedback.className = 'p-3 font-mono text-xs font-bold border-2 border-red-600 bg-red-50 text-red-800 block';
+                feedback.innerText = '❌ Erro: ' + (data.detail || 'Falha ao transmitir alerta.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>🚨 Enviar Alerta</span>';
+            }
+        } catch (err) {
+            feedback.className = 'p-3 font-mono text-xs font-bold border-2 border-red-600 bg-red-50 text-red-800 block';
+            feedback.innerText = '❌ Erro de conexão ao enviar alerta.';
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>🚨 Enviar Alerta</span>';
+        }
+    }
+
     // Initialise polling
     document.addEventListener('DOMContentLoaded', () => {
         checkActiveAvisos();
         setInterval(checkActiveAvisos, 15000);
     });
 </script>
+
+<!-- MODAL DE EMERGÊNCIA (SOLICITANTE) -->
+<div id="userEmergencyModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeEmergencyModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white border-4 border-black shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] w-full max-w-lg relative">
+            <div class="bg-red-600 text-white border-b-4 border-black px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 border-2 border-black bg-black text-red-500 flex items-center justify-center font-black text-xl">
+                        🚨
+                    </div>
+                    <div>
+                        <h3 class="font-black text-lg uppercase tracking-tight">ALERTA EMERGENCIAL</h3>
+                        <p class="font-mono text-[10px] text-red-100 uppercase tracking-widest">Notificar TI, Gerência e Administração</p>
+                    </div>
+                </div>
+                <button onclick="closeEmergencyModal()" class="text-white hover:text-black font-black text-2xl leading-none">&times;</button>
+            </div>
+
+            <form id="emergencyForm" onsubmit="submitEmergencyAlert(event)" class="p-6 space-y-4">
+                <div>
+                    <label for="emergencyReason" class="block font-black text-base uppercase text-black mb-1">
+                        Por qual motivo?
+                    </label>
+                    <p class="font-mono text-xs text-gray-500 mb-3">
+                        Insira abaixo o motivo do alerta para a equipe técnica e de gestão.
+                    </p>
+                    <textarea id="emergencyReason" name="motivo" rows="4" required
+                        placeholder="Ex: Computador desligou e não liga mais / Erro grave de sistema / Incidente crítico..."
+                        class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-red-600 rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"></textarea>
+                </div>
+
+                <div id="emergencyAlertFeedback" class="hidden p-3 font-mono text-xs font-bold border-2"></div>
+
+                <div class="border-t-2 border-black pt-4 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeEmergencyModal()"
+                        class="px-5 py-2.5 border-2 border-gray-300 text-gray-700 font-bold uppercase text-xs tracking-wider hover:border-black hover:bg-gray-100 transition-all">
+                        Cancelar
+                    </button>
+                    <button type="submit" id="submitEmergencyBtn"
+                        class="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black uppercase text-xs tracking-wider border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-2">
+                        <span>🚨 Enviar Alerta</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <!-- MODAL DE AVISOS -->
 <div id="avisoDashboardModal"
