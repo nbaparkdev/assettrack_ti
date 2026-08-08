@@ -698,6 +698,19 @@
     </div>
 
     <script>
+        const emergencyAudio = new Audio('/static/sounds/notificacao_alerta.mp3');
+
+        function playEmergencySound() {
+            try {
+                emergencyAudio.currentTime = 0;
+                emergencyAudio.play().catch(err => {
+                    console.warn("[EMERGENCY_SOUND] Reprodução bloqueada pela política de áudio do navegador até primeira interação:", err);
+                });
+            } catch (e) {
+                console.error("[EMERGENCY_SOUND] Erro ao reproduzir o som de alerta:", e);
+            }
+        }
+
         function openStaffEmergencyModal(data) {
             document.getElementById('staffAlertUser').textContent = data.usuario_nome || 'N/A';
             document.getElementById('staffAlertSetor').textContent = data.setor_nome || 'N/A';
@@ -710,6 +723,8 @@
                 modal.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
             }
+
+            playEmergencySound();
         }
 
         function closeStaffEmergencyModal() {
@@ -718,6 +733,10 @@
                 modal.classList.add('hidden');
                 document.body.style.overflow = '';
             }
+            try {
+                emergencyAudio.pause();
+                emergencyAudio.currentTime = 0;
+            } catch (e) {}
         }
 
         function connectEmergencySSE() {
