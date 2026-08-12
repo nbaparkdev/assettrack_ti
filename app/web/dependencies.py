@@ -60,10 +60,12 @@ async def get_active_user_web(
     role_str = user.role.value.lower() if hasattr(user.role, 'value') else str(user.role).lower()
     if role_str in ["admin", "gerente_ti", "gerente_infra", "tecnico", "comprador", "rh"]:
         request.state.user_has_kanban = True
-    else:
+    elif request.url.path.startswith("/kanban"):
         from app.crud.kanban import crud_kanban
         count = await crud_kanban.count_user_active_projects(db, user)
         request.state.user_has_kanban = (count > 0)
+    else:
+        request.state.user_has_kanban = False
 
     return user
 

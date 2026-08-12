@@ -8,10 +8,22 @@ from app.config import settings
 # Se for SQLite, check_same_thread deve ser False
 connect_args = {"check_same_thread": False} if "sqlite" in settings.SQLALCHEMY_DATABASE_URI else {}
 
+engine_kwargs = {
+    "echo": False,
+    "connect_args": connect_args,
+}
+
+if "sqlite" not in settings.SQLALCHEMY_DATABASE_URI:
+    engine_kwargs.update({
+        "pool_size": 20,
+        "max_overflow": 20,
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+    })
+
 engine = create_async_engine(
     settings.SQLALCHEMY_DATABASE_URI,
-    echo=False,
-    connect_args=connect_args,
+    **engine_kwargs
 )
 
 # Fábrica de sessões assíncronas

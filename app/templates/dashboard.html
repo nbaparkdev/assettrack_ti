@@ -985,7 +985,7 @@
     function startAvisosPolling() {
         checkActiveAvisos();
         if (!avisosIntervalId) {
-            avisosIntervalId = setInterval(checkActiveAvisos, 30000);
+            avisosIntervalId = setInterval(checkActiveAvisos, 60000);
         }
     }
 
@@ -1151,11 +1151,7 @@
         }
     }
 
-    // Initialise polling
-    document.addEventListener('DOMContentLoaded', () => {
-        checkActiveAvisos();
-        setInterval(checkActiveAvisos, 15000);
-    });
+
 </script>
 
 <!-- MODAL DE EMERGÊNCIA (SOLICITANTE) -->

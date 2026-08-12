@@ -42,9 +42,8 @@ async def dispatch_webhook_event(evento: str, payload: dict):
 
         payload_str = json.dumps(payload)
         
-        async with httpx.AsyncClient() as client:
-            for w in target_webhooks:
-                # Prepare log entry
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            async def _send_single_webhook(w):
                 log_entry = WebhookLog(
                     webhook_id=w.id,
                     evento=evento,
@@ -52,9 +51,8 @@ async def dispatch_webhook_event(evento: str, payload: dict):
                     sucesso=False
                 )
                 db.add(log_entry)
-                
                 try:
-                    response = await client.post(w.url, json=payload, timeout=10.0)
+                    response = await client.post(w.url, json=payload)
                     log_entry.status_code = response.status_code
                     log_entry.response_body = response.text[:2000] # Limit to 2000 chars
                     if 200 <= response.status_code < 300:
@@ -62,5 +60,6 @@ async def dispatch_webhook_event(evento: str, payload: dict):
                 except Exception as e:
                     log_entry.response_body = str(e)[:2000]
                     log_entry.status_code = 0
-                    
-                await db.commit()
+
+            await asyncio.gather(*[_send_single_webhook(w) for w in target_webhooks], return_exceptions=True)
+            await db.commit()

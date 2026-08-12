@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.web.dependencies import get_active_user_web
 from app.models.user import User, UserRole
 from app.models.asset import Asset, AssetStatus
@@ -112,17 +112,18 @@ Acesse o sistema imediatamente para verificar a situação.
 """
         # Enviar e-mails em segundo plano sem bloquear a resposta HTTP do usuário
         async def _dispatch_emails(members, subj, msg):
-            for staff in members:
-                if staff.email and "@" in staff.email:
-                    try:
-                        await email_service.send_notification(
-                            email_to=staff.email,
-                            subject=subj,
-                            message=msg,
-                            db=db
-                        )
-                    except Exception:
-                        pass
+            async with SessionLocal() as async_db:
+                for staff in members:
+                    if staff.email and "@" in staff.email:
+                        try:
+                            await email_service.send_notification(
+                                email_to=staff.email,
+                                subject=subj,
+                                message=msg,
+                                db=async_db
+                            )
+                        except Exception:
+                            pass
 
         asyncio.create_task(_dispatch_emails(staff_members, subject, message))
     except Exception as e:

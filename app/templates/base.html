@@ -13,16 +13,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <!-- Tailwind CSS (Dev Mode - heavy!) -->
+    <!-- Tailwind CSS (Dev Mode) -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Google Fonts: Inter & JetBrains Mono -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-        rel="stylesheet">
+    <!-- Google Fonts: Inter & JetBrains Mono (Async non-blocking load) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 
-    <!-- HTMX (CDN with local fallback if needed, but using CDN for reliability) -->
-    <script src="https://unpkg.com/htmx.org@2.0.2"></script>
+    <!-- HTMX (Local assets for instant performance) -->
+    <script src="/static/js/htmx.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -611,7 +609,7 @@
         function startNotifPolling() {
             refreshNotifData();
             if (!notifIntervalId) {
-                notifIntervalId = setInterval(refreshNotifData, 30000);
+                notifIntervalId = setInterval(refreshNotifData, 60000);
             }
         }
 
