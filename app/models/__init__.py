@@ -63,6 +63,7 @@ from app.models.aviso import Aviso
 from app.models.termo_responsabilidade import TermoResponsabilidade
 from app.models.emergency_alert import EmergencyAlert
 from app.models.kanban import KanbanProject, KanbanColumn, KanbanCard, KanbanAttachment, KanbanNotification, kanban_project_participants, kanban_card_assignees, kanban_card_assets
+from app.models.webhook import Webhook, WebhookLog
 from app.database import Base
 
 

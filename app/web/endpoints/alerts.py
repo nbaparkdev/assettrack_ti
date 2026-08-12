@@ -1,7 +1,7 @@
 # app/web/endpoints/alerts.py
 from typing import Annotated
 import asyncio
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, BackgroundTasks
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -14,6 +14,7 @@ from app.models.asset import Asset, AssetStatus
 from app.models.emergency_alert import EmergencyAlert
 from app.services.alert_broadcaster import alert_broadcaster
 from app.services.email_service import EmailService
+from app.services.webhook_service import dispatch_webhook_event
 
 router = APIRouter(prefix="/emergencia", tags=["emergency-alerts"])
 email_service = EmailService()
@@ -21,6 +22,7 @@ email_service = EmailService()
 @router.post("/alertar", response_class=JSONResponse)
 async def send_emergency_alert(
     request: Request,
+    background_tasks: BackgroundTasks,
     motivo: Annotated[str, Form(...)],
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
@@ -80,6 +82,9 @@ async def send_emergency_alert(
 
     # Transmitir em tempo real via SSE
     await alert_broadcaster.broadcast(alert_payload)
+
+    # Disparar webhook
+    background_tasks.add_task(dispatch_webhook_event, "EMERGENCY_ALERT_TRIGGERED", alert_payload)
 
     # Notificar emails da equipe (opcional / background)
     try:

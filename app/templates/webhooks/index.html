@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6 fade-in max-w-6xl mx-auto">
+    <!-- Header Block -->
+    <div class="border-2 border-black bg-white p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)]">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+                <span class="font-mono text-xs text-gray-400 uppercase tracking-widest block mb-2">Administração //</span>
+                <h1 class="text-3xl font-black text-black uppercase tracking-tighter leading-none">Gerenciar Webhooks</h1>
+                <p class="font-mono text-xs text-gray-500 mt-2">Configure URLs para receber alertas de eventos do sistema</p>
+            </div>
+            <div class="flex gap-4">
+                <a href="/admin/webhooks/new"
+                    class="bg-black text-white border-2 border-black px-6 py-3 font-bold uppercase text-xs tracking-widest hover:bg-white hover:text-black transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]">
+                    + NOVO WEBHOOK
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Webhooks Table -->
+    <div class="border-2 border-black bg-white shadow-sm mt-6">
+        <div class="bg-black text-white p-3 font-mono text-xs font-bold uppercase tracking-widest border-b-2 border-black flex justify-between items-center">
+            <span>Lista de Webhooks</span>
+            <span class="text-gray-500">{{ webhooks|length }} registros</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-50 border-b-2 border-black">
+                    <tr>
+                        <th class="px-6 py-4 text-[10px] font-bold text-black uppercase tracking-widest font-mono">Nome / URL</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-black uppercase tracking-widest font-mono">Status</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-black uppercase tracking-widest font-mono text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for w in webhooks %}
+                    <tr class="hover:bg-amber-50 transition group">
+                        <td class="px-6 py-4">
+                            <span class="block font-bold text-sm uppercase text-black">{{ w.nome }}</span>
+                            <span class="block font-mono text-[10px] text-gray-500">{{ w.url }}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if w.is_active %}
+                            <span class="inline-flex items-center gap-2 text-[10px] font-bold text-green-700 uppercase tracking-wider font-mono">
+                                <span class="w-1.5 h-1.5 bg-green-600"></span> ATIVO
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-2 text-[10px] font-bold text-red-600 uppercase tracking-wider font-mono">
+                                <span class="w-1.5 h-1.5 bg-red-600 animate-pulse"></span> INATIVO
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <a href="/admin/webhooks/{{ w.id }}/logs"
+                                    class="bg-white text-black border-2 border-black px-3 py-1 font-bold text-[10px] uppercase hover:bg-black hover:text-white transition">
+                                    LOGS
+                                </a>
+                                <a href="/admin/webhooks/{{ w.id }}/edit"
+                                    class="bg-white text-black border-2 border-black px-3 py-1 font-bold text-[10px] uppercase hover:bg-black hover:text-white transition">
+                                    EDITAR
+                                </a>
+                                <form action="/admin/webhooks/{{ w.id }}/delete" method="post" onsubmit="return confirm('Remover este webhook?');">
+                                    <button type="submit"
+                                        class="bg-white text-red-600 border-2 border-red-600 px-3 py-1 font-bold text-[10px] uppercase hover:bg-red-600 hover:text-white transition">
+                                        X
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="px-6 py-12 text-center bg-gray-50">
+                            <span class="block font-mono text-xl text-gray-400 mb-2 font-bold">NENHUM WEBHOOK CADASTRADO</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

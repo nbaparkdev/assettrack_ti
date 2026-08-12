@@ -1,7 +1,7 @@
 
 # app/web/endpoints/assets.py
 from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 import os
@@ -9,6 +9,7 @@ import shutil
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, datetime
 from app.core.datetime_utils import now_sp
+from app.services.webhook_service import dispatch_webhook_event
 
 from app.web.dependencies import get_active_user_web
 from app.models.user import User, UserRole
@@ -175,6 +176,7 @@ async def new_asset_form(
 @router.post("/new", response_class=HTMLResponse)
 async def create_asset(
     request: Request,
+    background_tasks: BackgroundTasks,
     nome: Annotated[str, Form()],
     modelo: Annotated[str, Form()],
     e_patrimonio: Annotated[str, Form()],
@@ -249,7 +251,17 @@ async def create_asset(
             created_by_id=current_user.id if current_user else None,
             status=AssetStatus.DISPONIVEL
         )
-        await asset_crud.asset.create(db, obj_in=asset_in)
+        asset_criado = await asset_crud.asset.create(db, obj_in=asset_in)
+        
+        # Disparar webhook
+        payload = {
+            "id": asset_criado.id,
+            "nome": asset_criado.nome,
+            "e_patrimonio": asset_criado.e_patrimonio,
+            "status": asset_criado.status.value if hasattr(asset_criado.status, 'value') else str(asset_criado.status)
+        }
+        background_tasks.add_task(dispatch_webhook_event, "ASSET_CREATED", payload)
+
         return RedirectResponse(url="/assets", status_code=303)
     except Exception as e:
         await db.rollback()
