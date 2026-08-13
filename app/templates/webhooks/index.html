@@ -19,6 +19,12 @@
         </div>
     </div>
 
+    {% if test_msg %}
+    <div class="border-2 border-black p-4 font-mono text-xs font-bold uppercase tracking-wider {% if test_status == 'success' %}bg-green-100 border-green-800 text-green-900{% else %}bg-red-100 border-red-800 text-red-900{% endif %}">
+        <strong>{% if test_status == 'success' %}⚡ TESTE BEM-SUCEDIDO:{% else %}⚠️ FALHA NO TESTE:{% endif %}</strong> {{ test_msg }}
+    </div>
+    {% endif %}
+
     <!-- Webhooks Table -->
     <div class="border-2 border-black bg-white shadow-sm mt-6">
         <div class="bg-black text-white p-3 font-mono text-xs font-bold uppercase tracking-widest border-b-2 border-black flex justify-between items-center">
@@ -54,6 +60,12 @@
                         </td>
                         <td class="px-6 py-4 text-right">
                             <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <form action="/admin/webhooks/{{ w.id }}/test" method="post" class="inline">
+                                    <button type="submit"
+                                        class="bg-amber-400 text-black border-2 border-black px-3 py-1 font-bold text-[10px] uppercase hover:bg-amber-300 transition">
+                                        ⚡ TESTAR
+                                    </button>
+                                </form>
                                 <a href="/admin/webhooks/{{ w.id }}/logs"
                                     class="bg-white text-black border-2 border-black px-3 py-1 font-bold text-[10px] uppercase hover:bg-black hover:text-white transition">
                                     LOGS
@@ -71,6 +83,7 @@
                             </div>
                         </td>
                     </tr>
+
                     {% else %}
                     <tr>
                         <td colspan="3" class="px-6 py-12 text-center bg-gray-50">

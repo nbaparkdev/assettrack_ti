@@ -34,6 +34,12 @@ from app.schemas.procurement import (
     PurchaseCategoryCreate, PurchaseResearchCreate, PurchaseResearchItemCreate,
     ContractTypeCreate, ContractTypeUpdate
 )
+from app.services.webhook_service import (
+    dispatch_webhook_event,
+    format_purchase_request_payload,
+    format_purchase_order_payload,
+    format_purchase_quotation_payload
+)
 
 router = APIRouter(dependencies=[Depends(check_purchases_enabled)])
 templates = Jinja2Templates(directory="app/templates")
@@ -205,6 +211,15 @@ async def create_request_submit(
         except Exception as e:
             print(f"[NOTIFICATION][ERRO] notify_purchase_request: {e}")
 
+        # Disparar webhook PURCHASE_REQUEST_CREATED
+        try:
+            req_full = await crud_proc.get_purchase_request(db, req.id)
+            if req_full:
+                payload = format_purchase_request_payload(req_full, "PURCHASE_REQUEST_CREATED")
+                await dispatch_webhook_event("PURCHASE_REQUEST_CREATED", payload)
+        except Exception as e:
+            logger.error(f"[WEBHOOK][ERR] PURCHASE_REQUEST_CREATED: {e}")
+
         return RedirectResponse(url="/compras/solicitacoes", status_code=303)
     except Exception as e:
         logger.error(f"Erro ao criar solicitação de compra: {e}")
@@ -339,6 +354,19 @@ async def decide_request(
     await crud_proc.log_history(
         db, tabela="purchase_requests", registro_id=request_id, user_id=current_user.id, acao=f"Decisão de {nivel}: {decisao}"
     )
+
+    # Disparar webhook de decisão da solicitação de compra
+    try:
+        req_full = await crud_proc.get_purchase_request(db, request_id)
+        if req_full:
+            if req_full.status == PurchaseRequestStatus.APROVADA:
+                payload = format_purchase_request_payload(req_full, "PURCHASE_REQUEST_APPROVED")
+                await dispatch_webhook_event("PURCHASE_REQUEST_APPROVED", payload)
+            elif req_full.status == PurchaseRequestStatus.REPROVADA:
+                payload = format_purchase_request_payload(req_full, "PURCHASE_REQUEST_REJECTED")
+                await dispatch_webhook_event("PURCHASE_REQUEST_REJECTED", payload)
+    except Exception as e:
+        logger.error(f"[WEBHOOK][ERR] PURCHASE_REQUEST_DECISION: {e}")
 
     return RedirectResponse(url=f"/compras/solicitacoes/{request_id}", status_code=303)
 
@@ -481,6 +509,21 @@ async def create_quotation_submit(
         db.add(req_obj)
 
         await db.commit()
+
+        # Disparar webhook PURCHASE_QUOTATION_CREATED
+        try:
+            cq_res = await db.execute(
+                select(PurchaseQuotation)
+                .options(selectinload(PurchaseQuotation.request), selectinload(PurchaseQuotation.suppliers).selectinload(PurchaseQuotationSupplier.fornecedor))
+                .filter(PurchaseQuotation.id == cq.id)
+            )
+            cq_full = cq_res.scalars().first()
+            if cq_full:
+                payload = format_purchase_quotation_payload(cq_full, "PURCHASE_QUOTATION_CREATED")
+                await dispatch_webhook_event("PURCHASE_QUOTATION_CREATED", payload)
+        except Exception as e:
+            logger.error(f"[WEBHOOK][ERR] PURCHASE_QUOTATION_CREATED: {e}")
+
         return RedirectResponse(url="/compras/cotacoes", status_code=303)
     except Exception as e:
         logger.error(f"Erro ao registrar cotação: {e}")
@@ -581,6 +624,15 @@ async def select_winning_supplier(
         )
     except Exception as e:
         print(f"[NOTIFICATION][ERRO] notify_purchase_order: {e}")
+
+    # Disparar webhook PURCHASE_ORDER_CREATED
+    try:
+        po_full = await crud_proc.get_purchase_order(db, order.id)
+        if po_full:
+            payload = format_purchase_order_payload(po_full, "PURCHASE_ORDER_CREATED")
+            await dispatch_webhook_event("PURCHASE_ORDER_CREATED", payload)
+    except Exception as e:
+        logger.error(f"[WEBHOOK][ERR] PURCHASE_ORDER_CREATED: {e}")
 
     return RedirectResponse(url="/compras/pedidos", status_code=303)
 
@@ -723,6 +775,15 @@ async def create_receiving_submit(
         order.status = PurchaseOrderStatus.RECEBIDO_TOTAL
         db.add(order)
         await db.commit()
+
+        # Disparar webhook PURCHASE_ORDER_RECEIVED
+        try:
+            po_full = await crud_proc.get_purchase_order(db, order_id)
+            if po_full:
+                payload = format_purchase_order_payload(po_full, "PURCHASE_ORDER_RECEIVED")
+                await dispatch_webhook_event("PURCHASE_ORDER_RECEIVED", payload)
+        except Exception as e:
+            logger.error(f"[WEBHOOK][ERR] PURCHASE_ORDER_RECEIVED: {e}")
 
         # Verificar itens de consumo com estoque baixo após recebimento
         try:

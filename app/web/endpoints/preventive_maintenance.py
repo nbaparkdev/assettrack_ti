@@ -19,6 +19,11 @@ from app.models.asset import Asset
 from app.database import get_db
 from app.crud import preventive_maintenance as pm_crud
 from app.core.datetime_utils import now_sp
+from app.services.webhook_service import (
+    dispatch_webhook_event,
+    format_preventive_order_payload,
+    format_preventive_plan_payload
+)
 
 router = APIRouter(dependencies=[Depends(check_preventive_maintenance_enabled)])
 templates = Jinja2Templates(directory="app/templates")
@@ -686,6 +691,17 @@ async def create_order(
         except Exception as e:
             print(f"[NOTIFICATION ERROR] Falha ao notificar técnico na criação da OS: {e}")
     
+    # Webhook: PREVENTIVE_ORDER_CREATED
+    stmt_full = select(MaintenanceOrder).options(
+        selectinload(MaintenanceOrder.asset),
+        selectinload(MaintenanceOrder.tecnico)
+    ).filter(MaintenanceOrder.id == order.id)
+    full_res = await db.execute(stmt_full)
+    full_order = full_res.scalar_one_or_none()
+    if full_order:
+        payload = format_preventive_order_payload(full_order, "PREVENTIVE_ORDER_CREATED")
+        await dispatch_webhook_event("PREVENTIVE_ORDER_CREATED", payload)
+
     return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order.id}", status_code=303)
 
 
@@ -820,6 +836,10 @@ async def create_plan(
     await db.commit()
     await db.refresh(plan)
     
+    # Webhook: PREVENTIVE_PLAN_CREATED
+    payload = format_preventive_plan_payload(plan, "PREVENTIVE_PLAN_CREATED")
+    await dispatch_webhook_event("PREVENTIVE_PLAN_CREATED", payload)
+
     return RedirectResponse(url=f"/manutencao-preventiva/planos", status_code=303)
 
 
@@ -855,6 +875,17 @@ async def start_order(
     )
     db.add(history)
     await db.commit()
+
+    # Webhook: PREVENTIVE_ORDER_STARTED
+    stmt_full = select(MaintenanceOrder).options(
+        selectinload(MaintenanceOrder.asset),
+        selectinload(MaintenanceOrder.tecnico)
+    ).filter(MaintenanceOrder.id == order.id)
+    full_res = await db.execute(stmt_full)
+    full_order = full_res.scalar_one_or_none()
+    if full_order:
+        payload = format_preventive_order_payload(full_order, "PREVENTIVE_ORDER_STARTED")
+        await dispatch_webhook_event("PREVENTIVE_ORDER_STARTED", payload)
 
     return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order_id}", status_code=303)
 
@@ -997,6 +1028,17 @@ async def complete_order(
     except Exception as e:
         print(f"[NOTIFICATION ERROR] Falha ao notificar conclusão da OS: {e}")
 
+    # Webhook: PREVENTIVE_ORDER_COMPLETED
+    stmt_full = select(MaintenanceOrder).options(
+        selectinload(MaintenanceOrder.asset),
+        selectinload(MaintenanceOrder.tecnico)
+    ).filter(MaintenanceOrder.id == order.id)
+    full_res = await db.execute(stmt_full)
+    full_order = full_res.scalar_one_or_none()
+    if full_order:
+        payload = format_preventive_order_payload(full_order, "PREVENTIVE_ORDER_COMPLETED")
+        await dispatch_webhook_event("PREVENTIVE_ORDER_COMPLETED", payload)
+
     return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order_id}", status_code=303)
 
 
@@ -1035,6 +1077,17 @@ async def cancel_order(
     )
     db.add(history)
     await db.commit()
+
+    # Webhook: PREVENTIVE_ORDER_CANCELLED
+    stmt_full = select(MaintenanceOrder).options(
+        selectinload(MaintenanceOrder.asset),
+        selectinload(MaintenanceOrder.tecnico)
+    ).filter(MaintenanceOrder.id == order.id)
+    full_res = await db.execute(stmt_full)
+    full_order = full_res.scalar_one_or_none()
+    if full_order:
+        payload = format_preventive_order_payload(full_order, "PREVENTIVE_ORDER_CANCELLED")
+        await dispatch_webhook_event("PREVENTIVE_ORDER_CANCELLED", payload)
 
     return RedirectResponse(url=f"/manutencao-preventiva/ordens/{order_id}", status_code=303)
 

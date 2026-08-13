@@ -13,16 +13,12 @@ router = APIRouter()
 from fastapi.templating import Jinja2Templates
 templates = Jinja2Templates(directory="app/templates")
 
-# Eventos suportados (mesmo do service)
-WEBHOOK_EVENTS = [
-    "ASSET_CREATED",
-    "ASSET_UPDATED",
-    "ASSET_DELETED",
-    "MAINTENANCE_REQUESTED",
-    "EMERGENCY_ALERT_TRIGGERED",
-    "KANBAN_CARD_MOVED",
-    "PURCHASE_REQUEST_CREATED"
-]
+from app.services.webhook_service import (
+    WEBHOOK_EVENTS,
+    WEBHOOK_EVENT_DETAILS,
+    get_grouped_webhook_events,
+    send_test_webhook_event
+)
 
 @router.get("/webhooks", response_class=HTMLResponse)
 async def list_webhooks(
@@ -33,12 +29,31 @@ async def list_webhooks(
     result = await db.execute(select(Webhook).order_by(Webhook.id.desc()))
     webhooks = result.scalars().all()
     
+    test_msg = request.query_params.get("test_msg")
+    test_status = request.query_params.get("test_status")
+    
     return templates.TemplateResponse("webhooks/index.html", {
         "request": request,
         "user": admin_user,
         "webhooks": webhooks,
+        "test_msg": test_msg,
+        "test_status": test_status,
         "title": "Gerenciar Webhooks"
     })
+
+@router.post("/webhooks/{webhook_id}/test")
+async def test_webhook(
+    webhook_id: int,
+    admin_user=Depends(get_admin_user_web)
+):
+    success, msg = await send_test_webhook_event(webhook_id)
+    status_flag = "success" if success else "error"
+    from urllib.parse import quote
+    return RedirectResponse(
+        url=f"/admin/webhooks?test_status={status_flag}&test_msg={quote(msg)}",
+        status_code=303
+    )
+
 
 @router.get("/webhooks/new", response_class=HTMLResponse)
 async def new_webhook_form(
@@ -50,6 +65,7 @@ async def new_webhook_form(
         "user": admin_user,
         "webhook": None,
         "events": WEBHOOK_EVENTS,
+        "event_groups": get_grouped_webhook_events(),
         "title": "Novo Webhook"
     })
 
@@ -95,6 +111,7 @@ async def edit_webhook_form(
         "user": admin_user,
         "webhook": webhook,
         "events": WEBHOOK_EVENTS,
+        "event_groups": get_grouped_webhook_events(),
         "eventos_selecionados": eventos_selecionados,
         "title": "Editar Webhook"
     })

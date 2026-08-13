@@ -21,6 +21,7 @@ from app.schemas.service_desk import (
 )
 from app.services.qr_service import QRService
 from app.core.datetime_utils import now_sp
+from app.services.webhook_service import dispatch_webhook_event, format_service_ticket_payload
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -215,6 +216,13 @@ async def create_ticket(
         foto=foto_path
     )
     ticket = await service_desk_crud.ticket.create_with_codigo(db, obj_in=ticket_in, solicitante_id=current_user.id)
+
+    # Disparar webhook TICKET_CREATED
+    full_ticket = await service_desk_crud.ticket.get_full(db, ticket.codigo)
+    if full_ticket:
+        payload = format_service_ticket_payload(full_ticket, "TICKET_CREATED")
+        await dispatch_webhook_event("TICKET_CREATED", payload)
+
     return RedirectResponse(url=f"/servicos/chamado/{ticket.codigo}", status_code=303)
 
 @router.get("/chamado/{ticket_id}", response_class=HTMLResponse)
@@ -332,11 +340,17 @@ async def ticket_consume_stock(
         mensagem=f"📦 ESTOQUE CONSUMIDO: {quantidade}x {product_name} retirado(s) do estoque para resolução do chamado.",
         tipo="Comentário"
     )
-    await service_desk_crud.interaction.create_with_user(db, obj_in=obj_in, usuario_id=current_user.id)
+    interaction = await service_desk_crud.interaction.create_with_user(db, obj_in=obj_in, usuario_id=current_user.id)
     
     # Update ticket update time
     ticket.data_atualizacao = now_sp()
     await db.commit()
+
+    # Disparar webhook TICKET_INTERACTION_ADDED
+    full_ticket = await service_desk_crud.ticket.get_full(db, ticket_id)
+    if full_ticket:
+        payload = format_service_ticket_payload(full_ticket, "TICKET_INTERACTION_ADDED", interaction=interaction)
+        await dispatch_webhook_event("TICKET_INTERACTION_ADDED", payload)
     
     return RedirectResponse(url=f"/servicos/chamado/{ticket.codigo}?success=Item+retirado+do+estoque+com+sucesso!", status_code=303)
 
@@ -357,6 +371,7 @@ async def update_ticket_status(
     if not ticket:
         raise HTTPException(status_code=404)
         
+    had_tech = bool(ticket.tecnico_id)
     ticket.status = ServiceStatus(status)
     if ticket.status == ServiceStatus.RESOLVIDO:
         ticket.data_fechamento = now_sp()
@@ -365,6 +380,24 @@ async def update_ticket_status(
         ticket.tecnico_id = current_user.id
         
     await db.commit()
+
+    # Disparar webhooks
+    full_ticket = await service_desk_crud.ticket.get_full(db, ticket_id)
+    if full_ticket:
+        payload_upd = format_service_ticket_payload(full_ticket, "TICKET_UPDATED")
+        await dispatch_webhook_event("TICKET_UPDATED", payload_upd)
+
+        if not had_tech and full_ticket.tecnico_id:
+            payload_assigned = format_service_ticket_payload(full_ticket, "TICKET_ASSIGNED")
+            await dispatch_webhook_event("TICKET_ASSIGNED", payload_assigned)
+
+        if full_ticket.status == ServiceStatus.RESOLVIDO:
+            payload_res = format_service_ticket_payload(full_ticket, "TICKET_RESOLVED")
+            await dispatch_webhook_event("TICKET_RESOLVED", payload_res)
+        elif full_ticket.status == ServiceStatus.CANCELADO:
+            payload_can = format_service_ticket_payload(full_ticket, "TICKET_CANCELLED")
+            await dispatch_webhook_event("TICKET_CANCELLED", payload_can)
+
     return RedirectResponse(url=f"/servicos/chamado/{ticket.codigo}", status_code=303)
 
 @router.post("/chamado/{ticket_id}/interacao")
@@ -399,11 +432,17 @@ async def create_interaction(
         tipo="Comentário",
         foto=foto_path
     )
-    await service_desk_crud.interaction.create_with_user(db, obj_in=obj_in, usuario_id=current_user.id)
+    interaction = await service_desk_crud.interaction.create_with_user(db, obj_in=obj_in, usuario_id=current_user.id)
     
     # Atualiza a data de atualização do chamado
     ticket.data_atualizacao = now_sp()
     await db.commit()
+
+    # Disparar webhook TICKET_INTERACTION_ADDED
+    full_ticket = await service_desk_crud.ticket.get_full(db, ticket_id)
+    if full_ticket:
+        payload = format_service_ticket_payload(full_ticket, "TICKET_INTERACTION_ADDED", interaction=interaction)
+        await dispatch_webhook_event("TICKET_INTERACTION_ADDED", payload)
     
     return RedirectResponse(url=f"/servicos/chamado/{ticket.codigo}", status_code=303)
 

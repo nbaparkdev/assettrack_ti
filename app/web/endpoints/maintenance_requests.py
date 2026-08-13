@@ -1,7 +1,7 @@
 
 # app/web/endpoints/maintenance_requests.py
 from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, HTTPException, Form
+from fastapi import APIRouter, Request, Depends, HTTPException, Form, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +12,6 @@ from starlette import status
 from app.database import get_db
 from app.crud.maintenance_request import maintenance_request
 from app.schemas.maintenance_request import SolicitacaoManutencaoCreate
-from app.schemas.maintenance_request import SolicitacaoManutencaoCreate
 from app.models.maintenance_request import SolicitacaoManutencao, PrioridadeSolicitacao, StatusSolicitacaoManutencao
 from app.models.transaction import Solicitacao, StatusSolicitacao, Movimentacao
 from app.models.maintenance import Manutencao
@@ -20,6 +19,7 @@ from app.models.asset import Asset, AssetStatus
 from app.models.user import User, UserRole
 from app.web.dependencies import get_active_user_web
 from app.services.notification_service import notification_service
+from app.services.webhook_service import dispatch_webhook_event, format_maintenance_request_payload
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -103,6 +103,12 @@ async def submit_nova_solicitacao(
             description=descricao,
             asset_patrimonio=asset.e_patrimonio if asset else None
         )
+
+        # Webhook: MAINTENANCE_REQUESTED
+        full_req = await maintenance_request.get_with_relations(db, id=new_request.id)
+        if full_req:
+            payload = format_maintenance_request_payload(full_req, "MAINTENANCE_REQUESTED")
+            await dispatch_webhook_event("MAINTENANCE_REQUESTED", payload)
         
         return RedirectResponse(
             url="/minhas-solicitacoes-manutencao?success=created",
@@ -267,6 +273,12 @@ async def aceitar_solicitacao(
         observation=observacao if observacao else None,
         asset_patrimonio=solicitacao.asset.e_patrimonio
     )
+
+    # Webhook: MAINTENANCE_ACCEPTED
+    full_req = await maintenance_request.get_with_relations(db, id=id)
+    if full_req:
+        payload = format_maintenance_request_payload(full_req, "MAINTENANCE_ACCEPTED")
+        await dispatch_webhook_event("MAINTENANCE_ACCEPTED", payload)
     
     return RedirectResponse(
         url="/solicitacoes-manutencao?success=accepted",
@@ -314,6 +326,12 @@ async def rejeitar_solicitacao(
         reason=observacao,
         asset_patrimonio=solicitacao.asset.e_patrimonio
     )
+
+    # Webhook: MAINTENANCE_REJECTED
+    full_req = await maintenance_request.get_with_relations(db, id=id)
+    if full_req:
+        payload = format_maintenance_request_payload(full_req, "MAINTENANCE_REJECTED")
+        await dispatch_webhook_event("MAINTENANCE_REJECTED", payload)
     
     return RedirectResponse(
         url="/solicitacoes-manutencao?success=rejected",
@@ -359,6 +377,12 @@ async def concluir_manutencao(
         observation=f"Manutenção concluída! {observacao if observacao else 'Seu equipamento está pronto para retirada.'}",
         asset_patrimonio=solicitacao.asset.e_patrimonio
     )
+
+    # Webhook: MAINTENANCE_COMPLETED
+    full_req = await maintenance_request.get_with_relations(db, id=id)
+    if full_req:
+        payload = format_maintenance_request_payload(full_req, "MAINTENANCE_COMPLETED")
+        await dispatch_webhook_event("MAINTENANCE_COMPLETED", payload)
     
     return RedirectResponse(
         url="/solicitacoes-manutencao?success=completed",
@@ -489,6 +513,12 @@ async def confirmar_entrega_submit(
         observation=observacao,
         asset_patrimonio=result.asset.e_patrimonio
     )
+
+    # Webhook: MAINTENANCE_DELIVERED
+    full_req = await maintenance_request.get_with_relations(db, id=id)
+    if full_req:
+        payload = format_maintenance_request_payload(full_req, "MAINTENANCE_DELIVERED")
+        await dispatch_webhook_event("MAINTENANCE_DELIVERED", payload)
     
     return RedirectResponse(
         url="/solicitacoes-manutencao?success=delivered",
@@ -524,6 +554,12 @@ async def confirmar_recebimento_submit(
     
     if not result:
         raise HTTPException(status_code=400, detail="Erro ao confirmar recebimento")
+
+    # Webhook: MAINTENANCE_DELIVERED
+    full_req = await maintenance_request.get_with_relations(db, id=id)
+    if full_req:
+        payload = format_maintenance_request_payload(full_req, "MAINTENANCE_DELIVERED")
+        await dispatch_webhook_event("MAINTENANCE_DELIVERED", payload)
     
     return RedirectResponse(
         url="/minhas-solicitacoes-manutencao?success=completed",
@@ -559,6 +595,12 @@ async def forcar_conclusao_admin(
         asset.current_user_id = solicitacao.solicitante_id
     
     await db.commit()
+
+    # Webhook: MAINTENANCE_COMPLETED
+    full_req = await maintenance_request.get_with_relations(db, id=id)
+    if full_req:
+        payload = format_maintenance_request_payload(full_req, "MAINTENANCE_COMPLETED")
+        await dispatch_webhook_event("MAINTENANCE_COMPLETED", payload)
     
     return RedirectResponse(
         url=f"/solicitacoes-manutencao/{id}?success=completed_forced",

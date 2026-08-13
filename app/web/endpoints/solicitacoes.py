@@ -17,6 +17,7 @@ from app.database import get_db
 from app.crud import transaction as transaction_crud
 from app.crud import asset as asset_crud
 from app.models.asset import Asset, AssetStatus
+from app.services.webhook_service import dispatch_webhook_event, format_asset_request_payload
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -106,7 +107,19 @@ async def create_solicitacao(
             "motivo": reason,
             "status": StatusSolicitacao.PENDENTE
         }
-        await transaction_crud.solicitacao.create(db, obj_in=solicitation_data)
+        new_sol = await transaction_crud.solicitacao.create(db, obj_in=solicitation_data)
+
+        # Disparar webhook ASSET_REQUEST_CREATED
+        res_full = await db.execute(
+            select(Solicitacao)
+            .options(selectinload(Solicitacao.asset), selectinload(Solicitacao.solicitante))
+            .filter(Solicitacao.id == new_sol.id)
+        )
+        sol_full = res_full.scalar_one_or_none()
+        if sol_full:
+            payload = format_asset_request_payload(sol_full, "ASSET_REQUEST_CREATED")
+            await dispatch_webhook_event("ASSET_REQUEST_CREATED", payload)
+
         return RedirectResponse(url="/solicitacoes", status_code=303)
     except Exception as e:
         assets = await get_available_assets()
@@ -177,12 +190,10 @@ async def approve_solicitacao(
     sol = await transaction_crud.solicitacao.approve(db, solicitacao_id=solicitacao_id, aprovador_id=current_user.id)
     if sol:
         # Load asset and requester to check and notify
-        from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
-        
         stmt = select(Solicitacao).options(
             selectinload(Solicitacao.asset),
-            selectinload(Solicitacao.solicitante)
+            selectinload(Solicitacao.solicitante),
+            selectinload(Solicitacao.aprovador)
         ).filter(Solicitacao.id == solicitacao_id)
         res = await db.execute(stmt)
         sol_loaded = res.scalar_one_or_none()
@@ -200,6 +211,11 @@ async def approve_solicitacao(
             except Exception as e:
                 print(f"[NOTIFICATION][ERR] Falha ao notificar RH para termo: {e}")
 
+        # Disparar webhook ASSET_REQUEST_APPROVED
+        if sol_loaded:
+            payload = format_asset_request_payload(sol_loaded, "ASSET_REQUEST_APPROVED")
+            await dispatch_webhook_event("ASSET_REQUEST_APPROVED", payload)
+
     return RedirectResponse(url="/solicitacoes", status_code=303)
 
 @router.post("/{solicitacao_id}/reject", response_class=HTMLResponse)
@@ -213,6 +229,22 @@ async def reject_solicitacao(
         return RedirectResponse(url="/solicitacoes", status_code=303)
 
     await transaction_crud.solicitacao.reject(db, solicitacao_id=solicitacao_id, aprovador_id=current_user.id)
+
+    # Disparar webhook ASSET_REQUEST_REJECTED
+    res = await db.execute(
+        select(Solicitacao)
+        .options(
+            selectinload(Solicitacao.asset),
+            selectinload(Solicitacao.solicitante),
+            selectinload(Solicitacao.aprovador)
+        )
+        .filter(Solicitacao.id == solicitacao_id)
+    )
+    sol_rejected = res.scalar_one_or_none()
+    if sol_rejected:
+        payload = format_asset_request_payload(sol_rejected, "ASSET_REQUEST_REJECTED")
+        await dispatch_webhook_event("ASSET_REQUEST_REJECTED", payload)
+
     return RedirectResponse(url="/solicitacoes", status_code=303)
 
 
@@ -301,6 +333,22 @@ async def confirmar_entrega_submit(
         db.add(solicitacao.asset)
     
     await db.commit()
+
+    # Disparar webhook ASSET_REQUEST_DELIVERED
+    res_delivery = await db.execute(
+        select(Solicitacao)
+        .options(
+            selectinload(Solicitacao.asset),
+            selectinload(Solicitacao.solicitante),
+            selectinload(Solicitacao.aprovador),
+            selectinload(Solicitacao.confirmador)
+        )
+        .filter(Solicitacao.id == solicitacao_id)
+    )
+    sol_delivered = res_delivery.scalar_one_or_none()
+    if sol_delivered:
+        payload = format_asset_request_payload(sol_delivered, "ASSET_REQUEST_DELIVERED")
+        await dispatch_webhook_event("ASSET_REQUEST_DELIVERED", payload)
     
     return RedirectResponse(url=f"/solicitacoes/{solicitacao_id}?success=delivered", status_code=303)
 
