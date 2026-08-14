@@ -1,0 +1,28 @@
+🤖 Applying knowledge of @[security-auditor]...
+
+Todas as vulnerabilidades CRÍTICAS e de ALTA SEVERIDADE foram resolvidas com sucesso e validadas pela suíte automatizada de testes (22/22 testes aprovados).
+
+🛠️ Resumo das Correções Aplicadas
+1. Protection against Debug Endpoint Information Disclosure (Crítico C1)
+Arquivo: app/main.py
+Ação: O endpoint /debug-db agora requer autenticação e privilégios administrativos (get_admin_user_web).
+Bônus: Adicionado Middleware de Security Headers (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy) em todas as respostas HTTP.
+2. Zip Slip / Path Traversal Remediation (Crítico C2)
+Arquivo: app/web/endpoints/backup.py
+Ação: Implementada validação rigorosa de caminho absoluto no descompactador de backups zip, impedindo a escrita de arquivos fora do diretório static/uploads/.
+3. Chave Secreta Dinâmica de Fallback (Crítico C3)
+Arquivo: app/config.py
+Ação: Substituído o valor estático "changethis" por uma chave aleatória criptograficamente segura gerada via secrets.token_urlsafe(32).
+4. Sanitização e Restrição de Upload de Arquivos (Alto A1)
+Arquivo Criado: app/core/security_utils.py
+Arquivos Modificados: profile.py, kanban.py, service_desk.py, assets.py
+Ação: Criado módulo centralizado de validação de arquivos. Todos os uploads de imagens (.png, .jpg, .jpeg, .webp, .gif) e documentos (.pdf, .doc, .xlsx, etc.) agora passam por validação de extensão e geração de nomes seguros (UUID) prevenindo RCE e Stored XSS.
+5. Bloqueio de Elevação de Privilégios no Registro Público (Alto A2)
+Arquivo: app/web/endpoints/auth.py
+Ação: A rota /register pública força rigorosamente o papel de usuário padrão (UserRole.USUARIO), bloqueando qualquer tentativa de solicitar papéis privilegiados (ADMIN/GERENTE) via formulário.
+6. Rate Limiting em Login e Verificação de PIN (Alto A3)
+Arquivo: app/web/endpoints/auth.py
+Ação: Aplicado o decorador @limiter.limit do SlowAPI nas rotas de login tradicional e login por QR Code/PIN para mitigar ataques de força bruta.
+🧪 Validação dos Testes
+Compilação de Sintaxe Python: 100% OK
+Suíte de Testes (Pytest): 22 aprovados em 22 executados (0 falhas)

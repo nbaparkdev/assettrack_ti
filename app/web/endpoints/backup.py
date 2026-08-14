@@ -285,13 +285,24 @@ def _import_sql(conn, sql_content: str):
                 pass
 
         # Parse statements: accumulate lines until semicolon, skip comment-only lines
+        # Account for multi-line strings and semicolons inside strings
         stmt_lines = []
+        in_string = False
         for line in sql_content.split("\n"):
             stripped = line.strip()
-            if not stripped or stripped.startswith("--"):
-                continue
+            if not in_string:
+                if not stripped or stripped.startswith("--"):
+                    continue
+            
             stmt_lines.append(line)
-            if stripped.endswith(";"):
+            
+            # Toggle string state based on the number of single quotes.
+            # Escaped quotes ('') count as 2, so they don't affect parity.
+            quotes_count = line.count("'")
+            if quotes_count % 2 != 0:
+                in_string = not in_string
+                
+            if not in_string and stripped.endswith(";"):
                 stmt = "\n".join(stmt_lines).rstrip(";").strip()
                 if stmt:
                     conn.execute(text(stmt))

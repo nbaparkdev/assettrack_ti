@@ -1,0 +1,21 @@
+O status e a etiqueta nas notificações do Kanban foram ajustados com sucesso para exibição dinâmica e em tempo real.
+
+Resumo das Alterações Realizadas
+Etiqueta Dinâmica no Template (app/templates/kanban/partials/notification_list.html):
+
+Substituição do badge fixo "Andamento" pela exibição em tempo real do nome exato da coluna atual/destino do cartão (n.card.column.nome).
+Estilização dinâmica por status:
+Concluído / Finalizado: Badge verde emerald (bg-emerald-100 text-emerald-700).
+Em Andamento / Progresso: Badge amarelo/âmbar (bg-amber-100 text-amber-700).
+A Fazer: Badge azul (bg-blue-100 text-blue-700).
+Outras colunas (ex: Aguardando Compras): Badge índigo/roxo (bg-indigo-100 text-indigo-700).
+Carregamento Eager no Backend (app/web/endpoints/kanban.py):
+
+Atualizado o endpoint GET /kanban/notificacoes/lista para carregar o relacionamento do cartão e sua respectiva coluna (selectinload(KanbanNotification.card).selectinload(KanbanCard.column)), garantindo acesso ao status em tempo real.
+Geração Dinâmica do Título e Mensagem (app/services/kanban_notification_service.py):
+
+Em notify_card_moved, ao mover um cartão para uma coluna de conclusão (Concluído, Finalizado), o título é gerado como Concluído: [Nome do Cartão] e a mensagem informa que o cartão foi concluído.
+Para movimentações em outras colunas, o título exibe [Nome da Coluna]: [Nome do Cartão].
+Validação:
+
+Suite de testes do Kanban executada e aprovada com sucesso (23 testes passando sem regressões).
