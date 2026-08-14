@@ -46,19 +46,26 @@ async def new_solicitacao_form(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    # Only fetch AVAILABLE assets that are not blocked
+    from app.crud import asset_category as asset_category_crud
+    # Only fetch AVAILABLE assets that are not blocked with category and location
     result = await db.execute(
         select(Asset)
+        .options(
+            selectinload(Asset.categoria),
+            selectinload(Asset.current_local)
+        )
         .filter(Asset.status == AssetStatus.DISPONIVEL, Asset.bloqueado == False)
         .order_by(Asset.nome)
     )
     assets = result.scalars().all()
+    categories = await asset_category_crud.category.get_multi(db)
     
     return templates.TemplateResponse("solicitacoes/form.html", {
         "request": request,
         "user": current_user,
         "assets": assets,
-        "title": "Nova Solicitação"
+        "categories": categories,
+        "title": "Nova Solicitação de Ativo"
     })
 
 @router.post("/new", response_class=HTMLResponse)
@@ -69,11 +76,16 @@ async def create_solicitacao(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
+    from app.crud import asset_category as asset_category_crud
     # Re-fetch assets for error context if needed
     async def get_available_assets():
         res = await db.execute(
             select(Asset)
-            .filter(Asset.status == AssetStatus.DISPONIVEL)
+            .options(
+                selectinload(Asset.categoria),
+                selectinload(Asset.current_local)
+            )
+            .filter(Asset.status == AssetStatus.DISPONIVEL, Asset.bloqueado == False)
             .order_by(Asset.nome)
         )
         return res.scalars().all()
@@ -123,12 +135,14 @@ async def create_solicitacao(
         return RedirectResponse(url="/solicitacoes", status_code=303)
     except Exception as e:
         assets = await get_available_assets()
+        categories = await asset_category_crud.category.get_multi(db)
         return templates.TemplateResponse("solicitacoes/form.html", {
             "request": request,
             "user": current_user,
             "assets": assets,
+            "categories": categories,
             "error": f"Erro: {str(e)}",
-            "title": "Nova Solicitação"
+            "title": "Nova Solicitação de Ativo"
         })
 
 @router.get("/admin", response_class=HTMLResponse)

@@ -1,80 +1,384 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto fade-in">
-    <!-- Form Container -->
-    <div class="bg-white border-2 border-black p-0 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
-        <!-- Header -->
-        <div class="bg-black p-6 border-b-2 border-black">
-            <h2 class="text-2xl font-bold text-white uppercase tracking-wider flex items-center gap-3">
-                <span class="w-3 h-3 bg-white inline-block"></span>
-                Nova Solicitação de Ativo
-            </h2>
-            <p class="text-gray-400 font-mono text-xs mt-1 ml-6">Preencha os dados abaixo para requisitar um
-                equipamento.</p>
+<div class="space-y-6 fade-in">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b-2 border-black pb-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <a href="/solicitacoes" class="text-xs font-bold font-mono text-gray-500 hover:text-black uppercase tracking-wider">&larr; Voltar para solicitações</a>
+            </div>
+            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none mt-1">CATÁLOGO DE EMPRÉSTIMOS</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">
+                Selecione o equipamento desejado e solicite para uso temporário
+            </p>
         </div>
 
-        {% if error %}
-        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-6 mb-0" role="alert">
-            <span class="font-bold block uppercase text-xs mb-1">Erro Encontrado</span>
-            <span class="block text-sm">{{ error }}</span>
+        <!-- Quick Stats -->
+        <div class="flex items-center gap-2 bg-black text-white px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider">
+            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+            <span id="counter-display">{{ assets|length }} Ativo(s) Disponível(eis)</span>
         </div>
-        {% endif %}
+    </div>
 
-        <form action="/solicitacoes/new" method="post" class="p-8 space-y-8">
-            <!-- Asset Selection -->
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-500 p-4 flex items-start gap-3 shadow-[4px_4px_0px_0px_rgba(239,68,68,0.3)]">
+        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+        <div>
+            <p class="font-bold text-red-800 text-sm uppercase tracking-wider">Não foi possível realizar a solicitação</p>
+            <p class="text-red-700 text-sm mt-1 font-mono">{{ error }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filter & Search Controls -->
+    <div class="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] space-y-4">
+        <div class="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+            <!-- Live Search Bar -->
+            <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <input type="text" id="search-input"
+                    placeholder="DIGITE PARA BUSCAR (NOME, MODELO, PATRIMÔNIO, LOCAL)..."
+                    class="w-full pl-10 pr-10 py-3 bg-gray-50 border-2 border-black font-mono text-sm uppercase focus:ring-0 focus:bg-white transition"
+                    oninput="filterAssets()">
+                <button type="button" id="clear-search" onclick="clearSearch()"
+                    class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-black">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Category Tabs -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar border-t border-gray-200 pt-3">
+            <span class="text-[10px] font-bold uppercase text-gray-400 font-mono flex-shrink-0 mr-1">CATEGORIA:</span>
+            <button type="button" onclick="selectCategory('all', this)"
+                class="category-btn active bg-black text-white px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wider border-2 border-black transition hover:bg-gray-800 flex-shrink-0">
+                TODAS ({{ assets|length }})
+            </button>
+            {% for cat in categories %}
+            {% set cat_assets = assets|selectattr('categoria_id', 'equalto', cat.id)|list %}
+            {% if cat_assets|length > 0 %}
+            <button type="button" onclick="selectCategory('{{ cat.id }}', this)"
+                class="category-btn bg-white text-black px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wider border-2 border-black transition hover:bg-gray-100 flex-shrink-0">
+                {{ cat.nome }} ({{ cat_assets|length }})
+            </button>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Assets Grid (E-Commerce Catalog) -->
+    <div id="assets-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {% for asset in assets %}
+        <div class="asset-card bg-white border-2 border-black p-4 flex flex-col justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all group"
+            data-id="{{ asset.id }}"
+            data-name="{{ asset.nome|lower }}"
+            data-model="{{ asset.modelo|lower }}"
+            data-patrimonio="{{ asset.e_patrimonio|lower }}"
+            data-category-id="{{ asset.categoria_id or 'none' }}"
+            data-category-name="{{ asset.categoria.nome if asset.categoria else 'Sem Categoria' }}"
+            data-local="{{ asset.current_local.nome if asset.current_local else 'N/A' }}"
+            data-photo="{{ asset.foto_path or '' }}">
+
             <div>
-                <label for="asset_id" class="block text-xs font-bold uppercase text-gray-900 mb-2">Selecione o Ativo
-                    *</label>
-                <div class="relative">
-                    <select name="asset_id" id="asset_id" required
-                        class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition appearance-none font-mono text-sm uppercase cursor-pointer hover:bg-gray-100">
-                        <option value="">-- Selecione um ativo disponível --</option>
-                        {% for asset in assets %}
-                        <option value="{{ asset.id }}">{{ asset.nome }} [E-Patrimonio: {{ asset.e_patrimonio }}]</option>
-                        {% endfor %}
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-700">
-                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                            <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                <!-- Top Badge & Image Container -->
+                <div class="relative bg-gray-50 border-2 border-gray-200 aspect-video mb-3 flex items-center justify-center overflow-hidden">
+                    {% if asset.foto_path %}
+                    <img src="{{ asset.foto_path }}" alt="{{ asset.nome }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                    {% else %}
+                    <div class="text-center p-3">
+                        <svg class="w-12 h-12 text-gray-300 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                            </path>
                         </svg>
+                        <span class="text-[10px] font-mono text-gray-400 font-bold uppercase">{{ asset.modelo }}</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Category Badge -->
+                    <div class="absolute top-2 left-2">
+                        <span class="bg-black text-white px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider">
+                            {{ asset.categoria.nome if asset.categoria else 'GERAL' }}
+                        </span>
+                    </div>
+
+                    <!-- Available Badge -->
+                    <div class="absolute top-2 right-2">
+                        <span class="bg-green-100 border border-green-300 text-green-800 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider">
+                            DISPONÍVEL
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Asset Details -->
+                <div class="space-y-1">
+                    <h3 class="font-bold text-base text-gray-900 group-hover:text-amber-600 transition leading-tight">
+                        {{ asset.nome }}
+                    </h3>
+                    <p class="text-xs font-mono text-gray-500 uppercase">
+                        Modelo: <span class="text-black font-semibold">{{ asset.modelo }}</span>
+                    </p>
+
+                    <!-- Info Tag Grid -->
+                    <div class="pt-2 flex flex-wrap gap-2 text-[11px] font-mono">
+                        <div class="bg-gray-100 border border-gray-300 px-2 py-1 flex items-center gap-1">
+                            <span class="text-gray-500">REF:</span>
+                            <span class="font-bold text-black">{{ asset.e_patrimonio }}</span>
+                        </div>
+                        {% if asset.current_local %}
+                        <div class="bg-gray-100 border border-gray-300 px-2 py-1 flex items-center gap-1">
+                            <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <span class="text-gray-700 truncate max-w-[120px]">{{ asset.current_local.nome }}</span>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
 
-            <!-- Reason -->
+            <!-- Card Action -->
+            <div class="mt-4 pt-3 border-t border-gray-200">
+                <button type="button" onclick="openRequestModal('{{ asset.id }}', '{{ asset.nome|escape }}', '{{ asset.modelo|escape }}', '{{ asset.e_patrimonio|escape }}', '{{ asset.foto_path or '' }}')"
+                    class="w-full bg-black text-white py-2.5 px-4 text-xs font-bold font-mono uppercase tracking-widest hover:bg-gray-800 active:bg-black transition flex items-center justify-center gap-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    SOLICITAR ATIVO
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="col-span-full bg-white border-2 border-black p-12 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <svg class="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4">
+                </path>
+            </svg>
+            <h3 class="font-mono text-base font-bold text-gray-800 uppercase">Nenhum Ativo Disponível no Momento</h3>
+            <p class="font-mono text-xs text-gray-500 mt-1">Todos os equipamentos registrados estão em uso ou em manutenção.</p>
+        </div>
+        {% endfor %}
+
+        <!-- Empty Filter Results State (Hidden by default) -->
+        <div id="no-results" class="hidden col-span-full bg-white border-2 border-black p-12 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            <h3 class="font-mono text-base font-bold text-gray-800 uppercase">Nenhum Ativo Encontrado</h3>
+            <p class="font-mono text-xs text-gray-500 mt-1">Nenhum equipamento corresponde aos termos de busca ou categoria selecionada.</p>
+            <button type="button" onclick="resetFilters()"
+                class="mt-4 inline-block bg-black text-white px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider hover:bg-gray-800 transition">
+                Limpar Filtros
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Request Drawer / Modal -->
+<div id="request-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border-2 border-black w-full max-w-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-200">
+        <!-- Modal Header -->
+        <div class="bg-black text-white p-4 border-b-2 border-black flex items-center justify-between">
+            <h3 class="font-bold uppercase tracking-wider text-sm font-mono flex items-center gap-2">
+                <span class="w-2.5 h-2.5 bg-green-400 inline-block"></span>
+                Solicitação de Empréstimo
+            </h3>
+            <button type="button" onclick="closeRequestModal()" class="text-gray-400 hover:text-white p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <form action="/solicitacoes/new" method="POST" class="p-6 space-y-6">
+            <input type="hidden" name="asset_id" id="modal-asset-id">
+
+            <!-- Selected Asset Preview Card -->
+            <div class="bg-gray-50 border-2 border-black p-4 flex gap-4 items-center">
+                <div id="modal-asset-img-container" class="w-16 h-16 bg-white border border-gray-300 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                    <img id="modal-asset-img" src="" class="w-full h-full object-cover hidden">
+                    <svg id="modal-asset-icon" class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                </div>
+                <div class="overflow-hidden">
+                    <span class="text-[10px] font-mono font-bold uppercase text-green-700 bg-green-100 px-1.5 py-0.5 border border-green-200 inline-block mb-1">
+                        ITEM SELECIONADO
+                    </span>
+                    <h4 id="modal-asset-name" class="font-bold text-base text-gray-900 leading-tight truncate">--</h4>
+                    <p class="text-xs font-mono text-gray-600">
+                        Modelo: <span id="modal-asset-model" class="font-semibold text-black">--</span>
+                    </p>
+                    <p class="text-[11px] font-mono text-gray-500">
+                        Patrimônio: <span id="modal-asset-patrimonio" class="font-bold text-black">--</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Justification Form -->
             <div>
-                <label for="reason" class="block text-xs font-bold uppercase text-gray-900 mb-2">Justificativa / Motivo
-                    *</label>
-                <textarea name="reason" id="reason" rows="5" required
-                    class="block w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-none focus:border-black focus:ring-0 transition font-mono text-sm"
-                    placeholder="Descreva brevemente por que você precisa deste ativo..."></textarea>
+                <label for="modal-reason" class="block text-xs font-bold uppercase text-gray-900 font-mono mb-2">
+                    Justificativa / Motivo do Empréstimo *
+                </label>
+                <textarea name="reason" id="modal-reason" rows="4" required
+                    class="w-full p-3 bg-gray-50 border-2 border-black font-mono text-sm focus:ring-0 focus:bg-white transition"
+                    placeholder="Descreva por que precisa deste equipamento (ex: substituição temporária, projeto X, novo colaborador)..."></textarea>
             </div>
 
             <!-- Notice -->
-            <div class="bg-amber-50 border-l-4 border-amber-400 p-4">
-                <p class="text-xs text-amber-800 font-mono">
-                    <span class="font-bold">IMPORTANTE:</span> Sua solicitação passará por análise da gerência. Você
-                    será notificado sobre a aprovação ou rejeição.
-                </p>
-                <p class="text-xs text-amber-800 font-mono mt-2">
-                    <span class="font-bold">NOTA:</span> Apenas ativos disponíveis para uso são exibidos na lista acima.
-                    Se você não encontrar um ativo, ele pode já estar em uso.
+            <div class="bg-amber-50 border-l-4 border-amber-400 p-3">
+                <p class="text-xs text-amber-900 font-mono">
+                    <span class="font-bold">AVISO:</span> Esta solicitação será enviada para aprovação do gestor antes do fornecimento do equipamento.
                 </p>
             </div>
 
             <!-- Actions -->
-            <div class="border-t-2 border-gray-100 pt-6 flex items-center justify-end gap-4">
-                <a href="/solicitacoes"
-                    class="px-6 py-3 border-2 border-transparent text-gray-500 font-bold uppercase text-sm hover:text-black hover:border-black transition rounded-none">
+            <div class="flex items-center justify-end gap-3 border-t border-gray-200 pt-4">
+                <button type="button" onclick="closeRequestModal()"
+                    class="px-5 py-2.5 border-2 border-black font-mono text-xs font-bold uppercase hover:bg-gray-100 transition">
                     Cancelar
-                </a>
+                </button>
                 <button type="submit"
-                    class="bg-black border-2 border-black text-white px-8 py-3 font-bold uppercase text-sm tracking-widest hover:bg-gray-800 transition shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] rounded-none">
-                    Enviar Solicitação &rarr;
+                    class="bg-black text-white px-6 py-2.5 border-2 border-black font-mono text-xs font-bold uppercase tracking-wider hover:bg-gray-800 transition shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)]">
+                    Confirmar Solicitação &rarr;
                 </button>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+    let activeCategory = 'all';
+
+    function selectCategory(catId, btnElement) {
+        activeCategory = catId;
+        
+        // Update active tab styling
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.classList.remove('bg-black', 'text-white', 'active');
+            btn.classList.add('bg-white', 'text-black');
+        });
+        
+        btnElement.classList.remove('bg-white', 'text-black');
+        btnElement.classList.add('bg-black', 'text-white', 'active');
+
+        filterAssets();
+    }
+
+    function filterAssets() {
+        const query = document.getElementById('search-input').value.toLowerCase().trim();
+        const clearBtn = document.getElementById('clear-search');
+        
+        clearBtn.classList.toggle('hidden', query.length === 0);
+
+        const cards = document.querySelectorAll('.asset-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const name = card.getAttribute('data-name') || '';
+            const model = card.getAttribute('data-model') || '';
+            const patrimonio = card.getAttribute('data-patrimonio') || '';
+            const local = card.getAttribute('data-local').toLowerCase() || '';
+            const catId = card.getAttribute('data-category-id') || '';
+
+            const matchesSearch = !query || 
+                name.includes(query) || 
+                model.includes(query) || 
+                patrimonio.includes(query) || 
+                local.includes(query);
+
+            const matchesCategory = activeCategory === 'all' || catId === activeCategory;
+
+            if (matchesSearch && matchesCategory) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Update counter and empty state
+        const counterDisplay = document.getElementById('counter-display');
+        if (counterDisplay) {
+            counterDisplay.textContent = `${visibleCount} Ativo(s) Encontrado(s)`;
+        }
+
+        const noResults = document.getElementById('no-results');
+        if (noResults) {
+            noResults.classList.toggle('hidden', visibleCount > 0);
+        }
+    }
+
+    function clearSearch() {
+        document.getElementById('search-input').value = '';
+        filterAssets();
+    }
+
+    function resetFilters() {
+        document.getElementById('search-input').value = '';
+        const allBtn = document.querySelector('.category-btn');
+        if (allBtn) selectCategory('all', allBtn);
+    }
+
+    function openRequestModal(id, name, model, patrimonio, photo) {
+        document.getElementById('modal-asset-id').value = id;
+        document.getElementById('modal-asset-name').textContent = name;
+        document.getElementById('modal-asset-model').textContent = model;
+        document.getElementById('modal-asset-patrimonio').textContent = patrimonio;
+        document.getElementById('modal-reason').value = '';
+
+        const imgEl = document.getElementById('modal-asset-img');
+        const iconEl = document.getElementById('modal-asset-icon');
+
+        if (photo && photo.trim() !== '') {
+            imgEl.src = photo;
+            imgEl.classList.remove('hidden');
+            iconEl.classList.add('hidden');
+        } else {
+            imgEl.classList.add('hidden');
+            iconEl.classList.remove('hidden');
+        }
+
+        document.getElementById('request-modal').classList.remove('hidden');
+        setTimeout(() => {
+            document.getElementById('modal-reason').focus();
+        }, 100);
+    }
+
+    function closeRequestModal() {
+        document.getElementById('request-modal').classList.add('hidden');
+    }
+
+    // Close modal on ESC key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeRequestModal();
+        }
+    });
+
+    // Close modal on background click
+    document.getElementById('request-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeRequestModal();
+        }
+    });
+</script>
 {% endblock %}

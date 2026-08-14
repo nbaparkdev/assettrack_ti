@@ -139,23 +139,26 @@
             <table class="min-w-full text-left">
                 <thead class="bg-gray-50 border-b-2 border-black">
                     <tr>
-                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">ID Ativo /
-                            Modelo</th>
-                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">E-Patrimonio
-                        </th>
-                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">Categoria
-                        </th>
-                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">Status
-                        </th>
-                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">
-                            Usuário/Local</th>
-                        <th
-                            class="px-6 py-4 text-right text-xs font-bold text-black uppercase tracking-wider font-mono">
-                            Ações</th>
+                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">Ativo / Modelo</th>
+                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">Patrimônio</th>
+                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">Localização</th>
+                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">Status</th>
+                        <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-wider font-mono">Usuário/Responsável</th>
+                        <th class="px-6 py-4 text-right text-xs font-bold text-black uppercase tracking-wider font-mono">Ações</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
+                    {% set current_cat = namespace(name='__none__') %}
                     {% for asset in assets %}
+                        {% set asset_cat_name = asset.categoria.nome if asset.categoria else 'Sem Categoria' %}
+                        {% if current_cat.name != asset_cat_name %}
+                            <tr class="bg-gray-100 border-y-2 border-black">
+                                <td colspan="6" class="px-6 py-2 text-sm font-bold text-black uppercase tracking-widest">
+                                    {{ asset_cat_name }}
+                                </td>
+                            </tr>
+                            {% set current_cat.name = asset_cat_name %}
+                        {% endif %}
                     <tr class="hover:bg-gray-50 transition group cursor-pointer"
                         onclick="window.location='/assets/ep/{{ asset.e_patrimonio }}'">
                         <td class="px-6 py-4">
@@ -171,8 +174,8 @@
                                 asset.e_patrimonio }}</span>
                         </td>
                         <td class="px-6 py-4">
-                            {% if asset.categoria %}
-                            <span class="text-xs font-bold uppercase text-gray-700">{{ asset.categoria.nome }}</span>
+                            {% if asset.current_local %}
+                            <span class="text-xs font-bold uppercase text-gray-700">{{ asset.current_local.nome }}</span>
                             {% else %}
                             <span class="text-gray-300 font-mono text-xs">-</span>
                             {% endif %}

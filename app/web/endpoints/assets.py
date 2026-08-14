@@ -49,7 +49,10 @@ async def list_assets(
     maintenance_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.MANUTENCAO))
 
     from sqlalchemy.orm import selectinload
-    query = select(asset_crud.asset.model).options(
+    from app.models.asset_category import AssetCategory
+    query = select(asset_crud.asset.model).outerjoin(
+        AssetCategory, asset_crud.asset.model.categoria_id == AssetCategory.id
+    ).options(
         selectinload(asset_crud.asset.model.current_user),
         selectinload(asset_crud.asset.model.current_departamento),
         selectinload(asset_crud.asset.model.current_local),
@@ -57,6 +60,9 @@ async def list_assets(
         selectinload(asset_crud.asset.model.fornecedor),
         selectinload(asset_crud.asset.model.nota_fiscal),
         selectinload(asset_crud.asset.model.categoria)
+    ).order_by(
+        AssetCategory.nome.asc().nulls_last(),
+        asset_crud.asset.model.nome.asc()
     )
 
     if cat_id:
@@ -117,14 +123,29 @@ async def search_asset(
     if not q:
         return RedirectResponse(url="/assets", status_code=303)
 
-    result = await db.execute(
-        select(Asset).where(
-            or_(
-                Asset.e_patrimonio.ilike(f"%{q}%"),
-                Asset.nome.ilike(f"%{q}%")
-            )
+    from sqlalchemy.orm import selectinload
+    from app.models.asset_category import AssetCategory
+
+    query = select(Asset).outerjoin(
+        AssetCategory, Asset.categoria_id == AssetCategory.id
+    ).options(
+        selectinload(Asset.current_user),
+        selectinload(Asset.current_departamento),
+        selectinload(Asset.current_local),
+        selectinload(Asset.current_armazenamento),
+        selectinload(Asset.fornecedor),
+        selectinload(Asset.nota_fiscal),
+        selectinload(Asset.categoria)
+    ).where(
+        or_(
+            Asset.e_patrimonio.ilike(f"%{q}%"),
+            Asset.nome.ilike(f"%{q}%")
         )
+    ).order_by(
+        AssetCategory.nome.asc().nulls_last(),
+        Asset.nome.asc()
     )
+    result = await db.execute(query)
     assets_found = result.scalars().all()
 
     # Se encontrou exatamente um, vai direto para o detalhe
@@ -604,28 +625,7 @@ async def asset_detail(
 ):
     asset = await asset_crud.asset.get(db, id=asset_id)
     if not asset:
-        from sqlalchemy import select, func
-        from app.models.asset import Asset
-
-        total_assets = await db.scalar(select(func.count(Asset.id)))
-        available_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.DISPONIVEL))
-        in_use_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.EM_USO))
-        maintenance_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.MANUTENCAO))
-
-        assets = await asset_crud.asset.get_multi(db)
-        return templates.TemplateResponse("assets/list.html", {
-            "request": request,
-            "user": current_user,
-            "assets": assets,
-            "stats": {
-                "total": total_assets or 0,
-                "available": available_assets or 0,
-                "in_use": in_use_assets or 0,
-                "maintenance": maintenance_assets or 0
-            },
-            "error": f"Ativo com ID {asset_id} não encontrado.",
-            "title": "Ativos"
-        })
+        return RedirectResponse(url=f"/assets?error=Ativo+com+ID+{asset_id}+não+encontrado.", status_code=303)
 
     # Fetch history
     from sqlalchemy import select
