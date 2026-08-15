@@ -5,79 +5,212 @@
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b-2 border-black pb-4">
         <div>
-            <h1 class="text-3xl font-bold text-black uppercase tracking-tighter leading-none">LOCALIZAÇÕES</h1>
-            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Gerenciamento de Localizações de Equipamentos</p>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="bg-black text-white text-[10px] font-mono font-bold px-2 py-0.5 uppercase tracking-widest">Módulo 02</span>
+                <span class="font-mono text-xs text-brand-600 font-bold uppercase tracking-wider">// Infraestrutura & Espaços</span>
+            </div>
+            <h1 class="text-3xl font-extrabold text-black uppercase tracking-tighter leading-none">LOCALIZAÇÕES DE EQUIPAMENTOS</h1>
+            <p class="font-mono text-xs text-gray-500 mt-1 uppercase tracking-widest">Painel Inteligente de Salas, Almoxarifados e Distribuição de Ativos</p>
         </div>
-        <div class="flex items-center gap-4">
-            <a href="/assets" class="text-xs font-bold uppercase hover:underline">Voltar para Ativos</a>
-            <a href="/assets/new" class="text-xs font-bold uppercase hover:underline">Novo Ativo</a>
+        <div class="flex items-center gap-3">
+            <a href="/assets" class="bg-white border-2 border-black text-black px-4 py-2.5 text-xs font-bold uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Voltar para Ativos
+            </a>
+            <a href="/assets/new" class="bg-black text-white border-2 border-black px-4 py-2.5 text-xs font-bold uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:bg-gray-800 transition-all flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Novo Ativo
+            </a>
         </div>
     </div>
 
     {% if error %}
-    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
-        <span class="font-bold block uppercase text-xs mb-1">Erro</span>
-        <span class="block text-sm">{{ error }}</span>
+    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 shadow-[4px_4px_0px_0px_rgba(220,38,38,0.2)]" role="alert">
+        <span class="font-bold block uppercase text-xs mb-1">Erro de Operação</span>
+        <span class="block text-sm font-mono">{{ error }}</span>
     </div>
     {% endif %}
 
     {% if success %}
-    <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4" role="alert">
-        <span class="block text-sm">{{ success }}</span>
+    <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 shadow-[4px_4px_0px_0px_rgba(34,197,94,0.2)]" role="alert">
+        <span class="font-bold block uppercase text-xs mb-1">Sucesso</span>
+        <span class="block text-sm font-mono">{{ success }}</span>
     </div>
     {% endif %}
 
+    <!-- Top KPI Stats Row -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-0 border-2 border-black bg-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        <!-- Metric 1 -->
+        <div class="bg-white p-5 border-r-2 border-b-2 lg:border-b-0 border-black group hover:bg-gray-50 transition">
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="font-mono text-[10px] font-bold text-gray-500 uppercase tracking-widest">SALAS & LOCAIS</h3>
+                <span class="text-xs">🏢</span>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tighter text-black">{{ dashboard_stats.total_locais }}</span>
+                <span class="font-mono text-[10px] text-gray-400 uppercase">CADASTRADOS</span>
+            </div>
+        </div>
+
+        <!-- Metric 2 -->
+        <div class="bg-white p-5 border-r-2 border-b-2 lg:border-b-0 border-black group hover:bg-gray-50 transition">
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="font-mono text-[10px] font-bold text-green-600 uppercase tracking-widest">ALMOXARIFADOS</h3>
+                <span class="text-xs">📦</span>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tighter text-green-700">{{ dashboard_stats.total_armazenamentos }}</span>
+                <span class="font-mono text-[10px] text-gray-400 uppercase">DEPÓSITOS</span>
+            </div>
+        </div>
+
+        <!-- Metric 3 -->
+        <div class="bg-white p-5 border-r-2 border-b-2 lg:border-b-0 border-black group hover:bg-gray-50 transition">
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="font-mono text-[10px] font-bold text-brand-600 uppercase tracking-widest">ATIVOS EM SALAS</h3>
+                <span class="text-xs">💻</span>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tighter text-brand-600">{{ dashboard_stats.total_ativos_locais }}</span>
+                <span class="font-mono text-[10px] text-gray-400 uppercase">EM USO / ALOCADOS</span>
+            </div>
+        </div>
+
+        <!-- Metric 4 -->
+        <div class="bg-white p-5 border-r-2 border-b-2 lg:border-b-0 border-black group hover:bg-gray-50 transition">
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="font-mono text-[10px] font-bold text-amber-600 uppercase tracking-widest">ATIVOS EM ESTOQUE</h3>
+                <span class="text-xs">🏷️</span>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tighter text-amber-600">{{ dashboard_stats.total_ativos_armazenamentos }}</span>
+                <span class="font-mono text-[10px] text-gray-400 uppercase">GUARDADOS</span>
+            </div>
+        </div>
+
+        <!-- Metric 5 -->
+        <div class="bg-white p-5 border-black group hover:bg-gray-50 transition col-span-2 lg:col-span-1">
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="font-mono text-[10px] font-bold text-black uppercase tracking-widest">TOTAL RASTREADO</h3>
+                <span class="text-xs">📊</span>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold tracking-tighter text-black">{{ dashboard_stats.total_ativos_geral }}</span>
+                <span class="font-mono text-[10px] text-gray-400 uppercase">EQUIPAMENTOS</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Chart 1: Distribuição por Localização Física -->
+        <div class="bg-white border-2 border-black p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between border-b-2 border-black pb-2 mb-3">
+                    <h3 class="font-bold text-xs uppercase tracking-widest text-black flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-black inline-block"></span>
+                        Ativos por Localização (Salas)
+                    </h3>
+                    <span class="font-mono text-[10px] bg-gray-100 px-2 py-0.5 border border-black font-bold uppercase">Top Salas</span>
+                </div>
+                <p class="font-mono text-[10px] text-gray-500 uppercase tracking-wider mb-2">Quantidade de equipamentos alocados em cada ambiente</p>
+            </div>
+            <div id="chartLocais" class="min-h-[220px] flex items-center justify-center"></div>
+        </div>
+
+        <!-- Chart 2: Armazenamentos vs Ocupação -->
+        <div class="bg-white border-2 border-black p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between border-b-2 border-black pb-2 mb-3">
+                    <h3 class="font-bold text-xs uppercase tracking-widest text-black flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-green-600 inline-block"></span>
+                        Estoque & Almoxarifados
+                    </h3>
+                    <span class="font-mono text-[10px] bg-green-50 text-green-800 border border-green-600 px-2 py-0.5 font-bold uppercase">Capacidade</span>
+                </div>
+                <p class="font-mono text-[10px] text-gray-500 uppercase tracking-wider mb-2">Comparativo de itens armazenados vs limite máximo</p>
+            </div>
+            <div id="chartArmazenamentos" class="min-h-[220px]"></div>
+        </div>
+
+        <!-- Chart 3: Distribuição por Status -->
+        <div class="bg-white border-2 border-black p-5 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between border-b-2 border-black pb-2 mb-3">
+                    <h3 class="font-bold text-xs uppercase tracking-widest text-black flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-brand-500 inline-block"></span>
+                        Status Geral dos Ativos
+                    </h3>
+                    <span class="font-mono text-[10px] bg-gray-100 px-2 py-0.5 border border-black font-bold uppercase">Visão Geral</span>
+                </div>
+                <p class="font-mono text-[10px] text-gray-500 uppercase tracking-wider mb-2">Proporção dos status dos equipamentos cadastrados</p>
+            </div>
+            <div id="chartStatus" class="min-h-[220px] flex items-center justify-center"></div>
+        </div>
+    </div>
+
+    <!-- Main Layout: Form Column & Interactive Lists Column -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Forms Column -->
         <div class="lg:col-span-1 space-y-6">
             <!-- New Location Form -->
             <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-                <h3 class="font-bold text-sm uppercase tracking-widest mb-4 border-b-2 border-black pb-2">Nova Localização</h3>
+                <div class="flex items-center justify-between border-b-2 border-black pb-2 mb-4">
+                    <h3 class="font-bold text-xs uppercase tracking-widest text-black">Cadastrar Nova Localização</h3>
+                    <span class="font-mono text-[10px] bg-black text-white px-2 py-0.5">SALA / ANDAR</span>
+                </div>
                 <form action="/assets/admin/localizacoes" method="POST" class="space-y-4">
                     <div class="space-y-1">
-                        <label class="block text-[10px] font-bold uppercase text-gray-500">Nome da Localização</label>
-                        <input type="text" name="nome" required placeholder="Ex: Sala 101, Andar 3, Prédio A"
-                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                        <label class="block text-[10px] font-bold uppercase text-gray-600 font-mono">Nome da Localização *</label>
+                        <input type="text" name="nome" required placeholder="Ex: Sala 101, Andar 3, Bloco A"
+                            class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0 focus:border-brand-500 bg-gray-50">
                     </div>
                     <div class="space-y-1">
-                        <label class="block text-[10px] font-bold uppercase text-gray-500">Departamento (Opcional)</label>
+                        <label class="block text-[10px] font-bold uppercase text-gray-600 font-mono">Departamento Relacionado</label>
                         <select name="departamento_id"
-                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
-                            <option value="">Nenhum</option>
+                            class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0 focus:border-brand-500 bg-gray-50">
+                            <option value="">Nenhum / Geral</option>
                             {% for dept in departamentos %}
                             <option value="{{ dept.id }}">{{ dept.nome }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <button type="submit"
-                        class="w-full bg-black text-white font-bold uppercase text-xs py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition">
-                        Cadastrar Localização
+                        class="w-full bg-black text-white font-bold uppercase text-xs py-3 tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:bg-gray-800 hover:translate-x-[1px] hover:translate-y-[1px] transition-all">
+                        + Cadastrar Localização
                     </button>
                 </form>
             </div>
 
             <!-- New Storage Form -->
             <div class="bg-white border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-                <h3 class="font-bold text-sm uppercase tracking-widest mb-4 border-b-2 border-black pb-2">Novo Armazenamento</h3>
+                <div class="flex items-center justify-between border-b-2 border-black pb-2 mb-4">
+                    <h3 class="font-bold text-xs uppercase tracking-widest text-black">Cadastrar Novo Almoxarifado</h3>
+                    <span class="font-mono text-[10px] bg-green-600 text-white px-2 py-0.5">DEPÓSITO</span>
+                </div>
                 <form action="/assets/admin/armazenamentos" method="POST" class="space-y-4">
                     <div class="space-y-1">
-                        <label class="block text-[10px] font-bold uppercase text-gray-500">Nome do Armazenamento</label>
-                        <input type="text" name="nome" required placeholder="Ex: Almoxarifado Central"
-                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                        <label class="block text-[10px] font-bold uppercase text-gray-600 font-mono">Nome do Armazenamento *</label>
+                        <input type="text" name="nome" required placeholder="Ex: Almoxarifado Central, Depósito TI"
+                            class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0 focus:border-green-600 bg-gray-50">
                     </div>
                     <div class="space-y-1">
-                        <label class="block text-[10px] font-bold uppercase text-gray-500">Capacidade Máxima (Itens)</label>
+                        <label class="block text-[10px] font-bold uppercase text-gray-600 font-mono">Capacidade Máxima (Itens)</label>
                         <input type="number" name="capacidade_max" value="0" min="0" required
-                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                            class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0 focus:border-green-600 bg-gray-50">
                     </div>
                     <div class="space-y-1">
-                        <label class="block text-[10px] font-bold uppercase text-gray-500">Tipos de Itens</label>
-                        <input type="text" name="tipo_itens" placeholder="Ex: Hardware, Cabos, Peças"
-                            class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0 focus:border-brand-500">
+                        <label class="block text-[10px] font-bold uppercase text-gray-600 font-mono">Tipos de Itens / Foco</label>
+                        <input type="text" name="tipo_itens" placeholder="Ex: Periféricos, Hardware, Cabos"
+                            class="w-full border-2 border-black p-2.5 text-sm font-mono focus:ring-0 focus:border-green-600 bg-gray-50">
                     </div>
                     <button type="submit"
-                        class="w-full bg-green-600 text-white font-bold uppercase text-xs py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-green-700 transition">
-                        Cadastrar Armazenamento
+                        class="w-full bg-green-600 text-white font-bold uppercase text-xs py-3 tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:bg-green-700 hover:translate-x-[1px] hover:translate-y-[1px] transition-all">
+                        + Cadastrar Depósito
                     </button>
                 </form>
             </div>
@@ -85,88 +218,611 @@
 
         <!-- Lists Column -->
         <div class="lg:col-span-2 space-y-8">
-            <!-- Locations List -->
+            <!-- Physical Locations List -->
             <div class="bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-                <div class="bg-black text-white p-4 font-mono text-xs uppercase tracking-widest font-bold">
-                    Localizações Físicas (Salas/Andares)
+                <div class="bg-black text-white p-4 font-mono text-xs uppercase tracking-widest font-bold flex items-center justify-between">
+                    <span class="flex items-center gap-2">
+                        <span>🏢</span> Localizações Físicas (Salas / Prédios / Ambientes)
+                    </span>
+                    <span class="text-[10px] bg-gray-800 text-gray-200 px-2 py-0.5 font-normal">Clique na linha para ver os ativos</span>
                 </div>
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-100 text-black font-mono text-[10px] uppercase tracking-widest border-b-2 border-black">
-                            <th class="px-6 py-3 font-bold">Localização</th>
-                            <th class="px-6 py-3 font-bold">Departamento</th>
-                            <th class="px-6 py-3 font-bold text-right">Ativos</th>
-                            <th class="px-6 py-3 font-bold text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        {% for local in locais %}
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 font-bold text-sm uppercase">{{ local.nome }}</td>
-                            <td class="px-6 py-4 text-xs text-gray-500">{{ local.departamento.nome if local.departamento else '-' }}</td>
-                            <td class="px-6 py-4 text-xs text-right font-mono">{{ local.assets|length if local.assets else 0 }}</td>
-                            <td class="px-6 py-4 text-right">
-                                <form action="/assets/admin/localizacoes/{{ local.id }}/delete" method="POST" onsubmit="return confirm('Excluir localização {{ local.nome }}?')" class="inline">
-                                    <button type="submit" class="text-red-600 hover:underline text-[10px] font-bold uppercase">Excluir</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="4" class="px-6 py-8 text-center text-gray-400 font-mono text-xs uppercase">Nenhuma localização cadastrada</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-black font-mono text-[10px] uppercase tracking-widest border-b-2 border-black">
+                                <th class="px-6 py-3 font-bold">Localização</th>
+                                <th class="px-6 py-3 font-bold">Departamento</th>
+                                <th class="px-6 py-3 font-bold text-center">Ativos Alocados</th>
+                                <th class="px-6 py-3 font-bold text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for local in locais %}
+                            {% set total_atv = local.assets|length if local.assets else 0 %}
+                            <tr class="hover:bg-blue-50/60 transition cursor-pointer group"
+                                onclick="openLocationAssetsModal('localizacao', {{ local.id }})">
+                                <td class="px-6 py-4 font-bold text-sm uppercase text-black group-hover:text-brand-600 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-gray-400 group-hover:text-brand-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    </svg>
+                                    {{ local.nome }}
+                                </td>
+                                <td class="px-6 py-4 text-xs font-mono text-gray-600">
+                                    {{ local.departamento.nome if local.departamento else '-' }}
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 font-mono text-xs font-bold border border-black {{ 'bg-brand-50 text-brand-700' if total_atv > 0 else 'bg-gray-100 text-gray-500' }}">
+                                        📦 {{ total_atv }} {{ 'ativo' if total_atv == 1 else 'ativos' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right" onclick="event.stopPropagation()">
+                                    <div class="flex items-center justify-end gap-3">
+                                        <button type="button" 
+                                            onclick="openLocationAssetsModal('localizacao', {{ local.id }})"
+                                            class="bg-black text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:bg-brand-600 transition-all flex items-center gap-1">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                            </svg>
+                                            Ver Ativos
+                                        </button>
+
+                                        <form action="/assets/admin/localizacoes/{{ local.id }}/delete" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir a localização {{ local.nome }}?')" class="inline">
+                                            <button type="submit" class="text-red-600 hover:text-red-800 hover:underline text-[10px] font-bold uppercase tracking-wider">
+                                                Excluir
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="px-6 py-8 text-center text-gray-400 font-mono text-xs uppercase">Nenhuma localização cadastrada</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Storages List -->
             <div class="bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-                <div class="bg-green-600 text-white p-4 font-mono text-xs uppercase tracking-widest font-bold border-b border-black">
-                    Locais de Armazenamento (Almoxarifados / Depósitos)
+                <div class="bg-green-600 text-white p-4 font-mono text-xs uppercase tracking-widest font-bold border-b border-black flex items-center justify-between">
+                    <span class="flex items-center gap-2">
+                        <span>📦</span> Locais de Armazenamento (Almoxarifados / Depósitos)
+                    </span>
+                    <span class="text-[10px] bg-green-700 text-green-100 px-2 py-0.5 font-normal">Clique na linha para ver os ativos</span>
                 </div>
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-100 text-black font-mono text-[10px] uppercase tracking-widest border-b-2 border-black">
-                            <th class="px-6 py-3 font-bold">Nome do Armazenamento</th>
-                            <th class="px-6 py-3 font-bold">Capacidade Máx / Tipos</th>
-                            <th class="px-6 py-3 font-bold text-right">Ativos</th>
-                            <th class="px-6 py-3 font-bold text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        {% for arm in armazenamentos %}
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 font-bold text-sm uppercase">
-                                {{ arm.nome }}
-                                {% if arm.nome == 'Almoxarifado TI (Compras)' %}
-                                <span class="ml-2 font-mono text-[9px] bg-yellow-100 border border-yellow-500 text-yellow-800 px-1 py-[2px] rounded">Padrão</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-6 py-4 text-xs text-gray-500">
-                                {% if arm.capacidade_max %}{{ arm.capacidade_max }} itens{% else %}Sem limite{% endif %}
-                                {% if arm.tipo_itens %}<span class="block text-[10px] italic text-gray-400">Foco: {{ arm.tipo_itens }}</span>{% endif %}
-                            </td>
-                            <td class="px-6 py-4 text-xs text-right font-mono">{{ arm.assets|length if arm.assets else 0 }}</td>
-                            <td class="px-6 py-4 text-right">
-                                {% if arm.nome != 'Almoxarifado TI (Compras)' %}
-                                <form action="/assets/admin/armazenamentos/{{ arm.id }}/delete" method="POST" onsubmit="return confirm('Excluir armazenamento {{ arm.nome }}?')" class="inline">
-                                    <button type="submit" class="text-red-600 hover:underline text-[10px] font-bold uppercase">Excluir</button>
-                                </form>
-                                {% else %}
-                                <span class="text-gray-400 text-[10px] uppercase font-bold">Protegido</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="4" class="px-6 py-8 text-center text-gray-400 font-mono text-xs uppercase">Nenhum local de armazenamento cadastrado</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-black font-mono text-[10px] uppercase tracking-widest border-b-2 border-black">
+                                <th class="px-6 py-3 font-bold">Nome do Armazenamento</th>
+                                <th class="px-6 py-3 font-bold">Capacidade / Foco</th>
+                                <th class="px-6 py-3 font-bold text-center">Ativos Guardados</th>
+                                <th class="px-6 py-3 font-bold text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for arm in armazenamentos %}
+                            {% set total_atv = arm.assets|length if arm.assets else 0 %}
+                            <tr class="hover:bg-green-50/60 transition cursor-pointer group"
+                                onclick="openLocationAssetsModal('armazenamento', {{ arm.id }})">
+                                <td class="px-6 py-4 font-bold text-sm uppercase text-black group-hover:text-green-700 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-gray-400 group-hover:text-green-700 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                    </svg>
+                                    {{ arm.nome }}
+                                    {% if arm.nome == 'Almoxarifado TI (Compras)' %}
+                                    <span class="ml-2 font-mono text-[9px] bg-yellow-100 border border-yellow-500 text-yellow-800 px-1.5 py-[2px] rounded uppercase font-bold">Padrão</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 text-xs font-mono text-gray-600">
+                                    {% if arm.capacidade_max and arm.capacidade_max > 0 %}
+                                        <span class="font-bold text-black">{{ arm.capacidade_max }} itens máx</span>
+                                    {% else %}
+                                        Sem limite definido
+                                    {% endif %}
+                                    {% if arm.tipo_itens %}
+                                        <span class="block text-[10px] italic text-gray-400">Foco: {{ arm.tipo_itens }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 font-mono text-xs font-bold border border-black {{ 'bg-green-50 text-green-800 border-green-600' if total_atv > 0 else 'bg-gray-100 text-gray-500' }}">
+                                        📦 {{ total_atv }} {{ 'ativo' if total_atv == 1 else 'ativos' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right" onclick="event.stopPropagation()">
+                                    <div class="flex items-center justify-end gap-3">
+                                        <button type="button" 
+                                            onclick="openLocationAssetsModal('armazenamento', {{ arm.id }})"
+                                            class="bg-green-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:bg-black transition-all flex items-center gap-1">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                            </svg>
+                                            Ver Ativos
+                                        </button>
+
+                                        {% if arm.nome != 'Almoxarifado TI (Compras)' %}
+                                        <form action="/assets/admin/armazenamentos/{{ arm.id }}/delete" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir o armazenamento {{ arm.nome }}?')" class="inline">
+                                            <button type="submit" class="text-red-600 hover:text-red-800 hover:underline text-[10px] font-bold uppercase tracking-wider">
+                                                Excluir
+                                            </button>
+                                        </form>
+                                        {% else %}
+                                        <span class="text-gray-400 text-[10px] uppercase font-bold tracking-widest font-mono">Protegido</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="px-6 py-8 text-center text-gray-400 font-mono text-xs uppercase">Nenhum local de armazenamento cadastrado</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- ========================================== -->
+<!-- MODAL DE ATIVOS POR LOCALIZAÇÃO / ARMAZENAMENTO -->
+<!-- ========================================== -->
+<div id="locationAssetsModal" class="fixed inset-0 z-[100] hidden" role="dialog" aria-modal="true">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm transition-opacity" onclick="closeLocationAssetsModal()"></div>
+    
+    <div class="absolute inset-0 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <div class="bg-white border-4 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] w-full max-w-5xl my-8 relative overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <!-- Modal Header -->
+            <div class="bg-black text-white p-5 border-b-4 border-black flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div id="modalTypeBadge" class="bg-brand-500 text-white font-mono text-[10px] font-bold px-2.5 py-1 uppercase tracking-widest">
+                        LOCALIZAÇÃO
+                    </div>
+                    <div>
+                        <h2 id="modalLocationName" class="font-extrabold text-xl uppercase tracking-tight text-white leading-none">
+                            NOME DA LOCALIZAÇÃO
+                        </h2>
+                        <p id="modalLocationSubtitle" class="font-mono text-xs text-gray-300 mt-1 uppercase tracking-wider">
+                            Departamento: -
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <span id="modalTotalAssetsBadge" class="bg-white text-black font-mono text-xs font-bold px-3 py-1 border border-white">
+                        0 ATIVOS CADASTRADOS
+                    </span>
+                    <button type="button" onclick="closeLocationAssetsModal()" class="text-gray-400 hover:text-white font-bold text-3xl leading-none transition-colors">
+                        &times;
+                    </button>
+                </div>
+            </div>
+
+            <!-- Toolbar: Search & Status Filters -->
+            <div class="bg-gray-100 border-b-2 border-black p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
+                <!-- Search Input -->
+                <div class="relative w-full sm:w-80">
+                    <input type="text" id="modalAssetSearchInput" onkeyup="filterModalAssets()" placeholder="Buscar patrimônio, nome, modelo..." 
+                        class="w-full bg-white border-2 border-black px-3 py-2 pl-9 text-xs font-mono focus:ring-0 focus:border-brand-500">
+                    <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+
+                <!-- Status Filter Pills -->
+                <div class="flex items-center gap-1.5 flex-wrap w-full sm:w-auto font-mono text-[10px] uppercase font-bold">
+                    <button type="button" onclick="setModalStatusFilter('TODOS')" id="btnFilterTODOS" class="px-2.5 py-1 border border-black bg-black text-white">
+                        Todos (<span id="countFilterTODOS">0</span>)
+                    </button>
+                    <button type="button" onclick="setModalStatusFilter('Em uso')" id="btnFilterEmUso" class="px-2.5 py-1 border border-black bg-white text-black hover:bg-gray-200">
+                        Em Uso (<span id="countFilterEmUso">0</span>)
+                    </button>
+                    <button type="button" onclick="setModalStatusFilter('Disponível')" id="btnFilterDisponivel" class="px-2.5 py-1 border border-black bg-white text-black hover:bg-gray-200">
+                        Disponível (<span id="countFilterDisponivel">0</span>)
+                    </button>
+                    <button type="button" onclick="setModalStatusFilter('Manutenção')" id="btnFilterManutencao" class="px-2.5 py-1 border border-black bg-white text-black hover:bg-gray-200">
+                        Manutenção (<span id="countFilterManutencao">0</span>)
+                    </button>
+                    <button type="button" onclick="setModalStatusFilter('Armazenado')" id="btnFilterArmazenado" class="px-2.5 py-1 border border-black bg-white text-black hover:bg-gray-200">
+                        Armazenado (<span id="countFilterArmazenado">0</span>)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Content: Table of Assets -->
+            <div class="p-6 overflow-y-auto flex-1">
+                <div id="modalAssetsTableWrapper" class="border-2 border-black overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-black text-white font-mono text-[10px] uppercase tracking-widest">
+                                <th class="px-4 py-3 border-b border-gray-800">Patrimônio</th>
+                                <th class="px-4 py-3 border-b border-gray-800">Equipamento</th>
+                                <th class="px-4 py-3 border-b border-gray-800">Categoria</th>
+                                <th class="px-4 py-3 border-b border-gray-800">Status</th>
+                                <th class="px-4 py-3 border-b border-gray-800">Possuidor / Responsável</th>
+                                <th class="px-4 py-3 border-b border-gray-800 text-right">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalAssetsTableBody" class="divide-y divide-gray-200">
+                            <!-- Dynamic Content Rendered via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State -->
+                <div id="modalEmptyState" class="hidden py-12 text-center">
+                    <div class="w-16 h-16 bg-gray-100 border-2 border-black mx-auto flex items-center justify-center text-2xl mb-3">
+                        📦
+                    </div>
+                    <h3 class="font-bold text-sm uppercase text-gray-800 tracking-wider">Nenhum ativo localizado</h3>
+                    <p id="modalEmptyStateText" class="font-mono text-xs text-gray-500 mt-1 uppercase">Não há equipamentos cadastrados neste local no momento.</p>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="bg-gray-50 border-t-2 border-black px-6 py-3 flex items-center justify-between shrink-0 font-mono text-xs">
+                <span class="text-gray-500 text-[10px] uppercase">AssetTrack TI // Módulo de Localização</span>
+                <button type="button" onclick="closeLocationAssetsModal()" class="bg-black text-white font-bold uppercase text-xs px-5 py-2 border border-black hover:bg-gray-800 transition">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+    // Global datasets serialized from backend
+    const locaisData = {{ locais_json|tojson if locais_json else '[]' }};
+    const armazenamentosData = {{ armazenamentos_json|tojson if armazenamentos_json else '[]' }};
+    const dashboardStats = {{ dashboard_stats|tojson if dashboard_stats else '{}' }};
+
+    let currentActiveAssetsList = [];
+    let currentModalFilterStatus = 'TODOS';
+
+    document.addEventListener("DOMContentLoaded", function() {
+        initDashboardCharts();
+    });
+
+    function initDashboardCharts() {
+        if (typeof ApexCharts === 'undefined') return;
+
+        // Chart 1: Donut Locais Físicos
+        const locaisChartObj = dashboardStats.locais_chart || {};
+        const locaisLabels = Object.keys(locaisChartObj);
+        const locaisValues = Object.values(locaisChartObj);
+
+        if (locaisLabels.length > 0) {
+            new ApexCharts(document.querySelector("#chartLocais"), {
+                series: locaisValues,
+                chart: {
+                    type: 'donut',
+                    height: 220,
+                    toolbar: { show: false },
+                    events: {
+                        dataPointSelection: function(event, chartContext, config) {
+                            const selectedName = locaisLabels[config.dataPointIndex];
+                            const found = locaisData.find(l => l.nome === selectedName);
+                            if (found) {
+                                openLocationAssetsModal('localizacao', found.id);
+                            }
+                        }
+                    }
+                },
+                labels: locaisLabels,
+                colors: ['#0EA5E9', '#0284C7', '#0369A1', '#0C4A6E', '#38BDF8', '#7DD3FC'],
+                stroke: { show: true, width: 2, colors: ['#000000'] },
+                dataLabels: { enabled: false },
+                legend: {
+                    position: 'bottom',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    fontSize: '10px',
+                    labels: { colors: '#000000' }
+                },
+                plotOptions: {
+                    pie: {
+                        donut: {
+                            size: '62%',
+                            labels: {
+                                show: true,
+                                name: { show: true, fontFamily: 'monospace', fontWeight: 700, color: '#000000' },
+                                value: { show: true, fontFamily: 'monospace', fontWeight: 700, color: '#000000' },
+                                total: {
+                                    show: true,
+                                    label: 'SALAS',
+                                    fontFamily: 'monospace',
+                                    fontWeight: 700,
+                                    color: '#000000',
+                                    formatter: function (w) {
+                                        return w.globals.seriesTotals.reduce((a, b) => a + b, 0);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }).render();
+        } else {
+            document.querySelector("#chartLocais").innerHTML = `<div class="text-center font-mono text-xs text-gray-400 py-8 uppercase">Sem dados de salas</div>`;
+        }
+
+        // Chart 2: Barras Armazenamentos Ocupados vs Capacidade
+        const armChartObj = dashboardStats.armazenamentos_chart || {};
+        const armLabels = Object.keys(armChartObj);
+        const armOcupado = armLabels.map(k => armChartObj[k].ocupado);
+        const armCapacidade = armLabels.map(k => armChartObj[k].capacidade);
+
+        if (armLabels.length > 0) {
+            new ApexCharts(document.querySelector("#chartArmazenamentos"), {
+                series: [
+                    { name: 'Ocupado', data: armOcupado },
+                    { name: 'Capacidade Máx', data: armCapacidade }
+                ],
+                chart: {
+                    type: 'bar',
+                    height: 220,
+                    toolbar: { show: false },
+                    events: {
+                        dataPointSelection: function(event, chartContext, config) {
+                            const selectedName = armLabels[config.dataPointIndex];
+                            const found = armazenamentosData.find(a => a.nome === selectedName);
+                            if (found) {
+                                openLocationAssetsModal('armazenamento', found.id);
+                            }
+                        }
+                    }
+                },
+                colors: ['#16A34A', '#9CA3AF'],
+                plotOptions: {
+                    bar: { horizontal: true, barHeight: '55%', dataLabels: { position: 'top' } }
+                },
+                stroke: { show: true, width: 1, colors: ['#000000'] },
+                legend: { position: 'bottom', fontFamily: 'monospace', fontWeight: 700, fontSize: '10px' },
+                xaxis: {
+                    labels: { style: { colors: '#000000', fontFamily: 'monospace', fontWeight: 700 } }
+                },
+                yaxis: {
+                    labels: { style: { colors: '#000000', fontFamily: 'monospace', fontWeight: 700 } }
+                }
+            }).render();
+        } else {
+            document.querySelector("#chartArmazenamentos").innerHTML = `<div class="text-center font-mono text-xs text-gray-400 py-8 uppercase">Sem depósitos com itens</div>`;
+        }
+
+        // Chart 3: Donut Status dos Ativos
+        const statusCounts = dashboardStats.status_counts || {};
+        const statusLabels = Object.keys(statusCounts);
+        const statusValues = Object.values(statusCounts);
+
+        if (statusLabels.length > 0) {
+            const statusColorMap = {
+                'Disponível': '#16A34A',
+                'Em uso': '#0284C7',
+                'Manutenção': '#D97706',
+                'Armazenado': '#4B5563',
+                'Baixado': '#DC2626'
+            };
+
+            new ApexCharts(document.querySelector("#chartStatus"), {
+                series: statusValues,
+                chart: {
+                    type: 'donut',
+                    height: 220,
+                    toolbar: { show: false }
+                },
+                labels: statusLabels,
+                colors: statusLabels.map(l => statusColorMap[l] || '#000000'),
+                stroke: { show: true, width: 2, colors: ['#000000'] },
+                dataLabels: { enabled: false },
+                legend: {
+                    position: 'bottom',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    fontSize: '10px',
+                    labels: { colors: '#000000' }
+                },
+                plotOptions: {
+                    pie: {
+                        donut: {
+                            size: '62%',
+                            labels: {
+                                show: true,
+                                name: { show: true, fontFamily: 'monospace', fontWeight: 700, color: '#000000' },
+                                value: { show: true, fontFamily: 'monospace', fontWeight: 700, color: '#000000' }
+                            }
+                        }
+                    }
+                }
+            }).render();
+        } else {
+            document.querySelector("#chartStatus").innerHTML = `<div class="text-center font-mono text-xs text-gray-400 py-8 uppercase">Sem status registrados</div>`;
+        }
+    }
+
+    // Modal Control & Logic
+    function openLocationAssetsModal(type, id) {
+        let item = null;
+        if (type === 'localizacao') {
+            item = locaisData.find(l => l.id === id);
+        } else {
+            item = armazenamentosData.find(a => a.id === id);
+        }
+
+        if (!item) return;
+
+        // Set Headers
+        const badgeEl = document.getElementById('modalTypeBadge');
+        if (type === 'localizacao') {
+            badgeEl.textContent = "SALA / LOCALIZAÇÃO";
+            badgeEl.className = "bg-brand-600 text-white font-mono text-[10px] font-bold px-2.5 py-1 uppercase tracking-widest border border-white";
+            document.getElementById('modalLocationSubtitle').textContent = "Departamento: " + (item.departamento_nome || '-');
+        } else {
+            badgeEl.textContent = "ALMOXARIFADO / DEPÓSITO";
+            badgeEl.className = "bg-green-600 text-white font-mono text-[10px] font-bold px-2.5 py-1 uppercase tracking-widest border border-white";
+            const capText = item.capacidade_max > 0 ? `${item.capacidade_max} itens máx` : "Sem limite";
+            document.getElementById('modalLocationSubtitle').textContent = `Capacidade: ${capText} | Foco: ${item.tipo_itens || 'Geral'}`;
+        }
+
+        document.getElementById('modalLocationName').textContent = item.nome;
+        document.getElementById('modalTotalAssetsBadge').textContent = `${item.assets.length} ATIVOS CADASTRADOS`;
+
+        // Store active list for filtering
+        currentActiveAssetsList = item.assets || [];
+        currentModalFilterStatus = 'TODOS';
+        document.getElementById('modalAssetSearchInput').value = '';
+
+        updateStatusFilterCounts();
+        renderModalAssetsTable();
+
+        const modal = document.getElementById('locationAssetsModal');
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLocationAssetsModal() {
+        const modal = document.getElementById('locationAssetsModal');
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    function setModalStatusFilter(status) {
+        currentModalFilterStatus = status;
+        
+        const buttons = ['TODOS', 'Em uso', 'Disponível', 'Manutenção', 'Armazenado'];
+        buttons.forEach(st => {
+            const btnId = 'btnFilter' + st.replace(' ', '');
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                if (st === status) {
+                    btn.className = "px-2.5 py-1 border border-black bg-black text-white font-bold";
+                } else {
+                    btn.className = "px-2.5 py-1 border border-black bg-white text-black hover:bg-gray-200 font-bold";
+                }
+            }
+        });
+
+        renderModalAssetsTable();
+    }
+
+    function updateStatusFilterCounts() {
+        const counts = {
+            TODOS: currentActiveAssetsList.length,
+            'Em uso': 0,
+            'Disponível': 0,
+            'Manutenção': 0,
+            'Armazenado': 0
+        };
+
+        currentActiveAssetsList.forEach(a => {
+            if (counts[a.status] !== undefined) {
+                counts[a.status]++;
+            }
+        });
+
+        document.getElementById('countFilterTODOS').textContent = counts.TODOS;
+        document.getElementById('countFilterEmUso').textContent = counts['Em uso'];
+        document.getElementById('countFilterDisponivel').textContent = counts['Disponível'];
+        document.getElementById('countFilterManutencao').textContent = counts['Manutenção'];
+        document.getElementById('countFilterArmazenado').textContent = counts['Armazenado'];
+    }
+
+    function filterModalAssets() {
+        renderModalAssetsTable();
+    }
+
+    function renderModalAssetsTable() {
+        const searchVal = (document.getElementById('modalAssetSearchInput').value || '').toLowerCase().trim();
+        const tbody = document.getElementById('modalAssetsTableBody');
+        const emptyState = document.getElementById('modalEmptyState');
+        const tableWrapper = document.getElementById('modalAssetsTableWrapper');
+
+        let filtered = currentActiveAssetsList.filter(a => {
+            // Status check
+            if (currentModalFilterStatus !== 'TODOS' && a.status !== currentModalFilterStatus) {
+                return false;
+            }
+            // Search text check
+            if (searchVal) {
+                const matchPatrimonio = (a.e_patrimonio || '').toLowerCase().includes(searchVal);
+                const matchNome = (a.nome || '').toLowerCase().includes(searchVal);
+                const matchModelo = (a.modelo || '').toLowerCase().includes(searchVal);
+                const matchCat = (a.categoria_nome || '').toLowerCase().includes(searchVal);
+                const matchUser = (a.possuidor || '').toLowerCase().includes(searchVal);
+                return matchPatrimonio || matchNome || matchModelo || matchCat || matchUser;
+            }
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '';
+            tableWrapper.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            if (searchVal || currentModalFilterStatus !== 'TODOS') {
+                document.getElementById('modalEmptyStateText').textContent = "Nenhum ativo atende aos critérios de busca/filtro.";
+            } else {
+                document.getElementById('modalEmptyStateText').textContent = "Não há equipamentos cadastrados neste local no momento.";
+            }
+            return;
+        }
+
+        emptyState.classList.add('hidden');
+        tableWrapper.classList.remove('hidden');
+
+        const statusBadgeMap = {
+            'Disponível': 'bg-green-100 text-green-800 border-green-600',
+            'Em uso': 'bg-blue-100 text-blue-800 border-blue-600',
+            'Manutenção': 'bg-amber-100 text-amber-800 border-amber-600',
+            'Armazenado': 'bg-gray-100 text-gray-800 border-gray-600',
+            'Baixado': 'bg-red-100 text-red-800 border-red-600'
+        };
+
+        tbody.innerHTML = filtered.map(a => {
+            const badgeClass = statusBadgeMap[a.status] || 'bg-gray-100 text-gray-800 border-black';
+            return `
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-4 py-3 font-mono font-bold text-xs">
+                        <span class="bg-gray-100 border border-black px-2 py-0.5 uppercase tracking-wider text-black">
+                            ${a.e_patrimonio}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-2.5">
+                            ${a.foto_path ? `<img src="${a.foto_path}" class="w-8 h-8 object-cover border border-black shrink-0">` : `<div class="w-8 h-8 bg-gray-100 border border-black flex items-center justify-center text-xs shrink-0">💻</div>`}
+                            <div>
+                                <p class="font-bold text-xs text-black uppercase leading-tight">${a.nome}</p>
+                                ${a.modelo ? `<p class="font-mono text-[10px] text-gray-500 leading-tight">${a.modelo}</p>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-xs font-mono text-gray-700">
+                        ${a.categoria_nome}
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider border ${badgeClass}">
+                            ${a.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-xs font-bold text-gray-800">
+                        ${a.possuidor}
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                        <a href="/assets/${a.id}" target="_blank"
+                            class="bg-black text-white text-[10px] font-mono font-bold uppercase px-3 py-1.5 border border-black hover:bg-brand-600 transition-all inline-flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]">
+                            Detalhes ➔
+                        </a>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+</script>
 {% endblock %}

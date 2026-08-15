@@ -1274,17 +1274,109 @@ async def list_locais(
     from sqlalchemy.orm import selectinload
     from sqlalchemy import select
     from app.models.location import Armazenamento
+    from app.models.asset import Asset
     
     result = await db.execute(
-        select(Localizacao).options(selectinload(Localizacao.assets), selectinload(Localizacao.departamento))
+        select(Localizacao).options(
+            selectinload(Localizacao.assets).selectinload(Asset.categoria),
+            selectinload(Localizacao.assets).selectinload(Asset.current_user),
+            selectinload(Localizacao.departamento)
+        )
     )
     locais_list = result.scalars().all()
     departamentos_list = await location.departamento.get_multi(db)
     
     armazenamentos_res = await db.execute(
-        select(Armazenamento).options(selectinload(Armazenamento.assets))
+        select(Armazenamento).options(
+            selectinload(Armazenamento.assets).selectinload(Asset.categoria),
+            selectinload(Armazenamento.assets).selectinload(Asset.current_user)
+        )
     )
     armazenamentos_list = armazenamentos_res.scalars().all()
+
+    # Prepara dados serializáveis para os gráficos e modal
+    locais_dict_list = []
+    total_ativos_locais = 0
+    locais_chart_data = {}
+    
+    for l in locais_list:
+        assets_info = []
+        for a in (l.assets or []):
+            if a.status != AssetStatus.BAIXADO:
+                total_ativos_locais += 1
+            assets_info.append({
+                "id": a.id,
+                "e_patrimonio": a.e_patrimonio,
+                "nome": a.nome,
+                "modelo": a.modelo or "",
+                "status": a.status.value if hasattr(a.status, 'value') else str(a.status),
+                "categoria_nome": a.categoria.nome if a.categoria else "Sem Categoria",
+                "possuidor": a.current_user.nome if a.current_user else (a.em_posse_de or "Não atribuído"),
+                "foto_path": a.foto_path or "",
+                "valor": float(a.valor) if a.valor else None
+            })
+        locais_dict_list.append({
+            "id": l.id,
+            "nome": l.nome,
+            "tipo": "localizacao",
+            "departamento_nome": l.departamento.nome if l.departamento else "-",
+            "total_assets": len(assets_info),
+            "assets": assets_info
+        })
+        if len(assets_info) > 0:
+            locais_chart_data[l.nome] = len(assets_info)
+
+    armazenamentos_dict_list = []
+    total_ativos_armazenamentos = 0
+    armazenamentos_chart_data = {}
+    
+    for arm in armazenamentos_list:
+        assets_info = []
+        for a in (arm.assets or []):
+            if a.status != AssetStatus.BAIXADO:
+                total_ativos_armazenamentos += 1
+            assets_info.append({
+                "id": a.id,
+                "e_patrimonio": a.e_patrimonio,
+                "nome": a.nome,
+                "modelo": a.modelo or "",
+                "status": a.status.value if hasattr(a.status, 'value') else str(a.status),
+                "categoria_nome": a.categoria.nome if a.categoria else "Sem Categoria",
+                "possuidor": a.current_user.nome if a.current_user else (a.em_posse_de or "Não atribuído"),
+                "foto_path": a.foto_path or "",
+                "valor": float(a.valor) if a.valor else None
+            })
+        armazenamentos_dict_list.append({
+            "id": arm.id,
+            "nome": arm.nome,
+            "tipo": "armazenamento",
+            "capacidade_max": arm.capacidade_max or 0,
+            "tipo_itens": arm.tipo_itens or "",
+            "total_assets": len(assets_info),
+            "assets": assets_info
+        })
+        if len(assets_info) > 0 or (arm.capacidade_max and arm.capacidade_max > 0):
+            armazenamentos_chart_data[arm.nome] = {
+                "ocupado": len(assets_info),
+                "capacidade": arm.capacidade_max or 0
+            }
+
+    status_counts = {}
+    for item in (locais_dict_list + armazenamentos_dict_list):
+        for ast in item["assets"]:
+            st = ast["status"]
+            status_counts[st] = status_counts.get(st, 0) + 1
+
+    dashboard_stats = {
+        "total_locais": len(locais_list),
+        "total_armazenamentos": len(armazenamentos_list),
+        "total_ativos_locais": total_ativos_locais,
+        "total_ativos_armazenamentos": total_ativos_armazenamentos,
+        "total_ativos_geral": total_ativos_locais + total_ativos_armazenamentos,
+        "locais_chart": locais_chart_data,
+        "armazenamentos_chart": armazenamentos_chart_data,
+        "status_counts": status_counts
+    }
 
     return templates.TemplateResponse("assets/admin/locais.html", {
         "request": request,
@@ -1292,6 +1384,9 @@ async def list_locais(
         "locais": locais_list,
         "departamentos": departamentos_list,
         "armazenamentos": armazenamentos_list,
+        "locais_json": locais_dict_list,
+        "armazenamentos_json": armazenamentos_dict_list,
+        "dashboard_stats": dashboard_stats,
         "error": error,
         "success": success,
         "title": "Localizações e Armazenamentos"
