@@ -12,6 +12,63 @@ from app.services.qr_service import QRService
 
 router = APIRouter()
 
+from fastapi import Request
+
+async def get_any_active_user(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    from app.web.dependencies import get_current_user_from_cookie
+    user = await get_current_user_from_cookie(request, db=db)
+    if user and user.is_active:
+        return user
+    
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        try:
+            from jose import jwt
+            from app.config import settings
+            from app.crud import user as user_crud
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            email = payload.get("sub")
+            if email:
+                u = await user_crud.user.get_by_email(db, email=email)
+                if u and u.is_active:
+                    return u
+        except Exception:
+            pass
+            
+    raise HTTPException(status_code=401, detail="Não autenticado")
+
+@router.get("/referencias")
+async def get_referencias(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[dependencies.User, Depends(get_any_active_user)]
+):
+    """
+    Retorna tabelas de referência agregadas (categorias, setores, localizacoes, armazenamentos, fornecedores)
+    otimizadas para cache de cliente (LocalStorage / IndexedDB).
+    """
+    from app.crud.asset_category import category as cat_crud
+    from app.crud.location import departamento as dept_crud, localizacao as loc_crud, armazenamento as arm_crud
+    from app.crud.crud_supplier import supplier as supp_crud
+
+    cats = await cat_crud.get_multi(db, limit=500)
+    depts = await dept_crud.get_multi(db, limit=500)
+    locs = await loc_crud.get_multi(db, limit=500)
+    arms = await arm_crud.get_multi(db, limit=500)
+    supps = await supp_crud.get_multi(db, limit=500)
+
+    return {
+        "categorias": [{"id": c.id, "nome": c.nome} for c in cats],
+        "setores": [{"id": d.id, "nome": d.nome} for d in depts],
+        "localizacoes": [{"id": l.id, "nome": l.nome} for l in locs],
+        "armazenamentos": [{"id": a.id, "nome": a.nome} for a in arms],
+        "fornecedores": [{"id": s.id, "nome": getattr(s, 'nome_fantasia', None) or getattr(s, 'razao_social', f'Fornecedor {s.id}')} for s in supps]
+    }
+
 @router.get("/", response_model=List[AssetResponse])
 async def read_assets(
     db: Annotated[AsyncSession, Depends(get_db)],
