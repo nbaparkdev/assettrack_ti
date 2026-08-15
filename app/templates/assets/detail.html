@@ -216,6 +216,11 @@
                             Editar Especificações
                         </a>
 
+                        <a href="/assets/{{ asset.id }}/duplicar"
+                            class="w-full block bg-blue-50 border-2 border-blue-600 text-blue-700 font-bold uppercase text-xs py-3 px-4 hover:bg-blue-600 hover:text-white transition text-center shadow-[4px_4px_0px_0px_rgba(37,99,235,0.3)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px]">
+                            📋 Duplicar Ativo
+                        </a>
+
                         <!-- Block/Unblock Toggle -->
                         {% if user.role.value|lower in ['admin', 'gerente_ti', 'tecnico'] %}
                         <form action="/assets/{{ asset.id }}/toggle-bloqueio" method="post">

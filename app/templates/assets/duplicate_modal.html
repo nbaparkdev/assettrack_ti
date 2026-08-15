@@ -1,0 +1,182 @@
+<!-- Modal: Duplicar Ativo -->
+<div id="duplicate-modal-overlay" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="if(event.target===this)closeDuplicateModal()">
+    <div class="bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        
+        <!-- Header -->
+        <div class="bg-black text-white p-5 flex items-center justify-between flex-shrink-0">
+            <div>
+                <h2 class="text-lg font-black uppercase tracking-tight">Duplicar Ativo</h2>
+                <p class="text-xs font-mono text-gray-400 mt-1">Origem: {{ asset.nome }} — {{ asset.e_patrimonio }}</p>
+            </div>
+            <button onclick="closeDuplicateModal()" class="text-white hover:text-red-400 transition text-2xl leading-none font-bold">&times;</button>
+        </div>
+
+        <div class="overflow-y-auto flex-1 p-6">
+            {% if not step or step == 'quantidade' %}
+            <!-- STEP 1: Quantidade -->
+            <form action="/assets/{{ asset.id }}/duplicar" method="post" id="form-step1">
+                <input type="hidden" name="step" value="quantidade">
+                
+                <div class="space-y-6">
+                    <div class="bg-gray-50 border-2 border-gray-200 p-4">
+                        <h3 class="font-bold text-xs uppercase tracking-wider text-gray-500 mb-3">Dados que serão copiados</h3>
+                        <div class="grid grid-cols-2 gap-3 text-xs">
+                            <div><span class="font-mono text-gray-400">Nome:</span> <span class="font-bold">{{ asset.nome }}</span></div>
+                            <div><span class="font-mono text-gray-400">Modelo:</span> <span class="font-bold">{{ asset.modelo or 'N/A' }}</span></div>
+                            <div><span class="font-mono text-gray-400">Categoria:</span> <span class="font-bold">{{ asset.categoria.nome if asset.categoria else 'N/A' }}</span></div>
+                            <div><span class="font-mono text-gray-400">Fornecedor:</span> <span class="font-bold">{{ asset.fornecedor.nome if asset.fornecedor else 'N/A' }}</span></div>
+                            {% if asset.valor %}
+                            <div><span class="font-mono text-gray-400">Valor:</span> <span class="font-bold">R$ {{ "%.2f"|format(asset.valor) }}</span></div>
+                            {% endif %}
+                            {% if asset.current_local %}
+                            <div><span class="font-mono text-gray-400">Localização:</span> <span class="font-bold">{{ asset.current_local.nome }}</span></div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="font-mono text-xs font-bold text-black uppercase tracking-widest">Quantas cópias deseja criar?</label>
+                        <input type="number" name="quantidade" min="1" max="50" value="1" required
+                               class="w-full border-2 border-black p-3 text-lg font-bold font-mono text-center focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <p class="font-mono text-[10px] text-gray-400">Máximo: 50 cópias por vez</p>
+                    </div>
+
+                    <button type="submit"
+                            class="w-full bg-black text-white font-bold uppercase text-sm py-3 px-4 hover:bg-gray-800 transition border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px]">
+                        Prosseguir → Cadastrar E-Patrimônios
+                    </button>
+                </div>
+            </form>
+
+            {% elif step == 'cadastro' %}
+            <!-- STEP 2: Cadastro sequencial de E-Patrimônio -->
+            <form action="/assets/{{ asset.id }}/duplicar" method="post" id="form-step2">
+                <input type="hidden" name="step" value="confirmar">
+                <input type="hidden" name="quantidade" value="{{ quantidade }}">
+                
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between bg-blue-50 border-2 border-blue-200 p-3">
+                        <span class="text-xs font-bold text-blue-800 uppercase">{{ quantidade }} cópia{{ 's' if quantidade > 1 else '' }} de "{{ asset.nome }}"</span>
+                        <span class="font-mono text-[10px] text-blue-500">Preencha o E-Patrimônio de cada cópia</span>
+                    </div>
+
+                    {% if error_msg %}
+                    <div class="p-3 bg-red-100 border-2 border-red-500 text-red-800 text-xs font-bold">
+                        ⚠️ {{ error_msg }}
+                    </div>
+                    {% endif %}
+
+                    <div class="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
+                        {% for i in range(quantidade) %}
+                        <div class="bg-white border-2 border-black p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="w-7 h-7 bg-black text-white flex items-center justify-center font-mono text-xs font-bold">{{ i + 1 }}</span>
+                                <span class="font-bold text-sm uppercase tracking-tight">Cópia {{ i + 1 }}</span>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div class="md:col-span-2">
+                                    <label class="font-mono text-[10px] font-bold text-black uppercase tracking-widest block mb-1">
+                                        E-Patrimônio <span class="text-red-600">*</span>
+                                    </label>
+                                    <input type="text" name="e_patrimonio_{{ i }}" required
+                                           value="{{ (e_patrimonios[i] if e_patrimonios and i < e_patrimonios|length else '') }}"
+                                           placeholder="Ex: EP-00{{ i + 1 }}"
+                                           class="w-full border-2 border-black p-2 text-sm font-mono font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                </div>
+                                
+                                <div>
+                                    <label class="font-mono text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Nº de Série (opcional)</label>
+                                    <input type="text" name="numero_serie_{{ i }}"
+                                           value="{{ (numeros_serie[i] if numeros_serie and i < numeros_serie|length else '') }}"
+                                           placeholder="S/N"
+                                           class="w-full border-2 border-gray-300 p-2 text-xs font-mono focus:border-black focus:outline-none">
+                                </div>
+                                
+                                <div>
+                                    <label class="font-mono text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Localização</label>
+                                    <select name="local_id_{{ i }}" class="w-full border-2 border-gray-300 p-2 text-xs font-mono focus:border-black focus:outline-none">
+                                        <option value="">— Mesma do original —</option>
+                                        {% for local in locais %}
+                                        <option value="{{ local.id }}" {% if asset.current_local_id and asset.current_local_id == local.id %}selected{% endif %}>{{ local.nome }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="flex gap-3 pt-4 border-t-2 border-black">
+                        <a href="/assets/{{ asset.id }}/duplicar"
+                           class="flex-1 bg-white border-2 border-black text-black font-bold uppercase text-xs py-3 px-4 text-center hover:bg-gray-100 transition">
+                            ← Voltar
+                        </a>
+                        <button type="submit"
+                                class="flex-[2] bg-green-600 text-white font-bold uppercase text-sm py-3 px-4 hover:bg-green-700 transition border-2 border-green-600 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px]">
+                            ✓ Criar {{ quantidade }} Cópia{{ 's' if quantidade > 1 else '' }}
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            {% elif step == 'sucesso' %}
+            <!-- STEP 3: Confirmação -->
+            <div class="text-center space-y-6 py-8">
+                <div class="w-16 h-16 bg-green-600 text-white mx-auto flex items-center justify-center text-3xl font-bold border-2 border-green-700">✓</div>
+                
+                <div>
+                    <h3 class="text-2xl font-black uppercase tracking-tight">Duplicação Concluída!</h3>
+                    <p class="text-sm text-gray-500 mt-2 font-mono">{{ criados|length }} ativo{{ 's' if criados|length > 1 else '' }} criado{{ 's' if criados|length > 1 else '' }} com sucesso</p>
+                </div>
+
+                <div class="bg-gray-50 border-2 border-gray-200 p-4 text-left max-h-60 overflow-y-auto">
+                    <table class="w-full text-xs">
+                        <thead>
+                            <tr class="border-b-2 border-black">
+                                <th class="text-left py-2 font-mono uppercase tracking-widest text-gray-400">#</th>
+                                <th class="text-left py-2 font-mono uppercase tracking-widest text-gray-400">E-Patrimônio</th>
+                                <th class="text-left py-2 font-mono uppercase tracking-widest text-gray-400">Nome</th>
+                                <th class="text-left py-2 font-mono uppercase tracking-widest text-gray-400">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for novo in criados %}
+                            <tr class="border-b border-gray-100 hover:bg-gray-100 transition">
+                                <td class="py-2 font-mono text-gray-400">{{ loop.index }}</td>
+                                <td class="py-2 font-bold font-mono">
+                                    <a href="/assets/ep/{{ novo.e_patrimonio }}" class="hover:underline text-blue-600">{{ novo.e_patrimonio }}</a>
+                                </td>
+                                <td class="py-2">{{ novo.nome }}</td>
+                                <td class="py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 font-bold uppercase text-[10px]">Criado</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex gap-3">
+                    <a href="/assets/{{ asset.id }}"
+                       class="flex-1 bg-white border-2 border-black text-black font-bold uppercase text-xs py-3 px-4 text-center hover:bg-gray-100 transition">
+                        Voltar ao Original
+                    </a>
+                    <a href="/assets"
+                       class="flex-1 bg-black text-white font-bold uppercase text-xs py-3 px-4 text-center hover:bg-gray-800 transition border-2 border-black">
+                        Ver Lista de Ativos
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function closeDuplicateModal() {
+    const overlay = document.getElementById('duplicate-modal-overlay');
+    if (overlay) overlay.remove();
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDuplicateModal();
+});
+</script>

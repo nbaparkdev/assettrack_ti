@@ -819,6 +819,190 @@ async def update_asset(
             "title": f"Editar Ativo: {asset.nome}"
         })
 
+# --- Duplicate Asset ---
+
+@router.get("/{asset_id}/duplicar", response_class=HTMLResponse)
+async def duplicate_asset_form(
+    request: Request,
+    asset_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
+
+    asset = await asset_crud.asset.get(db, id=asset_id)
+    if not asset:
+        return RedirectResponse(url="/assets", status_code=303)
+
+    locais = await location.localizacao.get_multi(db)
+
+    return templates.TemplateResponse("assets/duplicate_page.html", {
+        "request": request,
+        "user": current_user,
+        "asset": asset,
+        "locais": locais,
+        "step": "quantidade",
+        "title": f"Duplicar Ativo: {asset.nome}"
+    })
+
+@router.post("/{asset_id}/duplicar", response_class=HTMLResponse)
+async def duplicate_asset_submit(
+    request: Request,
+    asset_id: int,
+    background_tasks: BackgroundTasks,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE]:
+        return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
+
+    asset = await asset_crud.asset.get(db, id=asset_id)
+    if not asset:
+        return RedirectResponse(url="/assets", status_code=303)
+
+    locais = await location.localizacao.get_multi(db)
+    form_data = await request.form()
+    step = form_data.get("step", "quantidade")
+
+    if step == "quantidade":
+        try:
+            quantidade = int(form_data.get("quantidade", 1))
+            quantidade = max(1, min(50, quantidade))
+        except (ValueError, TypeError):
+            quantidade = 1
+
+        return templates.TemplateResponse("assets/duplicate_page.html", {
+            "request": request,
+            "user": current_user,
+            "asset": asset,
+            "locais": locais,
+            "step": "cadastro",
+            "quantidade": quantidade,
+            "title": f"Duplicar Ativo: {asset.nome}"
+        })
+
+    elif step == "confirmar":
+        try:
+            quantidade = int(form_data.get("quantidade", 1))
+            quantidade = max(1, min(50, quantidade))
+        except (ValueError, TypeError):
+            quantidade = 1
+
+        e_patrimonios = []
+        numeros_serie = []
+        locais_ids = []
+        for i in range(quantidade):
+            ep = (form_data.get(f"e_patrimonio_{i}") or "").strip()
+            ns = (form_data.get(f"numero_serie_{i}") or "").strip()
+            lid = (form_data.get(f"local_id_{i}") or "").strip()
+            e_patrimonios.append(ep)
+            numeros_serie.append(ns)
+            locais_ids.append(lid)
+
+        # Validate all E-Patrimônios are filled
+        empty_eps = [i for i, ep in enumerate(e_patrimonios) if not ep]
+        if empty_eps:
+            nums = ", ".join([str(i + 1) for i in empty_eps])
+            return templates.TemplateResponse("assets/duplicate_page.html", {
+                "request": request,
+                "user": current_user,
+                "asset": asset,
+                "locais": locais,
+                "step": "cadastro",
+                "quantidade": quantidade,
+                "e_patrimonios": e_patrimonios,
+                "numeros_serie": numeros_serie,
+                "error_msg": f"E-Patrimônio obrigatório para cópia(s): {nums}",
+                "title": f"Duplicar Ativo: {asset.nome}"
+            })
+
+        # Check for duplicates within the batch
+        if len(set(e_patrimonios)) != len(e_patrimonios):
+            return templates.TemplateResponse("assets/duplicate_page.html", {
+                "request": request,
+                "user": current_user,
+                "asset": asset,
+                "locais": locais,
+                "step": "cadastro",
+                "quantidade": quantidade,
+                "e_patrimonios": e_patrimonios,
+                "numeros_serie": numeros_serie,
+                "error_msg": "Existem E-Patrimônios duplicados no lote. Cada cópia deve ter um E-Patrimônio único.",
+                "title": f"Duplicar Ativo: {asset.nome}"
+            })
+
+        # Check for existing E-Patrimônios in DB
+        from sqlalchemy import select
+        from app.models.asset import Asset
+        existing_check = await db.execute(
+            select(Asset.e_patrimonio).where(Asset.e_patrimonio.in_(e_patrimonios))
+        )
+        existing = set(existing_check.scalars().all())
+        if existing:
+            conflitos = ", ".join(sorted(existing))
+            return templates.TemplateResponse("assets/duplicate_page.html", {
+                "request": request,
+                "user": current_user,
+                "asset": asset,
+                "locais": locais,
+                "step": "cadastro",
+                "quantidade": quantidade,
+                "e_patrimonios": e_patrimonios,
+                "numeros_serie": numeros_serie,
+                "error_msg": f"E-Patrimônio(s) já existente(s) no sistema: {conflitos}",
+                "title": f"Duplicar Ativo: {asset.nome}"
+            })
+
+        # Create the copies
+        criados = []
+        for i in range(quantidade):
+            local_id = int(locais_ids[i]) if locais_ids[i] else asset.current_local_id
+
+            asset_in = AssetCreate(
+                nome=asset.nome,
+                modelo=asset.modelo,
+                e_patrimonio=e_patrimonios[i],
+                descricao=asset.descricao,
+                data_aquisicao=asset.data_aquisicao,
+                valor=asset.valor,
+                numero_serie=numeros_serie[i] if numeros_serie[i] else None,
+                fornecedor_id=asset.fornecedor_id,
+                nota_fiscal_id=asset.nota_fiscal_id,
+                categoria_id=asset.categoria_id,
+                current_local_id=local_id,
+                em_posse_de=asset.em_posse_de,
+                bloqueado=asset.bloqueado,
+                requer_termo_rh=asset.requer_termo_rh,
+                foto_path=asset.foto_path,
+                created_by_id=current_user.id,
+                status=AssetStatus.DISPONIVEL
+            )
+            novo_asset = await asset_crud.asset.create(db, obj_in=asset_in)
+            criados.append(novo_asset)
+
+            # Webhook
+            payload = {
+                "id": novo_asset.id,
+                "nome": novo_asset.nome,
+                "e_patrimonio": novo_asset.e_patrimonio,
+                "status": novo_asset.status.value if hasattr(novo_asset.status, 'value') else str(novo_asset.status),
+                "duplicado_de": asset.e_patrimonio
+            }
+            background_tasks.add_task(dispatch_webhook_event, "ASSET_CREATED", payload)
+
+        return templates.TemplateResponse("assets/duplicate_page.html", {
+            "request": request,
+            "user": current_user,
+            "asset": asset,
+            "locais": locais,
+            "step": "sucesso",
+            "criados": criados,
+            "title": f"Duplicação Concluída: {asset.nome}"
+        })
+
+    return RedirectResponse(url=f"/assets/{asset_id}/duplicar", status_code=303)
+
 @router.post("/{asset_id}/delete", response_class=HTMLResponse)
 async def delete_asset(
     request: Request,
