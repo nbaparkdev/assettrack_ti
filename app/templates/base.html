@@ -355,7 +355,8 @@
                         <a href="/profile" class="group flex items-center gap-3">
                             <div class="w-10 h-10 border-[3px] border-black bg-white flex items-center justify-center relative shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group-hover:translate-x-[1px] group-hover:translate-y-[1px] group-hover:shadow-none transition-all overflow-hidden">
                                 {% if user.avatar_url %}
-                                <img src="{{ user.avatar_url }}" alt="Avatar" class="w-full h-full object-cover">
+                                <img src="{{ user.avatar_url }}" alt="Avatar" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                                <span class="font-bold text-sm uppercase hidden">{{ user.nome[:2] }}</span>
                                 {% else %}
                                 <span class="font-bold text-sm uppercase">{{ user.nome[:2] }}</span>
                                 {% endif %}
