@@ -18,4 +18,4 @@ ID: 20 | Nome: Alisson Fernando da Silva Lima | Email: alisson.lima@nbaparkgrama
 ID: 21 | Nome: PDV-LOCKER | Email: pdv-locker@nbaparkgramado.com.br | Role: usuario_comum | Is Active: True | Matricula: None | Cargo: 'CAIXA-LOCKER'
 ID: 22 | Nome: PDV01-RESTAURANTE | Email: pdv01_restaurante@nbaparkgramado.com.br | Role: usuario_comum | Is Active: True | Matricula: None | Cargo: 'CAIXA'
 ID: 23 | Nome: PDV02-RESTAURANTE | Email: pdv02_restaurante@nbaparkgramado.com.br | Role: usuario_comum | Is Active: True | Matricula: None | Cargo: 'CAIXA'
-ID: 25 | Nome: Admin User | Email: admin@example.com | Role: usuario_comum | Is Active: True | Matricula: None | Cargo: None
+ID: 24 | Nome: Administrador | Email: admin@example.com | Role: admin | Is Active: True | Matricula: None | Cargo: None

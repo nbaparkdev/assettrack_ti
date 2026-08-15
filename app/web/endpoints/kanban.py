@@ -316,7 +316,8 @@ async def get_card_modal(
     card_id: int,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: None = Depends(check_kanban_enabled)
+    _: None = Depends(check_kanban_enabled),
+    error_msg: Optional[str] = None
 ):
     # Fetch project board to get full context
     from app.models.kanban import KanbanCard
@@ -349,11 +350,12 @@ async def get_card_modal(
 
     # Find target card from board's eager loaded structure
     target_card = None
-    for col in project.colunas:
-        for c in col.cards:
-            if c.id == card_id:
-                target_card = c
-                break
+    if project and project.colunas:
+        for col in project.colunas:
+            for c in col.cards:
+                if c.id == card_id:
+                    target_card = c
+                    break
 
     return templates.TemplateResponse("kanban/partials/card_modal.html", {
         "request": request,
@@ -366,7 +368,8 @@ async def get_card_modal(
         "departamentos": departamentos,
         "centros_custo": centros_custo,
         "material_stocks": material_stocks,
-        "solicitacoes_compras": solicitacoes_compras
+        "solicitacoes_compras": solicitacoes_compras,
+        "error_msg": error_msg
     })
 
 @router.post("/cards/{card_id}/editar")
@@ -477,41 +480,59 @@ async def upload_attachment_submit(
     if not card:
         raise HTTPException(status_code=404, detail="Card não encontrado.")
 
-    att_name = "anexo"
-    if tipo_anexo == "link" and link_url:
-        final_nome = nome_anexo or link_url
-        att_name = final_nome
-        await crud_kanban.add_attachment(db, card_id=card_id, nome=final_nome, tipo="link", url=link_url)
-    elif arquivo and arquivo.filename:
-        from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_DOCUMENT_EXTENSIONS
-        ext = validate_uploaded_file(arquivo, allowed_extensions=ALLOWED_DOCUMENT_EXTENSIONS)
-        upload_dir = os.path.join("static", "uploads", "kanban")
-        os.makedirs(upload_dir, exist_ok=True)
-        
-        unique_name = generate_safe_filename(ext, prefix="kanban")
-        filepath = os.path.join(upload_dir, unique_name)
-        
-        content = await arquivo.read()
-        with open(filepath, "wb") as f:
-            f.write(content)
-            
-        file_url = f"/static/uploads/kanban/{unique_name}"
-        att_type = "imagem" if ext.lower() in [".png", ".jpg", ".jpeg", ".webp", ".gif"] else "arquivo"
-        safe_orig_name = os.path.basename(arquivo.filename)
-        att_name = safe_orig_name
-        await crud_kanban.add_attachment(db, card_id=card_id, nome=safe_orig_name, tipo=att_type, url=file_url)
+    att_added = False
+    att_name = ""
+    error_msg = None
 
-    await crud_kanban.add_interaction(
-        db, card_id=card.id, usuario_id=current_user.id,
-        mensagem=f"Adicionou o anexo '{att_name}'.",
-        tipo="sistema_anexo"
-    )
-    await notif_service.notify_attachment_added(db, card, att_name, current_user)
+    if tipo_anexo == "link":
+        if not link_url or not link_url.strip():
+            error_msg = "Por favor, informe a URL do link externo."
+        else:
+            final_nome = (nome_anexo or link_url).strip()
+            att_name = final_nome
+            await crud_kanban.add_attachment(db, card_id=card_id, nome=final_nome, tipo="link", url=link_url.strip())
+            att_added = True
+    else:
+        if not arquivo or not arquivo.filename or not arquivo.filename.strip():
+            error_msg = "Por favor, selecione um arquivo para upload."
+        else:
+            try:
+                from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_DOCUMENT_EXTENSIONS
+                ext = validate_uploaded_file(arquivo, allowed_extensions=ALLOWED_DOCUMENT_EXTENSIONS)
+                upload_dir = os.path.join("static", "uploads", "kanban")
+                os.makedirs(upload_dir, exist_ok=True)
+                
+                unique_name = generate_safe_filename(ext, prefix="kanban")
+                filepath = os.path.join(upload_dir, unique_name)
+                
+                content = await arquivo.read()
+                with open(filepath, "wb") as f:
+                    f.write(content)
+                    
+                file_url = f"/static/uploads/kanban/{unique_name}"
+                att_type = "imagem" if ext.lower() in [".png", ".jpg", ".jpeg", ".webp", ".gif"] else "arquivo"
+                safe_orig_name = os.path.basename(arquivo.filename)
+                att_name = safe_orig_name
+                await crud_kanban.add_attachment(db, card_id=card_id, nome=safe_orig_name, tipo=att_type, url=file_url)
+                att_added = True
+            except HTTPException as exc:
+                error_msg = exc.detail
+            except Exception as e:
+                error_msg = f"Erro ao salvar arquivo: {str(e)}"
 
-    return RedirectResponse(url=f"/kanban/cards/{card_id}", status_code=status.HTTP_303_SEE_OTHER)
+    if att_added:
+        await crud_kanban.add_interaction(
+            db, card_id=card.id, usuario_id=current_user.id,
+            mensagem=f"Adicionou o anexo '{att_name}'.",
+            tipo="sistema_anexo"
+        )
+        await notif_service.notify_attachment_added(db, card, att_name, current_user)
+
+    return await get_card_modal(request, card_id, current_user, db, _, error_msg=error_msg)
 
 @router.post("/anexos/{attachment_id}/deletar")
 async def delete_attachment_submit(
+    request: Request,
     attachment_id: int,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -524,7 +545,7 @@ async def delete_attachment_submit(
         await crud_kanban.remove_attachment(db, attachment_id)
     
     if card_id:
-        return RedirectResponse(url=f"/kanban/cards/{card_id}", status_code=status.HTTP_303_SEE_OTHER)
+        return await get_card_modal(request, card_id, current_user, db, _)
     return RedirectResponse(url="/kanban", status_code=status.HTTP_303_SEE_OTHER)
 
 

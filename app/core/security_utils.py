@@ -18,14 +18,24 @@ def validate_uploaded_file(
     Validates file upload extensions and cleans filenames to prevent path traversal
     and execution of arbitrary/malicious file types (XSS, RCE).
     """
-    if not file or not file.filename:
+    if not file or not file.filename or not file.filename.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Arquivo inválido ou não fornecido."
         )
 
-    filename = os.path.basename(file.filename)
-    ext = os.path.splitext(filename)[1].lower()
+    # Clean filename of whitespace, quotes, and path traversal
+    raw_filename = os.path.basename(file.filename.strip('\'" \t\r\n'))
+    ext = os.path.splitext(raw_filename)[1].lower().strip()
+
+    # Fallback to content_type (MIME type) if extension is missing from filename
+    if not ext and file.content_type:
+        import mimetypes
+        guessed = mimetypes.guess_extension(file.content_type.split(";")[0].strip())
+        if guessed:
+            ext = guessed.lower().strip()
+            if ext == ".jpe":
+                ext = ".jpg"
 
     if not ext or ext not in allowed_extensions:
         allowed_str = ", ".join(sorted(allowed_extensions))
