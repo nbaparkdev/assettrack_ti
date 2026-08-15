@@ -124,8 +124,29 @@ class KanbanCard(Base):
         cascade="all, delete-orphan",
         lazy="selectin"
     )
+    interacoes: Mapped[List["KanbanCardInteraction"]] = relationship(
+        "KanbanCardInteraction",
+        back_populates="card",
+        cascade="all, delete-orphan",
+        order_by="KanbanCardInteraction.created_at.asc()",
+        lazy="selectin"
+    )
     purchase_request: Mapped[Optional["PurchaseRequest"]] = relationship("PurchaseRequest", lazy="selectin")
     material_stock: Mapped[Optional["MaterialStock"]] = relationship("MaterialStock", lazy="selectin")
+
+class KanbanCardInteraction(Base):
+    __tablename__ = "kanban_card_interactions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    card_id: Mapped[int] = mapped_column(ForeignKey("kanban_cards.id", ondelete="CASCADE"), nullable=False, index=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    mensagem: Mapped[str] = mapped_column(Text, nullable=False)
+    tipo: Mapped[str] = mapped_column(String(50), default="comentario", nullable=False) # comentario, sistema_movimentacao, sistema_responsavel, sistema_anexo, sistema_suprimentos
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_sp, nullable=False)
+
+    # Relationships
+    card: Mapped["KanbanCard"] = relationship("KanbanCard", back_populates="interacoes")
+    usuario: Mapped["User"] = relationship("User", lazy="selectin")
 
 class KanbanAttachment(Base):
     __tablename__ = "kanban_attachments"

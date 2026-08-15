@@ -235,6 +235,19 @@ function openNewCardModal(colId, colName) {
 
 document.addEventListener('DOMContentLoaded', function() {
     initKanbanDragAndDrop();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('msg') === 'card_saved') {
+        if (typeof showToast === 'function') {
+            showToast('Cartão salvo com sucesso!', 'success');
+        }
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (urlParams.get('msg') === 'card_deleted') {
+        if (typeof showToast === 'function') {
+            showToast('Cartão excluído com sucesso.', 'success');
+        }
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 });
 
 function initKanbanDragAndDrop() {

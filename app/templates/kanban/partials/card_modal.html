@@ -16,9 +16,10 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Left Side: Main Form & Description -->
+            <!-- Left Side: Main Form & Procurement & Actions -->
             <div class="lg:col-span-2 space-y-6">
-                <form action="/kanban/cards/{{ card.id }}/editar" method="POST" class="space-y-6">
+                <!-- Main Card Edit Form -->
+                <form id="card-edit-form" action="/kanban/cards/{{ card.id }}/editar" method="POST" class="space-y-6">
                     <div class="space-y-2">
                         <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Título da Tarefa</label>
                         <input type="text" name="titulo" value="{{ card.titulo }}" required class="w-full border-2 border-black p-2 text-sm font-sans focus:outline-none focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
@@ -105,172 +106,278 @@
                         </div>
                     </div>
 
-                    <!-- Integração com Suprimentos, Compras & Estoque -->
-                    <div class="space-y-4 pt-4 border-t-2 border-black">
-                        <div class="flex items-center justify-between">
-                            <h3 class="font-bold text-sm text-black uppercase tracking-tight flex items-center gap-2">
-                                <svg class="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 11h14l1 12H4L5 11z"/></svg>
-                                Suprimentos, Compras & Estoque
-                            </h3>
-                            {% if card.tipo_item_necessario %}
-                            <span class="font-mono text-[10px] bg-black text-white px-2 py-0.5 font-bold uppercase tracking-widest">
-                                {{ card.tipo_item_necessario }}
-                            </span>
-                            {% endif %}
-                        </div>
-
-                        {% if card.purchase_request %}
-                        <!-- Solicitação de Compra Vinculada -->
-                        <div class="bg-amber-50 border-2 border-black p-4 space-y-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                            <div class="flex items-center justify-between">
-                                <span class="font-mono text-xs font-bold text-amber-900 uppercase">
-                                    🛒 Solicitação de Compra #{{ card.purchase_request.numero }}
-                                </span>
-                                <span class="font-mono text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 border border-black font-bold uppercase">
-                                    {{ card.purchase_request.status.value if card.purchase_request.status else card.purchase_request.status }}
-                                </span>
-                            </div>
-                            <p class="text-xs text-gray-700 font-sans">
-                                <strong>Justificativa:</strong> {{ card.purchase_request.justificativa }}
-                            </p>
-                            <div class="pt-1 flex items-center justify-between">
-                                <span class="font-mono text-[10px] text-gray-500">Urgência: {{ card.purchase_request.urgencia }}</span>
-                                <a href="/procurement/requests/{{ card.purchase_request.id }}" target="_blank" class="font-mono text-xs font-bold text-black hover:underline uppercase flex items-center gap-1">
-                                    Ver Solicitação ↗
-                                </a>
-                            </div>
-                        </div>
-
-                        {% elif card.material_stock %}
-                        <!-- Item de Estoque Vinculado -->
-                        <div class="bg-blue-50 border-2 border-black p-4 space-y-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                            <div class="flex items-center justify-between">
-                                <span class="font-mono text-xs font-bold text-blue-900 uppercase">
-                                    📦 Item em Estoque Alocado
-                                </span>
-                                <span class="font-mono text-[10px] bg-blue-200 text-blue-900 px-2 py-0.5 border border-black font-bold uppercase">
-                                    Saldo: {{ card.material_stock.quantidade_saldo }} UN
-                                </span>
-                            </div>
-                            <p class="text-xs font-bold text-black">
-                                {{ card.material_stock.product.nome if card.material_stock.product else 'Material em estoque' }}
-                            </p>
-                            <span class="font-mono text-[10px] text-gray-600 block">
-                                Almoxarifado: {{ card.material_stock.localizacao_almoxarifado or 'Principal TI' }}
-                            </span>
-                        </div>
-
-                        {% else %}
-                        <!-- Ações de Integração: Solicitar Compra ou Usar Estoque -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <button type="button" onclick="toggleProcurementForm('solicitar')" class="btn-secondary text-xs font-mono uppercase flex items-center justify-center gap-2 py-2">
-                                <span>🛒</span> Solicitar Compra
-                            </button>
-                            <button type="button" onclick="toggleProcurementForm('estoque')" class="btn-secondary text-xs font-mono uppercase flex items-center justify-center gap-2 py-2">
-                                <span>📦</span> Usar do Estoque
-                            </button>
-                        </div>
-
-                        <!-- Form A: Solicitar Compra (Consumo ou Ativo Imobilizado) -->
-                        <div id="form-solicitar-compra" class="hidden border-2 border-black p-4 bg-gray-50 space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                            <div class="flex items-center justify-between border-b border-black pb-2">
-                                <h4 class="font-mono text-xs font-bold text-black uppercase">Gerar Solicitação de Compras</h4>
-                                <button type="button" onclick="toggleProcurementForm('none')" class="font-mono text-xs font-bold">✕</button>
-                            </div>
-
-                            <form hx-post="/kanban/cards/{{ card.id }}/solicitar-compra" hx-target="#modal-container" class="space-y-3">
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div class="space-y-1">
-                                        <label class="font-mono text-[10px] font-bold text-black uppercase">Tipo de Item</label>
-                                        <select name="tipo_item" class="w-full border-2 border-black p-1.5 text-xs bg-white font-mono">
-                                            <option value="Consumo">Material de Consumo</option>
-                                            <option value="Imobilizado">Ativo Imobilizado</option>
-                                        </select>
-                                    </div>
-                                    <div class="space-y-1">
-                                        <label class="font-mono text-[10px] font-bold text-black uppercase">Quantidade</label>
-                                        <input type="number" name="quantidade" value="1" min="1" step="1" required class="w-full border-2 border-black p-1.5 text-xs font-mono bg-white">
-                                    </div>
-                                </div>
-
-                                <div class="space-y-1">
-                                    <label class="font-mono text-[10px] font-bold text-black uppercase">Nome / Descrição do Produto *</label>
-                                    <input type="text" name="nome_produto" required placeholder="Ex: Notebook Dell Vostro ou Módulo RAM 16GB" class="w-full border-2 border-black p-1.5 text-xs font-sans bg-white">
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div class="space-y-1">
-                                        <label class="font-mono text-[10px] font-bold text-black uppercase">Valor Estimado (R$)</label>
-                                        <input type="number" name="valor_estimado" value="0.00" step="0.01" class="w-full border-2 border-black p-1.5 text-xs font-mono bg-white">
-                                    </div>
-                                    <div class="space-y-1">
-                                        <label class="font-mono text-[10px] font-bold text-black uppercase">Departamento</label>
-                                        <select name="departamento_id" class="w-full border-2 border-black p-1.5 text-xs bg-white font-mono">
-                                            {% for d in departamentos %}
-                                            <option value="{{ d.id }}">{{ d.nome }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="space-y-1">
-                                    <label class="font-mono text-[10px] font-bold text-black uppercase">Centro de Custo</label>
-                                    <select name="centro_custo_id" class="w-full border-2 border-black p-1.5 text-xs bg-white font-mono">
-                                        {% for cc in centros_custo %}
-                                        <option value="{{ cc.id }}">{{ cc.codigo }} - {{ cc.nome }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-
-                                <button type="submit" class="btn-primary w-full text-xs font-mono uppercase py-2">
-                                    Confirmar Solicitação de Compras
-                                </button>
-                            </form>
-                        </div>
-
-                        <!-- Form B: Usar Item do Estoque -->
-                        <div id="form-vincular-estoque" class="hidden border-2 border-black p-4 bg-gray-50 space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                            <div class="flex items-center justify-between border-b border-black pb-2">
-                                <h4 class="font-mono text-xs font-bold text-black uppercase">Vincular Item em Estoque</h4>
-                                <button type="button" onclick="toggleProcurementForm('none')" class="font-mono text-xs font-bold">✕</button>
-                            </div>
-
-                            <form hx-post="/kanban/cards/{{ card.id }}/vincular-estoque" hx-target="#modal-container" class="space-y-3">
-                                <div class="space-y-1">
-                                    <label class="font-mono text-[10px] font-bold text-black uppercase">Item Disponível em Estoque</label>
-                                    <select name="stock_id" required class="w-full border-2 border-black p-1.5 text-xs bg-white font-mono">
-                                        {% for st in material_stocks %}
-                                        <option value="{{ st.id }}">{{ st.product.nome if st.product else 'Item #' ~ st.id }} (Saldo: {{ st.quantidade_saldo }} UN)</option>
-                                        {% else %}
-                                        <option value="">Nenhum item em estoque disponível</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-
-                                <div class="space-y-1">
-                                    <label class="font-mono text-[10px] font-bold text-black uppercase">Quantidade a Alocar</label>
-                                    <input type="number" name="quantidade_usar" value="1" min="1" step="1" required class="w-full border-2 border-black p-1.5 text-xs font-mono bg-white">
-                                </div>
-
-                                <label class="flex items-center gap-2 text-xs font-mono font-bold uppercase cursor-pointer pt-1">
-                                    <input type="checkbox" name="dar_baixa_estoque" value="true" checked class="w-4 h-4 border-2 border-black text-black">
-                                    Registrar baixa automática de saída no estoque
-                                </label>
-
-                                <button type="submit" class="btn-primary w-full text-xs font-mono uppercase py-2">
-                                    Confirmar Alocação de Estoque
-                                </button>
-                            </form>
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="pt-4 flex items-center justify-between">
+                    <!-- Submit Button for Card Changes -->
+                    <div class="pt-4 flex items-center justify-between border-t-2 border-black">
                         <button type="submit" class="btn-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                             Salvar Alterações
                         </button>
                     </div>
                 </form>
+
+                <!-- Integração com Suprimentos, Compras & Estoque (Independent Section) -->
+                <div class="space-y-4 pt-4 border-t-2 border-black">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-sm text-black uppercase tracking-tight flex items-center gap-2">
+                            <svg class="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 11h14l1 12H4L5 11z"/></svg>
+                            Suprimentos, Compras & Estoque
+                        </h3>
+                        {% if card.tipo_item_necessario %}
+                        <span class="font-mono text-[10px] bg-black text-white px-2 py-0.5 font-bold uppercase tracking-widest">
+                            {{ card.tipo_item_necessario }}
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    {% if card.purchase_request %}
+                    <!-- Solicitação de Compra Vinculada -->
+                    <div class="bg-amber-50 border-2 border-black p-4 space-y-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                        <div class="flex items-center justify-between">
+                            <span class="font-mono text-xs font-bold text-amber-900 uppercase">
+                                🛒 Solicitação de Compra #{{ card.purchase_request.numero }}
+                            </span>
+                            <span class="font-mono text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 border border-black font-bold uppercase">
+                                {{ card.purchase_request.status.value if card.purchase_request.status else card.purchase_request.status }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-700 font-sans">
+                            <strong>Justificativa:</strong> {{ card.purchase_request.justificativa }}
+                        </p>
+                        <div class="pt-1 flex items-center justify-between">
+                            <span class="font-mono text-[10px] text-gray-500">Urgência: {{ card.purchase_request.urgencia }}</span>
+                            <a href="/procurement/requests/{{ card.purchase_request.id }}" target="_blank" class="font-mono text-xs font-bold text-black hover:underline uppercase flex items-center gap-1">
+                                Ver Solicitação ↗
+                            </a>
+                        </div>
+                    </div>
+
+                    {% elif card.material_stock %}
+                    <!-- Item de Estoque Vinculado -->
+                    <div class="bg-blue-50 border-2 border-black p-4 space-y-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                        <div class="flex items-center justify-between">
+                            <span class="font-mono text-xs font-bold text-blue-900 uppercase">
+                                📦 Item em Estoque Alocado
+                            </span>
+                            <span class="font-mono text-[10px] bg-blue-200 text-blue-900 px-2 py-0.5 border border-black font-bold uppercase">
+                                Saldo: {{ card.material_stock.quantidade_saldo }} UN
+                            </span>
+                        </div>
+                        <p class="text-xs font-bold text-black">
+                            {{ card.material_stock.product.nome if card.material_stock.product else 'Material em estoque' }}
+                        </p>
+                        <span class="font-mono text-[10px] text-gray-600 block">
+                            Almoxarifado: {{ card.material_stock.localizacao_almoxarifado or 'Principal TI' }}
+                        </span>
+                    </div>
+
+                    {% else %}
+                    <!-- Ações de Integração: Solicitar Compra ou Usar Estoque -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button type="button" onclick="toggleProcurementForm('solicitar')" class="btn-secondary text-xs font-mono uppercase flex items-center justify-center gap-2 py-2">
+                            <span>🛒</span> Solicitar Compra
+                        </button>
+                        <button type="button" onclick="toggleProcurementForm('estoque')" class="btn-secondary text-xs font-mono uppercase flex items-center justify-center gap-2 py-2">
+                            <span>📦</span> Usar do Estoque
+                        </button>
+                    </div>
+
+                    <!-- Form A: Solicitar Compra (Consumo ou Ativo Imobilizado) -->
+                    <div id="form-solicitar-compra" class="hidden border-2 border-black p-4 bg-gray-50 space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                        <div class="flex items-center justify-between border-b border-black pb-2">
+                            <h4 class="font-mono text-xs font-bold text-black uppercase">Gerar Solicitação de Compras</h4>
+                            <button type="button" onclick="toggleProcurementForm('none')" class="font-mono text-xs font-bold">✕</button>
+                        </div>
+
+                        <form hx-post="/kanban/cards/{{ card.id }}/solicitar-compra" hx-target="#modal-container" class="space-y-3">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="space-y-1">
+                                    <label class="font-mono text-[10px] font-bold text-black uppercase">Tipo de Item</label>
+                                    <select name="tipo_item" class="w-full border-2 border-black p-1.5 text-xs bg-white font-mono">
+                                        <option value="Consumo">Material de Consumo</option>
+                                        <option value="Imobilizado">Ativo Imobilizado</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="font-mono text-[10px] font-bold text-black uppercase">Quantidade</label>
+                                    <input type="number" name="quantidade" value="1" min="1" step="1" required class="w-full border-2 border-black p-1.5 text-xs font-mono bg-white">
+                                </div>
+                            </div>
+
+                            <div class="space-y-1">
+                                <label class="font-mono text-[10px] font-bold text-black uppercase">Nome / Descrição do Produto *</label>
+                                <input type="text" name="nome_produto" required placeholder="Ex: Notebook Dell Vostro ou Módulo RAM 16GB" class="w-full border-2 border-black p-1.5 text-xs font-sans bg-white">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="space-y-1">
+                                    <label class="font-mono text-[10px] font-bold text-black uppercase">Valor Estimado (R$)</label>
+                                    <input type="number" name="valor_estimado" value="0.00" step="0.01" class="w-full border-2 border-black p-1.5 text-xs font-mono bg-white">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="font-mono text-[10px] font-bold text-black uppercase">Departamento</label>
+                                    <select name="departamento_id" class="w-full border-2 border-black p-1.5 text-xs bg-white font-mono">
+                                        {% for d in departamentos %}
+                                        <option value="{{ d.id }}">{{ d.nome }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1">
+                                <label class="font-mono text-[10px] font-bold text-black uppercase">Centro de Custo</label>
+                                <select name="centro_custo_id" class="w-full border-2 border-black p-1.5 text-xs bg-white font-mono">
+                                    {% for cc in centros_custo %}
+                                    <option value="{{ cc.id }}">{{ cc.codigo }} - {{ cc.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <button type="submit" class="btn-primary w-full text-xs font-mono uppercase py-2">
+                                Confirmar Solicitação de Compras
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Form B: Usar Item do Estoque -->
+                    <div id="form-vincular-estoque" class="hidden border-2 border-black p-4 bg-gray-50 space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                        <div class="flex items-center justify-between border-b border-black pb-2">
+                            <h4 class="font-mono text-xs font-bold text-black uppercase">Vincular Item em Estoque</h4>
+                            <button type="button" onclick="toggleProcurementForm('none')" class="font-mono text-xs font-bold">✕</button>
+                        </div>
+
+                        <form hx-post="/kanban/cards/{{ card.id }}/vincular-estoque" hx-target="#modal-container" class="space-y-3">
+                            <div class="space-y-1">
+                                <label class="font-mono text-[10px] font-bold text-black uppercase">Item Disponível em Estoque</label>
+                                <select name="stock_id" required class="w-full border-2 border-black p-1.5 text-xs bg-white font-mono">
+                                    {% for st in material_stocks %}
+                                    <option value="{{ st.id }}">{{ st.product.nome if st.product else 'Item #' ~ st.id }} (Saldo: {{ st.quantidade_saldo }} UN)</option>
+                                    {% else %}
+                                    <option value="">Nenhum item em estoque disponível</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="space-y-1">
+                                <label class="font-mono text-[10px] font-bold text-black uppercase">Quantidade a Alocar</label>
+                                <input type="number" name="quantidade_usar" value="1" min="1" step="1" required class="w-full border-2 border-black p-1.5 text-xs font-mono bg-white">
+                            </div>
+
+                            <label class="flex items-center gap-2 text-xs font-mono font-bold uppercase cursor-pointer pt-1">
+                                <input type="checkbox" name="dar_baixa_estoque" value="true" checked class="w-4 h-4 border-2 border-black text-black">
+                                Registrar baixa automática de saída no estoque
+                            </label>
+
+                            <button type="submit" class="btn-primary w-full text-xs font-mono uppercase py-2">
+                                Confirmar Alocação de Estoque
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Timeline & Interações dos Usuários -->
+                <div class="space-y-4 pt-4 border-t-2 border-black" id="card-timeline-container">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-sm text-black uppercase tracking-tight flex items-center gap-2">
+                            <svg class="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                            </svg>
+                            Histórico & Timeline de Interações
+                            <span class="font-mono text-xs text-gray-500 bg-gray-200 px-2 py-0.5 border border-black font-bold">
+                                {{ card.interacoes|length if card.interacoes else 0 }}
+                            </span>
+                        </h3>
+                    </div>
+
+                    <!-- Timeline Entries List -->
+                    <div class="space-y-3 max-h-80 overflow-y-auto pr-1 border-2 border-black p-3 bg-gray-50">
+                        {% for item in card.interacoes %}
+                            {% if item.tipo.startswith('sistema_') %}
+                            <!-- System Log Event -->
+                            <div class="flex items-center gap-2 py-1.5 px-3 bg-white border border-dashed border-gray-400 font-mono text-xs">
+                                <span class="text-base">
+                                    {% if item.tipo == 'sistema_movimentacao' %}🔄
+                                    {% elif item.tipo == 'sistema_anexo' %}📎
+                                    {% elif item.tipo == 'sistema_suprimentos' %}📦
+                                    {% else %}⚙️{% endif %}
+                                </span>
+                                <div class="flex-1">
+                                    <span class="font-bold text-black">{{ item.usuario.nome or item.usuario.email if item.usuario else 'Sistema' }}:</span>
+                                    <span class="text-gray-700">{{ item.mensagem }}</span>
+                                </div>
+                                <span class="text-[10px] text-gray-400 font-bold whitespace-nowrap">
+                                    {{ item.created_at.strftime('%d/%m %H:%M') if item.created_at else '' }}
+                                </span>
+                            </div>
+
+                            {% else %}
+                            <!-- User Comment Entry -->
+                            <div class="border-2 border-black p-3 bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] space-y-2">
+                                <div class="flex items-center justify-between border-b border-gray-200 pb-1.5">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-6 h-6 bg-black text-white font-mono text-[10px] font-black rounded-full flex items-center justify-center uppercase">
+                                            {{ (item.usuario.nome or item.usuario.email)[:2] if item.usuario else 'US' }}
+                                        </div>
+                                        <span class="font-bold text-xs text-black uppercase">
+                                            {{ item.usuario.nome or item.usuario.email if item.usuario else 'Usuário' }}
+                                        </span>
+
+                                        {% if card.responsavel_id == item.usuario_id %}
+                                        <span class="font-mono text-[9px] bg-amber-300 text-black px-1.5 py-0.5 border border-black font-bold uppercase">
+                                            Responsável
+                                        </span>
+                                        {% elif card.criador_id == item.usuario_id %}
+                                        <span class="font-mono text-[9px] bg-blue-200 text-black px-1.5 py-0.5 border border-black font-bold uppercase">
+                                            Criador
+                                        </span>
+                                        {% else %}
+                                        <span class="font-mono text-[9px] bg-gray-200 text-gray-800 px-1.5 py-0.5 border border-black font-bold uppercase">
+                                            Participante
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    <span class="font-mono text-[10px] text-gray-500">
+                                        {{ item.created_at.strftime('%d/%m/%Y às %H:%M') if item.created_at else '' }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-gray-800 font-sans whitespace-pre-line leading-relaxed">
+                                    {{ item.mensagem }}
+                                </p>
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="p-6 border-2 border-dashed border-gray-300 text-center font-mono text-xs text-gray-400">
+                                Nenhuma interação ou comentário registrado ainda. Seja o primeiro a interagir!
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- New Comment Form -->
+                    {% set curr_u = current_user if (current_user is defined and current_user) else (user if user is defined else None) %}
+                    {% set raw_role = curr_u.role.value if (curr_u and curr_u.role and curr_u.role.value is defined) else (curr_u.role if (curr_u and curr_u.role) else '') %}
+                    {% set role_str = raw_role|string|lower %}
+                    {% set is_admin = role_str in ['admin', 'gerente', 'gerente_infra', 'gerente_ti', 'tecnico'] %}
+                    {% set part_ids = card.participantes|map(attribute='id')|list %}
+                    {% set proj_part_ids = project.participantes|map(attribute='id')|list if project else [] %}
+                    {% set is_allowed = is_admin or (curr_u and (curr_u.id in part_ids or curr_u.id in proj_part_ids or curr_u.id == card.criador_id or curr_u.id == card.responsavel_id)) %}
+
+                    {% if is_allowed %}
+                    <form hx-post="/kanban/cards/{{ card.id }}/comentar" hx-target="#modal-container" class="space-y-3 pt-2">
+                        <div class="space-y-1">
+                            <label class="font-mono text-xs font-bold text-black uppercase tracking-wider block">Adicionar Comentário / Atualização</label>
+                            <textarea name="mensagem" rows="3" required placeholder="Digite seu comentário para o responsável e participantes..." class="w-full border-2 border-black p-2 text-xs font-sans focus:outline-none focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"></textarea>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit" class="btn-primary text-xs font-mono uppercase px-4 py-2 flex items-center gap-2">
+                                <span>💬</span> Enviar Interação
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="bg-gray-100 border border-black p-3 font-mono text-xs text-gray-600 text-center">
+                        🔒 Apenas o responsável principal, participantes atribuídos e administradores podem enviar comentários nesta tarefa.
+                    </div>
+                    {% endif %}
+                </div>
 
                 <!-- Delete Card Action -->
                 <div class="pt-4 border-t-2 border-red-200 flex justify-end">

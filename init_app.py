@@ -149,7 +149,7 @@ async def sync_sequences():
         "maintenance_plans", "maintenance_materials", "maintenance_executions",
         "purchase_products", "purchase_requests", "purchase_orders",
         "service_desk_tickets", "contracts", "purchase_contracts", "contract_types", "suppliers",
-        "kanban_projects", "kanban_columns", "kanban_cards", "kanban_attachments",
+        "kanban_projects", "kanban_columns", "kanban_cards", "kanban_attachments", "kanban_card_interactions",
     ]
     async with engine.begin() as conn:
         for table in tables:

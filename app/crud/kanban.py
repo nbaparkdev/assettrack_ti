@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.kanban import KanbanProject, KanbanColumn, KanbanCard, KanbanAttachment
+from app.models.kanban import KanbanProject, KanbanColumn, KanbanCard, KanbanAttachment, KanbanCardInteraction
 from app.models.user import User, UserRole
 from app.models.asset import Asset
 
@@ -79,6 +79,7 @@ class CRUDKanban:
             selectinload(KanbanProject.colunas).selectinload(KanbanColumn.cards).selectinload(KanbanCard.participantes),
             selectinload(KanbanProject.colunas).selectinload(KanbanColumn.cards).selectinload(KanbanCard.ativos),
             selectinload(KanbanProject.colunas).selectinload(KanbanColumn.cards).selectinload(KanbanCard.anexos),
+            selectinload(KanbanProject.colunas).selectinload(KanbanColumn.cards).selectinload(KanbanCard.interacoes).selectinload(KanbanCardInteraction.usuario),
             selectinload(KanbanProject.colunas).selectinload(KanbanColumn.cards).selectinload(KanbanCard.purchase_request),
             selectinload(KanbanProject.colunas).selectinload(KanbanColumn.cards).selectinload(KanbanCard.material_stock)
         ).where(KanbanProject.id == project_id).execution_options(populate_existing=True)
@@ -97,6 +98,7 @@ class CRUDKanban:
             selectinload(KanbanCard.participantes),
             selectinload(KanbanCard.ativos),
             selectinload(KanbanCard.anexos),
+            selectinload(KanbanCard.interacoes).selectinload(KanbanCardInteraction.usuario),
             selectinload(KanbanCard.purchase_request),
             selectinload(KanbanCard.material_stock)
         ).where(KanbanCard.id == card_id).execution_options(populate_existing=True)
@@ -332,6 +334,25 @@ class CRUDKanban:
         if attachment:
             await db.delete(attachment)
             await db.commit()
+
+    async def add_interaction(
+        self,
+        db: AsyncSession,
+        card_id: int,
+        usuario_id: int,
+        mensagem: str,
+        tipo: str = "comentario"
+    ) -> KanbanCardInteraction:
+        interaction = KanbanCardInteraction(
+            card_id=card_id,
+            usuario_id=usuario_id,
+            mensagem=mensagem.strip(),
+            tipo=tipo
+        )
+        db.add(interaction)
+        await db.commit()
+        await db.refresh(interaction)
+        return interaction
 
 
 crud_kanban = CRUDKanban()

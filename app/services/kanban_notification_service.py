@@ -364,3 +364,46 @@ async def notify_stock_linked(
             link=f"/kanban/projetos/{card.project_id}?card={card.id}"
         )
     await db.commit()
+
+async def notify_card_comment(
+    db: AsyncSession,
+    card: KanbanCard,
+    comment_text: str,
+    author: User
+):
+    """Notify project participants, assignees, and administrators when a comment is added to a card timeline."""
+    autor_nome = author.nome if author else "Um usuário"
+    
+    proj_title = "Projeto"
+    if card and card.project_id:
+        proj = await db.get(KanbanProject, card.project_id)
+        if proj:
+            proj_title = proj.titulo
+
+    extra = []
+    if card.responsavel_id:
+        extra.append(card.responsavel_id)
+    if card.participantes:
+        for p in card.participantes:
+            extra.append(p.id)
+
+    recipients = await get_project_recipients(db, card.project_id, extra)
+    
+    if author and author.id in recipients:
+        recipients.remove(author.id)
+
+    snippet = comment_text[:60] + "..." if len(comment_text) > 60 else comment_text
+
+    for uid in recipients:
+        await create_kanban_notification(
+            db=db,
+            user_id=uid,
+            project_id=card.project_id,
+            card_id=card.id,
+            autor_id=author.id if author else None,
+            tipo="NOVA_INTERACAO",
+            titulo=f"Novo Comentário: {card.titulo}",
+            mensagem=f"{autor_nome} comentou no cartão '{card.titulo}': \"{snippet}\"",
+            link=f"/kanban/projetos/{card.project_id}?card={card.id}"
+        )
+    await db.commit()

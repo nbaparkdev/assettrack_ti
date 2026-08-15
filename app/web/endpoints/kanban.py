@@ -358,6 +358,7 @@ async def get_card_modal(
     return templates.TemplateResponse("kanban/partials/card_modal.html", {
         "request": request,
         "user": current_user,
+        "current_user": current_user,
         "card": target_card or card,
         "project": project,
         "users": users,
@@ -410,7 +411,7 @@ async def update_card_submit(
     )
 
     await notif_service.notify_card_updated(db, updated_card, current_user)
-    return RedirectResponse(url=f"/kanban/projetos/{updated_card.project_id}", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=f"/kanban/projetos/{updated_card.project_id}?msg=card_saved", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/cards/{card_id}/mover")
 async def move_card_submit(
@@ -436,6 +437,11 @@ async def move_card_submit(
 
     if card and source_col_name != target_col_name:
         await notif_service.notify_card_moved(db, card, source_col_name, target_col_name, current_user)
+        await crud_kanban.add_interaction(
+            db, card_id=card.id, usuario_id=current_user.id,
+            mensagem=f"Moveu o cartão de '{source_col_name}' para '{target_col_name}'.",
+            tipo="sistema_movimentacao"
+        )
 
     return {"status": "ok", "card_id": card_id, "column_id": column_id}
 
@@ -451,7 +457,7 @@ async def delete_card_submit(
     if card:
         project_id = card.project_id
         await crud_kanban.delete_card(db, card)
-        return RedirectResponse(url=f"/kanban/projetos/{project_id}", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(url=f"/kanban/projetos/{project_id}?msg=card_deleted", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/kanban", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/cards/{card_id}/anexo")
@@ -495,6 +501,11 @@ async def upload_attachment_submit(
         att_name = safe_orig_name
         await crud_kanban.add_attachment(db, card_id=card_id, nome=safe_orig_name, tipo=att_type, url=file_url)
 
+    await crud_kanban.add_interaction(
+        db, card_id=card.id, usuario_id=current_user.id,
+        mensagem=f"Adicionou o anexo '{att_name}'.",
+        tipo="sistema_anexo"
+    )
     await notif_service.notify_attachment_added(db, card, att_name, current_user)
 
     return RedirectResponse(url=f"/kanban/cards/{card_id}", status_code=status.HTTP_303_SEE_OTHER)
@@ -614,6 +625,7 @@ async def create_purchase_request_from_card(
     card.tipo_item_necessario = tipo_item
 
     await db.commit()
+    await crud_kanban.add_interaction(db, card_id=card.id, usuario_id=current_user.id, mensagem=f"Gerou a solicitação de compra #{num} para '{nome_produto}'.", tipo="sistema_suprimentos")
     await notif_service.notify_purchase_request_created(db, card, num, current_user)
     return RedirectResponse(url=f"/kanban/cards/{card_id}", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -654,7 +666,45 @@ async def link_stock_to_card(
 
     await db.commit()
     prod_name = stock.product.nome if (stock and hasattr(stock, "product") and stock.product) else "Material"
+    await crud_kanban.add_interaction(db, card_id=card.id, usuario_id=current_user.id, mensagem=f"Alocou {quantidade_usar} UN do item de estoque '{prod_name}'.", tipo="sistema_suprimentos")
     await notif_service.notify_stock_linked(db, card, prod_name, current_user)
+    return RedirectResponse(url=f"/kanban/cards/{card_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/cards/{card_id}/comentar")
+async def add_card_comment_submit(
+    request: Request,
+    card_id: int,
+    current_user: Annotated[User, Depends(get_active_user_web)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: None = Depends(check_kanban_enabled),
+    mensagem: str = Form(...)
+):
+    card = await crud_kanban.get_card_by_id(db, card_id)
+    if not card:
+        raise HTTPException(status_code=404, detail="Cartão não encontrado.")
+
+    role_str = current_user.role.value.lower() if hasattr(current_user.role, 'value') else str(current_user.role).lower()
+    is_admin = role_str in ["admin", "gerente", "gerente_infra", "gerente_ti", "tecnico"]
+
+    project = await crud_kanban.get_project_by_id(db, card.project_id)
+    project_user_ids = [project.criador_id] + [p.id for p in project.participantes] if project else []
+    card_user_ids = [card.criador_id] + ([card.responsavel_id] if card.responsavel_id else []) + [p.id for p in card.participantes]
+
+    allowed_ids = set(project_user_ids + card_user_ids)
+    if not is_admin and current_user.id not in allowed_ids:
+        raise HTTPException(status_code=403, detail="Você não tem permissão para comentar neste cartão.")
+
+    if mensagem and mensagem.strip():
+        await crud_kanban.add_interaction(
+            db=db,
+            card_id=card.id,
+            usuario_id=current_user.id,
+            mensagem=mensagem.strip(),
+            tipo="comentario"
+        )
+        await notif_service.notify_card_comment(db, card, mensagem.strip(), current_user)
+
     return RedirectResponse(url=f"/kanban/cards/{card_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 
