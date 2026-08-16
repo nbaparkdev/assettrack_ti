@@ -121,7 +121,7 @@
                 <td>{{ asset.current_user.nome if asset.current_user else '-' }}</td>
                 <td>{{ asset.data_aquisicao.strftime('%d/%m/%Y') if asset.data_aquisicao else '-' }}</td>
                 <td class="right">{{ "R$ %.2f"|format(asset.valor) if asset.valor else '-' }}</td>
-                <td>{% if asset.bloqueado %}Ativo Fixo (Empresa){% else %}{{ asset.status.value }}{% endif %}</td>
+                <td>{% if asset.status.value in ['manutencao', 'Manutenção'] %}Manutenção{% elif asset.bloqueado %}Ativo Fixo (Empresa){% else %}{{ asset.status.value }}{% endif %}</td>
             </tr>
             {% endfor %}
         </tbody>

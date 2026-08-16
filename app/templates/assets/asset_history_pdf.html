@@ -312,13 +312,17 @@
                 <h3>{{ asset.nome }}</h3>
             </div>
             <div class="header-right">
-                {% if asset.bloqueado %}
+                {% if asset.status.value in ['Manutenção', 'manutencao'] %}
+                <span class="badge status-manutencao">
+                    Manutenção
+                </span>
+                {% elif asset.bloqueado %}
                 <span class="badge" style="background:#7e22ce;">
                     Ativo Fixo (Empresa)
                 </span>
                 {% else %}
                 <span
-                    class="badge {% if asset.status.value == 'Disponível' %}status-disponivel{% elif asset.status.value == 'Em uso' %}status-em-uso{% elif asset.status.value == 'Manutenção' %}status-manutencao{% endif %}">
+                    class="badge {% if asset.status.value == 'Disponível' %}status-disponivel{% elif asset.status.value == 'Em uso' %}status-em-uso{% endif %}">
                     {{ asset.status.value }}
                 </span>
                 {% endif %}

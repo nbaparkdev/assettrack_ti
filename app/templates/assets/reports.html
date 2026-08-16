@@ -159,7 +159,11 @@
                         <td class="px-6 py-3 font-mono text-xs">{{ asset.data_aquisicao.strftime('%d/%m/%Y') if asset.data_aquisicao else '-' }}</td>
                         <td class="px-6 py-3 text-right font-mono text-xs">{{ "R$ %.2f"|format(asset.valor) if asset.valor else '-' }}</td>
                         <td class="px-6 py-3">
-                            {% if asset.bloqueado %}
+                            {% if asset.status.value in ['manutencao', 'Manutenção'] %}
+                            <span class="text-[10px] font-bold uppercase px-2 py-0.5 border bg-amber-100 text-amber-800 border-amber-200">
+                                MANUTENÇÃO
+                            </span>
+                            {% elif asset.bloqueado %}
                             <span class="text-[10px] font-bold uppercase px-2 py-0.5 border bg-purple-100 text-purple-800 border-purple-300">
                                 🔒 ATIVO FIXO
                             </span>
@@ -167,7 +171,6 @@
                             <span class="text-[10px] font-bold uppercase px-2 py-0.5 border
                                 {% if asset.status.value in ['disponivel', 'Disponível'] %}bg-green-100 text-green-800 border-green-200
                                 {% elif asset.status.value in ['em_uso', 'Em uso'] %}bg-blue-100 text-blue-800 border-blue-200
-                                {% elif asset.status.value in ['manutencao', 'Manutenção'] %}bg-amber-100 text-amber-800 border-amber-200
                                 {% else %}bg-gray-100 text-gray-800 border-gray-200{% endif %}">
                                 {{ asset.status.value }}
                             </span>

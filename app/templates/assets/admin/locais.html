@@ -426,6 +426,9 @@
                     <button type="button" onclick="setModalStatusFilter('Disponível')" id="btnFilterDisponivel" class="px-2.5 py-1 border border-black bg-white text-black hover:bg-gray-200">
                         Disponível (<span id="countFilterDisponivel">0</span>)
                     </button>
+                    <button type="button" onclick="setModalStatusFilter('Ativo Fixo')" id="btnFilterAtivoFixo" class="px-2.5 py-1 border border-purple-700 bg-white text-purple-700 hover:bg-purple-50">
+                        🔒 Ativo Fixo (<span id="countFilterAtivoFixo">0</span>)
+                    </button>
                     <button type="button" onclick="setModalStatusFilter('Manutenção')" id="btnFilterManutencao" class="px-2.5 py-1 border border-black bg-white text-black hover:bg-gray-200">
                         Manutenção (<span id="countFilterManutencao">0</span>)
                     </button>
@@ -606,6 +609,7 @@
         if (statusLabels.length > 0) {
             const statusColorMap = {
                 'Disponível': '#16A34A',
+                'Ativo Fixo': '#7E22CE',
                 'Em uso': '#0284C7',
                 'Manutenção': '#D97706',
                 'Armazenado': '#4B5563',
@@ -697,13 +701,15 @@
     function setModalStatusFilter(status) {
         currentModalFilterStatus = status;
         
-        const buttons = ['TODOS', 'Em uso', 'Disponível', 'Manutenção', 'Armazenado'];
+        const buttons = ['TODOS', 'Em uso', 'Disponível', 'Ativo Fixo', 'Manutenção', 'Armazenado'];
         buttons.forEach(st => {
-            const btnId = 'btnFilter' + st.replace(' ', '');
+            const btnId = 'btnFilter' + st.replace(/\s+/g, '');
             const btn = document.getElementById(btnId);
             if (btn) {
                 if (st === status) {
                     btn.className = "px-2.5 py-1 border border-black bg-black text-white font-bold";
+                } else if (st === 'Ativo Fixo') {
+                    btn.className = "px-2.5 py-1 border border-purple-700 bg-white text-purple-700 hover:bg-purple-50 font-bold";
                 } else {
                     btn.className = "px-2.5 py-1 border border-black bg-white text-black hover:bg-gray-200 font-bold";
                 }
@@ -718,6 +724,7 @@
             TODOS: currentActiveAssetsList.length,
             'Em uso': 0,
             'Disponível': 0,
+            'Ativo Fixo': 0,
             'Manutenção': 0,
             'Armazenado': 0
         };
@@ -731,6 +738,9 @@
         document.getElementById('countFilterTODOS').textContent = counts.TODOS;
         document.getElementById('countFilterEmUso').textContent = counts['Em uso'];
         document.getElementById('countFilterDisponivel').textContent = counts['Disponível'];
+        if (document.getElementById('countFilterAtivoFixo')) {
+            document.getElementById('countFilterAtivoFixo').textContent = counts['Ativo Fixo'];
+        }
         document.getElementById('countFilterManutencao').textContent = counts['Manutenção'];
         document.getElementById('countFilterArmazenado').textContent = counts['Armazenado'];
     }
@@ -779,6 +789,7 @@
 
         const statusBadgeMap = {
             'Disponível': 'bg-green-100 text-green-800 border-green-600',
+            'Ativo Fixo': 'bg-purple-100 text-purple-800 border-purple-600',
             'Em uso': 'bg-blue-100 text-blue-800 border-blue-600',
             'Manutenção': 'bg-amber-100 text-amber-800 border-amber-600',
             'Armazenado': 'bg-gray-100 text-gray-800 border-gray-600',
@@ -787,6 +798,7 @@
 
         tbody.innerHTML = filtered.map(a => {
             const badgeClass = statusBadgeMap[a.status] || 'bg-gray-100 text-gray-800 border-black';
+            const displayLabel = a.status === 'Ativo Fixo' ? '🔒 ATIVO FIXO' : a.status;
             return `
                 <tr class="hover:bg-gray-50 transition">
                     <td class="px-4 py-3 font-mono font-bold text-xs">
@@ -808,7 +820,7 @@
                     </td>
                     <td class="px-4 py-3">
                         <span class="px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider border ${badgeClass}">
-                            ${a.status}
+                            ${displayLabel}
                         </span>
                     </td>
                     <td class="px-4 py-3 text-xs font-bold text-gray-800">

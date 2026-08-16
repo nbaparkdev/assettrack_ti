@@ -51,7 +51,11 @@ async def list_assets(
         )
     )
     fixed_assets = await db.scalar(
-        select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.bloqueado == True)
+        select(func.count(asset_crud.asset.model.id)).filter(
+            asset_crud.asset.model.bloqueado == True,
+            asset_crud.asset.model.status != AssetStatus.MANUTENCAO,
+            asset_crud.asset.model.status != AssetStatus.BAIXADO
+        )
     )
     in_use_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.EM_USO))
     maintenance_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.MANUTENCAO))
@@ -78,7 +82,10 @@ async def list_assets(
 
     if status_filter:
         if status_filter.lower() in ["ativo_fixo", "ativo fixo", "bloqueado"]:
-            query = query.filter(asset_crud.asset.model.bloqueado == True)
+            query = query.filter(
+                asset_crud.asset.model.bloqueado == True,
+                asset_crud.asset.model.status != AssetStatus.MANUTENCAO
+            )
         elif status_filter in ["Disponível", "disponivel"]:
             query = query.filter(
                 asset_crud.asset.model.status == AssetStatus.DISPONIVEL,
@@ -491,7 +498,10 @@ async def reports_page(
     if status_filter:
         has_filters = True
         if status_filter.lower() in ["ativo_fixo", "ativo fixo", "bloqueado"]:
-            query = query.filter(asset_crud.asset.model.bloqueado == True)
+            query = query.filter(
+                asset_crud.asset.model.bloqueado == True,
+                asset_crud.asset.model.status != AssetStatus.MANUTENCAO
+            )
             active_filters.append("Status: Ativo Fixo (Uso Institucional)")
         elif status_filter in ["Disponível", "disponivel"]:
             query = query.filter(
@@ -645,7 +655,10 @@ async def reports_pdf(
     if status_filter:
         has_filters = True
         if status_filter.lower() in ["ativo_fixo", "ativo fixo", "bloqueado"]:
-            query = query.filter(asset_crud.asset.model.bloqueado == True)
+            query = query.filter(
+                asset_crud.asset.model.bloqueado == True,
+                asset_crud.asset.model.status != AssetStatus.MANUTENCAO
+            )
             active_filters.append("Status: Ativo Fixo (Uso Institucional)")
         elif status_filter in ["Disponível", "disponivel"]:
             query = query.filter(
@@ -1588,12 +1601,21 @@ async def list_locais(
         for a in (l.assets or []):
             if a.status != AssetStatus.BAIXADO:
                 total_ativos_locais += 1
+            is_bloqueado = getattr(a, 'bloqueado', False) or False
+            is_maint = (a.status == AssetStatus.MANUTENCAO or (hasattr(a.status, 'value') and a.status.value in ['Manutenção', 'manutencao']))
+            if is_maint:
+                st_val = "Manutenção"
+            elif is_bloqueado:
+                st_val = "Ativo Fixo"
+            else:
+                st_val = a.status.value if hasattr(a.status, 'value') else str(a.status)
             assets_info.append({
                 "id": a.id,
                 "e_patrimonio": a.e_patrimonio,
                 "nome": a.nome,
                 "modelo": a.modelo or "",
-                "status": a.status.value if hasattr(a.status, 'value') else str(a.status),
+                "status": st_val,
+                "bloqueado": is_bloqueado,
                 "categoria_nome": a.categoria.nome if a.categoria else "Sem Categoria",
                 "possuidor": a.current_user.nome if a.current_user else (a.em_posse_de or "Não atribuído"),
                 "foto_path": a.foto_path or "",
@@ -1619,12 +1641,21 @@ async def list_locais(
         for a in (arm.assets or []):
             if a.status != AssetStatus.BAIXADO:
                 total_ativos_armazenamentos += 1
+            is_bloqueado = getattr(a, 'bloqueado', False) or False
+            is_maint = (a.status == AssetStatus.MANUTENCAO or (hasattr(a.status, 'value') and a.status.value in ['Manutenção', 'manutencao']))
+            if is_maint:
+                st_val = "Manutenção"
+            elif is_bloqueado:
+                st_val = "Ativo Fixo"
+            else:
+                st_val = a.status.value if hasattr(a.status, 'value') else str(a.status)
             assets_info.append({
                 "id": a.id,
                 "e_patrimonio": a.e_patrimonio,
                 "nome": a.nome,
                 "modelo": a.modelo or "",
-                "status": a.status.value if hasattr(a.status, 'value') else str(a.status),
+                "status": st_val,
+                "bloqueado": is_bloqueado,
                 "categoria_nome": a.categoria.nome if a.categoria else "Sem Categoria",
                 "possuidor": a.current_user.nome if a.current_user else (a.em_posse_de or "Não atribuído"),
                 "foto_path": a.foto_path or "",

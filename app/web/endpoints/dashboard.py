@@ -34,9 +34,13 @@ async def dashboard(
         )
     )
 
-    # Fixed Assets (Institutional: bloqueado is True)
+    # Fixed Assets (Institutional: bloqueado is True, but not currently in maintenance or written off)
     fixed_assets = await db.scalar(
-        select(func.count(Asset.id)).filter(Asset.bloqueado == True)
+        select(func.count(Asset.id)).filter(
+            Asset.bloqueado == True,
+            Asset.status != AssetStatus.MANUTENCAO,
+            Asset.status != AssetStatus.BAIXADO
+        )
     )
 
     # In Use Assets
