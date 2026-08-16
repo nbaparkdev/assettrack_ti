@@ -17,7 +17,12 @@
 
         <!-- Status Tag -->
         <div>
-            {% if asset.status.value == 'Disponível' %}
+            {% if asset.bloqueado %}
+            <span
+                class="inline-block px-3 py-1 bg-purple-700 text-white text-xs font-bold uppercase tracking-widest border-2 border-purple-700">
+                🔒 ATIVO FIXO (USO INSTITUCIONAL)
+            </span>
+            {% elif asset.status.value == 'Disponível' %}
             <span
                 class="inline-block px-3 py-1 bg-green-600 text-white text-xs font-bold uppercase tracking-widest border-2 border-green-600">
                 STATUS: DISPONÍVEL

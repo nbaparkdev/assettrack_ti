@@ -105,3 +105,13 @@ async def test_maintenance_workflow(admin_client: AsyncClient, db_session: Async
     
     await db_session.refresh(asset)
     assert asset.status == AssetStatus.DISPONIVEL
+
+
+@pytest.mark.asyncio
+async def test_asset_reports_with_location_filter(admin_client: AsyncClient, db_session: AsyncSession):
+    # Act: Request reports with localizacao_id filter
+    response = await admin_client.get("/assets/reports?localizacao_id=1")
+    assert response.status_code == 200
+    assert "Relatorio de Ativos" in response.text or "RELATORIO_ATIVOS" in response.text
+    assert 'name="localizacao_id"' in response.text
+

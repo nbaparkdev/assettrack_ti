@@ -90,6 +90,7 @@
                 <th>Nome</th>
                 <th>Patrimonio</th>
                 <th>Categoria</th>
+                <th>Localização</th>
                 <th>Fornecedor</th>
                 <th>NFe</th>
                 <th>Usuario Atual</th>
@@ -99,17 +100,28 @@
             </tr>
         </thead>
         <tbody>
+            {% set current_cat = namespace(name='__none__') %}
             {% for asset in assets %}
+                {% set asset_cat_name = asset.categoria.nome if asset.categoria else 'Sem Categoria' %}
+                {% if current_cat.name != asset_cat_name %}
+                <tr style="background: #e5e7eb; font-weight: bold;">
+                    <td colspan="10" style="text-transform: uppercase; font-size: 8px; letter-spacing: 1px; padding: 5px 8px; border: 1px solid #000;">
+                        CATEGORIA: {{ asset_cat_name }}
+                    </td>
+                </tr>
+                {% set current_cat.name = asset_cat_name %}
+                {% endif %}
             <tr>
                 <td>{{ asset.nome }}</td>
                 <td>{{ asset.e_patrimonio }}</td>
                 <td>{{ asset.categoria.nome if asset.categoria else '-' }}</td>
+                <td>{{ asset.current_local.nome if asset.current_local else '-' }}</td>
                 <td>{{ asset.fornecedor.nome if asset.fornecedor else '-' }}</td>
                 <td>{{ asset.nota_fiscal.numero_nota if asset.nota_fiscal else '-' }}</td>
                 <td>{{ asset.current_user.nome if asset.current_user else '-' }}</td>
                 <td>{{ asset.data_aquisicao.strftime('%d/%m/%Y') if asset.data_aquisicao else '-' }}</td>
                 <td class="right">{{ "R$ %.2f"|format(asset.valor) if asset.valor else '-' }}</td>
-                <td>{{ asset.status.value }}</td>
+                <td>{% if asset.bloqueado %}Ativo Fixo (Empresa){% else %}{{ asset.status.value }}{% endif %}</td>
             </tr>
             {% endfor %}
         </tbody>

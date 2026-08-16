@@ -26,8 +26,18 @@ async def dashboard(
     # Total Assets
     total_assets = await db.scalar(select(func.count(Asset.id)))
     
-    # Available Assets
-    available_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.DISPONIVEL))
+    # Available Assets (Loanable: status DISPONIVEL and not bloqueado)
+    available_assets = await db.scalar(
+        select(func.count(Asset.id)).filter(
+            Asset.status == AssetStatus.DISPONIVEL,
+            (Asset.bloqueado == False) | (Asset.bloqueado.is_(None))
+        )
+    )
+
+    # Fixed Assets (Institutional: bloqueado is True)
+    fixed_assets = await db.scalar(
+        select(func.count(Asset.id)).filter(Asset.bloqueado == True)
+    )
 
     # In Use Assets
     in_use_assets = await db.scalar(select(func.count(Asset.id)).filter(Asset.status == AssetStatus.EM_USO))
@@ -83,6 +93,7 @@ async def dashboard(
         "stats": {
             "total_assets": total_assets or 0,
             "available_assets": available_assets or 0,
+            "fixed_assets": fixed_assets or 0,
             "in_use_assets": in_use_assets or 0,
             "maintenance_assets": maintenance_assets or 0,
             "pending_solicitations": pending_solicitations or 0,

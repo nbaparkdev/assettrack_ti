@@ -164,7 +164,7 @@
     {% endif %}
 
     <!-- Data Blocks (Stats) -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-0 border-2 border-black bg-black">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-0 border-2 border-black bg-black">
         <!-- Block 1: Total -->
         <div class="bg-white p-6 md:border-r-2 md:border-black group hover:bg-gray-50 transition relative">
             <h3 class="font-mono text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Total Geral</h3>
@@ -183,14 +183,26 @@
             <div class="flex items-baseline gap-2">
                 <span class="text-4xl md:text-5xl font-bold tracking-tighter text-green-600">{{ stats.available_assets
                     }}</span>
-                <span class="font-mono text-[10px] text-gray-400">PRONTOS</span>
+                <span class="font-mono text-[10px] text-gray-400">EMPRÉSTIMO</span>
             </div>
             <a href="/assets?status=Disponivel"
                 class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-xs font-bold border-b-2 border-green-600 text-green-600">ALOCAR
                 &rarr;</a>
         </div>
 
-        <!-- Block 3: In Use (Ativos) -->
+        <!-- Block 3: Fixed Assets (Ativo Fixo) -->
+        <div class="bg-white p-6 md:border-r-2 md:border-black group hover:bg-gray-50 transition relative">
+            <h3 class="font-mono text-[10px] font-bold text-purple-700 uppercase tracking-widest mb-4">Ativo Fixo</h3>
+            <div class="flex items-baseline gap-2">
+                <span class="text-4xl md:text-5xl font-bold tracking-tighter text-purple-700">{{ stats.fixed_assets }}</span>
+                <span class="font-mono text-[10px] text-gray-400">EMPRESA</span>
+            </div>
+            <a href="/assets?status=ativo_fixo"
+                class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition text-xs font-bold border-b-2 border-purple-700 text-purple-700">FILTRAR
+                &rarr;</a>
+        </div>
+
+        <!-- Block 4: In Use (Ativos) -->
         <div class="bg-white p-6 md:border-r-2 md:border-black group hover:bg-gray-50 transition relative">
             <h3 class="font-mono text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Em Uso</h3>
             <div class="flex items-baseline gap-2">
@@ -203,7 +215,7 @@
                 &rarr;</a>
         </div>
 
-        <!-- Block 4: Maintenance -->
+        <!-- Block 5: Maintenance -->
         <div class="bg-white p-6 group hover:bg-gray-50 transition relative">
             <h3 class="font-mono text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Manutenção</h3>
             <div class="flex items-baseline gap-2">

@@ -43,6 +43,15 @@
                     </select>
                 </div>
                 <div>
+                    <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Localização</label>
+                    <select name="localizacao_id" class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                        <option value="">Todas</option>
+                        {% for loc in locais %}
+                        <option value="{{ loc.id }}" {% if filtros.localizacao_id == loc.id|string %}selected{% endif %}>{{ loc.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
                     <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Fornecedor</label>
                     <select name="fornecedor_id" class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
                         <option value="">Todos</option>
@@ -70,7 +79,18 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="flex items-end gap-2">
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Status / Classificação</label>
+                    <select name="status" class="w-full border-2 border-black p-2 text-sm font-mono focus:ring-0">
+                        <option value="">Todos</option>
+                        <option value="Disponível" {% if filtros.status == 'Disponível' %}selected{% endif %}>Disponível (Empréstimo)</option>
+                        <option value="ativo_fixo" {% if filtros.status in ['ativo_fixo', 'Ativo Fixo'] %}selected{% endif %}>🔒 Ativo Fixo (Uso Institucional)</option>
+                        <option value="Em uso" {% if filtros.status == 'Em uso' %}selected{% endif %}>Em Uso</option>
+                        <option value="Manutenção" {% if filtros.status == 'Manutenção' %}selected{% endif %}>Manutenção</option>
+                        <option value="Baixado" {% if filtros.status == 'Baixado' %}selected{% endif %}>Baixado</option>
+                    </select>
+                </div>
+                <div class="flex items-end gap-2 md:col-span-2 lg:col-span-1">
                     <button type="submit"
                         class="bg-black text-white px-8 py-2 text-xs font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-gray-800 transition">
                         Filtrar
@@ -105,6 +125,7 @@
                         <th class="px-6 py-3 border-b border-gray-800">Nome</th>
                         <th class="px-6 py-3 border-b border-gray-800">Patrimonio</th>
                         <th class="px-6 py-3 border-b border-gray-800">Categoria</th>
+                        <th class="px-6 py-3 border-b border-gray-800">Localização</th>
                         <th class="px-6 py-3 border-b border-gray-800">Fornecedor</th>
                         <th class="px-6 py-3 border-b border-gray-800">NFe</th>
                         <th class="px-6 py-3 border-b border-gray-800">Usuario Atual</th>
@@ -114,31 +135,48 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
+                    {% set current_cat = namespace(name='__none__') %}
                     {% for asset in assets %}
+                        {% set asset_cat_name = asset.categoria.nome if asset.categoria else 'Sem Categoria' %}
+                        {% if current_cat.name != asset_cat_name %}
+                        <tr class="bg-gray-100 border-y-2 border-black">
+                            <td colspan="10" class="px-6 py-2 text-sm font-bold text-black uppercase tracking-widest">
+                                {{ asset_cat_name }}
+                            </td>
+                        </tr>
+                        {% set current_cat.name = asset_cat_name %}
+                        {% endif %}
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-3 font-bold text-sm">{{ asset.nome }}</td>
                         <td class="px-6 py-3">
                             <span class="font-mono text-xs bg-gray-100 px-2 py-1 border border-gray-200">{{ asset.e_patrimonio }}</span>
                         </td>
                         <td class="px-6 py-3 text-xs uppercase">{{ asset.categoria.nome if asset.categoria else '-' }}</td>
+                        <td class="px-6 py-3 text-xs uppercase font-bold text-gray-700">{{ asset.current_local.nome if asset.current_local else '-' }}</td>
                         <td class="px-6 py-3 text-xs">{{ asset.fornecedor.nome if asset.fornecedor else '-' }}</td>
                         <td class="px-6 py-3 font-mono text-xs">{{ asset.nota_fiscal.numero_nota if asset.nota_fiscal else '-' }}</td>
                         <td class="px-6 py-3 text-xs">{{ asset.current_user.nome if asset.current_user else '-' }}</td>
                         <td class="px-6 py-3 font-mono text-xs">{{ asset.data_aquisicao.strftime('%d/%m/%Y') if asset.data_aquisicao else '-' }}</td>
                         <td class="px-6 py-3 text-right font-mono text-xs">{{ "R$ %.2f"|format(asset.valor) if asset.valor else '-' }}</td>
                         <td class="px-6 py-3">
+                            {% if asset.bloqueado %}
+                            <span class="text-[10px] font-bold uppercase px-2 py-0.5 border bg-purple-100 text-purple-800 border-purple-300">
+                                🔒 ATIVO FIXO
+                            </span>
+                            {% else %}
                             <span class="text-[10px] font-bold uppercase px-2 py-0.5 border
-                                {% if asset.status.value == 'disponivel' %}bg-green-100 text-green-800 border-green-200
-                                {% elif asset.status.value == 'em_uso' %}bg-blue-100 text-blue-800 border-blue-200
-                                {% elif asset.status.value == 'manutencao' %}bg-amber-100 text-amber-800 border-amber-200
+                                {% if asset.status.value in ['disponivel', 'Disponível'] %}bg-green-100 text-green-800 border-green-200
+                                {% elif asset.status.value in ['em_uso', 'Em uso'] %}bg-blue-100 text-blue-800 border-blue-200
+                                {% elif asset.status.value in ['manutencao', 'Manutenção'] %}bg-amber-100 text-amber-800 border-amber-200
                                 {% else %}bg-gray-100 text-gray-800 border-gray-200{% endif %}">
                                 {{ asset.status.value }}
                             </span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="9" class="px-6 py-12 text-center text-gray-400 font-mono text-xs uppercase">
+                        <td colspan="10" class="px-6 py-12 text-center text-gray-400 font-mono text-xs uppercase">
                             {% if has_filters %}Nenhum ativo encontrado com os filtros aplicados.{% else %}Use os filtros acima para buscar ativos.{% endif %}
                         </td>
                     </tr>

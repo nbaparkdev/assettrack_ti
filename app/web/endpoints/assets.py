@@ -44,7 +44,15 @@ async def list_assets(
     status_filter = status.strip() if status and status.strip() else None
 
     total_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)))
-    available_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.DISPONIVEL))
+    available_assets = await db.scalar(
+        select(func.count(asset_crud.asset.model.id)).filter(
+            asset_crud.asset.model.status == AssetStatus.DISPONIVEL,
+            (asset_crud.asset.model.bloqueado == False) | (asset_crud.asset.model.bloqueado.is_(None))
+        )
+    )
+    fixed_assets = await db.scalar(
+        select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.bloqueado == True)
+    )
     in_use_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.EM_USO))
     maintenance_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.MANUTENCAO))
 
@@ -69,10 +77,18 @@ async def list_assets(
         query = query.filter(asset_crud.asset.model.categoria_id == cat_id)
 
     if status_filter:
-        try:
-            query = query.filter(asset_crud.asset.model.status == AssetStatus(status_filter))
-        except ValueError:
-            pass
+        if status_filter.lower() in ["ativo_fixo", "ativo fixo", "bloqueado"]:
+            query = query.filter(asset_crud.asset.model.bloqueado == True)
+        elif status_filter in ["Disponível", "disponivel"]:
+            query = query.filter(
+                asset_crud.asset.model.status == AssetStatus.DISPONIVEL,
+                (asset_crud.asset.model.bloqueado == False) | (asset_crud.asset.model.bloqueado.is_(None))
+            )
+        else:
+            try:
+                query = query.filter(asset_crud.asset.model.status == AssetStatus(status_filter))
+            except ValueError:
+                pass
 
     result = await db.execute(query)
     assets = result.scalars().all()
@@ -91,6 +107,7 @@ async def list_assets(
         "stats": {
             "total": total_assets or 0,
             "available": available_assets or 0,
+            "fixed": fixed_assets or 0,
             "in_use": in_use_assets or 0,
             "maintenance": maintenance_assets or 0
         },
@@ -369,30 +386,46 @@ async def reports_page(
     data_fim: Optional[str] = None,
     nome: Optional[str] = None,
     categoria_id: Optional[str] = None,
+    localizacao_id: Optional[str] = None,
     fornecedor_id: Optional[str] = None,
     nfe: Optional[str] = None,
     patrimonio: Optional[str] = None,
-    usuario_id: Optional[str] = None
+    usuario_id: Optional[str] = None,
+    status: Optional[str] = None
 ):
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from app.models.invoice import NotaFiscal
+    from app.models.asset_category import AssetCategory
+    from app.models.location import Localizacao
     from app.crud.user import user as user_crud_obj
 
     # Convert empty string params to int
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+    loc_id = int(localizacao_id) if localizacao_id and localizacao_id.strip() else None
     forn_id = int(fornecedor_id) if fornecedor_id and fornecedor_id.strip() else None
     user_id = int(usuario_id) if usuario_id and usuario_id.strip() else None
+    status_filter = status.strip() if status and status.strip() else None
 
     categories = await asset_category_crud.category.get_multi(db)
+    locais = await location.localizacao.get_multi(db)
     fornecedores = await crud_supplier.get_fornecedores(db)
     usuarios_filtro = await user_crud_obj.get_multi(db, limit=1000)
 
-    query = select(asset_crud.asset.model).options(
+    query = select(asset_crud.asset.model).outerjoin(
+        AssetCategory, asset_crud.asset.model.categoria_id == AssetCategory.id
+    ).outerjoin(
+        Localizacao, asset_crud.asset.model.current_local_id == Localizacao.id
+    ).options(
         selectinload(asset_crud.asset.model.categoria),
+        selectinload(asset_crud.asset.model.current_local),
         selectinload(asset_crud.asset.model.fornecedor),
         selectinload(asset_crud.asset.model.nota_fiscal),
         selectinload(asset_crud.asset.model.current_user)
+    ).order_by(
+        AssetCategory.nome.asc().nulls_last(),
+        Localizacao.nome.asc().nulls_last(),
+        asset_crud.asset.model.nome.asc()
     )
 
     has_filters = False
@@ -427,6 +460,12 @@ async def reports_page(
         cat = next((c for c in categories if c.id == cat_id), None)
         active_filters.append(f"Categoria: {cat.nome if cat else cat_id}")
 
+    if loc_id:
+        query = query.filter(asset_crud.asset.model.current_local_id == loc_id)
+        has_filters = True
+        loc_obj = next((l for l in locais if l.id == loc_id), None)
+        active_filters.append(f"Localização: {loc_obj.nome if loc_obj else loc_id}")
+
     if forn_id:
         query = query.filter(asset_crud.asset.model.fornecedor_id == forn_id)
         has_filters = True
@@ -449,6 +488,24 @@ async def reports_page(
         usuario_filtro = next((u for u in usuarios_filtro if u.id == user_id), None)
         active_filters.append(f"Usuario: {usuario_filtro.nome if usuario_filtro else user_id}")
 
+    if status_filter:
+        has_filters = True
+        if status_filter.lower() in ["ativo_fixo", "ativo fixo", "bloqueado"]:
+            query = query.filter(asset_crud.asset.model.bloqueado == True)
+            active_filters.append("Status: Ativo Fixo (Uso Institucional)")
+        elif status_filter in ["Disponível", "disponivel"]:
+            query = query.filter(
+                asset_crud.asset.model.status == AssetStatus.DISPONIVEL,
+                (asset_crud.asset.model.bloqueado == False) | (asset_crud.asset.model.bloqueado.is_(None))
+            )
+            active_filters.append("Status: Disponível (Empréstimo)")
+        else:
+            try:
+                query = query.filter(asset_crud.asset.model.status == AssetStatus(status_filter))
+                active_filters.append(f"Status: {status_filter}")
+            except ValueError:
+                pass
+
     result = await db.execute(query)
     assets = result.scalars().all()
 
@@ -457,6 +514,7 @@ async def reports_page(
         "user": current_user,
         "assets": assets,
         "categories": categories,
+        "locais": locais,
         "fornecedores": fornecedores,
         "usuarios_filtro": usuarios_filtro,
         "has_filters": has_filters,
@@ -465,10 +523,12 @@ async def reports_page(
             "data_fim": data_fim or "",
             "nome": nome or "",
             "categoria_id": cat_id or "",
+            "localizacao_id": loc_id or "",
             "fornecedor_id": forn_id or "",
             "nfe": nfe or "",
             "patrimonio": patrimonio or "",
-            "usuario_id": user_id or ""
+            "usuario_id": user_id or "",
+            "status": status_filter or ""
         },
         "title": "Relatorio de Ativos"
     })
@@ -483,31 +543,46 @@ async def reports_pdf(
     data_fim: Optional[str] = None,
     nome: Optional[str] = None,
     categoria_id: Optional[str] = None,
+    localizacao_id: Optional[str] = None,
     fornecedor_id: Optional[str] = None,
     nfe: Optional[str] = None,
     patrimonio: Optional[str] = None,
-    usuario_id: Optional[str] = None
+    usuario_id: Optional[str] = None,
+    status: Optional[str] = None
 ):
     from weasyprint import HTML
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from app.models.invoice import NotaFiscal
+    from app.models.asset_category import AssetCategory
+    from app.models.location import Localizacao
     from app.crud.user import user as user_crud_obj
 
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+    loc_id = int(localizacao_id) if localizacao_id and localizacao_id.strip() else None
     forn_id = int(fornecedor_id) if fornecedor_id and fornecedor_id.strip() else None
     user_id = int(usuario_id) if usuario_id and usuario_id.strip() else None
+    status_filter = status.strip() if status and status.strip() else None
 
     if user_id:
         usuarios_filtro = await user_crud_obj.get_multi(db, limit=1000)
     else:
         usuarios_filtro = []
 
-    query = select(asset_crud.asset.model).options(
+    query = select(asset_crud.asset.model).outerjoin(
+        AssetCategory, asset_crud.asset.model.categoria_id == AssetCategory.id
+    ).outerjoin(
+        Localizacao, asset_crud.asset.model.current_local_id == Localizacao.id
+    ).options(
         selectinload(asset_crud.asset.model.categoria),
+        selectinload(asset_crud.asset.model.current_local),
         selectinload(asset_crud.asset.model.fornecedor),
         selectinload(asset_crud.asset.model.nota_fiscal),
         selectinload(asset_crud.asset.model.current_user)
+    ).order_by(
+        AssetCategory.nome.asc().nulls_last(),
+        Localizacao.nome.asc().nulls_last(),
+        asset_crud.asset.model.nome.asc()
     )
 
     has_filters = False
@@ -540,6 +615,13 @@ async def reports_pdf(
         query = query.filter(asset_crud.asset.model.categoria_id == cat_id)
         has_filters = True
 
+    if loc_id:
+        query = query.filter(asset_crud.asset.model.current_local_id == loc_id)
+        has_filters = True
+        locais = await location.localizacao.get_multi(db)
+        loc_obj = next((l for l in locais if l.id == loc_id), None)
+        active_filters.append(f"Localização: {loc_obj.nome if loc_obj else loc_id}")
+
     if forn_id:
         query = query.filter(asset_crud.asset.model.fornecedor_id == forn_id)
         has_filters = True
@@ -559,6 +641,24 @@ async def reports_pdf(
         has_filters = True
         usuario_filtro = next((u for u in usuarios_filtro if u.id == user_id), None)
         active_filters.append(f"Usuario: {usuario_filtro.nome if usuario_filtro else user_id}")
+
+    if status_filter:
+        has_filters = True
+        if status_filter.lower() in ["ativo_fixo", "ativo fixo", "bloqueado"]:
+            query = query.filter(asset_crud.asset.model.bloqueado == True)
+            active_filters.append("Status: Ativo Fixo (Uso Institucional)")
+        elif status_filter in ["Disponível", "disponivel"]:
+            query = query.filter(
+                asset_crud.asset.model.status == AssetStatus.DISPONIVEL,
+                (asset_crud.asset.model.bloqueado == False) | (asset_crud.asset.model.bloqueado.is_(None))
+            )
+            active_filters.append("Status: Disponível (Empréstimo)")
+        else:
+            try:
+                query = query.filter(asset_crud.asset.model.status == AssetStatus(status_filter))
+                active_filters.append(f"Status: {status_filter}")
+            except ValueError:
+                pass
 
     result = await db.execute(query)
     assets = result.scalars().all()
