@@ -10,7 +10,9 @@ import (
 // CORSMiddleware configures CORS for the React frontend
 func CORSMiddleware() gin.HandlerFunc {
 	return cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8000"},
+		AllowOriginFunc: func(origin string) bool {
+			return true // Permitir qualquer origem na rede local
+		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length", "X-Process-Time"},
