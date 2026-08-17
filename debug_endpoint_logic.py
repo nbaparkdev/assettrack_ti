@@ -1,10 +1,13 @@
 import asyncio
-from app.database import SessionLocal
+from datetime import datetime
+
+from sqlalchemy import select
+
 from app.crud import asset as asset_crud
+from app.database import SessionLocal
 from app.models.transaction import Solicitacao, StatusSolicitacao
 from app.models.user import User
-from sqlalchemy import select
-from datetime import datetime
+
 
 async def debug_endpoint():
     async with SessionLocal() as db:

@@ -1,27 +1,39 @@
 # app/web/endpoints/service_desk.py
 import os
 import shutil
-from typing import Annotated, Optional
 from datetime import datetime
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
-from app.web.dependencies import get_active_user_web
-from app.models.user import User, UserRole
-from app.models.service_desk import ServiceCategory, ServiceDefinition, ServiceTicket, ServiceStatus, ServicePriority
-from app.database import get_db
+from app.core.datetime_utils import now_sp
 from app.crud import service_desk as service_desk_crud
+from app.database import get_db
+from app.models.service_desk import (
+    ServiceCategory,
+    ServiceDefinition,
+    ServicePriority,
+    ServiceStatus,
+    ServiceTicket,
+)
+from app.models.user import User, UserRole
 from app.schemas.service_desk import (
-    ServiceTicketCreate, ServiceCategoryCreate, 
-    ServiceDefinitionCreate, ServiceTicketInteractionCreate
+    ServiceCategoryCreate,
+    ServiceDefinitionCreate,
+    ServiceTicketCreate,
+    ServiceTicketInteractionCreate,
 )
 from app.services.qr_service import QRService
-from app.core.datetime_utils import now_sp
-from app.services.webhook_service import dispatch_webhook_event, format_service_ticket_payload
+from app.services.webhook_service import (
+    dispatch_webhook_event,
+    format_service_ticket_payload,
+)
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -31,13 +43,13 @@ async def service_desk_home(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    query: Optional[str] = None,
-    status: Optional[str] = None,
-    prioridade: Optional[str] = None,
-    categoria_id: Optional[str] = None,
-    data_inicio: Optional[str] = None,
-    data_fim: Optional[str] = None,
-    solicitante_id: Optional[str] = None
+    query: str | None = None,
+    status: str | None = None,
+    prioridade: str | None = None,
+    categoria_id: str | None = None,
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    solicitante_id: str | None = None
 ):
     """Página principal do Service Desk - Lista de chamados do usuário ou todos para admin/técnico"""
     from app.crud.user import user as user_crud_obj
@@ -193,11 +205,15 @@ async def create_ticket(
     descricao: Annotated[str, Form()],
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    foto: Annotated[Optional[UploadFile], File()] = None
+    foto: Annotated[UploadFile | None, File()] = None
 ):
     foto_path = None
     if foto and foto.filename:
-        from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_IMAGE_EXTENSIONS
+        from app.core.security_utils import (
+            ALLOWED_IMAGE_EXTENSIONS,
+            generate_safe_filename,
+            validate_uploaded_file,
+        )
         ext = validate_uploaded_file(foto, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
         upload_dir = "static/uploads/tickets"
         os.makedirs(upload_dir, exist_ok=True)
@@ -231,8 +247,8 @@ async def ticket_detail(
     ticket_id: str,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    error: Optional[str] = None,
-    success: Optional[str] = None
+    error: str | None = None,
+    success: str | None = None
 ):
     ticket = await service_desk_crud.ticket.get_full(db, ticket_id)
     if not ticket:
@@ -406,7 +422,7 @@ async def create_interaction(
     mensagem: Annotated[str, Form()],
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    foto: Annotated[Optional[UploadFile], File()] = None
+    foto: Annotated[UploadFile | None, File()] = None
 ):
     """Adiciona um comentário/interação no chamado"""
     ticket = await service_desk_crud.ticket.get_full(db, ticket_id)
@@ -415,7 +431,11 @@ async def create_interaction(
         
     foto_path = None
     if foto and foto.filename:
-        from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_IMAGE_EXTENSIONS
+        from app.core.security_utils import (
+            ALLOWED_IMAGE_EXTENSIONS,
+            generate_safe_filename,
+            validate_uploaded_file,
+        )
         ext = validate_uploaded_file(foto, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
         upload_dir = "static/uploads/tickets"
         os.makedirs(upload_dir, exist_ok=True)
@@ -450,7 +470,7 @@ async def create_interaction(
 async def create_category(
     nome: Annotated[str, Form()],
     setor: Annotated[str, Form()],
-    descricao: Annotated[Optional[str], Form()] = None,
+    descricao: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -494,8 +514,8 @@ async def create_service_definition(
     prioridade_padrao: Annotated[str, Form()],
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    descricao: Annotated[Optional[str], Form()] = None,
-    tempo_estimado_horas: Annotated[Optional[float], Form()] = None
+    descricao: Annotated[str | None, Form()] = None,
+    tempo_estimado_horas: Annotated[float | None, Form()] = None
 ):
     user_role = str(current_user.role.value).lower()
     if user_role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:

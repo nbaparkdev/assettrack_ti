@@ -1,9 +1,11 @@
 # tests/test_kanban_notifications.py
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.kanban import KanbanNotification, KanbanProject
 from app.models.user import User, UserRole
-from app.models.kanban import KanbanProject, KanbanNotification
 from app.services import kanban_notification_service as notif_service
+
 
 @pytest.mark.asyncio
 async def test_kanban_notifications_workflow(db_session: AsyncSession):

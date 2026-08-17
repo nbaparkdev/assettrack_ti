@@ -1,57 +1,53 @@
 
-from typing import Annotated, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta
-from app.core.datetime_utils import now_sp
 
 from app.api import dependencies
-from app.crud import preventive_maintenance as pm_crud
+from app.core.datetime_utils import now_sp
 from app.crud import asset as asset_crud
-from app.schemas.preventive_maintenance import (
-    MaintenancePlanCreate,
-    MaintenancePlanUpdate,
-    MaintenancePlanResponse,
-    MaintenanceChecklistCreate,
-    MaintenanceChecklistUpdate,
-    MaintenanceChecklistResponse,
-    MaintenanceChecklistItemCreate,
-    MaintenanceChecklistItemUpdate,
-    MaintenanceChecklistItemResponse,
-    MaintenanceOrderCreate,
-    MaintenanceOrderUpdate,
-    MaintenanceOrderResponse,
-    MaintenanceExecutionCreate,
-    MaintenanceExecutionUpdate,
-    MaintenanceExecutionResponse,
-    MaintenanceMaterialCreate,
-    MaintenanceMaterialUpdate,
-    MaintenanceMaterialResponse,
-    MaintenancePhotoCreate,
-    MaintenancePhotoUpdate,
-    MaintenancePhotoResponse,
-    MaintenanceHistoryResponse,
-    MaintenanceNotificationCreate,
-    MaintenanceNotificationUpdate,
-    MaintenanceNotificationResponse,
-    DashboardStats,
-    DashboardChartData,
-    MaintenanceDashboardResponse
-)
+from app.crud import preventive_maintenance as pm_crud
 from app.database import get_db
-from app.models.preventive_maintenance import OrderStatus, MaintenanceType
+from app.models.preventive_maintenance import MaintenanceType, OrderStatus
+from app.schemas.preventive_maintenance import (
+    DashboardChartData,
+    DashboardStats,
+    MaintenanceChecklistCreate,
+    MaintenanceChecklistItemCreate,
+    MaintenanceChecklistItemResponse,
+    MaintenanceChecklistItemUpdate,
+    MaintenanceChecklistResponse,
+    MaintenanceChecklistUpdate,
+    MaintenanceDashboardResponse,
+    MaintenanceExecutionCreate,
+    MaintenanceExecutionResponse,
+    MaintenanceExecutionUpdate,
+    MaintenanceHistoryResponse,
+    MaintenanceMaterialCreate,
+    MaintenanceMaterialResponse,
+    MaintenanceMaterialUpdate,
+    MaintenanceOrderCreate,
+    MaintenanceOrderResponse,
+    MaintenanceOrderUpdate,
+    MaintenancePhotoCreate,
+    MaintenancePhotoResponse,
+    MaintenancePlanCreate,
+    MaintenancePlanResponse,
+    MaintenancePlanUpdate,
+)
 
 router = APIRouter()
 
 
 # ============== Maintenance Plans ==============
-@router.get("/plans", response_model=List[MaintenancePlanResponse])
+@router.get("/plans", response_model=list[MaintenancePlanResponse])
 async def read_maintenance_plans(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],
     skip: int = 0,
     limit: int = 100,
-    active_only: Optional[bool] = None
+    active_only: bool | None = None
 ):
     if active_only:
         return await pm_crud.maintenance_plan.get_active_plans(db)
@@ -137,7 +133,7 @@ async def delete_maintenance_plan(
 
 
 # ============== Maintenance Checklists ==============
-@router.get("/plans/{plan_id}/checklists", response_model=List[MaintenanceChecklistResponse])
+@router.get("/plans/{plan_id}/checklists", response_model=list[MaintenanceChecklistResponse])
 async def read_plan_checklists(
     plan_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -182,7 +178,7 @@ async def delete_checklist(
 
 
 # ============== Maintenance Checklist Items ==============
-@router.get("/checklists/{checklist_id}/items", response_model=List[MaintenanceChecklistItemResponse])
+@router.get("/checklists/{checklist_id}/items", response_model=list[MaintenanceChecklistItemResponse])
 async def read_checklist_items(
     checklist_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -227,15 +223,15 @@ async def delete_checklist_item(
 
 
 # ============== Maintenance Orders ==============
-@router.get("/orders", response_model=List[MaintenanceOrderResponse])
+@router.get("/orders", response_model=list[MaintenanceOrderResponse])
 async def read_maintenance_orders(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],
     skip: int = 0,
     limit: int = 100,
-    status: Optional[OrderStatus] = None,
-    asset_id: Optional[int] = None,
-    tecnico_id: Optional[int] = None
+    status: OrderStatus | None = None,
+    asset_id: int | None = None,
+    tecnico_id: int | None = None
 ):
     if status:
         return await pm_crud.maintenance_order.get_by_status(db, status=status)
@@ -470,7 +466,7 @@ async def complete_maintenance_order(
 
 
 # ============== Maintenance Executions ==============
-@router.get("/orders/{order_id}/executions", response_model=List[MaintenanceExecutionResponse])
+@router.get("/orders/{order_id}/executions", response_model=list[MaintenanceExecutionResponse])
 async def read_order_executions(
     order_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -511,7 +507,7 @@ async def update_execution(
 
 
 # ============== Maintenance Materials ==============
-@router.get("/orders/{order_id}/materials", response_model=List[MaintenanceMaterialResponse])
+@router.get("/orders/{order_id}/materials", response_model=list[MaintenanceMaterialResponse])
 async def read_order_materials(
     order_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -556,7 +552,7 @@ async def delete_material(
 
 
 # ============== Maintenance Photos ==============
-@router.get("/orders/{order_id}/photos", response_model=List[MaintenancePhotoResponse])
+@router.get("/orders/{order_id}/photos", response_model=list[MaintenancePhotoResponse])
 async def read_order_photos(
     order_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -577,7 +573,7 @@ async def create_photo(
 
 
 # ============== Maintenance History ==============
-@router.get("/orders/{order_id}/history", response_model=List[MaintenanceHistoryResponse])
+@router.get("/orders/{order_id}/history", response_model=list[MaintenanceHistoryResponse])
 async def read_order_history(
     order_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],

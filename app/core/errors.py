@@ -1,5 +1,4 @@
 # app/core/errors.py
-import re
 
 def get_friendly_db_error(e: Exception) -> str:
     """

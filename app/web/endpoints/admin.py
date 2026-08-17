@@ -1,17 +1,22 @@
-from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Form, Response
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Response
 from fastapi.responses import RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database import get_db
-from app.web.dependencies import get_active_user_web
-from app.models.user import User, UserRole
-from app.models.transaction import Solicitacao, StatusSolicitacao, Movimentacao, TipoMovimentacao
-from app.models.asset import Asset, AssetStatus
-from datetime import datetime
 from app.core.datetime_utils import now_sp
+from app.database import get_db
+from app.models.asset import Asset, AssetStatus
+from app.models.transaction import (
+    Movimentacao,
+    Solicitacao,
+    StatusSolicitacao,
+    TipoMovimentacao,
+)
+from app.models.user import User, UserRole
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 
@@ -89,7 +94,6 @@ async def reject_solicitacao(
 # -------------------------------------------------------------------------
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import selectinload
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -132,7 +136,6 @@ async def deliver_solicitacao_submit(
 ):
     # Import service singleton and Enum directly
     from app.services.notification_service import notification_service
-    from app.models.transaction import TipoMovimentacao
 
     # Fetch Solicitation
     stmt = (
@@ -208,12 +211,13 @@ async def deliver_solicitacao_submit(
 # -------------------------------------------------------------------------
 from fastapi.responses import HTMLResponse
 
+
 @router.get("/auditoria", response_class=HTMLResponse)
 async def admin_audit_page(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(check_admin_role)],
-    user_id: Optional[int] = None
+    user_id: int | None = None
 ):
     """Página de auditoria para visualizar o histórico completo de um usuário"""
     # Fetch all active users

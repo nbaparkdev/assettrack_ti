@@ -1,15 +1,16 @@
 from datetime import datetime, timedelta
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import dependencies
-from app.crud import user as user_crud
-from app.schemas.user import Token, UserResponse, UserCreate
 from app.config import settings
+from app.crud import user as user_crud
 from app.database import get_db
+from app.schemas.user import Token, UserCreate, UserResponse
 
 router = APIRouter()
 

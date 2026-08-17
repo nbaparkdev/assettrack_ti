@@ -1,6 +1,8 @@
 import asyncio
+
 from app.database import SessionLocal
 from app.services.email_service import EmailService
+
 
 async def test():
     async with SessionLocal() as db:

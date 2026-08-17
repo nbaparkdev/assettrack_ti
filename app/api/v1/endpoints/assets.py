@@ -1,18 +1,20 @@
 
 # app/api/v1/endpoints/assets.py
-from typing import Annotated, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import dependencies
 from app.crud import asset as asset_crud
-from app.schemas.asset import AssetCreate, AssetUpdate, AssetResponse
 from app.database import get_db
+from app.schemas.asset import AssetCreate, AssetResponse, AssetUpdate
 from app.services.qr_service import QRService
 
 router = APIRouter()
 
 from fastapi import Request
+
 
 async def get_any_active_user(
     request: Request,
@@ -28,6 +30,7 @@ async def get_any_active_user(
         token = auth_header.split(" ")[1]
         try:
             from jose import jwt
+
             from app.config import settings
             from app.crud import user as user_crud
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
@@ -52,8 +55,10 @@ async def get_referencias(
     otimizadas para cache de cliente (LocalStorage / IndexedDB).
     """
     from app.crud.asset_category import category as cat_crud
-    from app.crud.location import departamento as dept_crud, localizacao as loc_crud, armazenamento as arm_crud
     from app.crud.crud_supplier import supplier as supp_crud
+    from app.crud.location import armazenamento as arm_crud
+    from app.crud.location import departamento as dept_crud
+    from app.crud.location import localizacao as loc_crud
 
     cats = await cat_crud.get_multi(db, limit=500)
     depts = await dept_crud.get_multi(db, limit=500)
@@ -69,13 +74,13 @@ async def get_referencias(
         "fornecedores": [{"id": s.id, "nome": getattr(s, 'nome_fantasia', None) or getattr(s, 'razao_social', f'Fornecedor {s.id}')} for s in supps]
     }
 
-@router.get("/", response_model=List[AssetResponse])
+@router.get("/", response_model=list[AssetResponse])
 async def read_assets(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],
     skip: int = 0,
     limit: int = 100,
-    e_patrimonio: Optional[str] = None
+    e_patrimonio: str | None = None
 ):
     if e_patrimonio:
         asset = await asset_crud.asset.get_by_e_patrimonio(db, e_patrimonio=e_patrimonio)

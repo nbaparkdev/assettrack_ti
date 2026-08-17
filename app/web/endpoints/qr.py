@@ -1,24 +1,24 @@
 
 # app/web/endpoints/qr.py
+from datetime import timedelta
 from typing import Annotated
-from fastapi import APIRouter, Request, Depends, HTTPException, Form
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-from datetime import timedelta
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
-from app.database import get_db
-from app.crud import user as user_crud
-from app.services.qr_service import QRService
-from app.web.dependencies import get_active_user_web
-from app.models.user import User, UserRole
-from app.models.transaction import Solicitacao, Movimentacao
-from app.models.maintenance import Manutencao
 from app.api.v1.endpoints.auth import create_access_token
 from app.config import settings
-from starlette import status
+from app.crud import user as user_crud
+from app.database import get_db
+from app.models.maintenance import Manutencao
+from app.models.transaction import Movimentacao, Solicitacao
+from app.models.user import User, UserRole
+from app.services.qr_service import QRService
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")

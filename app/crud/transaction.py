@@ -1,33 +1,37 @@
 
 # app/crud/transaction.py
-from typing import List
-from sqlalchemy.ext.asyncio import AsyncSession
+
+# Como Movimentacao não tem Update geralmente (é histórico), usamos BaseModel genérico se necessário ou criamos um schema vazio
+from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
 from app.crud.base import CRUDBase
 from app.models.transaction import Movimentacao, Solicitacao, StatusSolicitacao
 from app.models.user import User
 from app.schemas.transaction import (
-    MovimentacaoCreate, SolicitacaoCreate, SolicitacaoUpdate
+    MovimentacaoCreate,
+    SolicitacaoCreate,
+    SolicitacaoUpdate,
 )
 
-# Como Movimentacao não tem Update geralmente (é histórico), usamos BaseModel genérico se necessário ou criamos um schema vazio
-from pydantic import BaseModel
+
 class MovimentacaoUpdate(BaseModel):
     pass
 
 class CRUDMovimentacao(CRUDBase[Movimentacao, MovimentacaoCreate, MovimentacaoUpdate]):
-    async def get_by_asset(self, db: AsyncSession, asset_id: int) -> List[Movimentacao]:
+    async def get_by_asset(self, db: AsyncSession, asset_id: int) -> list[Movimentacao]:
         result = await db.execute(select(Movimentacao).filter(Movimentacao.asset_id == asset_id).order_by(Movimentacao.data.desc()))
         return result.scalars().all()
 
-from datetime import datetime
 from app.core.datetime_utils import now_sp
 from app.models.asset import Asset, AssetStatus
 from app.models.transaction import TipoMovimentacao
 
+
 class CRUDSolicitacao(CRUDBase[Solicitacao, SolicitacaoCreate, SolicitacaoUpdate]):
-    async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> List[Solicitacao]:
+    async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> list[Solicitacao]:
         """Override to include eager loading of relationships"""
         result = await db.execute(
             select(Solicitacao)
@@ -39,7 +43,7 @@ class CRUDSolicitacao(CRUDBase[Solicitacao, SolicitacaoCreate, SolicitacaoUpdate
         )
         return result.scalars().all()
     
-    async def get_pending(self, db: AsyncSession) -> List[Solicitacao]:
+    async def get_pending(self, db: AsyncSession) -> list[Solicitacao]:
         result = await db.execute(
             select(Solicitacao)
             .options(
@@ -50,7 +54,7 @@ class CRUDSolicitacao(CRUDBase[Solicitacao, SolicitacaoCreate, SolicitacaoUpdate
         )
         return result.scalars().all()
     
-    async def get_by_user(self, db: AsyncSession, user_id: int) -> List[Solicitacao]:
+    async def get_by_user(self, db: AsyncSession, user_id: int) -> list[Solicitacao]:
         result = await db.execute(
             select(Solicitacao)
             .options(

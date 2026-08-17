@@ -2,9 +2,10 @@
 """
 Serviço para registro de logs de uso do QR Code.
 """
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.qr_log import QRLog, QRLogAction
 from fastapi import Request
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.qr_log import QRLog, QRLogAction
 
 
 class QRLogService:

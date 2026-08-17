@@ -1,10 +1,11 @@
 # seed_admin_notification.py
 import asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select
+
 from app.database import AsyncSessionLocal
-from app.models.user import User, UserRole
 from app.services import kanban_notification_service as notif_service
+
 
 async def seed_welcome_notifs():
     async with AsyncSessionLocal() as db:

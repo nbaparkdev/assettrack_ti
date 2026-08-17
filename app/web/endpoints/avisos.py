@@ -1,19 +1,20 @@
 # app/web/endpoints/avisos.py
-from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, HTTPException, Form, status
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+import time
 from datetime import datetime
+from typing import Annotated
 from urllib.parse import quote_plus
 
-from app.database import get_db
-from app.web.dependencies import get_active_user_web
-from app.models.user import User, UserRole
-from app.models.aviso import Aviso
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.crud.aviso import aviso as aviso_crud
-import time
+from app.database import get_db
+from app.models.aviso import Aviso
+from app.models.user import User
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter(prefix="/admin/avisos", tags=["admin-avisos"])
 templates = Jinja2Templates(directory="app/templates")
@@ -31,7 +32,7 @@ async def require_admin(current_user: Annotated[User, Depends(get_active_user_we
         raise HTTPException(status_code=403, detail="Acesso negado")
     return current_user
 
-def parse_date(date_str: str) -> Optional[datetime]:
+def parse_date(date_str: str) -> datetime | None:
     if not date_str or not date_str.strip():
         return None
     try:
@@ -45,8 +46,8 @@ async def list_avisos(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     admin: Annotated[User, Depends(require_admin)],
-    error: Optional[str] = None,
-    success: Optional[str] = None
+    error: str | None = None,
+    success: str | None = None
 ):
     """Lista todos os avisos criados para o administrador gerenciar"""
     result = await db.execute(select(Aviso).order_by(Aviso.data_cadastro.desc()))

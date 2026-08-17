@@ -1,21 +1,20 @@
 # app/web/endpoints/rh.py
-import os
-from typing import Annotated, Optional, List
-from datetime import datetime
-from fastapi import APIRouter, Request, Depends, HTTPException, status, Form, Response
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database import get_db
-from app.models.user import User, UserRole
-from app.models.asset import Asset, AssetStatus
-from app.models.transaction import Solicitacao, StatusSolicitacao
-from app.models.termo_responsabilidade import TermoResponsabilidade
-from app.web.dependencies import get_active_user_web
 from app.core.datetime_utils import now_sp
+from app.database import get_db
+from app.models.asset import Asset
+from app.models.termo_responsabilidade import TermoResponsabilidade
+from app.models.transaction import Solicitacao, StatusSolicitacao
+from app.models.user import User, UserRole
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")

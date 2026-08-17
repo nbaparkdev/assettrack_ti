@@ -1,34 +1,37 @@
 # app/schemas/invoice.py
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict
+
 from app.schemas.supplier import FornecedorResponse
+
 
 class NotaFiscalBase(BaseModel):
     numero_nota: str
     fornecedor_id: int
-    xml_path: Optional[str] = None
-    data_emissao: Optional[datetime] = None
-    valor_total: Optional[float] = None
-    natureza_operacao: Optional[str] = None
-    emitente_nome: Optional[str] = None
-    emitente_cnpj: Optional[str] = None
-    destinatario_nome: Optional[str] = None
-    destinatario_cnpj: Optional[str] = None
-    itens: Optional[List[Dict[str, Any]]] = None
+    xml_path: str | None = None
+    data_emissao: datetime | None = None
+    valor_total: float | None = None
+    natureza_operacao: str | None = None
+    emitente_nome: str | None = None
+    emitente_cnpj: str | None = None
+    destinatario_nome: str | None = None
+    destinatario_cnpj: str | None = None
+    itens: list[dict[str, Any]] | None = None
 
 class NotaFiscalCreate(NotaFiscalBase):
     pass
 
 class NotaFiscalUpdate(BaseModel):
-    numero_nota: Optional[str] = None
-    fornecedor_id: Optional[int] = None
-    xml_path: Optional[str] = None
-    itens: Optional[List[Dict[str, Any]]] = None
+    numero_nota: str | None = None
+    fornecedor_id: int | None = None
+    xml_path: str | None = None
+    itens: list[dict[str, Any]] | None = None
 
 class NotaFiscalResponse(NotaFiscalBase):
     id: int
     data_cadastro: datetime
-    fornecedor: Optional[FornecedorResponse] = None
+    fornecedor: FornecedorResponse | None = None
     
     model_config = ConfigDict(from_attributes=True)

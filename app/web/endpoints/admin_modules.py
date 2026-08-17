@@ -1,14 +1,15 @@
 # app/web/endpoints/admin_modules.py
-from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, Form, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.web.dependencies import get_admin_user_web
-from app.models.user import User
 from app.crud.system_settings import system_settings
+from app.database import get_db
+from app.models.user import User
+from app.web.dependencies import get_admin_user_web
 
 router = APIRouter(dependencies=[Depends(get_admin_user_web)])
 templates = Jinja2Templates(directory="app/templates")
@@ -153,32 +154,32 @@ async def gerenciar_modulos_submit(
     request: Request,
     current_user: Annotated[User, Depends(get_admin_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    preventive_maintenance_enabled: Optional[str] = Form(None),
-    purchases_enabled: Optional[str] = Form(None),
-    kanban_enabled: Optional[str] = Form(None),
-    ai_enabled: Optional[str] = Form(None),
-    ai_advanced_functions: Optional[str] = Form(None),
-    ai_provider: Optional[str] = Form(None),
-    openai_api_key: Optional[str] = Form(None),
-    gemini_api_key: Optional[str] = Form(None),
-    groq_api_key: Optional[str] = Form(None),
-    openai_model: Optional[str] = Form(None),
-    gemini_model: Optional[str] = Form(None),
-    groq_model: Optional[str] = Form(None),
-    openrouter_api_key: Optional[str] = Form(None),
-    openrouter_model: Optional[str] = Form(None),
-    kimi_api_key: Optional[str] = Form(None),
-    kimi_model: Optional[str] = Form(None),
-    ollama_base_url: Optional[str] = Form(None),
-    ollama_model: Optional[str] = Form(None),
-    ollama_api_key: Optional[str] = Form(None),
-    smtp_host: Optional[str] = Form(None),
-    smtp_port: Optional[str] = Form(None),
-    smtp_user: Optional[str] = Form(None),
-    smtp_pass: Optional[str] = Form(None),
-    smtp_from: Optional[str] = Form(None),
-    smtp_tls: Optional[str] = Form(None),
-    custom_links_comum: Optional[str] = Form(None)
+    preventive_maintenance_enabled: str | None = Form(None),
+    purchases_enabled: str | None = Form(None),
+    kanban_enabled: str | None = Form(None),
+    ai_enabled: str | None = Form(None),
+    ai_advanced_functions: str | None = Form(None),
+    ai_provider: str | None = Form(None),
+    openai_api_key: str | None = Form(None),
+    gemini_api_key: str | None = Form(None),
+    groq_api_key: str | None = Form(None),
+    openai_model: str | None = Form(None),
+    gemini_model: str | None = Form(None),
+    groq_model: str | None = Form(None),
+    openrouter_api_key: str | None = Form(None),
+    openrouter_model: str | None = Form(None),
+    kimi_api_key: str | None = Form(None),
+    kimi_model: str | None = Form(None),
+    ollama_base_url: str | None = Form(None),
+    ollama_model: str | None = Form(None),
+    ollama_api_key: str | None = Form(None),
+    smtp_host: str | None = Form(None),
+    smtp_port: str | None = Form(None),
+    smtp_user: str | None = Form(None),
+    smtp_pass: str | None = Form(None),
+    smtp_from: str | None = Form(None),
+    smtp_tls: str | None = Form(None),
+    custom_links_comum: str | None = Form(None)
 ):
     # Salvar módulos
     enabled_val = "true" if preventive_maintenance_enabled == "on" else "false"
@@ -303,9 +304,11 @@ async def gerenciar_modulos_submit(
 
     return RedirectResponse(url="/admin/modulos?success=1", status_code=status.HTTP_303_SEE_OTHER)
 
-from pydantic import BaseModel
 import smtplib
 from email.message import EmailMessage
+
+from pydantic import BaseModel
+
 
 class SmtpTestRequest(BaseModel):
     email: str
@@ -321,8 +324,9 @@ async def test_smtp_connection(
     req: SmtpTestRequest,
     current_user: Annotated[User, Depends(get_admin_user_web)]
 ):
-    from fastapi import HTTPException
     import asyncio
+
+    from fastapi import HTTPException
 
     # Validação antecipada para retornar mensagem clara ao usuário
     if not req.smtp_host:
@@ -360,9 +364,9 @@ async def test_smtp_connection(
 
     except smtplib.SMTPAuthenticationError:
         raise HTTPException(status_code=400, detail="Erro de autenticação SMTP: usuário ou senha incorretos. Para Gmail, use uma 'Senha de App' em vez da senha principal.")
-    except smtplib.SMTPConnectError as e:
+    except smtplib.SMTPConnectError:
         raise HTTPException(status_code=400, detail=f"Falha ao conectar ao servidor SMTP ({req.smtp_host}:{req.smtp_port}). Verifique o host e a porta.")
     except smtplib.SMTPException as e:
-        raise HTTPException(status_code=400, detail=f"Erro SMTP: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Erro SMTP: {e!s}")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro inesperado: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Erro inesperado: {e!s}")

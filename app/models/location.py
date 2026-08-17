@@ -1,8 +1,10 @@
 
 # app/models/location.py
-from sqlalchemy import String, Integer, ForeignKey
+from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.database import Base
+
 
 class Departamento(Base):
     __tablename__ = "departamentos"

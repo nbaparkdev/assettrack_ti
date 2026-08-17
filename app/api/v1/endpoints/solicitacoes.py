@@ -1,18 +1,20 @@
 
 # app/api/v1/endpoints/solicitacoes.py
-from typing import Annotated, List
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import dependencies
-from app.crud import transaction as transaction_crud
 from app.crud import asset as asset_crud
-from app.schemas.transaction import (
-    SolicitacaoCreate, SolicitacaoUpdate, SolicitacaoResponse, MovimentacaoCreate
-)
-from app.models.transaction import StatusSolicitacao, TipoMovimentacao
+from app.crud import transaction as transaction_crud
 from app.database import get_db
+from app.models.transaction import StatusSolicitacao, TipoMovimentacao
+from app.schemas.transaction import (
+    SolicitacaoCreate,
+    SolicitacaoResponse,
+)
 
 router = APIRouter()
 
@@ -35,7 +37,7 @@ async def create_solicitacao(
     await db.refresh(db_obj)
     return db_obj
 
-@router.get("/", response_model=List[SolicitacaoResponse])
+@router.get("/", response_model=list[SolicitacaoResponse])
 async def read_solicitacoes(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],

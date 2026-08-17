@@ -1,22 +1,23 @@
 
 # app/web/dependencies.py
-from typing import Annotated, Optional
-from fastapi import Request, Depends, HTTPException, status, Cookie
-from fastapi.responses import RedirectResponse
-from jose import jwt, JWTError
+from typing import Annotated
+
+from fastapi import Cookie, Depends, HTTPException, Request, status
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
 from app.config import settings
 from app.crud import user as user_crud
+from app.database import get_db
 from app.models.user import User
 from app.schemas.user import TokenData
 
+
 async def get_current_user_from_cookie(
     request: Request,
-    access_token: Optional[str] = Cookie(None),
+    access_token: str | None = Cookie(None),
     db: AsyncSession = Depends(get_db)
-) -> Optional[User]:
+) -> User | None:
     # Tentativa de pegar do cookie. O cookie vem como "Bearer <token>" ou só "<token>" dependendo de como salvamos.
     # No auth.py salvamos como "Bearer <token>"?
     # response.set_cookie(key="access_token", value=f"Bearer {access_token}"...)
@@ -42,7 +43,7 @@ async def get_current_user_from_cookie(
 
 async def get_active_user_web(
     request: Request,
-    user: Annotated[Optional[User], Depends(get_current_user_from_cookie)],
+    user: Annotated[User | None, Depends(get_current_user_from_cookie)],
     db: AsyncSession = Depends(get_db)
 ) -> User:
     if not user:
@@ -69,7 +70,6 @@ async def get_active_user_web(
 
     return user
 
-from app.crud.system_settings import system_settings
 
 async def get_admin_user_web(
     user: Annotated[User, Depends(get_active_user_web)]

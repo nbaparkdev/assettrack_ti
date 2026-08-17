@@ -1,20 +1,22 @@
 import io
-import os
 import json
+import os
 import zipfile
 from collections import defaultdict, deque
 from datetime import datetime
-from app.core.datetime_utils import now_sp
-from typing import Annotated, Optional
+from typing import Annotated
 
-from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
-from fastapi.responses import StreamingResponse, RedirectResponse, HTMLResponse
+from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, inspect as sa_inspect
-from app.database import get_db, engine
-from app.web.dependencies import get_active_user_web
+
+from app.core.datetime_utils import now_sp
+from app.database import engine, get_db
 from app.models.user import User, UserRole
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -82,8 +84,8 @@ async def check_admin(user: Annotated[User, Depends(get_active_user_web)]):
 @router.get("/admin/backup", response_class=HTMLResponse)
 async def backup_page(
     request: Request,
-    success: Optional[str] = None,
-    error: Optional[str] = None,
+    success: str | None = None,
+    error: str | None = None,
     user: Annotated[User, Depends(check_admin)] = None,
 ):
     return templates.TemplateResponse("admin/backup.html", {
@@ -108,7 +110,7 @@ async def export_backup(
             # Sort topologically: parent tables before child tables (INSERTs won't violate FKs)
             ordered_tables = _topological_sort(inspector, all_tables)
             lines = [
-                f"-- AssetTrack TI Backup",
+                "-- AssetTrack TI Backup",
                 f"-- Gerado por: {user.nome}",
                 f"-- Data: {now_sp().isoformat()}",
                 "",
@@ -200,7 +202,7 @@ async def export_backup(
         )
     except Exception as e:
         return RedirectResponse(
-            url=f"/admin/backup?error=Erro+ao+exportar:+{str(e)}",
+            url=f"/admin/backup?error=Erro+ao+exportar:+{e!s}",
             status_code=303,
         )
 
@@ -249,7 +251,7 @@ async def import_backup(
         )
     except Exception as e:
         return RedirectResponse(
-            url=f"/admin/backup?error=Erro+ao+importar:+{str(e)}",
+            url=f"/admin/backup?error=Erro+ao+importar:+{e!s}",
             status_code=303,
         )
 

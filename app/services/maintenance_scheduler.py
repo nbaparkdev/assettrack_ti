@@ -1,16 +1,24 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from app.core.datetime_utils import now_sp
-from sqlalchemy import select, func
+from datetime import timedelta
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
+
+from app.core.datetime_utils import now_sp
 from app.database import SessionLocal
-from app.models.preventive_maintenance import (
-    MaintenancePlan, MaintenanceOrder, OrderStatus,
-    MaintenanceType, MaintenancePriority, MaintenanceCriticality,
-    MaintenancePeriodicity, MaintenanceHistory, MaintenancePlanAsset
-)
 from app.models.asset import Asset
+from app.models.preventive_maintenance import (
+    MaintenanceCriticality,
+    MaintenanceHistory,
+    MaintenanceOrder,
+    MaintenancePeriodicity,
+    MaintenancePlan,
+    MaintenancePlanAsset,
+    MaintenancePriority,
+    MaintenanceType,
+    OrderStatus,
+)
 
 logger = logging.getLogger("maintenance_scheduler")
 logger.setLevel(logging.INFO)
@@ -142,7 +150,9 @@ async def check_and_generate_preventive_orders():
                     if plan.responsavel_id:
                         try:
                             from app.models.user import User
-                            from app.services.notification_service import notification_service
+                            from app.services.notification_service import (
+                                notification_service,
+                            )
                             
                             tech_stmt = select(User).filter(User.id == plan.responsavel_id)
                             tech_res = await db.execute(tech_stmt)

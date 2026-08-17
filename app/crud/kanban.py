@@ -1,12 +1,19 @@
 # app/crud/kanban.py
-from typing import List, Optional
 from datetime import datetime
-from sqlalchemy import select, func, or_
-from sqlalchemy.orm import selectinload
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.kanban import KanbanProject, KanbanColumn, KanbanCard, KanbanAttachment, KanbanCardInteraction
-from app.models.user import User, UserRole
+from sqlalchemy.orm import selectinload
+
 from app.models.asset import Asset
+from app.models.kanban import (
+    KanbanAttachment,
+    KanbanCard,
+    KanbanCardInteraction,
+    KanbanColumn,
+    KanbanProject,
+)
+from app.models.user import User
 
 DEFAULT_COLUMNS = [
     {"nome": "A Fazer", "cor": "#3B82F6", "ordem": 0},          # Blue
@@ -21,7 +28,7 @@ class CRUDKanban:
         db: AsyncSession,
         user: User,
         include_archived: bool = False
-    ) -> List[KanbanProject]:
+    ) -> list[KanbanProject]:
         stmt = select(KanbanProject).options(
             selectinload(KanbanProject.criador),
             selectinload(KanbanProject.participantes),
@@ -42,9 +49,9 @@ class CRUDKanban:
             )
 
         if not include_archived:
-            stmt = stmt.where(KanbanProject.is_archived == False) # noqa
+            stmt = stmt.where(KanbanProject.is_archived == False)
 
-        stmt = stmt.where(KanbanProject.is_active == True) # noqa
+        stmt = stmt.where(KanbanProject.is_active == True)
         stmt = stmt.order_by(KanbanProject.updated_at.desc())
 
         result = await db.execute(stmt)
@@ -56,8 +63,8 @@ class CRUDKanban:
             return 1 # Has access to global module anyway
 
         stmt = select(func.count(KanbanProject.id)).where(
-            KanbanProject.is_active == True, # noqa
-            KanbanProject.is_archived == False, # noqa
+            KanbanProject.is_active == True,
+            KanbanProject.is_archived == False,
             or_(
                 KanbanProject.criador_id == user.id,
                 KanbanProject.participantes.any(User.id == user.id)
@@ -70,7 +77,7 @@ class CRUDKanban:
         self,
         db: AsyncSession,
         project_id: int
-    ) -> Optional[KanbanProject]:
+    ) -> KanbanProject | None:
         stmt = select(KanbanProject).options(
             selectinload(KanbanProject.criador),
             selectinload(KanbanProject.participantes),
@@ -91,7 +98,7 @@ class CRUDKanban:
         self,
         db: AsyncSession,
         card_id: int
-    ) -> Optional[KanbanCard]:
+    ) -> KanbanCard | None:
         stmt = select(KanbanCard).options(
             selectinload(KanbanCard.criador),
             selectinload(KanbanCard.responsavel),
@@ -109,10 +116,10 @@ class CRUDKanban:
         self,
         db: AsyncSession,
         titulo: str,
-        descricao: Optional[str],
+        descricao: str | None,
         criador_id: int,
-        participant_ids: List[int],
-        columns_data: Optional[List[dict]] = None
+        participant_ids: list[int],
+        columns_data: list[dict] | None = None
     ) -> KanbanProject:
         all_participant_ids = list(set(participant_ids + [criador_id]))
         users_list = []
@@ -150,8 +157,8 @@ class CRUDKanban:
         db: AsyncSession,
         project: KanbanProject,
         titulo: str,
-        descricao: Optional[str],
-        participant_ids: List[int],
+        descricao: str | None,
+        participant_ids: list[int],
         is_active: bool,
         is_archived: bool
     ) -> KanbanProject:
@@ -198,13 +205,13 @@ class CRUDKanban:
         project_id: int,
         column_id: int,
         titulo: str,
-        descricao: Optional[str],
+        descricao: str | None,
         criador_id: int,
-        responsavel_id: Optional[int],
-        assignee_ids: List[int],
-        asset_ids: List[int],
+        responsavel_id: int | None,
+        assignee_ids: list[int],
+        asset_ids: list[int],
         prioridade: str = "media",
-        data_entrega: Optional[datetime] = None
+        data_entrega: datetime | None = None
     ) -> KanbanCard:
         # Calculate max order in current column
         res = await db.execute(
@@ -258,13 +265,13 @@ class CRUDKanban:
         db: AsyncSession,
         card: KanbanCard,
         titulo: str,
-        descricao: Optional[str],
+        descricao: str | None,
         column_id: int,
-        responsavel_id: Optional[int],
-        assignee_ids: List[int],
-        asset_ids: List[int],
+        responsavel_id: int | None,
+        assignee_ids: list[int],
+        asset_ids: list[int],
         prioridade: str,
-        data_entrega: Optional[datetime] = None
+        data_entrega: datetime | None = None
     ) -> KanbanCard:
         card.titulo = titulo.strip()
         card.descricao = descricao.strip() if descricao else None
@@ -295,7 +302,7 @@ class CRUDKanban:
         card_id: int,
         target_column_id: int,
         target_order: int
-    ) -> Optional[KanbanCard]:
+    ) -> KanbanCard | None:
         card = await db.get(KanbanCard, card_id)
         if not card:
             return None

@@ -1,14 +1,15 @@
 # app/web/endpoints/users.py
 from typing import Annotated
-from fastapi import APIRouter, Request, Depends, HTTPException, Form
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.web.dependencies import get_active_user_web
 from app.models.user import User, UserRole
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 templates = Jinja2Templates(directory="app/templates")
@@ -32,6 +33,7 @@ async def list_users(
     # Dynamic Debug Logging
     try:
         import os
+
         from app.models.asset import Asset
         from app.models.transaction import Solicitacao
         
@@ -51,8 +53,7 @@ async def list_users(
                 f.write(f"ID: {u.id} | Nome: {u.nome} | Email: {u.email} | Role: {role_str} | Is Active: {u.is_active} | Matricula: {u.matricula!r} | Cargo: {u.cargo!r}\n")
             
             f.write(f"\nDYNAMIC DUMP - TOTAL ASSETS: {len(all_assets)}\n")
-            for a in all_assets:
-                f.write(f"ID: {a.id} | Nome: {a.nome} | Patrimônio: {a.e_patrimonio} | Status: {a.status} | Requer Termo RH: {a.requer_termo_rh}\n")
+            f.writelines(f"ID: {a.id} | Nome: {a.nome} | Patrimônio: {a.e_patrimonio} | Status: {a.status} | Requer Termo RH: {a.requer_termo_rh}\n" for a in all_assets)
                 
             f.write(f"\nDYNAMIC DUMP - TOTAL SOLICITATIONS: {len(all_sols)}\n")
             for s in all_sols:

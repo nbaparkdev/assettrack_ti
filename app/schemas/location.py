@@ -1,18 +1,19 @@
 
 # app/schemas/location.py
+
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
+
 
 # ----- Departamento -----
 class DepartamentoBase(BaseModel):
     nome: str
-    responsavel_id: Optional[int] = None
+    responsavel_id: int | None = None
 
 class DepartamentoCreate(DepartamentoBase):
     pass
 
 class DepartamentoUpdate(DepartamentoBase):
-    nome: Optional[str] = None
+    nome: str | None = None
 
 class Departamento(DepartamentoBase):
     id: int
@@ -21,13 +22,13 @@ class Departamento(DepartamentoBase):
 # ----- Localizacao -----
 class LocalizacaoBase(BaseModel):
     nome: str
-    departamento_id: Optional[int] = None
+    departamento_id: int | None = None
 
 class LocalizacaoCreate(LocalizacaoBase):
     pass
 
 class LocalizacaoUpdate(LocalizacaoBase):
-    nome: Optional[str] = None
+    nome: str | None = None
 
 class Localizacao(LocalizacaoBase):
     id: int
@@ -36,14 +37,14 @@ class Localizacao(LocalizacaoBase):
 # ----- Armazenamento -----
 class ArmazenamentoBase(BaseModel):
     nome: str
-    capacidade_max: Optional[int] = 0
-    tipo_itens: Optional[str] = None
+    capacidade_max: int | None = 0
+    tipo_itens: str | None = None
 
 class ArmazenamentoCreate(ArmazenamentoBase):
     pass
 
 class ArmazenamentoUpdate(ArmazenamentoBase):
-    nome: Optional[str] = None
+    nome: str | None = None
 
 class Armazenamento(ArmazenamentoBase):
     id: int

@@ -1,16 +1,12 @@
-import pytest
-import json
 from app.services.webhook_service import (
     WEBHOOK_EVENTS,
+    format_asset_request_payload,
     format_maintenance_request_payload,
     format_preventive_order_payload,
-    format_preventive_plan_payload,
-    format_service_ticket_payload,
-    format_asset_request_payload,
     format_purchase_request_payload,
-    format_purchase_order_payload,
-    format_purchase_quotation_payload
+    format_service_ticket_payload,
 )
+
 
 def test_webhook_events_list():
     assert "MAINTENANCE_REQUESTED" in WEBHOOK_EVENTS

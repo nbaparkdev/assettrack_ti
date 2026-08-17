@@ -1,17 +1,18 @@
 
 # app/web/endpoints/auth.py
-from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Form, Depends, HTTPException, status
+from datetime import timedelta
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import timedelta
 
-from app.database import get_db
-from app.crud import user as user_crud
 from app.api.v1.endpoints.auth import create_access_token
 from app.config import settings
-from app.core.rate_limit import limiter, get_rate_limit
+from app.core.rate_limit import get_rate_limit, limiter
+from app.crud import user as user_crud
+from app.database import get_db
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -148,9 +149,9 @@ async def register_submit(
     nome: Annotated[str, Form()],
     email: Annotated[str, Form()],
     password: Annotated[str, Form()],
-    role: Annotated[Optional[str], Form()] = "usuario_comum",
-    matricula: Annotated[Optional[str], Form()] = None,
-    cargo: Annotated[Optional[str], Form()] = None,
+    role: Annotated[str | None, Form()] = "usuario_comum",
+    matricula: Annotated[str | None, Form()] = None,
+    cargo: Annotated[str | None, Form()] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     # Check if user exists
@@ -159,8 +160,8 @@ async def register_submit(
         return templates.TemplateResponse("register.html", {"request": request, "error": "Email já cadastrado."})
 
     try:
-        from app.schemas.user import UserCreate
         from app.models.user import UserRole
+        from app.schemas.user import UserCreate
         
         matricula_val = matricula.strip() if (matricula and matricula.strip()) else None
         cargo_val = cargo.strip() if (cargo and cargo.strip()) else None

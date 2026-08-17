@@ -1,12 +1,13 @@
 
-from sqlalchemy import String, DateTime, Enum as SAEnum, ForeignKey, Text, Numeric, Boolean, Integer
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from enum import Enum
 from datetime import datetime
-from typing import List, Optional
-from app.database import Base
+from enum import Enum
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.datetime_utils import now_sp
-from app.models.procurement import PurchaseProduct
+from app.database import Base
 
 
 class MaintenanceType(str, Enum):
@@ -69,27 +70,27 @@ class MaintenancePlan(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     nome: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     codigo: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
-    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
     tipo: Mapped[MaintenanceType] = mapped_column(SAEnum(MaintenanceType), default=MaintenanceType.PREVENTIVA)
     periodicidade: Mapped[MaintenancePeriodicity] = mapped_column(SAEnum(MaintenancePeriodicity), default=MaintenancePeriodicity.MENSAL)
-    dias_personalizado: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    tempo_estimado_horas: Mapped[Optional[float]] = mapped_column(Numeric(5, 2), nullable=True)
+    dias_personalizado: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tempo_estimado_horas: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     criticidade: Mapped[MaintenanceCriticality] = mapped_column(SAEnum(MaintenanceCriticality), default=MaintenanceCriticality.MEDIA)
     prioridade: Mapped[MaintenancePriority] = mapped_column(SAEnum(MaintenancePriority), default=MaintenancePriority.MEDIA)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     
     # Responsável
-    responsavel_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    responsavel_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     
     # Setor
-    departamento_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departamentos.id"), nullable=True)
+    departamento_id: Mapped[int | None] = mapped_column(ForeignKey("departamentos.id"), nullable=True)
     
     # Categoria (para aplicar a todos os ativos de uma categoria)
-    categoria_id: Mapped[Optional[int]] = mapped_column(ForeignKey("asset_categories.id"), nullable=True)
+    categoria_id: Mapped[int | None] = mapped_column(ForeignKey("asset_categories.id"), nullable=True)
     
     # Datas
     data_criacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
-    data_ultima_execucao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_ultima_execucao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     proxima_execucao: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     
     # Relacionamentos
@@ -146,13 +147,13 @@ class MaintenanceOrder(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     numero: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
-    plan_id: Mapped[Optional[int]] = mapped_column(ForeignKey("maintenance_plans.id"), nullable=True)
-    asset_id: Mapped[Optional[int]] = mapped_column(ForeignKey("assets.id"), nullable=True)
-    infra_predial_servico: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    plan_id: Mapped[int | None] = mapped_column(ForeignKey("maintenance_plans.id"), nullable=True)
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id"), nullable=True)
+    infra_predial_servico: Mapped[str | None] = mapped_column(String(255), nullable=True)
     
     # Responsáveis
-    tecnico_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
-    solicitante_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    tecnico_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    solicitante_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     
     # Dados da ordem
     status: Mapped[OrderStatus] = mapped_column(SAEnum(OrderStatus), default=OrderStatus.ABERTA)
@@ -162,21 +163,21 @@ class MaintenanceOrder(Base):
     
     # Datas e horários
     data_abertura: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
-    data_agendada: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    data_inicio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    data_pausa: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    data_conclusao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    tempo_total_minutos: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    data_agendada: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    data_inicio: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    data_pausa: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    data_conclusao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    tempo_total_minutos: Mapped[int | None] = mapped_column(Integer, nullable=True)
     
     # Observações
-    observacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    solucao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    solucao: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     # Custos
-    custo_total: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True, default=0.0)
+    custo_total: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True, default=0.0)
     
     # Relacionamentos com Service Desk
-    service_ticket_id: Mapped[Optional[int]] = mapped_column(ForeignKey("service_tickets.id"), nullable=True)
+    service_ticket_id: Mapped[int | None] = mapped_column(ForeignKey("service_tickets.id"), nullable=True)
     
     # Relacionamentos
     plan = relationship("MaintenancePlan", back_populates="orders")
@@ -207,9 +208,9 @@ class MaintenanceExecution(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey("maintenance_orders.id"), nullable=False)
     checklist_item_id: Mapped[int] = mapped_column(ForeignKey("maintenance_checklist_items.id"), nullable=False)
     concluido: Mapped[bool] = mapped_column(Boolean, default=False)
-    observacao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    data_execucao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    executado_por_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    data_execucao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    executado_por_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     
     # Relacionamentos
     order = relationship("MaintenanceOrder", back_populates="executions")
@@ -222,12 +223,12 @@ class MaintenanceMaterial(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("maintenance_orders.id"), nullable=False)
-    product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("purchase_products.id"), nullable=True)
+    product_id: Mapped[int | None] = mapped_column(ForeignKey("purchase_products.id"), nullable=True)
     produto: Mapped[str] = mapped_column(String(200), nullable=False)
     quantidade: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     valor_unitario: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     valor_total: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
-    observacao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     # Relacionamentos
     order = relationship("MaintenanceOrder", back_populates="materials")
@@ -239,12 +240,12 @@ class MaintenancePhoto(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("maintenance_orders.id"), nullable=False)
-    execution_id: Mapped[Optional[int]] = mapped_column(ForeignKey("maintenance_executions.id"), nullable=True)
+    execution_id: Mapped[int | None] = mapped_column(ForeignKey("maintenance_executions.id"), nullable=True)
     tipo: Mapped[PhotoType] = mapped_column(SAEnum(PhotoType), default=PhotoType.DURANTE)
     caminho_arquivo: Mapped[str] = mapped_column(String(255), nullable=False)
-    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
     data_upload: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
-    upload_por_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    upload_por_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     
     # Relacionamentos
     order = relationship("MaintenanceOrder", back_populates="photos")
@@ -259,10 +260,10 @@ class MaintenanceHistory(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey("maintenance_orders.id"), nullable=False)
     acao: Mapped[str] = mapped_column(String(100), nullable=False)
     descricao: Mapped[str] = mapped_column(Text, nullable=False)
-    usuario_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     data_hora: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
-    status_anterior: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    status_novo: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    status_anterior: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    status_novo: Mapped[str | None] = mapped_column(String(50), nullable=True)
     
     # Relacionamentos
     order = relationship("MaintenanceOrder", back_populates="history")
@@ -273,8 +274,8 @@ class MaintenanceNotification(Base):
     __tablename__ = "maintenance_notifications"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    order_id: Mapped[Optional[int]] = mapped_column(ForeignKey("maintenance_orders.id", ondelete="CASCADE"), nullable=True)
-    plan_id: Mapped[Optional[int]] = mapped_column(ForeignKey("maintenance_plans.id", ondelete="CASCADE"), nullable=True)
+    order_id: Mapped[int | None] = mapped_column(ForeignKey("maintenance_orders.id", ondelete="CASCADE"), nullable=True)
+    plan_id: Mapped[int | None] = mapped_column(ForeignKey("maintenance_plans.id", ondelete="CASCADE"), nullable=True)
     usuario_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     tipo: Mapped[str] = mapped_column(String(50), nullable=False)
     mensagem: Mapped[str] = mapped_column(Text, nullable=False)
@@ -293,5 +294,5 @@ class CustomMaintenanceType(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     nome: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
-    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=now_sp)

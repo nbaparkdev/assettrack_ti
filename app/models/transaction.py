@@ -1,11 +1,15 @@
 
 # app/models/transaction.py
-from sqlalchemy import String, DateTime, Enum as SAEnum, ForeignKey, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from enum import Enum
 from datetime import datetime
-from app.database import Base
+from enum import Enum
+
+from sqlalchemy import DateTime, ForeignKey, Text
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.datetime_utils import now_sp
+from app.database import Base
+
 
 class TipoMovimentacao(str, Enum):
     EMPRESTIMO = "empréstimo"

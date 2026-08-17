@@ -1,23 +1,23 @@
 # app/web/endpoints/suppliers.py
-from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
+import logging
+import os
+import shutil
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
-import os
-import shutil
-import logging
-from datetime import datetime
-import json
 
-from app.web.dependencies import get_active_user_web
-from app.models.user import User, UserRole
+from app.crud import crud_invoice, crud_supplier
 from app.database import get_db
-from app.crud import crud_supplier, crud_invoice
-from app.schemas.supplier import FornecedorCreate
+from app.models.user import User, UserRole
 from app.schemas.invoice import NotaFiscalCreate
+from app.schemas.supplier import FornecedorCreate
+from app.web.dependencies import get_active_user_web
 
-import xml.etree.ElementTree as ET
 
 def parse_nfe_xml(file_path: str):
     """
@@ -114,11 +114,10 @@ def parse_nfe_xml(file_path: str):
                 data["data_emissao"] = dt.replace(tzinfo=None)
             except Exception as e:
                 logger.error(f"Erro ao converter data do XML ({data['data_emissao']}): {e}")
-                pass
                 
         return data
     except Exception as e:
-        logger.error(f"Erro ao processar XML em {file_path}: {str(e)}")
+        logger.error(f"Erro ao processar XML em {file_path}: {e!s}")
         import traceback
         logger.error(traceback.format_exc())
         return {}
@@ -133,7 +132,6 @@ async def list_suppliers(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    from app.models.user import UserRole
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/", status_code=303)
         
@@ -150,7 +148,6 @@ async def new_supplier_form(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)]
 ):
-    from app.models.user import UserRole
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/", status_code=303)
         
@@ -164,19 +161,18 @@ async def new_supplier_form(
 async def create_supplier(
     request: Request,
     nome: Annotated[str, Form()],
-    razao_social: Annotated[Optional[str], Form()] = None,
-    cnpj: Annotated[Optional[str], Form()] = None,
-    telefone: Annotated[Optional[str], Form()] = None,
-    email: Annotated[Optional[str], Form()] = None,
-    endereco: Annotated[Optional[str], Form()] = None,
-    cidade: Annotated[Optional[str], Form()] = None,
-    estado: Annotated[Optional[str], Form()] = None,
-    tipo_fornecedor: Annotated[Optional[str], Form()] = None,
-    xml_file: Annotated[Optional[UploadFile], File()] = None,
+    razao_social: Annotated[str | None, Form()] = None,
+    cnpj: Annotated[str | None, Form()] = None,
+    telefone: Annotated[str | None, Form()] = None,
+    email: Annotated[str | None, Form()] = None,
+    endereco: Annotated[str | None, Form()] = None,
+    cidade: Annotated[str | None, Form()] = None,
+    estado: Annotated[str | None, Form()] = None,
+    tipo_fornecedor: Annotated[str | None, Form()] = None,
+    xml_file: Annotated[UploadFile | None, File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
-    from app.models.user import UserRole
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/", status_code=303)
 
@@ -235,7 +231,6 @@ async def parse_xml_for_supplier_form(
     current_user: Annotated[User, Depends(get_active_user_web)],
 ):
     """Recebe um XML de NF-e e retorna os dados do emitente para preenchimento automático do formulário."""
-    from app.models.user import UserRole
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return {}
     if not xml_file or not xml_file.filename:
@@ -277,7 +272,6 @@ async def edit_supplier_form(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    from app.models.user import UserRole
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/", status_code=303)
         
@@ -301,19 +295,18 @@ async def update_supplier(
     fornecedor_id: int,
     request: Request,
     nome: Annotated[str, Form()],
-    razao_social: Annotated[Optional[str], Form()] = None,
-    cnpj: Annotated[Optional[str], Form()] = None,
-    telefone: Annotated[Optional[str], Form()] = None,
-    email: Annotated[Optional[str], Form()] = None,
-    endereco: Annotated[Optional[str], Form()] = None,
-    cidade: Annotated[Optional[str], Form()] = None,
-    estado: Annotated[Optional[str], Form()] = None,
-    tipo_fornecedor: Annotated[Optional[str], Form()] = None,
-    xml_file: Annotated[Optional[UploadFile], File()] = None,
+    razao_social: Annotated[str | None, Form()] = None,
+    cnpj: Annotated[str | None, Form()] = None,
+    telefone: Annotated[str | None, Form()] = None,
+    email: Annotated[str | None, Form()] = None,
+    endereco: Annotated[str | None, Form()] = None,
+    cidade: Annotated[str | None, Form()] = None,
+    estado: Annotated[str | None, Form()] = None,
+    tipo_fornecedor: Annotated[str | None, Form()] = None,
+    xml_file: Annotated[UploadFile | None, File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
-    from app.models.user import UserRole
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/", status_code=303)
         
@@ -383,7 +376,6 @@ async def get_supplier_invoices(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    from app.models.user import UserRole
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return []
         
@@ -399,7 +391,6 @@ async def get_invoice_details(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    from app.models.user import UserRole
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return {}
         
@@ -427,14 +418,14 @@ async def delete_invoice(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    from app.models.user import UserRole
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url=f"/suppliers/{fornecedor_id}/edit", status_code=303)
         
     invoice = await crud_invoice.get_nota_fiscal(db, invoice_id)
     if invoice:
         # Verificar se existem ativos vinculados
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
+
         from app.models.asset import Asset
         asset_count = await db.scalar(select(func.count(Asset.id)).where(Asset.nota_fiscal_id == invoice_id))
         
@@ -461,7 +452,6 @@ async def delete_supplier(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    from app.models.user import UserRole
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         return RedirectResponse(url="/suppliers", status_code=303)
         

@@ -1,9 +1,13 @@
 
 # app/schemas/maintenance_request.py
-from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
-from app.models.maintenance_request import PrioridadeSolicitacao, StatusSolicitacaoManutencao
+
+from pydantic import BaseModel, Field
+
+from app.models.maintenance_request import (
+    PrioridadeSolicitacao,
+    StatusSolicitacaoManutencao,
+)
 
 
 class SolicitacaoManutencaoBase(BaseModel):
@@ -17,8 +21,8 @@ class SolicitacaoManutencaoCreate(SolicitacaoManutencaoBase):
 
 
 class SolicitacaoManutencaoUpdate(BaseModel):
-    status: Optional[StatusSolicitacaoManutencao] = None
-    observacao_resposta: Optional[str] = None
+    status: StatusSolicitacaoManutencao | None = None
+    observacao_resposta: str | None = None
 
 
 class SolicitacaoManutencaoResponse(SolicitacaoManutencaoBase):
@@ -26,16 +30,16 @@ class SolicitacaoManutencaoResponse(SolicitacaoManutencaoBase):
     solicitante_id: int
     status: StatusSolicitacaoManutencao
     data_solicitacao: datetime
-    data_resposta: Optional[datetime] = None
-    responsavel_id: Optional[int] = None
-    observacao_resposta: Optional[str] = None
-    manutencao_id: Optional[int] = None
+    data_resposta: datetime | None = None
+    responsavel_id: int | None = None
+    observacao_resposta: str | None = None
+    manutencao_id: int | None = None
     
     # Nested info (populated in endpoint)
-    solicitante_nome: Optional[str] = None
-    asset_nome: Optional[str] = None
-    asset_serial: Optional[str] = None
-    responsavel_nome: Optional[str] = None
+    solicitante_nome: str | None = None
+    asset_nome: str | None = None
+    asset_serial: str | None = None
+    responsavel_nome: str | None = None
 
     class Config:
         from_attributes = True

@@ -1,18 +1,19 @@
 
 # app/web/endpoints/dashboard.py
 from typing import Annotated
-from fastapi import APIRouter, Request, Depends
+
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
-from app.web.dependencies import get_active_user_web
-from app.models.user import User
+from app.database import get_db
 from app.models.asset import Asset, AssetStatus
 from app.models.transaction import Solicitacao, StatusSolicitacao
-from app.database import get_db
+from app.models.user import User
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -63,9 +64,12 @@ async def dashboard(
 
     # Maintenance, Tickets and Emergency alerts for staff
     if user_role in ["admin", "gerente_ti", "tecnico", "gerente_infra", "gerente"]:
-        from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
-        from app.models.service_desk import ServiceTicket, ServiceStatus
         from app.models.emergency_alert import EmergencyAlert
+        from app.models.maintenance_request import (
+            SolicitacaoManutencao,
+            StatusSolicitacaoManutencao,
+        )
+        from app.models.service_desk import ServiceStatus, ServiceTicket
         
         pending_maintenance_count = await db.scalar(
             select(func.count(SolicitacaoManutencao.id))
@@ -116,9 +120,10 @@ async def dashboard(
         purchases_enabled = getattr(request.app.state, "purchases_enabled", True)
         expiring_contracts_data = []
         if purchases_enabled and user_role in ["admin", "gerente_ti", "comprador"]:
-            from app.models.procurement import PurchaseContract
-            from datetime import datetime, timedelta
+            from datetime import timedelta
+
             from app.core.datetime_utils import now_sp
+            from app.models.procurement import PurchaseContract
             limit_date = now_sp() + timedelta(days=90)
             res = await db.execute(
                 select(PurchaseContract)
@@ -165,7 +170,10 @@ async def dashboard(
         context["pending_users_list"] = pending_users_result.scalars().all()
 
         # Recent Deliveries (Last 5)
-        from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
+        from app.models.maintenance_request import (
+            SolicitacaoManutencao,
+            StatusSolicitacaoManutencao,
+        )
         recent_deliveries_result = await db.execute(
             select(SolicitacaoManutencao)
             .options(
@@ -213,7 +221,10 @@ async def dashboard(
         context["my_assets"] = my_assets
 
         # Active maintenance requests for user's assets
-        from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
+        from app.models.maintenance_request import (
+            SolicitacaoManutencao,
+            StatusSolicitacaoManutencao,
+        )
         asset_maintenances = {}
         for asset in my_assets:
             maint_res = await db.execute(
@@ -251,7 +262,10 @@ async def dashboard(
         context["my_tickets"] = my_tickets_result.scalars().all()
 
         # My Pending Maintenance Requests (Ready for Pickup / Delivered)
-        from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
+        from app.models.maintenance_request import (
+            SolicitacaoManutencao,
+            StatusSolicitacaoManutencao,
+        )
         res_maint = await db.execute(
             select(SolicitacaoManutencao)
             .options(selectinload(SolicitacaoManutencao.asset))

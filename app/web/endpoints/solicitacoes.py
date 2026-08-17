@@ -1,23 +1,25 @@
 
 # app/web/endpoints/solicitacoes.py
-from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, Form
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from datetime import datetime
-from app.core.datetime_utils import now_sp
 
-from app.web.dependencies import get_active_user_web
-from app.models.user import User, UserRole
-from app.models.transaction import Solicitacao, StatusSolicitacao
-from app.database import get_db
+from app.core.datetime_utils import now_sp
 from app.crud import transaction as transaction_crud
-from app.crud import asset as asset_crud
+from app.database import get_db
 from app.models.asset import Asset, AssetStatus
-from app.services.webhook_service import dispatch_webhook_event, format_asset_request_payload
+from app.models.transaction import Solicitacao, StatusSolicitacao
+from app.models.user import User, UserRole
+from app.services.webhook_service import (
+    dispatch_webhook_event,
+    format_asset_request_payload,
+)
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -141,7 +143,7 @@ async def create_solicitacao(
             "user": current_user,
             "assets": assets,
             "categories": categories,
-            "error": f"Erro: {str(e)}",
+            "error": f"Erro: {e!s}",
             "title": "Nova Solicitação de Ativo"
         })
 
@@ -297,8 +299,8 @@ async def confirmar_entrega_submit(
     solicitacao_id: int,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    qr_token: Annotated[Optional[str], Form()] = None,
-    observacao: Annotated[Optional[str], Form()] = None
+    qr_token: Annotated[str | None, Form()] = None,
+    observacao: Annotated[str | None, Form()] = None
 ):
     """Processa confirmação de entrega - valida QR do usuário se fornecido"""
     from app.crud import user as user_crud

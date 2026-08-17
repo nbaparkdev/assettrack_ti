@@ -1,12 +1,14 @@
 
 # app/services/email_service.py
-import traceback
-import smtplib
 import asyncio
+import smtplib
+import traceback
 from email.message import EmailMessage
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from app.models.email_log import EmailLog
+
 from app.crud.system_settings import system_settings
+from app.models.email_log import EmailLog
 
 
 def _send_smtp_email(host, port, user, password, tls, sender, recipient, subject, body):

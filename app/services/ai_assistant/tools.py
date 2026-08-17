@@ -1,17 +1,33 @@
 import json
-from typing import List, Dict, Any
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from sqlalchemy.orm import selectinload
-from app.models.transaction import Solicitacao, StatusSolicitacao, Movimentacao, TipoMovimentacao
-from app.models.asset import Asset, AssetStatus
-from app.models.user import User, UserRole
-from app.models.maintenance import Manutencao, StatusManutencao, TipoManutencao, DestinoManutencao
-from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
 from datetime import datetime
-from sqlalchemy import or_
-from app.models.preventive_maintenance import MaintenanceOrder, MaintenancePlan, OrderStatus
-from app.models.procurement import PurchaseRequest, PurchaseOrder, PurchaseRequestStatus, PurchaseOrderStatus, PurchaseProduct, MaterialStock
+from typing import Any
+
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.models.asset import Asset, AssetStatus
+from app.models.maintenance import (
+    Manutencao,
+    StatusManutencao,
+    TipoManutencao,
+)
+from app.models.maintenance_request import (
+    SolicitacaoManutencao,
+    StatusSolicitacaoManutencao,
+)
+from app.models.preventive_maintenance import (
+    MaintenanceOrder,
+)
+from app.models.procurement import (
+    PurchaseOrder,
+    PurchaseRequest,
+)
+from app.models.transaction import (
+    Solicitacao,
+    StatusSolicitacao,
+)
+from app.models.user import User, UserRole
 
 # ---------------------------------------------------------------------------
 # TOOL FUNCTIONS
@@ -45,7 +61,7 @@ async def send_email_to_user(db: AsyncSession, user_id: int, target_email: str, 
         else:
             return f"❌ Falha ao enviar e-mail para {user_nome} ({user_email}). Verifique os logs de erro ou as configurações SMTP."
     except Exception as e:
-        return f"Erro ao enviar e-mail: {str(e)}"
+        return f"Erro ao enviar e-mail: {e!s}"
 
 async def get_my_active_tickets(db: AsyncSession, user_id: int, **kwargs) -> str:
     """Retorna um resumo das solicitações/tickets ativos do usuário."""
@@ -631,7 +647,7 @@ async def read_system_manual(db: AsyncSession, user_id: int, document_name: str 
             content = f.read()
         return f"=== DOCUMENTO: {doc_file} ===\n\n{content}"
     except Exception as e:
-        return f"Erro ao ler o documento: {str(e)}"
+        return f"Erro ao ler o documento: {e!s}"
 
 
 # ---------------------------------------------------------------------------
@@ -1090,7 +1106,7 @@ AVAILABLE_TOOLS = {
 # SCHEMA GENERATORS
 # ---------------------------------------------------------------------------
 
-def get_openai_tools_schema(allow_advanced: bool = False) -> List[Dict[str, Any]]:
+def get_openai_tools_schema(allow_advanced: bool = False) -> list[dict[str, Any]]:
     tools = []
     for name, metadata in AVAILABLE_TOOLS.items():
         if metadata.get("advanced", False) and not allow_advanced:
@@ -1131,7 +1147,7 @@ async def execute_tool(db: AsyncSession, user_id: int, tool_name: str, arguments
         return str(result)
     except Exception as e:
         import traceback
-        return f"Erro ao executar {tool_name}: {str(e)}\n{traceback.format_exc()}"
+        return f"Erro ao executar {tool_name}: {e!s}\n{traceback.format_exc()}"
 
 
 def clean_unwanted_tool_tags(text: str) -> str:

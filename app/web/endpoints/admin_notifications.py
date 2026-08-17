@@ -1,15 +1,16 @@
 from typing import Annotated
-from fastapi import APIRouter, Request, Depends, Form, status
+
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
 
-from app.database import get_db
-from app.web.dependencies import get_admin_user_web
-from app.models.user import User
-from app.models.email_log import EmailLog
 from app.crud.system_settings import system_settings
+from app.database import get_db
+from app.models.email_log import EmailLog
+from app.models.user import User
+from app.web.dependencies import get_admin_user_web
 
 router = APIRouter(prefix="/admin/notificacoes", tags=["admin-notifications"], dependencies=[Depends(get_admin_user_web)])
 templates = Jinja2Templates(directory="app/templates")
@@ -112,7 +113,7 @@ async def admin_notifications_submit(
         return templates.TemplateResponse("admin/notifications.html", {
             "request": request,
             "user": user_snapshot,
-            "error": f"Erro ao salvar configurações: {str(e)}",
+            "error": f"Erro ao salvar configurações: {e!s}",
             "notify_new_user": form_data.get("notify_new_user") == "on",
             "notify_new_maintenance": form_data.get("notify_new_maintenance_request") == "on",
             "notify_maintenance_accepted": form_data.get("notify_maintenance_accepted") == "on",

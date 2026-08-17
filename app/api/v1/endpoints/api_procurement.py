@@ -1,22 +1,29 @@
 # app/api/v1/endpoints/api_procurement.py
-from typing import Annotated, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import dependencies
-from app.database import get_db
 from app.crud import procurement as crud_proc
-from app.services import procurement_service as serv_proc
+from app.database import get_db
 from app.schemas.procurement import (
-    PurchaseCategoryCreate, PurchaseCategoryResponse,
-    PurchaseProductCreate, PurchaseProductResponse,
-    CostCenterCreate, CostCenterResponse,
-    PurchaseRequestCreate, PurchaseRequestResponse,
-    PurchaseOrderCreate, PurchaseOrderResponse,
-    PurchaseReceivingCreate, PurchaseReceivingResponse,
-    PurchaseContractCreate, PurchaseContractResponse,
-    MaterialStockResponse
+    CostCenterCreate,
+    CostCenterResponse,
+    PurchaseCategoryCreate,
+    PurchaseCategoryResponse,
+    PurchaseContractCreate,
+    PurchaseContractResponse,
+    PurchaseOrderCreate,
+    PurchaseOrderResponse,
+    PurchaseProductCreate,
+    PurchaseProductResponse,
+    PurchaseReceivingCreate,
+    PurchaseReceivingResponse,
+    PurchaseRequestCreate,
+    PurchaseRequestResponse,
 )
+from app.services import procurement_service as serv_proc
 
 router = APIRouter()
 
@@ -33,7 +40,7 @@ router.dependencies.append(Depends(api_check_purchases_enabled))
 # ----------
 # CATEGORIES
 # ----------
-@router.get("/categories", response_model=List[PurchaseCategoryResponse])
+@router.get("/categories", response_model=list[PurchaseCategoryResponse])
 async def read_categories(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],
@@ -52,7 +59,7 @@ async def create_category(
 # --------
 # PRODUCTS
 # --------
-@router.get("/products", response_model=List[PurchaseProductResponse])
+@router.get("/products", response_model=list[PurchaseProductResponse])
 async def read_products(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],
@@ -75,7 +82,7 @@ async def create_product(
 # ------------
 # COST CENTERS
 # ------------
-@router.get("/cost-centers", response_model=List[CostCenterResponse])
+@router.get("/cost-centers", response_model=list[CostCenterResponse])
 async def read_cost_centers(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],
@@ -94,7 +101,7 @@ async def create_cost_center(
 # -----------------
 # PURCHASE REQUESTS
 # -----------------
-@router.get("/requests", response_model=List[PurchaseRequestResponse])
+@router.get("/requests", response_model=list[PurchaseRequestResponse])
 async def read_requests(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],
@@ -134,7 +141,7 @@ async def create_purchase_request(
 # ---------------
 # PURCHASE ORDERS
 # ---------------
-@router.get("/orders", response_model=List[PurchaseOrderResponse])
+@router.get("/orders", response_model=list[PurchaseOrderResponse])
 async def read_orders(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],
@@ -175,7 +182,7 @@ async def create_purchase_receiving(
 # ---------
 # CONTRACTS
 # ---------
-@router.get("/contracts", response_model=List[PurchaseContractResponse])
+@router.get("/contracts", response_model=list[PurchaseContractResponse])
 async def read_contracts(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],

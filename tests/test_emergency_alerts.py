@@ -1,10 +1,12 @@
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.crud import user as user_crud
-from app.schemas.user import UserCreate
 from app.models.emergency_alert import EmergencyAlert
+from app.schemas.user import UserCreate
+
 
 @pytest.mark.asyncio
 async def test_send_emergency_alert_success(client: AsyncClient, db_session: AsyncSession):

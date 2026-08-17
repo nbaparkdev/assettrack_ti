@@ -1,13 +1,15 @@
 
 # app/api/dependencies.py
-from typing import Annotated, Generator
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import get_db
+
 from app.config import settings
 from app.crud import user as user_crud
+from app.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.user import TokenData
 

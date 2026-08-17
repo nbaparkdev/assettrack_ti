@@ -1,15 +1,15 @@
 # app/crud/aviso.py
-from typing import List
+
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
-from datetime import datetime
 
 from app.crud.base import CRUDBase
 from app.models.aviso import Aviso
 from app.schemas.aviso import AvisoCreate, AvisoUpdate
 
+
 class CRUDAviso(CRUDBase[Aviso, AvisoCreate, AvisoUpdate]):
-    async def get_active_announcements(self, db: AsyncSession) -> List[Aviso]:
+    async def get_active_announcements(self, db: AsyncSession) -> list[Aviso]:
         """
         Retorna todos os avisos ativos e dentro do período programado de exibição.
         """

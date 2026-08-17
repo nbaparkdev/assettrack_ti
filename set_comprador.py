@@ -1,7 +1,10 @@
 import asyncio
+
+from sqlalchemy import select
+
 from app.database import SessionLocal
 from app.models.user import User, UserRole
-from sqlalchemy import select
+
 
 async def main():
     async with SessionLocal() as db:

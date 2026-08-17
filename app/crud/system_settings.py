@@ -1,8 +1,9 @@
 # app/crud/system_settings.py
-from typing import Optional
+
+from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
+
 from app.crud.base import CRUDBase
 from app.models.system_settings import SystemSettings
 
@@ -22,7 +23,7 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, BaseModel, BaseModel]):
         db: AsyncSession,
         setting_key: str,
         setting_value: str,
-        descricao: Optional[str] = None,
+        descricao: str | None = None,
         commit: bool = True,
     ) -> None:
         """Set or update a system setting.

@@ -1,10 +1,14 @@
 
 # app/models/asset.py
-from sqlalchemy import String, Float, DateTime, Enum as SAEnum, ForeignKey, Numeric, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from enum import Enum
 from datetime import datetime
+from enum import Enum
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.database import Base
+
 
 class AssetStatus(str, Enum):
     DISPONIVEL = "Disponível"

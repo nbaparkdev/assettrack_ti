@@ -1,10 +1,10 @@
 import os
 import uuid
-from typing import Set, Optional
+
 from fastapi import HTTPException, UploadFile, status
 
-ALLOWED_IMAGE_EXTENSIONS: Set[str] = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
-ALLOWED_DOCUMENT_EXTENSIONS: Set[str] = {
+ALLOWED_IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+ALLOWED_DOCUMENT_EXTENSIONS: set[str] = {
     ".png", ".jpg", ".jpeg", ".webp", ".gif",
     ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".csv", ".zip", ".xml"
 }
@@ -12,7 +12,7 @@ MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB
 
 def validate_uploaded_file(
     file: UploadFile,
-    allowed_extensions: Set[str] = ALLOWED_IMAGE_EXTENSIONS,
+    allowed_extensions: set[str] = ALLOWED_IMAGE_EXTENSIONS,
 ) -> str:
     """
     Validates file upload extensions and cleans filenames to prevent path traversal

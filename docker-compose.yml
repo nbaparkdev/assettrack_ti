@@ -1,53 +1,64 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:15-alpine
     restart: unless-stopped
-
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: assettrack
-
     ports:
       - "5456:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d assettrack"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
 
-  web:
-    build: .
+  redis:
+    image: redis:7-alpine
     restart: unless-stopped
-
-    command: >
-      sh -c "
-      sleep 10 &&
-      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-      "
-
     ports:
-      - "8000:8000"
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
-    volumes:
-      - ./app:/code/app
-      - ./static:/code/static
-      - ./tests:/code/tests
-
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://user:password@db:5432/assettrack?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: changethis_to_something_secure
+      PORT: "8080"
+      GIN_MODE: release
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:80"
     environment:
-      DATABASE_URL: postgresql+asyncpg://user:password@db:5432/assettrack
-      SECRET_KEY: changethis_to_something_secure
-      ALLOW_ORIGINS: '["*"]'
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      VITE_API_URL: http://localhost:8080/api/v1
+    depends_on:
+      - api
 
 volumes:
   postgres_data:

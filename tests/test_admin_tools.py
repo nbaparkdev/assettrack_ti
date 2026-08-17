@@ -1,15 +1,20 @@
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.services.ai_assistant.tools import (
-    create_asset, update_asset, deactivate_asset,
-    update_ticket_status, create_maintenance, complete_maintenance,
-    create_user, deactivate_user
-)
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.asset import Asset, AssetStatus
-from app.models.user import User, UserRole
-from app.models.transaction import Solicitacao, StatusSolicitacao
 from app.models.maintenance import Manutencao, StatusManutencao
+from app.models.user import User, UserRole
+from app.services.ai_assistant.tools import (
+    complete_maintenance,
+    create_asset,
+    create_maintenance,
+    create_user,
+    deactivate_asset,
+    deactivate_user,
+    update_asset,
+)
+
 
 @pytest.mark.asyncio
 async def test_admin_tools_crud(db_session: AsyncSession):

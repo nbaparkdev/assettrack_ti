@@ -1,12 +1,13 @@
 import asyncio
-import sys
 import os
+import sys
 
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from app.database import SessionLocal
 from app.crud import asset as asset_crud
+from app.database import SessionLocal
+
 
 async def check_assets():
     async with SessionLocal() as db:

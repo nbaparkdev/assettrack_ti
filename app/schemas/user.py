@@ -1,36 +1,38 @@
 
 # app/schemas/user.py
-from pydantic import BaseModel, EmailStr, ConfigDict
-from typing import Optional, List
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, EmailStr
+
 from app.models.user import UserRole
 from app.schemas.location import Departamento
+
 
 class UserBase(BaseModel):
     email: EmailStr
     nome: str
-    matricula: Optional[str] = None
-    cargo: Optional[str] = None
+    matricula: str | None = None
+    cargo: str | None = None
     role: UserRole = UserRole.USUARIO
     is_active: bool = False
-    departamento_id: Optional[int] = None
+    departamento_id: int | None = None
 
 class UserCreate(UserBase):
     password: str
 
 class UserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
-    nome: Optional[str] = None
-    matricula: Optional[str] = None
-    cargo: Optional[str] = None
-    role: Optional[UserRole] = None
-    is_active: Optional[bool] = None
-    departamento_id: Optional[int] = None
-    password: Optional[str] = None
+    email: EmailStr | None = None
+    nome: str | None = None
+    matricula: str | None = None
+    cargo: str | None = None
+    role: UserRole | None = None
+    is_active: bool | None = None
+    departamento_id: int | None = None
+    password: str | None = None
 
 class UserResponse(UserBase):
     id: int
-    departamento: Optional[Departamento] = None
+    departamento: Departamento | None = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -39,8 +41,8 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    email: Optional[str] = None
-    role: Optional[UserRole] = None
+    email: str | None = None
+    role: UserRole | None = None
 
 # === QR Code Schemas ===
 
@@ -48,7 +50,7 @@ class UserQRResponse(BaseModel):
     """Resposta com QR Code do usuário"""
     qr_code_base64: str
     qr_token: str
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
     has_pin: bool = False
 
 class UserBadgeResponse(BaseModel):
@@ -56,10 +58,10 @@ class UserBadgeResponse(BaseModel):
     id: int
     nome: str
     email: str
-    matricula: Optional[str] = None
-    cargo: Optional[str] = None
-    departamento_nome: Optional[str] = None
-    avatar_url: Optional[str] = None
+    matricula: str | None = None
+    cargo: str | None = None
+    departamento_nome: str | None = None
+    avatar_url: str | None = None
     qr_code_base64: str
     
     model_config = ConfigDict(from_attributes=True)
@@ -86,19 +88,19 @@ class UserPublicProfile(BaseModel):
     id: int
     nome: str
     email: str
-    matricula: Optional[str] = None
-    cargo: Optional[str] = None
-    departamento_nome: Optional[str] = None
-    avatar_url: Optional[str] = None
+    matricula: str | None = None
+    cargo: str | None = None
+    departamento_nome: str | None = None
+    avatar_url: str | None = None
     
-    pending_deliveries: List[PendingDeliveryItem] = []
+    pending_deliveries: list[PendingDeliveryItem] = []
     
     model_config = ConfigDict(from_attributes=True)
 
 class DeliveryConfirmRequest(BaseModel):
     """Request para confirmar entrega via QR"""
-    qr_token: Optional[str] = None  # Opcional: Admin/Gerente podem confirmar sem QR
-    solicitacao_id: Optional[int] = None
-    manutencao_id: Optional[int] = None
-    observacao: Optional[str] = None
+    qr_token: str | None = None  # Opcional: Admin/Gerente podem confirmar sem QR
+    solicitacao_id: int | None = None
+    manutencao_id: int | None = None
+    observacao: str | None = None
 

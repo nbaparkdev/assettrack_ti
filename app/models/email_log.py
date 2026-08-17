@@ -1,8 +1,11 @@
-from sqlalchemy import String, DateTime, Text, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
-from app.database import Base
+
+from sqlalchemy import DateTime, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
 from app.core.datetime_utils import now_sp
+from app.database import Base
+
 
 class EmailLog(Base):
     __tablename__ = "email_logs"

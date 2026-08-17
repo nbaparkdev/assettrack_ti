@@ -1,30 +1,40 @@
 # app/crud/service_desk.py
-from typing import List, Optional
 from datetime import datetime
-from sqlalchemy import select, func, or_
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
 from app.core.datetime_utils import now_sp
 from app.crud.base import CRUDBase
-from app.models.service_desk import ServiceCategory, ServiceDefinition, ServiceTicket, ServiceStatus
+from app.models.service_desk import (
+    ServiceCategory,
+    ServiceDefinition,
+    ServiceStatus,
+    ServiceTicket,
+    ServiceTicketInteraction,
+)
 from app.models.user import User
 from app.schemas.service_desk import (
-    ServiceCategoryCreate, ServiceCategoryUpdate,
-    ServiceDefinitionCreate, ServiceDefinitionUpdate,
-    ServiceTicketCreate, ServiceTicketUpdate,
-    ServiceTicketInteractionCreate
+    ServiceCategoryCreate,
+    ServiceCategoryUpdate,
+    ServiceDefinitionCreate,
+    ServiceDefinitionUpdate,
+    ServiceTicketCreate,
+    ServiceTicketInteractionCreate,
+    ServiceTicketUpdate,
 )
-from app.models.service_desk import ServiceCategory, ServiceDefinition, ServiceTicket, ServiceStatus, ServiceTicketInteraction
+
 
 class CRUDServiceCategory(CRUDBase[ServiceCategory, ServiceCategoryCreate, ServiceCategoryUpdate]):
-    async def get_all_with_definitions(self, db: AsyncSession) -> List[ServiceCategory]:
+    async def get_all_with_definitions(self, db: AsyncSession) -> list[ServiceCategory]:
         result = await db.execute(
             select(ServiceCategory).options(selectinload(ServiceCategory.servicos))
         )
         return result.scalars().all()
 
 class CRUDServiceDefinition(CRUDBase[ServiceDefinition, ServiceDefinitionCreate, ServiceDefinitionUpdate]):
-    async def get_by_category(self, db: AsyncSession, category_id: int) -> List[ServiceDefinition]:
+    async def get_by_category(self, db: AsyncSession, category_id: int) -> list[ServiceDefinition]:
         result = await db.execute(
             select(ServiceDefinition).filter(ServiceDefinition.categoria_id == category_id)
         )
@@ -55,7 +65,7 @@ class CRUDServiceTicket(CRUDBase[ServiceTicket, ServiceTicketCreate, ServiceTick
         await db.refresh(db_obj)
         return db_obj
 
-    async def get_full(self, db: AsyncSession, ticket_id: str) -> Optional[ServiceTicket]:
+    async def get_full(self, db: AsyncSession, ticket_id: str) -> ServiceTicket | None:
         stmt = select(ServiceTicket).options(
             selectinload(ServiceTicket.servico).selectinload(ServiceDefinition.categoria),
             selectinload(ServiceTicket.solicitante),
@@ -70,7 +80,7 @@ class CRUDServiceTicket(CRUDBase[ServiceTicket, ServiceTicketCreate, ServiceTick
         result = await db.execute(stmt)
         return result.scalars().first()
 
-    async def get_user_tickets(self, db: AsyncSession, user_id: int) -> List[ServiceTicket]:
+    async def get_user_tickets(self, db: AsyncSession, user_id: int) -> list[ServiceTicket]:
         result = await db.execute(
             select(ServiceTicket)
             .options(selectinload(ServiceTicket.servico))
@@ -83,14 +93,14 @@ class CRUDServiceTicket(CRUDBase[ServiceTicket, ServiceTicketCreate, ServiceTick
         self, 
         db: AsyncSession, 
         *, 
-        query: Optional[str] = None,
-        status: Optional[ServiceStatus] = None,
-        prioridade: Optional[str] = None,
-        categoria_id: Optional[int] = None,
-        solicitante_id: Optional[int] = None,
-        data_inicio: Optional[datetime] = None,
-        data_fim: Optional[datetime] = None
-    ) -> List[ServiceTicket]:
+        query: str | None = None,
+        status: ServiceStatus | None = None,
+        prioridade: str | None = None,
+        categoria_id: int | None = None,
+        solicitante_id: int | None = None,
+        data_inicio: datetime | None = None,
+        data_fim: datetime | None = None
+    ) -> list[ServiceTicket]:
         stmt = select(ServiceTicket).options(
             selectinload(ServiceTicket.servico).selectinload(ServiceDefinition.categoria),
             selectinload(ServiceTicket.solicitante).selectinload(User.departamento)

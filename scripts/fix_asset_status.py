@@ -1,14 +1,15 @@
 import asyncio
 import os
 import sys
-from sqlalchemy import select, or_
+
+from sqlalchemy import select
 
 # Adicionar diretório raiz ao path
 sys.path.append(os.getcwd())
 
 from app.database import SessionLocal
 from app.models.asset import Asset, AssetStatus
-from app.models.user import User
+
 
 async def fix_asset_statuses():
     async with SessionLocal() as db:

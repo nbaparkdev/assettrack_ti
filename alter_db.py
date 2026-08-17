@@ -1,5 +1,6 @@
 import sqlite3
 
+
 def add_columns():
     conn = sqlite3.connect('assettrack.db')
     cursor = conn.cursor()

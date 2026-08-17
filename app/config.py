@@ -1,10 +1,10 @@
 
 # app/config.py
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import PostgresDsn, computed_field
-from typing import Optional
-
 import secrets
+
+from pydantic import PostgresDsn, computed_field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True, extra="ignore")
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
     
     # URL do Banco de Dados (pode ser sobrescrita pelo env DATABASE_URL)
-    DATABASE_URL: Optional[str] = None
+    DATABASE_URL: str | None = None
 
     @computed_field
     @property

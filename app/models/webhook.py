@@ -1,8 +1,9 @@
-from sqlalchemy import Integer, String, Boolean, DateTime, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey
-from app.database import Base
+
 from app.core.datetime_utils import now_sp
+from app.database import Base
+
 
 class Webhook(Base):
     __tablename__ = "webhooks"

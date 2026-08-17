@@ -1,10 +1,11 @@
 
 import asyncio
-from app.database import SessionLocal
+
 from app.crud.user import user as user_crud
-from app.schemas.user import UserCreate
+from app.database import SessionLocal
 from app.models.user import UserRole
-import sys
+from app.schemas.user import UserCreate
+
 
 async def create_tecnico():
     async with SessionLocal() as db:
@@ -23,6 +24,7 @@ async def create_tecnico():
             return
 
         from sqlalchemy import select
+
         from app.models.user import User
         res = await db.execute(select(User).filter(User.matricula == "TEC001"))
         existing_mat = res.scalars().first()

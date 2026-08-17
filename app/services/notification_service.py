@@ -1,13 +1,13 @@
 # app/services/notification_service.py
-from typing import List, Optional
 from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.crud.system_settings import system_settings
 from app.models.user import User, UserRole
 from app.services.email_service import EmailService
 
-
-from app.crud.system_settings import system_settings
 
 class NotificationService:
     """Serviço para enviar notificações aos usuários relevantes"""
@@ -23,8 +23,8 @@ class NotificationService:
     async def get_staff_users(
         self, 
         db: AsyncSession, 
-        roles: Optional[List[UserRole]] = None
-    ) -> List[User]:
+        roles: list[UserRole] | None = None
+    ) -> list[User]:
         """Busca usuários com roles de staff (técnico, gerente, admin, gerente_infra)"""
         if roles is None:
             roles = [UserRole.TECNICO, UserRole.GERENTE, UserRole.ADMIN, UserRole.GERENTE_INFRA]
@@ -46,7 +46,7 @@ class NotificationService:
         requester_name: str,
         priority: str,
         description: str,
-        asset_patrimonio: Optional[str] = None
+        asset_patrimonio: str | None = None
     ):
         """
         Notifica técnicos, gerentes e admins sobre nova solicitação de manutenção
@@ -76,13 +76,16 @@ Acesse o painel de solicitações para mais detalhes.
         for user in staff_users:
             if not user.email or "@" not in user.email:
                 continue
-            await self.email_service.send_notification(
-                email_to=user.email,
-                subject=subject,
-                message=message,
-                db=db
-            )
-            notified.append(user.email)
+            try:
+                await self.email_service.send_notification(
+                    email_to=user.email,
+                    subject=subject,
+                    message=message,
+                    db=db
+                )
+                notified.append(user.email)
+            except Exception as e:
+                print(f"[NOTIFICATION][ERRO] notify_new_maintenance_request para {user.email}: {e}")
         
         print(f"[NOTIFICATION] Manutenção #{request_id} - {len(notified)} notificados: {notified}")
         return notified
@@ -94,8 +97,8 @@ Acesse o painel de solicitações para mais detalhes.
         requester_email: str,
         asset_name: str,
         technician_name: str,
-        observation: Optional[str] = None,
-        asset_patrimonio: Optional[str] = None
+        observation: str | None = None,
+        asset_patrimonio: str | None = None
     ):
         if not await self._is_enabled(db, "notify_maintenance_accepted"):
             return None
@@ -114,12 +117,15 @@ Sua solicitação de manutenção foi aceita!
 A manutenção foi iniciada. Você receberá atualizações sobre o andamento.
 """
         
-        await self.email_service.send_notification(
-            email_to=requester_email,
-            subject=subject,
-            message=message,
-            db=db
-        )
+        try:
+            await self.email_service.send_notification(
+                email_to=requester_email,
+                subject=subject,
+                message=message,
+                db=db
+            )
+        except Exception as e:
+            print(f"[NOTIFICATION][ERRO] notify_request_accepted para {requester_email}: {e}")
         
         print(f"[NOTIFICATION] Aceita #{request_id} - notificado: {requester_email}")
         return requester_email
@@ -132,7 +138,7 @@ A manutenção foi iniciada. Você receberá atualizações sobre o andamento.
         asset_name: str,
         technician_name: str,
         reason: str,
-        asset_patrimonio: Optional[str] = None
+        asset_patrimonio: str | None = None
     ):
         if not await self._is_enabled(db, "notify_maintenance_rejected"):
             return None
@@ -152,12 +158,15 @@ Sua solicitação de manutenção foi analisada e não pôde ser atendida no mom
 Caso discorde ou tenha dúvidas, entre em contato com a equipe de TI.
 """
         
-        await self.email_service.send_notification(
-            email_to=requester_email,
-            subject=subject,
-            message=message,
-            db=db
-        )
+        try:
+            await self.email_service.send_notification(
+                email_to=requester_email,
+                subject=subject,
+                message=message,
+                db=db
+            )
+        except Exception as e:
+            print(f"[NOTIFICATION][ERRO] notify_request_rejected para {requester_email}: {e}")
         
         print(f"[NOTIFICATION] Rejeitada #{request_id} - notificado: {requester_email}")
         return requester_email
@@ -169,8 +178,8 @@ Caso discorde ou tenha dúvidas, entre em contato com a equipe de TI.
         asset_name: str,
         requester_name: str,
         technician_name: str,
-        observation: Optional[str] = None,
-        asset_patrimonio: Optional[str] = None
+        observation: str | None = None,
+        asset_patrimonio: str | None = None
     ):
         """
         Notifica Gerentes e Admins que uma entrega foi realizada pelo técnico.
@@ -200,13 +209,16 @@ Esta solicitação mudou para status ENTREGUE/CONCLUÍDA.
         for user in managers:
             if not user.email or "@" not in user.email:
                 continue
-            await self.email_service.send_notification(
-                email_to=user.email,
-                subject=subject,
-                message=message,
-                db=db
-            )
-            notified.append(user.email)
+            try:
+                await self.email_service.send_notification(
+                    email_to=user.email,
+                    subject=subject,
+                    message=message,
+                    db=db
+                )
+                notified.append(user.email)
+            except Exception as e:
+                print(f"[NOTIFICATION][ERRO] notify_delivery_completed para {user.email}: {e}")
             
         print(f"[NOTIFICATION] Entrega #{request_id} - {len(notified)} gerentes notificados: {notified}")
         return notified
@@ -220,8 +232,8 @@ Esta solicitação mudou para status ENTREGUE/CONCLUÍDA.
         technician_email: str,
         asset_name: str,
         priority: str,
-        data_agendada: Optional[datetime] = None,
-        asset_patrimonio: Optional[str] = None
+        data_agendada: datetime | None = None,
+        asset_patrimonio: str | None = None
     ):
         """Notifica o técnico quando uma ordem de serviço é atribuída a ele"""
         from app.models.preventive_maintenance import MaintenanceNotification
@@ -270,7 +282,7 @@ Acesse o módulo de Manutenção Preventiva para iniciar a execução desta orde
         technician_name: str,
         asset_name: str,
         custo_total: float,
-        asset_patrimonio: Optional[str] = None
+        asset_patrimonio: str | None = None
     ):
         """Notifica os administradores e gerentes que uma OS foi concluída"""
         from app.models.preventive_maintenance import MaintenanceNotification
@@ -318,11 +330,11 @@ Acesse a plataforma para auditar os detalhes e materiais aplicados.
         db: AsyncSession,
         order_id: int,
         order_code: str,
-        technician_id: Optional[int],
-        technician_email: Optional[str],
+        technician_id: int | None,
+        technician_email: str | None,
         asset_name: str,
         data_agendada: datetime,
-        asset_patrimonio: Optional[str] = None
+        asset_patrimonio: str | None = None
     ):
         """Notifica sobre OS preventiva atrasada"""
         from app.models.preventive_maintenance import MaintenanceNotification
@@ -531,7 +543,7 @@ Acesse /compras/estoque e crie uma nova solicitação de compra para reposição
         solicitacao_id: int,
         asset_name: str,
         requester_name: str,
-        asset_patrimonio: Optional[str] = None
+        asset_patrimonio: str | None = None
     ):
         """Notifica equipe de RH que um ativo está pronto para termo de responsabilidade"""
         if not await self._is_enabled(db, "notify_rh_ready_asset"):

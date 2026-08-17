@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
+
+from app.models.user import User
 from app.web.dependencies import get_active_user_web
-from app.models.user import User, UserRole
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -35,9 +36,10 @@ async def export_help_pdf(
     request: Request,
     current_user: User = Depends(get_active_user_web)
 ):
-    from weasyprint import HTML
-    from app.core.datetime_utils import now_sp
     from fastapi.responses import Response
+    from weasyprint import HTML
+
+    from app.core.datetime_utils import now_sp
 
     html_content = templates.get_template("help/pdf.html").render({
         "request": request,

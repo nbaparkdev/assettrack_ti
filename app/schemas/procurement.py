@@ -1,22 +1,28 @@
 # app/schemas/procurement.py
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List
 from datetime import datetime
-from app.models.procurement import ProductType, PurchaseRequestStatus, PurchaseOrderStatus
+
+from pydantic import BaseModel, ConfigDict
+
+from app.models.procurement import (
+    ProductType,
+    PurchaseOrderStatus,
+    PurchaseRequestStatus,
+)
+
 
 # PurchaseCategory
 class PurchaseCategoryBase(BaseModel):
     nome: str
-    descricao: Optional[str] = None
+    descricao: str | None = None
     ativo: bool = True
 
 class PurchaseCategoryCreate(PurchaseCategoryBase):
     pass
 
 class PurchaseCategoryUpdate(BaseModel):
-    nome: Optional[str] = None
-    descricao: Optional[str] = None
-    ativo: Optional[bool] = None
+    nome: str | None = None
+    descricao: str | None = None
+    ativo: bool | None = None
 
 class PurchaseCategoryResponse(PurchaseCategoryBase):
     id: int
@@ -29,33 +35,33 @@ class PurchaseProductBase(BaseModel):
     nome: str
     categoria_id: int
     unidade: str = "UN"
-    marca: Optional[str] = None
-    modelo: Optional[str] = None
-    fabricante: Optional[str] = None
-    descricao: Optional[str] = None
+    marca: str | None = None
+    modelo: str | None = None
+    fabricante: str | None = None
+    descricao: str | None = None
     tipo: ProductType = ProductType.PRODUTO
-    imagem_path: Optional[str] = None
+    imagem_path: str | None = None
     ativo: bool = True
 
 class PurchaseProductCreate(PurchaseProductBase):
     pass
 
 class PurchaseProductUpdate(BaseModel):
-    codigo: Optional[str] = None
-    nome: Optional[str] = None
-    categoria_id: Optional[int] = None
-    unidade: Optional[str] = None
-    marca: Optional[str] = None
-    modelo: Optional[str] = None
-    fabricante: Optional[str] = None
-    descricao: Optional[str] = None
-    tipo: Optional[ProductType] = None
-    imagem_path: Optional[str] = None
-    ativo: Optional[bool] = None
+    codigo: str | None = None
+    nome: str | None = None
+    categoria_id: int | None = None
+    unidade: str | None = None
+    marca: str | None = None
+    modelo: str | None = None
+    fabricante: str | None = None
+    descricao: str | None = None
+    tipo: ProductType | None = None
+    imagem_path: str | None = None
+    ativo: bool | None = None
 
 class PurchaseProductResponse(PurchaseProductBase):
     id: int
-    categoria: Optional[PurchaseCategoryResponse] = None
+    categoria: PurchaseCategoryResponse | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -63,8 +69,8 @@ class PurchaseProductResponse(PurchaseProductBase):
 class CostCenterBase(BaseModel):
     codigo: str
     nome: str
-    departamento_id: Optional[int] = None
-    responsavel_id: Optional[int] = None
+    departamento_id: int | None = None
+    responsavel_id: int | None = None
     orcamento_anual: float = 0.00
     orcamento_mensal: float = 0.00
     alerta_limite: bool = True
@@ -74,14 +80,14 @@ class CostCenterCreate(CostCenterBase):
     pass
 
 class CostCenterUpdate(BaseModel):
-    codigo: Optional[str] = None
-    nome: Optional[str] = None
-    departamento_id: Optional[int] = None
-    responsavel_id: Optional[int] = None
-    orcamento_anual: Optional[float] = None
-    orcamento_mensal: Optional[float] = None
-    alerta_limite: Optional[bool] = None
-    bloquear_limite: Optional[bool] = None
+    codigo: str | None = None
+    nome: str | None = None
+    departamento_id: int | None = None
+    responsavel_id: int | None = None
+    orcamento_anual: float | None = None
+    orcamento_mensal: float | None = None
+    alerta_limite: bool | None = None
+    bloquear_limite: bool | None = None
 
 class CostCenterResponse(CostCenterBase):
     id: int
@@ -95,15 +101,15 @@ class PurchaseRequestItemBase(BaseModel):
     product_id: int
     quantidade: float
     valor_estimado: float
-    fornecedor_sugerido_id: Optional[int] = None
-    observacao: Optional[str] = None
+    fornecedor_sugerido_id: int | None = None
+    observacao: str | None = None
 
 class PurchaseRequestItemCreate(PurchaseRequestItemBase):
     pass
 
 class PurchaseRequestItemResponse(PurchaseRequestItemBase):
     id: int
-    product: Optional[PurchaseProductResponse] = None
+    product: PurchaseProductResponse | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -112,19 +118,19 @@ class PurchaseRequestBase(BaseModel):
     centro_custo_id: int
     justificativa: str
     urgencia: str = "Média"
-    data_necessaria: Optional[datetime] = None
-    origem_os_id: Optional[int] = None
-    origem_ticket_id: Optional[int] = None
+    data_necessaria: datetime | None = None
+    origem_os_id: int | None = None
+    origem_ticket_id: int | None = None
 
 class PurchaseRequestCreate(PurchaseRequestBase):
-    itens: List[PurchaseRequestItemCreate]
+    itens: list[PurchaseRequestItemCreate]
 
 class PurchaseRequestUpdate(BaseModel):
-    centro_custo_id: Optional[int] = None
-    justificativa: Optional[str] = None
-    urgencia: Optional[str] = None
-    data_necessaria: Optional[datetime] = None
-    status: Optional[PurchaseRequestStatus] = None
+    centro_custo_id: int | None = None
+    justificativa: str | None = None
+    urgencia: str | None = None
+    data_necessaria: datetime | None = None
+    status: PurchaseRequestStatus | None = None
 
 class PurchaseRequestResponse(BaseModel):
     id: int
@@ -134,12 +140,12 @@ class PurchaseRequestResponse(BaseModel):
     centro_custo_id: int
     justificativa: str
     urgencia: str
-    data_necessaria: Optional[datetime] = None
+    data_necessaria: datetime | None = None
     status: PurchaseRequestStatus
     data_criacao: datetime
-    origem_os_id: Optional[int] = None
-    origem_ticket_id: Optional[int] = None
-    itens: List[PurchaseRequestItemResponse] = []
+    origem_os_id: int | None = None
+    origem_ticket_id: int | None = None
+    itens: list[PurchaseRequestItemResponse] = []
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -148,7 +154,7 @@ class PurchaseRequestResponse(BaseModel):
 class PurchaseApprovalBase(BaseModel):
     nivel: str
     status: str
-    observacao: Optional[str] = None
+    observacao: str | None = None
 
 class PurchaseApprovalCreate(PurchaseApprovalBase):
     request_id: int
@@ -156,8 +162,8 @@ class PurchaseApprovalCreate(PurchaseApprovalBase):
 class PurchaseApprovalResponse(PurchaseApprovalBase):
     id: int
     request_id: int
-    aprovador_id: Optional[int] = None
-    data_decisao: Optional[datetime] = None
+    aprovador_id: int | None = None
+    data_decisao: datetime | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -181,17 +187,17 @@ class PurchaseQuotationSupplierBase(BaseModel):
     frete: float = 0.00
     prazo_entrega_dias: int = 0
     garantia_meses: int = 0
-    forma_pagamento: Optional[str] = None
-    observacoes: Optional[str] = None
+    forma_pagamento: str | None = None
+    observacoes: str | None = None
 
 class PurchaseQuotationSupplierCreate(PurchaseQuotationSupplierBase):
-    itens: List[PurchaseQuotationItemCreate]
+    itens: list[PurchaseQuotationItemCreate]
 
 class PurchaseQuotationSupplierResponse(PurchaseQuotationSupplierBase):
     id: int
     valor_total: float
     escolhido: bool
-    itens: List[PurchaseQuotationItemResponse] = []
+    itens: list[PurchaseQuotationItemResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -200,7 +206,7 @@ class PurchaseQuotationBase(BaseModel):
     request_id: int
 
 class PurchaseQuotationCreate(PurchaseQuotationBase):
-    suppliers: List[PurchaseQuotationSupplierCreate]
+    suppliers: list[PurchaseQuotationSupplierCreate]
 
 class PurchaseQuotationResponse(BaseModel):
     id: int
@@ -208,7 +214,7 @@ class PurchaseQuotationResponse(BaseModel):
     request_id: int
     data_criacao: datetime
     status: str
-    suppliers: List[PurchaseQuotationSupplierResponse] = []
+    suppliers: list[PurchaseQuotationSupplierResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -224,7 +230,7 @@ class PurchaseOrderItemCreate(PurchaseOrderItemBase):
 class PurchaseOrderItemResponse(PurchaseOrderItemBase):
     id: int
     total_item: float
-    product: Optional[PurchaseProductResponse] = None
+    product: PurchaseProductResponse | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -232,23 +238,23 @@ class PurchaseOrderItemResponse(PurchaseOrderItemBase):
 class PurchaseOrderBase(BaseModel):
     fornecedor_id: int
     centro_custo_id: int
-    request_id: Optional[int] = None
-    quotation_id: Optional[int] = None
+    request_id: int | None = None
+    quotation_id: int | None = None
     desconto: float = 0.00
     ipi: float = 0.00
     icms: float = 0.00
     frete: float = 0.00
 
 class PurchaseOrderCreate(PurchaseOrderBase):
-    itens: List[PurchaseOrderItemCreate]
+    itens: list[PurchaseOrderItemCreate]
 
 class PurchaseOrderResponse(BaseModel):
     id: int
     numero: str
     fornecedor_id: int
     centro_custo_id: int
-    request_id: Optional[int] = None
-    quotation_id: Optional[int] = None
+    request_id: int | None = None
+    quotation_id: int | None = None
     valor_total: float
     desconto: float
     ipi: float
@@ -256,7 +262,7 @@ class PurchaseOrderResponse(BaseModel):
     frete: float
     status: PurchaseOrderStatus
     data_emissao: datetime
-    itens: List[PurchaseOrderItemResponse] = []
+    itens: list[PurchaseOrderItemResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -264,8 +270,8 @@ class PurchaseOrderResponse(BaseModel):
 class PurchaseReceivingItemBase(BaseModel):
     product_id: int
     quantidade_recebida: float
-    divergencias: Optional[str] = None
-    ativo_criado_id: Optional[int] = None
+    divergencias: str | None = None
+    ativo_criado_id: int | None = None
 
 class PurchaseReceivingItemCreate(PurchaseReceivingItemBase):
     pass
@@ -279,33 +285,33 @@ class PurchaseReceivingItemResponse(PurchaseReceivingItemBase):
 # PurchaseReceiving
 class PurchaseReceivingBase(BaseModel):
     order_id: int
-    nota_fiscal_id: Optional[int] = None
-    observacoes: Optional[str] = None
+    nota_fiscal_id: int | None = None
+    observacoes: str | None = None
 
 class PurchaseReceivingCreate(PurchaseReceivingBase):
-    itens: List[PurchaseReceivingItemCreate]
+    itens: list[PurchaseReceivingItemCreate]
 
 class PurchaseReceivingResponse(PurchaseReceivingBase):
     id: int
     data_recebimento: datetime
     responsavel_id: int
-    itens: List[PurchaseReceivingItemResponse] = []
+    itens: list[PurchaseReceivingItemResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
 
 # ContractType
 class ContractTypeBase(BaseModel):
     nome: str
-    descricao: Optional[str] = None
+    descricao: str | None = None
     ativo: bool = True
 
 class ContractTypeCreate(ContractTypeBase):
     pass
 
 class ContractTypeUpdate(BaseModel):
-    nome: Optional[str] = None
-    descricao: Optional[str] = None
-    ativo: Optional[bool] = None
+    nome: str | None = None
+    descricao: str | None = None
+    ativo: bool | None = None
 
 class ContractTypeResponse(ContractTypeBase):
     id: int
@@ -316,33 +322,33 @@ class ContractTypeResponse(ContractTypeBase):
 class PurchaseContractBase(BaseModel):
     fornecedor_id: int
     tipo: str
-    tipo_id: Optional[int] = None
+    tipo_id: int | None = None
     numero: str
     data_inicio: datetime
     data_fim: datetime
     renovacao_automatica: bool = False
     valor: float
     periodicidade: str = "Mensal"
-    arquivo_pdf_path: Optional[str] = None
+    arquivo_pdf_path: str | None = None
 
 class PurchaseContractCreate(PurchaseContractBase):
     pass
 
 class PurchaseContractUpdate(BaseModel):
-    fornecedor_id: Optional[int] = None
-    tipo: Optional[str] = None
-    tipo_id: Optional[int] = None
-    numero: Optional[str] = None
-    data_inicio: Optional[datetime] = None
-    data_fim: Optional[datetime] = None
-    renovacao_automatica: Optional[bool] = None
-    valor: Optional[float] = None
-    periodicidade: Optional[str] = None
-    arquivo_pdf_path: Optional[str] = None
+    fornecedor_id: int | None = None
+    tipo: str | None = None
+    tipo_id: int | None = None
+    numero: str | None = None
+    data_inicio: datetime | None = None
+    data_fim: datetime | None = None
+    renovacao_automatica: bool | None = None
+    valor: float | None = None
+    periodicidade: str | None = None
+    arquivo_pdf_path: str | None = None
 
 class PurchaseContractResponse(PurchaseContractBase):
     id: int
-    alertado_dias: Optional[int] = None
+    alertado_dias: int | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -351,8 +357,8 @@ class MaterialStockResponse(BaseModel):
     id: int
     product_id: int
     quantidade_saldo: float
-    localizacao_almoxarifado: Optional[str] = None
-    product: Optional[PurchaseProductResponse] = None
+    localizacao_almoxarifado: str | None = None
+    product: PurchaseProductResponse | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -362,19 +368,19 @@ class MaterialStockTransactionResponse(BaseModel):
     product_id: int
     quantidade: float
     tipo_movimentacao: str
-    origem_tabela: Optional[str] = None
-    origem_id: Optional[int] = None
+    origem_tabela: str | None = None
+    origem_id: int | None = None
     data_transacao: datetime
     user_id: int
-    justificativa: Optional[str] = None
+    justificativa: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
 # PurchaseResearchItem
 class PurchaseResearchItemBase(BaseModel):
     nome_produto: str
-    link_produto: Optional[str] = None
-    imagem_path: Optional[str] = None
+    link_produto: str | None = None
+    imagem_path: str | None = None
     valor_estimado: float
     quantidade: float = 1.0
     tipo_produto: str = "Consumo"  # "Consumo" ou "Imobilizado"
@@ -395,7 +401,7 @@ class PurchaseResearchBase(BaseModel):
     justificativa: str
 
 class PurchaseResearchCreate(PurchaseResearchBase):
-    items: List[PurchaseResearchItemCreate]
+    items: list[PurchaseResearchItemCreate]
 
 class PurchaseResearchResponse(PurchaseResearchBase):
     id: int
@@ -403,6 +409,6 @@ class PurchaseResearchResponse(PurchaseResearchBase):
     solicitante_id: int
     status: str
     data_criacao: datetime
-    items: List[PurchaseResearchItemResponse] = []
+    items: list[PurchaseResearchItemResponse] = []
     model_config = ConfigDict(from_attributes=True)
 

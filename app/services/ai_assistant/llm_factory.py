@@ -1,10 +1,11 @@
-from app.services.ai_assistant.llm_base import LLMBaseService
-from app.services.ai_assistant.openai_service import OpenAIService
 from app.services.ai_assistant.gemini_service import GeminiService
 from app.services.ai_assistant.groq_service import GroqService
-from app.services.ai_assistant.openrouter_service import OpenRouterService
 from app.services.ai_assistant.kimi_service import KimiService
+from app.services.ai_assistant.llm_base import LLMBaseService
 from app.services.ai_assistant.ollama_service import OllamaService
+from app.services.ai_assistant.openai_service import OpenAIService
+from app.services.ai_assistant.openrouter_service import OpenRouterService
+
 
 def get_llm_service(provider: str, api_key: str, model_name: str = "", base_url: str = "") -> LLMBaseService:
     if provider.lower() == "ollama":

@@ -1,28 +1,37 @@
 # app/web/endpoints/preventive_maintenance.py
 import os
-from typing import Annotated, Optional
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Request, Depends, HTTPException, Form, UploadFile, File
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
-from app.web.dependencies import get_active_user_web, check_preventive_maintenance_enabled
-from app.models.user import User, UserRole
-from app.models.preventive_maintenance import (
-    MaintenancePlan, MaintenanceOrder, MaintenanceType, OrderStatus,
-    MaintenancePriority, MaintenanceCriticality, MaintenanceChecklist
-)
-from app.models.asset import Asset
-from app.database import get_db
-from app.crud import preventive_maintenance as pm_crud
 from app.core.datetime_utils import now_sp
+from app.crud import preventive_maintenance as pm_crud
+from app.database import get_db
+from app.models.asset import Asset
+from app.models.preventive_maintenance import (
+    MaintenanceChecklist,
+    MaintenanceCriticality,
+    MaintenanceOrder,
+    MaintenancePlan,
+    MaintenancePriority,
+    MaintenanceType,
+    OrderStatus,
+)
+from app.models.user import User, UserRole
 from app.services.webhook_service import (
     dispatch_webhook_event,
     format_preventive_order_payload,
-    format_preventive_plan_payload
+    format_preventive_plan_payload,
+)
+from app.web.dependencies import (
+    check_preventive_maintenance_enabled,
+    get_active_user_web,
 )
 
 router = APIRouter(dependencies=[Depends(check_preventive_maintenance_enabled)])
@@ -148,9 +157,9 @@ async def list_plans(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    tipo: Optional[str] = None,
-    ativo: Optional[str] = None,
-    criticidade: Optional[str] = None
+    tipo: str | None = None,
+    ativo: str | None = None,
+    criticidade: str | None = None
 ):
     """Lista de planos de manutenção"""
     
@@ -189,10 +198,10 @@ async def list_orders(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    status: Optional[str] = None,
-    tipo: Optional[str] = None,
-    prioridade: Optional[str] = None,
-    tecnico_id: Optional[str] = None
+    status: str | None = None,
+    tipo: str | None = None,
+    prioridade: str | None = None,
+    tecnico_id: str | None = None
 ):
     """Lista de ordens de serviço de manutenção"""
     
@@ -357,10 +366,9 @@ async def checklists_page(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    plan_id: Optional[int] = None,
+    plan_id: int | None = None,
 ):
     """Gerenciamento global de checklists de manutenção"""
-    from app.models.preventive_maintenance import MaintenanceChecklistItem
 
     # Buscar todos os planos para o filtro
     plans_res = await db.execute(select(MaintenancePlan).order_by(MaintenancePlan.codigo))
@@ -405,12 +413,13 @@ async def reports_page(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    data_inicio: Optional[str] = None,
-    data_fim: Optional[str] = None,
-    tecnico_id: Optional[str] = None
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    tecnico_id: str | None = None
 ):
     """Página de relatórios estatísticos e gerenciais de manutenção"""
     from datetime import datetime, timedelta
+
     from sqlalchemy import desc
 
     # Datas padrão (últimos 30 dias se não especificado)
@@ -580,17 +589,17 @@ async def create_order(
     tipo: Annotated[str, Form()],
     prioridade: Annotated[str, Form()],
     descricao: Annotated[str, Form()],
-    asset_id: Annotated[Optional[str], Form()] = None,
-    infra_predial_servico: Annotated[Optional[str], Form()] = None,
-    plan_id: Annotated[Optional[str], Form()] = None,
-    tecnico_id: Annotated[Optional[str], Form()] = None,
-    data_agendada: Annotated[Optional[str], Form()] = None,
+    asset_id: Annotated[str | None, Form()] = None,
+    infra_predial_servico: Annotated[str | None, Form()] = None,
+    plan_id: Annotated[str | None, Form()] = None,
+    tecnico_id: Annotated[str | None, Form()] = None,
+    data_agendada: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     """Cria uma nova ordem de manutenção"""
+
     from app.models.preventive_maintenance import MaintenanceOrder
-    from sqlalchemy import func
     
     # Gerar o número da ordem
     numero = await pm_crud.maintenance_order.generate_numero(db)
@@ -661,8 +670,8 @@ async def create_order(
     # Disparar notificação se houver técnico associado
     if order.tecnico_id:
         try:
-            from app.models.user import User
             from app.models.asset import Asset
+            from app.models.user import User
             from app.services.notification_service import notification_service
             
             tech_res = await db.execute(select(User).filter(User.id == order.tecnico_id))
@@ -712,10 +721,13 @@ async def order_detail(
     order_id: int,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    error: Optional[str] = None
+    error: str | None = None
 ):
     """Página de detalhes da ordem de manutenção"""
-    from app.models.preventive_maintenance import MaintenanceExecution, MaintenanceHistory
+    from app.models.preventive_maintenance import (
+        MaintenanceExecution,
+        MaintenanceHistory,
+    )
     from app.models.procurement import MaterialStock
 
     # Obter ordem com todos os relacionamentos necessários
@@ -745,7 +757,6 @@ async def order_detail(
     # Obter checklists com items
     checklists = []
     if order.plan_id:
-        from app.models.preventive_maintenance import MaintenanceChecklistItem
         stmt = (
             select(MaintenanceChecklist)
             .options(selectinload(MaintenanceChecklist.items))
@@ -805,9 +816,12 @@ async def create_plan(
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     """Cria um novo plano de manutenção"""
-    from app.models.preventive_maintenance import MaintenancePlan
     from sqlalchemy import func
-    from app.models.preventive_maintenance import MaintenancePeriodicity
+
+    from app.models.preventive_maintenance import (
+        MaintenancePeriodicity,
+        MaintenancePlan,
+    )
     
     # Gerar o código do plano
     now = now_sp()
@@ -840,7 +854,7 @@ async def create_plan(
     payload = format_preventive_plan_payload(plan, "PREVENTIVE_PLAN_CREATED")
     await dispatch_webhook_event("PREVENTIVE_PLAN_CREATED", payload)
 
-    return RedirectResponse(url=f"/manutencao-preventiva/planos", status_code=303)
+    return RedirectResponse(url="/manutencao-preventiva/planos", status_code=303)
 
 
 # --- Transições de Status das Ordens ---
@@ -893,7 +907,7 @@ async def start_order(
 @router.post("/ordens/{order_id}/pausar")
 async def pause_order(
     order_id: int,
-    motivo: Annotated[Optional[str], Form()] = None,
+    motivo: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -936,8 +950,8 @@ async def pause_order(
 @router.post("/ordens/{order_id}/concluir")
 async def complete_order(
     order_id: int,
-    solucao: Annotated[Optional[str], Form()] = None,
-    custo_total: Annotated[Optional[str], Form()] = None,
+    solucao: Annotated[str | None, Form()] = None,
+    custo_total: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -1008,8 +1022,8 @@ async def complete_order(
 
     # Disparar notificação de conclusão para os gestores
     try:
-        from app.services.notification_service import notification_service
         from app.models.asset import Asset
+        from app.services.notification_service import notification_service
         
         asset_res = await db.execute(select(Asset).filter(Asset.id == order.asset_id))
         asset = asset_res.scalar_one_or_none()
@@ -1045,7 +1059,7 @@ async def complete_order(
 @router.post("/ordens/{order_id}/cancelar")
 async def cancel_order(
     order_id: int,
-    motivo: Annotated[Optional[str], Form()] = None,
+    motivo: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -1168,9 +1182,9 @@ async def add_checklist_item(
     plan_id: int,
     checklist_id: int,
     descricao: Annotated[str, Form()],
-    obrigatorio: Annotated[Optional[str], Form()] = None,
-    requer_foto: Annotated[Optional[str], Form()] = None,
-    redirect_to: Annotated[Optional[str], Form()] = None,
+    obrigatorio: Annotated[str | None, Form()] = None,
+    requer_foto: Annotated[str | None, Form()] = None,
+    redirect_to: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -1275,8 +1289,13 @@ async def execute_checklist_item(
     import os
     import shutil
     import uuid
-    from fastapi import UploadFile
-    from app.models.preventive_maintenance import MaintenanceExecution, MaintenanceChecklistItem, MaintenancePhoto, PhotoType
+
+    from app.models.preventive_maintenance import (
+        MaintenanceChecklistItem,
+        MaintenanceExecution,
+        MaintenancePhoto,
+        PhotoType,
+    )
 
     form = await request.form()
     
@@ -1389,7 +1408,7 @@ async def edit_plan_form(
     plan_id: int,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    error: Optional[str] = None
+    error: str | None = None
 ):
     """Formulário para edição de plano de manutenção"""
     plan = await pm_crud.maintenance_plan.get(db, id=plan_id)
@@ -1420,7 +1439,7 @@ async def update_plan(
     criticidade: Annotated[str, Form()],
     descricao: Annotated[str, Form()],
     ativo: Annotated[str, Form()],
-    dias_personalizado: Annotated[Optional[str], Form()] = None,
+    dias_personalizado: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -1481,7 +1500,11 @@ async def delete_plan(
 
     # Deletar manualmente as notificações vinculadas ao plano ou às suas ordens antes de excluir o plano
     from sqlalchemy import delete
-    from app.models.preventive_maintenance import MaintenanceNotification, MaintenanceOrder
+
+    from app.models.preventive_maintenance import (
+        MaintenanceNotification,
+        MaintenanceOrder,
+    )
     
     order_ids_stmt = select(MaintenanceOrder.id).filter(MaintenanceOrder.plan_id == plan_id)
     order_ids_res = await db.execute(order_ids_stmt)
@@ -1503,7 +1526,7 @@ async def edit_order_form(
     order_id: int,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    error: Optional[str] = None
+    error: str | None = None
 ):
     """Formulário para edição de ordem de serviço"""
     stmt = (
@@ -1554,8 +1577,8 @@ async def update_order(
     prioridade: Annotated[str, Form()],
     criticidade: Annotated[str, Form()],
     observacoes: Annotated[str, Form()],
-    tecnico_id: Annotated[Optional[str], Form()] = None,
-    data_agendada: Annotated[Optional[str], Form()] = None,
+    tecnico_id: Annotated[str | None, Form()] = None,
+    data_agendada: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -1639,8 +1662,8 @@ async def update_order(
     # Disparar notificação se o técnico mudou e agora está definido
     if novo_tecnico_id and novo_tecnico_id != tecnico_anterior_id:
         try:
-            from app.models.user import User
             from app.models.asset import Asset
+            from app.models.user import User
             from app.services.notification_service import notification_service
             
             tech_res = await db.execute(select(User).filter(User.id == novo_tecnico_id))
@@ -1692,6 +1715,7 @@ async def delete_order(
 
     # Deletar manualmente as notificações associadas antes da exclusão da ordem (evita erro de chave estrangeira)
     from sqlalchemy import delete
+
     from app.models.preventive_maintenance import MaintenanceNotification
     await db.execute(delete(MaintenanceNotification).where(MaintenanceNotification.order_id == order_id))
 
@@ -1705,17 +1729,22 @@ async def delete_order(
 async def add_order_material(
     order_id: int,
     quantidade: Annotated[float, Form()],
-    valor_unitario: Annotated[Optional[str], Form()] = None,
-    produto: Annotated[Optional[str], Form()] = None,
-    product_id: Annotated[Optional[str], Form()] = None,
-    observacao: Annotated[Optional[str], Form()] = None,
+    valor_unitario: Annotated[str | None, Form()] = None,
+    produto: Annotated[str | None, Form()] = None,
+    product_id: Annotated[str | None, Form()] = None,
+    observacao: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     """Adiciona um material/peça de reposição à ordem de serviço e realiza a baixa no estoque"""
-    from app.models.preventive_maintenance import MaintenanceMaterial, MaintenanceHistory
-    from app.models.procurement import MaterialStock, PurchaseProduct, PurchaseOrderItem
-    from app.services.procurement_service import handle_material_consumption_in_maintenance
+    from app.models.preventive_maintenance import (
+        MaintenanceHistory,
+        MaintenanceMaterial,
+    )
+    from app.models.procurement import MaterialStock, PurchaseOrderItem, PurchaseProduct
+    from app.services.procurement_service import (
+        handle_material_consumption_in_maintenance,
+    )
     
     order = await pm_crud.maintenance_order.get(db, id=order_id)
     if not order:
@@ -1830,7 +1859,10 @@ async def remove_order_material(
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     """Remove um material/peça de reposição de uma ordem de serviço e estorna o estoque"""
-    from app.models.preventive_maintenance import MaintenanceMaterial, MaintenanceHistory
+    from app.models.preventive_maintenance import (
+        MaintenanceHistory,
+        MaintenanceMaterial,
+    )
     
     order = await pm_crud.maintenance_order.get(db, id=order_id)
     if not order:
@@ -1896,14 +1928,19 @@ async def upload_order_photo(
     order_id: int,
     foto: Annotated[UploadFile, File()],
     tipo: Annotated[str, Form()],
-    descricao: Annotated[Optional[str], Form()] = None,
+    descricao: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     """Realiza o upload de uma foto de manutenção"""
     import shutil
     import uuid
-    from app.models.preventive_maintenance import MaintenancePhoto, MaintenanceHistory, PhotoType
+
+    from app.models.preventive_maintenance import (
+        MaintenanceHistory,
+        MaintenancePhoto,
+        PhotoType,
+    )
     
     order = await pm_crud.maintenance_order.get(db, id=order_id)
     if not order:
@@ -1961,7 +1998,7 @@ async def delete_order_photo(
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     """Remove uma foto de manutenção e seu arquivo correspondente do servidor"""
-    from app.models.preventive_maintenance import MaintenancePhoto, MaintenanceHistory
+    from app.models.preventive_maintenance import MaintenanceHistory, MaintenancePhoto
     
     order = await pm_crud.maintenance_order.get(db, id=order_id)
     if not order:
@@ -2014,9 +2051,9 @@ async def maintenance_types_page(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    success: Optional[str] = None,
-    error: Optional[str] = None,
-    edit_id: Optional[int] = None
+    success: str | None = None,
+    error: str | None = None,
+    edit_id: int | None = None
 ):
     """Página de gerenciamento de tipos de manutenção."""
     from app.models.preventive_maintenance import CustomMaintenanceType
@@ -2046,13 +2083,14 @@ async def maintenance_types_page(
 async def create_maintenance_type(
     request: Request,
     nome: Annotated[str, Form()],
-    descricao: Annotated[Optional[str], Form()] = None,
+    descricao: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     """Cria um novo tipo de manutenção customizado."""
-    from app.models.preventive_maintenance import CustomMaintenanceType
     from urllib.parse import quote_plus
+
+    from app.models.preventive_maintenance import CustomMaintenanceType
 
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         return RedirectResponse(url="/manutencao-preventiva/tipos?error=Sem+permissão", status_code=303)
@@ -2091,8 +2129,9 @@ async def delete_maintenance_type(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Exclui um tipo de manutenção customizado."""
-    from app.models.preventive_maintenance import CustomMaintenanceType
     from urllib.parse import quote_plus
+
+    from app.models.preventive_maintenance import CustomMaintenanceType
 
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         return RedirectResponse(url="/manutencao-preventiva/tipos?error=Sem+permissão", status_code=303)
@@ -2113,13 +2152,14 @@ async def edit_maintenance_type(
     tipo_id: int,
     request: Request,
     nome: Annotated[str, Form()],
-    descricao: Annotated[Optional[str], Form()] = None,
+    descricao: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     """Edita um tipo de manutenção customizado."""
-    from app.models.preventive_maintenance import CustomMaintenanceType
     from urllib.parse import quote_plus
+
+    from app.models.preventive_maintenance import CustomMaintenanceType
 
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.TECNICO]:
         return RedirectResponse(url="/manutencao-preventiva/tipos?error=Sem+permissão", status_code=303)
@@ -2160,13 +2200,16 @@ async def tecnico_report_pdf(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    data_inicio: Optional[str] = None,
-    data_fim: Optional[str] = None
+    data_inicio: str | None = None,
+    data_fim: str | None = None
 ):
     """Gera PDF completo de desempenho de um técnico específico."""
-    from weasyprint import HTML
     from fastapi.responses import Response as FastResponse
-    from app.models.preventive_maintenance import MaintenanceExecution, MaintenanceMaterial, MaintenanceChecklistItem
+    from weasyprint import HTML
+
+    from app.models.preventive_maintenance import (
+        MaintenanceExecution,
+    )
 
     # Datas
     if data_inicio:
@@ -2189,7 +2232,7 @@ async def tecnico_report_pdf(
 
     # Buscar ordens do técnico no período
     from sqlalchemy.orm import selectinload
-    from app.models.asset import Asset
+
     os_stmt = (
         select(MaintenanceOrder)
         .options(

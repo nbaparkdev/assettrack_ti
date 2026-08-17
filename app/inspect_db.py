@@ -1,18 +1,24 @@
 # app/inspect_db.py
 import asyncio
+
+from sqlalchemy import select
+
 from app.database import SessionLocal
 from app.models.preventive_maintenance import (
-    MaintenanceExecution, MaintenancePhoto, MaintenanceOrder,
-    MaintenanceChecklistItem, MaintenanceChecklist
+    MaintenanceChecklist,
+    MaintenanceChecklistItem,
+    MaintenanceExecution,
+    MaintenanceOrder,
+    MaintenancePhoto,
 )
-from sqlalchemy import select
+
 
 async def main():
     async with SessionLocal() as session:
         # Get order 3
         res_order = await session.execute(select(MaintenanceOrder).filter(MaintenanceOrder.id == 3))
         order = res_order.scalar_one_or_none()
-        print(f"--- ORDER 3 ---")
+        print("--- ORDER 3 ---")
         if order:
             print(f"ID: {order.id}, Plan ID: {order.plan_id}, Status: {order.status.value}")
         else:

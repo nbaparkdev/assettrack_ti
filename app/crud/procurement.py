@@ -1,35 +1,58 @@
 # app/crud/procurement.py
+
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc
 from sqlalchemy.orm import selectinload
-from typing import List, Optional
+
 from app.models.procurement import (
-    PurchaseCategory, PurchaseProduct, CostCenter, PurchaseRequest, PurchaseRequestItem,
-    PurchaseApproval, PurchaseQuotation, PurchaseQuotationSupplier, PurchaseQuotationItem,
-    PurchaseOrder, PurchaseOrderItem, PurchaseReceiving, PurchaseReceivingItem,
-    PurchaseContract, ContractType, MaterialStock, MaterialStockTransaction, PurchaseHistory,
-    PurchaseRequestStatus, PurchaseOrderStatus, PurchaseUnit,
-    PurchaseResearch, PurchaseResearchItem, PurchaseResearchStatus
+    ContractType,
+    CostCenter,
+    MaterialStock,
+    MaterialStockTransaction,
+    PurchaseApproval,
+    PurchaseCategory,
+    PurchaseContract,
+    PurchaseHistory,
+    PurchaseOrder,
+    PurchaseOrderItem,
+    PurchaseProduct,
+    PurchaseReceiving,
+    PurchaseReceivingItem,
+    PurchaseRequest,
+    PurchaseRequestItem,
+    PurchaseRequestStatus,
+    PurchaseResearch,
+    PurchaseResearchItem,
+    PurchaseResearchStatus,
+    PurchaseUnit,
 )
 from app.schemas.procurement import (
-    PurchaseCategoryCreate, PurchaseCategoryUpdate,
-    PurchaseProductCreate, PurchaseProductUpdate,
-    CostCenterCreate, CostCenterUpdate,
-    PurchaseRequestCreate, PurchaseRequestUpdate,
-    PurchaseOrderCreate, PurchaseReceivingCreate,
-    PurchaseContractCreate, PurchaseContractUpdate,
-    ContractTypeCreate, ContractTypeUpdate,
-    PurchaseResearchCreate
+    ContractTypeCreate,
+    ContractTypeUpdate,
+    CostCenterCreate,
+    CostCenterUpdate,
+    PurchaseCategoryCreate,
+    PurchaseCategoryUpdate,
+    PurchaseContractCreate,
+    PurchaseContractUpdate,
+    PurchaseOrderCreate,
+    PurchaseProductCreate,
+    PurchaseProductUpdate,
+    PurchaseReceivingCreate,
+    PurchaseRequestCreate,
+    PurchaseRequestUpdate,
+    PurchaseResearchCreate,
 )
+
 
 # -----------------
 # PURCHASE CATEGORY
 # -----------------
-async def get_category(db: AsyncSession, category_id: int) -> Optional[PurchaseCategory]:
+async def get_category(db: AsyncSession, category_id: int) -> PurchaseCategory | None:
     result = await db.execute(select(PurchaseCategory).filter(PurchaseCategory.id == category_id))
     return result.scalars().first()
 
-async def get_categories(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[PurchaseCategory]:
+async def get_categories(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[PurchaseCategory]:
     result = await db.execute(select(PurchaseCategory).offset(skip).limit(limit))
     return result.scalars().all()
 
@@ -52,11 +75,11 @@ async def update_category(db: AsyncSession, db_cat: PurchaseCategory, category: 
 # -------------
 # PURCHASE UNIT
 # -------------
-async def get_units(db: AsyncSession) -> List[PurchaseUnit]:
+async def get_units(db: AsyncSession) -> list[PurchaseUnit]:
     result = await db.execute(select(PurchaseUnit).order_by(PurchaseUnit.sigla))
     return result.scalars().all()
 
-async def create_unit(db: AsyncSession, sigla: str, descricao: Optional[str] = None) -> PurchaseUnit:
+async def create_unit(db: AsyncSession, sigla: str, descricao: str | None = None) -> PurchaseUnit:
     db_unit = PurchaseUnit(sigla=sigla.upper(), descricao=descricao)
     db.add(db_unit)
     await db.commit()
@@ -67,7 +90,7 @@ async def create_unit(db: AsyncSession, sigla: str, descricao: Optional[str] = N
 # ----------------
 # PURCHASE PRODUCT
 # ----------------
-async def get_product(db: AsyncSession, product_id: int) -> Optional[PurchaseProduct]:
+async def get_product(db: AsyncSession, product_id: int) -> PurchaseProduct | None:
     result = await db.execute(
         select(PurchaseProduct)
         .options(selectinload(PurchaseProduct.categoria))
@@ -75,11 +98,11 @@ async def get_product(db: AsyncSession, product_id: int) -> Optional[PurchasePro
     )
     return result.scalars().first()
 
-async def get_product_by_codigo(db: AsyncSession, codigo: str) -> Optional[PurchaseProduct]:
+async def get_product_by_codigo(db: AsyncSession, codigo: str) -> PurchaseProduct | None:
     result = await db.execute(select(PurchaseProduct).filter(PurchaseProduct.codigo == codigo))
     return result.scalars().first()
 
-async def get_products(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[PurchaseProduct]:
+async def get_products(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[PurchaseProduct]:
     result = await db.execute(
         select(PurchaseProduct)
         .options(selectinload(PurchaseProduct.categoria))
@@ -106,7 +129,7 @@ async def update_product(db: AsyncSession, db_prod: PurchaseProduct, product: Pu
 # -----------
 # COST CENTER
 # -----------
-async def get_cost_center(db: AsyncSession, cc_id: int) -> Optional[CostCenter]:
+async def get_cost_center(db: AsyncSession, cc_id: int) -> CostCenter | None:
     result = await db.execute(
         select(CostCenter)
         .options(selectinload(CostCenter.departamento), selectinload(CostCenter.responsavel))
@@ -114,7 +137,7 @@ async def get_cost_center(db: AsyncSession, cc_id: int) -> Optional[CostCenter]:
     )
     return result.scalars().first()
 
-async def get_cost_centers(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[CostCenter]:
+async def get_cost_centers(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[CostCenter]:
     result = await db.execute(
         select(CostCenter)
         .options(selectinload(CostCenter.departamento), selectinload(CostCenter.responsavel))
@@ -141,7 +164,7 @@ async def update_cost_center(db: AsyncSession, db_cc: CostCenter, cc: CostCenter
 # ----------------
 # PURCHASE REQUEST
 # ----------------
-async def get_purchase_request(db: AsyncSession, request_id: int) -> Optional[PurchaseRequest]:
+async def get_purchase_request(db: AsyncSession, request_id: int) -> PurchaseRequest | None:
     result = await db.execute(
         select(PurchaseRequest)
         .options(
@@ -157,7 +180,7 @@ async def get_purchase_request(db: AsyncSession, request_id: int) -> Optional[Pu
     )
     return result.scalars().first()
 
-async def get_purchase_requests(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[PurchaseRequest]:
+async def get_purchase_requests(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[PurchaseRequest]:
     result = await db.execute(
         select(PurchaseRequest)
         .options(
@@ -187,7 +210,7 @@ async def generate_request_number(db: AsyncSession) -> str:
     return num
 
 async def create_purchase_request(
-    db: AsyncSession, request_in: PurchaseRequestCreate, solicitante_id: int, departamento_id: int, status: Optional[PurchaseRequestStatus] = None
+    db: AsyncSession, request_in: PurchaseRequestCreate, solicitante_id: int, departamento_id: int, status: PurchaseRequestStatus | None = None
 ) -> PurchaseRequest:
     num = await generate_request_number(db)
     req_data = request_in.model_dump(exclude={"itens"})
@@ -230,7 +253,7 @@ async def update_purchase_request(
 # --------------
 # PURCHASE ORDER
 # --------------
-async def get_purchase_order(db: AsyncSession, order_id: int) -> Optional[PurchaseOrder]:
+async def get_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder | None:
     result = await db.execute(
         select(PurchaseOrder)
         .options(
@@ -246,7 +269,7 @@ async def get_purchase_order(db: AsyncSession, order_id: int) -> Optional[Purcha
     )
     return result.scalars().first()
 
-async def get_purchase_orders(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[PurchaseOrder]:
+async def get_purchase_orders(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[PurchaseOrder]:
     result = await db.execute(
         select(PurchaseOrder)
         .options(
@@ -334,11 +357,11 @@ async def create_receiving(
 # -----------------
 # CONTRACT TYPES
 # -----------------
-async def get_contract_type(db: AsyncSession, ct_id: int) -> Optional[ContractType]:
+async def get_contract_type(db: AsyncSession, ct_id: int) -> ContractType | None:
     result = await db.execute(select(ContractType).filter(ContractType.id == ct_id))
     return result.scalars().first()
 
-async def get_contract_types(db: AsyncSession, only_active: bool = False) -> List[ContractType]:
+async def get_contract_types(db: AsyncSession, only_active: bool = False) -> list[ContractType]:
     q = select(ContractType).order_by(ContractType.nome)
     if only_active:
         q = q.filter(ContractType.ativo == True)
@@ -372,7 +395,7 @@ async def delete_contract_type(db: AsyncSession, ct_id: int) -> bool:
 # -----------------
 # PURCHASE CONTRACT
 # -----------------
-async def get_contract(db: AsyncSession, contract_id: int) -> Optional[PurchaseContract]:
+async def get_contract(db: AsyncSession, contract_id: int) -> PurchaseContract | None:
     result = await db.execute(
         select(PurchaseContract)
         .options(selectinload(PurchaseContract.fornecedor))
@@ -380,7 +403,7 @@ async def get_contract(db: AsyncSession, contract_id: int) -> Optional[PurchaseC
     )
     return result.scalars().first()
 
-async def get_contracts(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[PurchaseContract]:
+async def get_contracts(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[PurchaseContract]:
     result = await db.execute(
         select(PurchaseContract)
         .options(selectinload(PurchaseContract.fornecedor))
@@ -416,7 +439,7 @@ async def delete_contract(db: AsyncSession, contract_id: int) -> bool:
 # --------------
 # MATERIAL STOCK
 # --------------
-async def get_material_stock(db: AsyncSession, product_id: int) -> Optional[MaterialStock]:
+async def get_material_stock(db: AsyncSession, product_id: int) -> MaterialStock | None:
     result = await db.execute(select(MaterialStock).filter(MaterialStock.product_id == product_id))
     return result.scalars().first()
 
@@ -477,7 +500,7 @@ async def log_history(
 # -----------------
 # PURCHASE RESEARCH
 # -----------------
-async def get_purchase_research(db: AsyncSession, research_id: int) -> Optional[PurchaseResearch]:
+async def get_purchase_research(db: AsyncSession, research_id: int) -> PurchaseResearch | None:
     result = await db.execute(
         select(PurchaseResearch)
         .options(
@@ -489,7 +512,7 @@ async def get_purchase_research(db: AsyncSession, research_id: int) -> Optional[
     return result.scalars().first()
 
 
-async def get_purchase_researches(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[PurchaseResearch]:
+async def get_purchase_researches(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[PurchaseResearch]:
     result = await db.execute(
         select(PurchaseResearch)
         .options(

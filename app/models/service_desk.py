@@ -1,11 +1,14 @@
 # app/models/service_desk.py
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List
-from sqlalchemy import String, ForeignKey, DateTime, Text, Float, Integer
+from typing import Optional
+
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base
+
 from app.core.datetime_utils import now_sp
+from app.database import Base
+
 
 class ServiceStatus(str, Enum):
     ABERTO = "Aberto"
@@ -26,11 +29,11 @@ class ServiceCategory(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     nome: Mapped[str] = mapped_column(String(100), unique=True)
-    descricao: Mapped[Optional[str]] = mapped_column(Text)
+    descricao: Mapped[str | None] = mapped_column(Text)
     setor: Mapped[str] = mapped_column(String(50)) # TI, Infra, RH, etc.
     
     # Relacionamentos
-    servicos: Mapped[List["ServiceDefinition"]] = relationship("ServiceDefinition", back_populates="categoria")
+    servicos: Mapped[list["ServiceDefinition"]] = relationship("ServiceDefinition", back_populates="categoria")
 
 class ServiceDefinition(Base):
     __tablename__ = "service_definitions"
@@ -38,13 +41,13 @@ class ServiceDefinition(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     categoria_id: Mapped[int] = mapped_column(ForeignKey("service_categories.id"))
     nome: Mapped[str] = mapped_column(String(100))
-    descricao: Mapped[Optional[str]] = mapped_column(Text)
+    descricao: Mapped[str | None] = mapped_column(Text)
     prioridade_padrao: Mapped[ServicePriority] = mapped_column(String(20), default=ServicePriority.MEDIA)
-    tempo_estimado_horas: Mapped[Optional[float]] = mapped_column(Float)
+    tempo_estimado_horas: Mapped[float | None] = mapped_column(Float)
     
     # Relacionamentos
     categoria: Mapped[ServiceCategory] = relationship("ServiceCategory", back_populates="servicos")
-    chamados: Mapped[List["ServiceTicket"]] = relationship("ServiceTicket", back_populates="servico")
+    chamados: Mapped[list["ServiceTicket"]] = relationship("ServiceTicket", back_populates="servico")
 
 class ServiceTicket(Base):
     __tablename__ = "service_tickets"
@@ -53,27 +56,27 @@ class ServiceTicket(Base):
     codigo: Mapped[str] = mapped_column(String(20), unique=True, index=True) # Ex: CH-2026-0001
     servico_id: Mapped[int] = mapped_column(ForeignKey("service_definitions.id"))
     solicitante_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    tecnico_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    tecnico_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     
     titulo: Mapped[str] = mapped_column(String(200))
     descricao: Mapped[str] = mapped_column(Text)
     status: Mapped[ServiceStatus] = mapped_column(String(30), default=ServiceStatus.ABERTO)
     prioridade: Mapped[ServicePriority] = mapped_column(String(20))
-    foto: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    foto: Mapped[str | None] = mapped_column(String(255), nullable=True)
     
     data_abertura: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
     data_atualizacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp, onupdate=now_sp)
-    data_fechamento: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_fechamento: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     
-    solucao: Mapped[Optional[str]] = mapped_column(Text)
-    feedback_usuario: Mapped[Optional[str]] = mapped_column(Text)
-    avaliacao: Mapped[Optional[int]] = mapped_column(Integer, nullable=True) # 1-5 estrelas
+    solucao: Mapped[str | None] = mapped_column(Text)
+    feedback_usuario: Mapped[str | None] = mapped_column(Text)
+    avaliacao: Mapped[int | None] = mapped_column(Integer, nullable=True) # 1-5 estrelas
     
     # Relacionamentos
     servico: Mapped[ServiceDefinition] = relationship("ServiceDefinition", back_populates="chamados")
     solicitante: Mapped["User"] = relationship("User", foreign_keys=[solicitante_id])
     tecnico: Mapped[Optional["User"]] = relationship("User", foreign_keys=[tecnico_id])
-    interacoes: Mapped[List["ServiceTicketInteraction"]] = relationship("ServiceTicketInteraction", back_populates="ticket", cascade="all, delete-orphan")
+    interacoes: Mapped[list["ServiceTicketInteraction"]] = relationship("ServiceTicketInteraction", back_populates="ticket", cascade="all, delete-orphan")
 
 class ServiceTicketInteraction(Base):
     __tablename__ = "service_ticket_interactions"
@@ -83,7 +86,7 @@ class ServiceTicketInteraction(Base):
     usuario_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     
     mensagem: Mapped[str] = mapped_column(Text)
-    foto: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    foto: Mapped[str | None] = mapped_column(String(255), nullable=True)
     data_criacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
     
     # Tipo de interação: Comentário, Mudança de Status, etc.

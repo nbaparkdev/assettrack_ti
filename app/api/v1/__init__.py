@@ -1,7 +1,17 @@
 
 # app/api/v1/__init__.py
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, users, assets, solicitacoes, movimentacoes, qr, preventive_maintenance, api_procurement
+
+from app.api.v1.endpoints import (
+    api_procurement,
+    assets,
+    auth,
+    movimentacoes,
+    preventive_maintenance,
+    qr,
+    solicitacoes,
+    users,
+)
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])

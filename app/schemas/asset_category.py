@@ -1,20 +1,20 @@
+
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
 
 
 class AssetCategoryCreate(BaseModel):
     nome: str
-    descricao: Optional[str] = None
+    descricao: str | None = None
 
 
 class AssetCategoryUpdate(BaseModel):
-    nome: Optional[str] = None
-    descricao: Optional[str] = None
+    nome: str | None = None
+    descricao: str | None = None
 
 
 class AssetCategoryResponse(BaseModel):
     id: int
     nome: str
-    descricao: Optional[str] = None
+    descricao: str | None = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,24 +1,37 @@
 # app/services/procurement_service.py
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
-from sqlalchemy.orm import selectinload
-from datetime import datetime
-from app.core.datetime_utils import now_sp
-from typing import List, Dict, Any, Optional
+from typing import Any
 
-from app.models.procurement import (
-    PurchaseRequest, PurchaseRequestItem, PurchaseQuotation, PurchaseQuotationSupplier,
-    PurchaseQuotationItem, PurchaseOrder, PurchaseOrderItem, PurchaseReceiving,
-    PurchaseReceivingItem, PurchaseCategory, PurchaseProduct, CostCenter,
-    ProductType, MaterialStock, MaterialStockTransaction, PurchaseRequestStatus,
-    PurchaseResearch, PurchaseResearchItem, PurchaseResearchStatus
-)
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.datetime_utils import now_sp
+from app.crud.procurement import create_or_update_stock, generate_request_number
 from app.models.asset import Asset, AssetStatus
 from app.models.maintenance import Manutencao
+from app.models.procurement import (
+    CostCenter,
+    MaterialStock,
+    MaterialStockTransaction,
+    ProductType,
+    PurchaseCategory,
+    PurchaseOrder,
+    PurchaseProduct,
+    PurchaseQuotation,
+    PurchaseQuotationItem,
+    PurchaseQuotationSupplier,
+    PurchaseReceiving,
+    PurchaseReceivingItem,
+    PurchaseRequest,
+    PurchaseRequestItem,
+    PurchaseRequestStatus,
+    PurchaseResearch,
+    PurchaseResearchStatus,
+)
 from app.models.service_desk import ServiceTicket
-from app.crud.procurement import generate_request_number, create_or_update_stock
 
-async def calculate_quotation_comparison(quotation_id: int, db: AsyncSession) -> Dict[str, Any]:
+
+async def calculate_quotation_comparison(quotation_id: int, db: AsyncSession) -> dict[str, Any]:
     """
     Retorna o comparativo completo de cotações para uma Cotação (CQ) e destaca os vencedores
     por menor preço, menor prazo e melhor custo-benefício.
@@ -64,9 +77,9 @@ async def convert_receiving_to_assets(
     receiving_id: int, 
     db: AsyncSession, 
     current_user_id: int,
-    current_local_id: Optional[int] = None,
-    current_armazenamento_id: Optional[int] = None
-) -> List[Asset]:
+    current_local_id: int | None = None,
+    current_armazenamento_id: int | None = None
+) -> list[Asset]:
     """
     Processa os itens de um recebimento de compras. 
     Se o produto for do tipo EQUIPAMENTO, cria automaticamente registros na tabela assets (Gestão de Ativos)
@@ -142,7 +155,7 @@ async def convert_receiving_to_assets(
 
 async def handle_material_consumption_in_maintenance(
     product_id: int, quantity: float, db: AsyncSession, current_user_id: int, maintenance_id: int
-) -> Optional[MaterialStock]:
+) -> MaterialStock | None:
     """
     Abate a quantidade do estoque físico quando o item for utilizado em uma manutenção.
     """
@@ -165,7 +178,7 @@ async def handle_material_consumption_in_maintenance(
     return updated_stock
 
 async def create_purchase_request_from_os(
-    os_id: int, items_data: List[Dict[str, Any]], db: AsyncSession, solicitante_id: int
+    os_id: int, items_data: list[dict[str, Any]], db: AsyncSession, solicitante_id: int
 ) -> PurchaseRequest:
     """
     Cria uma Solicitação de Compra vinculada a uma Ordem de Serviço da Manutenção.
@@ -209,7 +222,7 @@ async def create_purchase_request_from_os(
     return db_req
 
 async def create_purchase_request_from_ticket(
-    ticket_id: int, items_data: List[Dict[str, Any]], db: AsyncSession, solicitante_id: int
+    ticket_id: int, items_data: list[dict[str, Any]], db: AsyncSession, solicitante_id: int
 ) -> PurchaseRequest:
     """
     Cria uma Solicitação de Compra vinculada a um Chamado do Service Desk.
@@ -255,10 +268,10 @@ async def convert_research_to_purchase_request(
     research_id: int,
     db: AsyncSession,
     current_user_id: int,
-    approved_item_ids: List[int],
+    approved_item_ids: list[int],
     centro_custo_id: int,
     justificativa: str
-) -> Optional[PurchaseRequest]:
+) -> PurchaseRequest | None:
     """
     Converte uma Pesquisa de Compra (PQ) aprovada em uma Solicitação de Compra (SC) "Aprovada"
     e cadastra os itens aprovados como produtos internos (purchase_products).
@@ -283,8 +296,8 @@ async def convert_research_to_purchase_request(
         await db.flush()
 
     # 3. Determinar departamento associado ao solicitante (ou usar um padrão)
-    from app.models.user import User
     from app.models.location import Departamento
+    from app.models.user import User
     user_res = await db.execute(select(User).filter(User.id == current_user_id))
     user_obj = user_res.scalars().first()
     

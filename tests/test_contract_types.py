@@ -1,10 +1,13 @@
+
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.procurement import ContractType, PurchaseContract
-from app.schemas.procurement import ContractTypeCreate, ContractTypeUpdate, PurchaseContractCreate
+
 from app.crud import procurement as crud_proc
-from datetime import datetime
+from app.schemas.procurement import (
+    ContractTypeCreate,
+    ContractTypeUpdate,
+)
+
 
 @pytest.mark.asyncio
 async def test_crud_contract_type(db_session: AsyncSession):

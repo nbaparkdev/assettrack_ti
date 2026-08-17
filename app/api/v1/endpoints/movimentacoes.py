@@ -1,20 +1,21 @@
 
 # app/api/v1/endpoints/movimentacoes.py
-from typing import Annotated, List
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import dependencies
-from app.crud import transaction as transaction_crud
 from app.crud import asset as asset_crud
-from app.schemas.transaction import MovimentacaoResponse, MovimentacaoCreate
-from app.models.transaction import TipoMovimentacao
-from app.models.asset import AssetStatus
+from app.crud import transaction as transaction_crud
 from app.database import get_db
+from app.models.asset import AssetStatus
+from app.models.transaction import TipoMovimentacao
+from app.schemas.transaction import MovimentacaoResponse
 
 router = APIRouter()
 
-@router.get("/", response_model=List[MovimentacaoResponse])
+@router.get("/", response_model=list[MovimentacaoResponse])
 async def read_movimentacoes(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_user)],

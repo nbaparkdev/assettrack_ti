@@ -1,11 +1,13 @@
 # app/crud/crud_supplier.py
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.supplier import Fornecedor
 from app.schemas.supplier import FornecedorCreate, FornecedorUpdate
-from typing import List, Optional
 
-async def get_fornecedor(db: AsyncSession, fornecedor_id: int) -> Optional[Fornecedor]:
+
+async def get_fornecedor(db: AsyncSession, fornecedor_id: int) -> Fornecedor | None:
     from sqlalchemy.orm import selectinload
     result = await db.execute(
         select(Fornecedor)
@@ -14,7 +16,7 @@ async def get_fornecedor(db: AsyncSession, fornecedor_id: int) -> Optional[Forne
     )
     return result.scalars().first()
 
-async def get_fornecedores(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Fornecedor]:
+async def get_fornecedores(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[Fornecedor]:
     from sqlalchemy.orm import selectinload
     result = await db.execute(
         select(Fornecedor)
@@ -23,7 +25,7 @@ async def get_fornecedores(db: AsyncSession, skip: int = 0, limit: int = 100) ->
     )
     return result.scalars().all()
 
-async def get_fornecedor_by_nome(db: AsyncSession, nome: str) -> Optional[Fornecedor]:
+async def get_fornecedor_by_nome(db: AsyncSession, nome: str) -> Fornecedor | None:
     result = await db.execute(select(Fornecedor).filter(Fornecedor.nome == nome))
     return result.scalars().first()
 

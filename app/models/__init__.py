@@ -1,70 +1,99 @@
 
 # app/models/__init__.py
-from app.models.user import User, UserRole
-from app.models.location import Departamento, Localizacao, Armazenamento
+from app.database import Base
 from app.models.asset import Asset, AssetStatus
 from app.models.asset_category import AssetCategory
-from app.models.transaction import Movimentacao, Solicitacao, TipoMovimentacao, StatusSolicitacao
-from app.models.maintenance import Manutencao, TipoManutencao, StatusManutencao, DestinoManutencao
-from app.models.maintenance_request import SolicitacaoManutencao, PrioridadeSolicitacao, StatusSolicitacaoManutencao
-from app.models.qr_log import QRLog, QRLogAction
-from app.models.service_desk import ServiceCategory, ServiceDefinition, ServiceTicket, ServiceStatus, ServicePriority
-from app.models.supplier import Fornecedor
+from app.models.aviso import Aviso
+from app.models.email_log import EmailLog
+from app.models.emergency_alert import EmergencyAlert
 from app.models.invoice import NotaFiscal
+from app.models.kanban import (
+    KanbanAttachment,
+    KanbanCard,
+    KanbanColumn,
+    KanbanNotification,
+    KanbanProject,
+    kanban_card_assets,
+    kanban_card_assignees,
+    kanban_project_participants,
+)
+from app.models.location import Armazenamento, Departamento, Localizacao
+from app.models.maintenance import (
+    DestinoManutencao,
+    Manutencao,
+    StatusManutencao,
+    TipoManutencao,
+)
+from app.models.maintenance_request import (
+    PrioridadeSolicitacao,
+    SolicitacaoManutencao,
+    StatusSolicitacaoManutencao,
+)
 from app.models.preventive_maintenance import (
-    MaintenancePlan,
-    MaintenancePlanAsset,
+    CustomMaintenanceType,
     MaintenanceChecklist,
     MaintenanceChecklistItem,
-    MaintenanceOrder,
-    MaintenanceExecution,
-    MaintenanceMaterial,
-    MaintenancePhoto,
-    MaintenanceHistory,
-    MaintenanceNotification,
-    MaintenanceType,
-    MaintenancePeriodicity,
-    MaintenancePriority,
     MaintenanceCriticality,
+    MaintenanceExecution,
+    MaintenanceHistory,
+    MaintenanceMaterial,
+    MaintenanceNotification,
+    MaintenanceOrder,
+    MaintenancePeriodicity,
+    MaintenancePhoto,
+    MaintenancePlan,
+    MaintenancePlanAsset,
+    MaintenancePriority,
+    MaintenanceType,
     OrderStatus,
     PhotoType,
-    CustomMaintenanceType
 )
-from app.models.system_settings import SystemSettings
 from app.models.procurement import (
-    ProductType,
-    PurchaseRequestStatus,
-    PurchaseOrderStatus,
-    PurchaseCategory,
-    PurchaseProduct,
     CostCenter,
-    PurchaseRequest,
-    PurchaseRequestItem,
-    PurchaseApproval,
-    PurchaseQuotation,
-    PurchaseQuotationSupplier,
-    PurchaseQuotationItem,
-    PurchaseOrder,
-    PurchaseOrderItem,
-    PurchaseReceiving,
-    PurchaseReceivingItem,
-    PurchaseContract,
-    PurchaseAttachment,
-    PurchaseHistory,
-    PurchaseNotification,
     MaterialStock,
     MaterialStockTransaction,
+    ProductType,
+    PurchaseApproval,
+    PurchaseAttachment,
+    PurchaseCategory,
+    PurchaseContract,
+    PurchaseHistory,
+    PurchaseNotification,
+    PurchaseOrder,
+    PurchaseOrderItem,
+    PurchaseOrderStatus,
+    PurchaseProduct,
+    PurchaseQuotation,
+    PurchaseQuotationItem,
+    PurchaseQuotationSupplier,
+    PurchaseReceiving,
+    PurchaseReceivingItem,
+    PurchaseRequest,
+    PurchaseRequestItem,
+    PurchaseRequestStatus,
     PurchaseResearch,
     PurchaseResearchItem,
-    PurchaseResearchStatus
+    PurchaseResearchStatus,
 )
-from app.models.email_log import EmailLog
-from app.models.aviso import Aviso
+from app.models.qr_log import QRLog, QRLogAction
+from app.models.service_desk import (
+    ServiceCategory,
+    ServiceDefinition,
+    ServicePriority,
+    ServiceStatus,
+    ServiceTicket,
+)
+from app.models.supplier import Fornecedor
+from app.models.system_settings import SystemSettings
 from app.models.termo_responsabilidade import TermoResponsabilidade
-from app.models.emergency_alert import EmergencyAlert
-from app.models.kanban import KanbanProject, KanbanColumn, KanbanCard, KanbanAttachment, KanbanNotification, kanban_project_participants, kanban_card_assignees, kanban_card_assets
+from app.models.transaction import (
+    Movimentacao,
+    Solicitacao,
+    StatusSolicitacao,
+    TipoMovimentacao,
+)
+from app.models.user import User, UserRole
 from app.models.webhook import Webhook, WebhookLog
-from app.database import Base
 
 
 

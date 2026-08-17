@@ -1,49 +1,49 @@
 
-from typing import Optional, List
+from datetime import timedelta
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
-from datetime import datetime, timedelta
+
 from app.core.datetime_utils import now_sp
 from app.crud.base import CRUDBase
 from app.models.preventive_maintenance import (
-    MaintenancePlan,
-    MaintenancePlanAsset,
     MaintenanceChecklist,
     MaintenanceChecklistItem,
-    MaintenanceOrder,
     MaintenanceExecution,
-    MaintenanceMaterial,
-    MaintenancePhoto,
     MaintenanceHistory,
+    MaintenanceMaterial,
     MaintenanceNotification,
-    OrderStatus
+    MaintenanceOrder,
+    MaintenancePhoto,
+    MaintenancePlan,
+    MaintenancePlanAsset,
+    OrderStatus,
 )
 from app.schemas.preventive_maintenance import (
-    MaintenancePlanCreate,
-    MaintenancePlanUpdate,
     MaintenanceChecklistCreate,
-    MaintenanceChecklistUpdate,
     MaintenanceChecklistItemCreate,
     MaintenanceChecklistItemUpdate,
-    MaintenanceOrderCreate,
-    MaintenanceOrderUpdate,
+    MaintenanceChecklistUpdate,
     MaintenanceExecutionCreate,
     MaintenanceExecutionUpdate,
+    MaintenanceHistoryCreate,
     MaintenanceMaterialCreate,
     MaintenanceMaterialUpdate,
-    MaintenancePhotoCreate,
-    MaintenancePhotoUpdate,
-    MaintenanceHistoryCreate,
     MaintenanceNotificationCreate,
     MaintenanceNotificationUpdate,
+    MaintenanceOrderCreate,
+    MaintenanceOrderUpdate,
+    MaintenancePhotoCreate,
+    MaintenancePhotoUpdate,
     MaintenancePlanAssetCreate,
-    MaintenancePlanAssetUpdate
+    MaintenancePlanCreate,
+    MaintenancePlanUpdate,
 )
 
 
 class CRUDMaintenancePlan(CRUDBase[MaintenancePlan, MaintenancePlanCreate, MaintenancePlanUpdate]):
-    async def get(self, db: AsyncSession, id: int) -> Optional[MaintenancePlan]:
+    async def get(self, db: AsyncSession, id: int) -> MaintenancePlan | None:
         result = await db.execute(
             select(MaintenancePlan)
             .options(
@@ -59,7 +59,7 @@ class CRUDMaintenancePlan(CRUDBase[MaintenancePlan, MaintenancePlanCreate, Maint
 
     async def get_multi(
         self, db: AsyncSession, *, skip: int = 0, limit: int = 100
-    ) -> List[MaintenancePlan]:
+    ) -> list[MaintenancePlan]:
         result = await db.execute(
             select(MaintenancePlan)
             .options(
@@ -72,7 +72,7 @@ class CRUDMaintenancePlan(CRUDBase[MaintenancePlan, MaintenancePlanCreate, Maint
         )
         return result.scalars().all()
 
-    async def get_by_codigo(self, db: AsyncSession, *, codigo: str) -> Optional[MaintenancePlan]:
+    async def get_by_codigo(self, db: AsyncSession, *, codigo: str) -> MaintenancePlan | None:
         result = await db.execute(
             select(MaintenancePlan)
             .options(
@@ -84,7 +84,7 @@ class CRUDMaintenancePlan(CRUDBase[MaintenancePlan, MaintenancePlanCreate, Maint
         )
         return result.scalars().first()
 
-    async def get_active_plans(self, db: AsyncSession) -> List[MaintenancePlan]:
+    async def get_active_plans(self, db: AsyncSession) -> list[MaintenancePlan]:
         result = await db.execute(
             select(MaintenancePlan)
             .options(
@@ -110,8 +110,7 @@ class CRUDMaintenancePlan(CRUDBase[MaintenancePlan, MaintenancePlanCreate, Maint
             match = re.search(r'PLAN-\d{4}-(\d+)', cod)
             if match:
                 val = int(match.group(1))
-                if val > max_seq:
-                    max_seq = val
+                max_seq = max(max_seq, val)
                     
         seq = max(max_seq + 1, len(existing) + 1)
         while f"{prefix}{seq:05d}" in existing:
@@ -123,7 +122,7 @@ class CRUDMaintenancePlan(CRUDBase[MaintenancePlan, MaintenancePlanCreate, Maint
 class CRUDMaintenancePlanAsset(CRUDBase[MaintenancePlanAsset, MaintenancePlanAssetCreate, MaintenancePlanAssetCreate]):
     async def get_by_plan_and_asset(
         self, db: AsyncSession, *, plan_id: int, asset_id: int
-    ) -> Optional[MaintenancePlanAsset]:
+    ) -> MaintenancePlanAsset | None:
         result = await db.execute(
             select(MaintenancePlanAsset)
             .filter(MaintenancePlanAsset.plan_id == plan_id)
@@ -131,7 +130,7 @@ class CRUDMaintenancePlanAsset(CRUDBase[MaintenancePlanAsset, MaintenancePlanAss
         )
         return result.scalars().first()
 
-    async def get_by_plan(self, db: AsyncSession, *, plan_id: int) -> List[MaintenancePlanAsset]:
+    async def get_by_plan(self, db: AsyncSession, *, plan_id: int) -> list[MaintenancePlanAsset]:
         result = await db.execute(
             select(MaintenancePlanAsset)
             .options(selectinload(MaintenancePlanAsset.asset))
@@ -141,7 +140,7 @@ class CRUDMaintenancePlanAsset(CRUDBase[MaintenancePlanAsset, MaintenancePlanAss
 
 
 class CRUDMaintenanceChecklist(CRUDBase[MaintenanceChecklist, MaintenanceChecklistCreate, MaintenanceChecklistUpdate]):
-    async def get(self, db: AsyncSession, id: int) -> Optional[MaintenanceChecklist]:
+    async def get(self, db: AsyncSession, id: int) -> MaintenanceChecklist | None:
         result = await db.execute(
             select(MaintenanceChecklist)
             .options(selectinload(MaintenanceChecklist.items))
@@ -149,7 +148,7 @@ class CRUDMaintenanceChecklist(CRUDBase[MaintenanceChecklist, MaintenanceCheckli
         )
         return result.scalars().first()
 
-    async def get_by_plan(self, db: AsyncSession, *, plan_id: int) -> List[MaintenanceChecklist]:
+    async def get_by_plan(self, db: AsyncSession, *, plan_id: int) -> list[MaintenanceChecklist]:
         result = await db.execute(
             select(MaintenanceChecklist)
             .options(selectinload(MaintenanceChecklist.items))
@@ -160,7 +159,7 @@ class CRUDMaintenanceChecklist(CRUDBase[MaintenanceChecklist, MaintenanceCheckli
 
 
 class CRUDMaintenanceChecklistItem(CRUDBase[MaintenanceChecklistItem, MaintenanceChecklistItemCreate, MaintenanceChecklistItemUpdate]):
-    async def get_by_checklist(self, db: AsyncSession, *, checklist_id: int) -> List[MaintenanceChecklistItem]:
+    async def get_by_checklist(self, db: AsyncSession, *, checklist_id: int) -> list[MaintenanceChecklistItem]:
         result = await db.execute(
             select(MaintenanceChecklistItem)
             .filter(MaintenanceChecklistItem.checklist_id == checklist_id)
@@ -170,7 +169,7 @@ class CRUDMaintenanceChecklistItem(CRUDBase[MaintenanceChecklistItem, Maintenanc
 
 
 class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, MaintenanceOrderUpdate]):
-    async def get(self, db: AsyncSession, id: int) -> Optional[MaintenanceOrder]:
+    async def get(self, db: AsyncSession, id: int) -> MaintenanceOrder | None:
         result = await db.execute(
             select(MaintenanceOrder)
             .options(
@@ -194,7 +193,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
 
     async def get_multi(
         self, db: AsyncSession, *, skip: int = 0, limit: int = 100
-    ) -> List[MaintenanceOrder]:
+    ) -> list[MaintenanceOrder]:
         result = await db.execute(
             select(MaintenanceOrder)
             .options(
@@ -207,7 +206,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         )
         return result.scalars().all()
 
-    async def get_by_numero(self, db: AsyncSession, *, numero: str) -> Optional[MaintenanceOrder]:
+    async def get_by_numero(self, db: AsyncSession, *, numero: str) -> MaintenanceOrder | None:
         result = await db.execute(
             select(MaintenanceOrder)
             .options(
@@ -218,7 +217,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         )
         return result.scalars().first()
 
-    async def get_by_asset(self, db: AsyncSession, *, asset_id: int) -> List[MaintenanceOrder]:
+    async def get_by_asset(self, db: AsyncSession, *, asset_id: int) -> list[MaintenanceOrder]:
         result = await db.execute(
             select(MaintenanceOrder)
             .options(
@@ -230,7 +229,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         )
         return result.scalars().all()
 
-    async def get_by_tecnico(self, db: AsyncSession, *, tecnico_id: int) -> List[MaintenanceOrder]:
+    async def get_by_tecnico(self, db: AsyncSession, *, tecnico_id: int) -> list[MaintenanceOrder]:
         result = await db.execute(
             select(MaintenanceOrder)
             .options(
@@ -242,7 +241,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         )
         return result.scalars().all()
 
-    async def get_by_status(self, db: AsyncSession, *, status: OrderStatus) -> List[MaintenanceOrder]:
+    async def get_by_status(self, db: AsyncSession, *, status: OrderStatus) -> list[MaintenanceOrder]:
         result = await db.execute(
             select(MaintenanceOrder)
             .options(
@@ -254,7 +253,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         )
         return result.scalars().all()
 
-    async def get_overdue(self, db: AsyncSession) -> List[MaintenanceOrder]:
+    async def get_overdue(self, db: AsyncSession) -> list[MaintenanceOrder]:
         now = now_sp()
         result = await db.execute(
             select(MaintenanceOrder)
@@ -268,7 +267,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         )
         return result.scalars().all()
 
-    async def get_today(self, db: AsyncSession) -> List[MaintenanceOrder]:
+    async def get_today(self, db: AsyncSession) -> list[MaintenanceOrder]:
         today = now_sp().date()
         tomorrow = today + timedelta(days=1)
         result = await db.execute(
@@ -284,7 +283,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
         )
         return result.scalars().all()
 
-    async def get_this_week(self, db: AsyncSession) -> List[MaintenanceOrder]:
+    async def get_this_week(self, db: AsyncSession) -> list[MaintenanceOrder]:
         now = now_sp()
         week_start = now - timedelta(days=now.weekday())
         week_end = week_start + timedelta(days=7)
@@ -317,8 +316,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
             match = re.search(r'OS-\d{4}-(\d+)', num)
             if match:
                 val = int(match.group(1))
-                if val > max_seq:
-                    max_seq = val
+                max_seq = max(max_seq, val)
                     
         seq = max(max_seq + 1, len(existing) + 1)
         while f"{prefix}{seq:05d}" in existing:
@@ -328,7 +326,7 @@ class CRUDMaintenanceOrder(CRUDBase[MaintenanceOrder, MaintenanceOrderCreate, Ma
 
 
 class CRUDMaintenanceExecution(CRUDBase[MaintenanceExecution, MaintenanceExecutionCreate, MaintenanceExecutionUpdate]):
-    async def get_by_order(self, db: AsyncSession, *, order_id: int) -> List[MaintenanceExecution]:
+    async def get_by_order(self, db: AsyncSession, *, order_id: int) -> list[MaintenanceExecution]:
         result = await db.execute(
             select(MaintenanceExecution)
             .options(
@@ -341,7 +339,7 @@ class CRUDMaintenanceExecution(CRUDBase[MaintenanceExecution, MaintenanceExecuti
 
 
 class CRUDMaintenanceMaterial(CRUDBase[MaintenanceMaterial, MaintenanceMaterialCreate, MaintenanceMaterialUpdate]):
-    async def get_by_order(self, db: AsyncSession, *, order_id: int) -> List[MaintenanceMaterial]:
+    async def get_by_order(self, db: AsyncSession, *, order_id: int) -> list[MaintenanceMaterial]:
         result = await db.execute(
             select(MaintenanceMaterial)
             .filter(MaintenanceMaterial.order_id == order_id)
@@ -350,7 +348,7 @@ class CRUDMaintenanceMaterial(CRUDBase[MaintenanceMaterial, MaintenanceMaterialC
 
 
 class CRUDMaintenancePhoto(CRUDBase[MaintenancePhoto, MaintenancePhotoCreate, MaintenancePhotoUpdate]):
-    async def get_by_order(self, db: AsyncSession, *, order_id: int) -> List[MaintenancePhoto]:
+    async def get_by_order(self, db: AsyncSession, *, order_id: int) -> list[MaintenancePhoto]:
         result = await db.execute(
             select(MaintenancePhoto)
             .options(selectinload(MaintenancePhoto.upload_por))
@@ -361,7 +359,7 @@ class CRUDMaintenancePhoto(CRUDBase[MaintenancePhoto, MaintenancePhotoCreate, Ma
 
 
 class CRUDMaintenanceHistory(CRUDBase[MaintenanceHistory, MaintenanceHistoryCreate, MaintenanceHistoryCreate]):
-    async def get_by_order(self, db: AsyncSession, *, order_id: int) -> List[MaintenanceHistory]:
+    async def get_by_order(self, db: AsyncSession, *, order_id: int) -> list[MaintenanceHistory]:
         result = await db.execute(
             select(MaintenanceHistory)
             .options(selectinload(MaintenanceHistory.usuario))
@@ -372,7 +370,7 @@ class CRUDMaintenanceHistory(CRUDBase[MaintenanceHistory, MaintenanceHistoryCrea
 
 
 class CRUDMaintenanceNotification(CRUDBase[MaintenanceNotification, MaintenanceNotificationCreate, MaintenanceNotificationUpdate]):
-    async def get_by_usuario(self, db: AsyncSession, *, usuario_id: int, unread_only: bool = False) -> List[MaintenanceNotification]:
+    async def get_by_usuario(self, db: AsyncSession, *, usuario_id: int, unread_only: bool = False) -> list[MaintenanceNotification]:
         query = select(MaintenanceNotification).filter(MaintenanceNotification.usuario_id == usuario_id)
         if unread_only:
             query = query.filter(MaintenanceNotification.lida == False)

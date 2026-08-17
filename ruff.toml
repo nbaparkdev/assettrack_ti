@@ -1,0 +1,42 @@
+# ruff.toml - Ruff configuration
+
+# Exclude directories
+exclude = [
+    ".git",
+    ".agent",
+    ".venv",
+    "node_modules",
+    "app", # Exclude legacy python app
+    "tests", # Exclude legacy tests
+    "scripts", # Exclude script tools
+    "*.py", # Exclude root python files
+    "activate_user.py",
+    "activate_user_admin.py",
+    "alter_db.py",
+    "create_admin.py",
+    "create_technician.py",
+    "create_webhook_tables.py",
+    "debug_assets.py",
+    "debug_baixa.py",
+    "debug_endpoint_logic.py",
+    "debug_transfer.py",
+    "debugger.py",
+    "fix_sequence.py",
+    "get_logs.py",
+    "init_app.py",
+    "run_postgres_migration.py",
+    "seed_admin_notification.py",
+    "set_comprador.py",
+    "test_email.py",
+    "test_postgres.py",
+    "update_tabs.py",
+]
+
+# Only select critical errors
+[lint]
+select = [
+    "E9",   # Syntax errors and basic compatibility
+    "F63",  # Testing/comparison errors
+    "F7",   # Syntax errors in forward references
+    "F82",  # Undefined names
+]

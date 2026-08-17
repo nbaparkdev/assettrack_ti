@@ -1,10 +1,11 @@
 
 import asyncio
-from app.database import SessionLocal
+
 from app.crud.user import user as user_crud
-from app.schemas.user import UserCreate
+from app.database import SessionLocal
 from app.models.user import UserRole
-from app.api.dependencies import get_current_active_manager_or_superuser, get_db
+from app.schemas.user import UserCreate
+
 
 async def create_superuser():
     async with SessionLocal() as db:
@@ -17,6 +18,7 @@ async def create_superuser():
             return
 
         from sqlalchemy import select
+
         from app.models.user import User
         res = await db.execute(select(User).filter(User.matricula == "AAAA001"))
         existing_mat = res.scalars().first()

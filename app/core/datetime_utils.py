@@ -1,6 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+
 def now_sp() -> datetime:
     """
     Retorna a data e hora atual no fuso horário America/Sao_Paulo,

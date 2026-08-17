@@ -2,13 +2,12 @@
 import asyncio
 import json
 import logging
-from typing import Set
 
 logger = logging.getLogger(__name__)
 
 class AlertBroadcaster:
     def __init__(self):
-        self._listeners: Set[asyncio.Queue] = set()
+        self._listeners: set[asyncio.Queue] = set()
 
     def subscribe(self) -> asyncio.Queue:
         queue = asyncio.Queue()

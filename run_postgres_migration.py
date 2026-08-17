@@ -1,6 +1,8 @@
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine
+
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
 
 async def main():
     # Conecta no Postgres através da porta 5456 exposta pelo docker-compose

@@ -34,65 +34,141 @@ Registra um novo usuário.
 ### GET `/auth/me`
 Retorna os dados do usuário autenticado.
 
----
-
 ## 📦 Ativos (`/assets`)
 
-### GET `/assets/`
-Lista todos os ativos cadastrados.
+Todos os endpoints requerem cabeçalho `Authorization: Bearer <token>`.
+
+### GET `/assets/referencias`
+Busca todas as tabelas de referência para o preenchimento de formulários e filtros de ativos.
+
+**Response (200 OK):**
+```json
+{
+  "categorias": [{"id": 1, "nome": "Notebooks", "descricao": "Computadores portáteis"}],
+  "setores": [{"id": 1, "nome": "TI"}],
+  "localizacoes": [{"id": 1, "nome": "Sede Central"}],
+  "armazenamentos": [{"id": 1, "nome": "Escaninho A", "codigo": "ESC-A"}],
+  "fornecedores": [{"id": 1, "nome": "Dell Brasil"}]
+}
+```
+
+### GET `/assets`
+Lista os ativos cadastrados.
 
 **Query Parameters:**
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
-| skip | int | Pular N registros (paginação) |
-| limit | int | Limite de registros (default: 100) |
-| e_patrimonio | string | Filtrar por Número de Patrimônio exato |
+| skip | int | Quantidade de registros a pular (default: 0) |
+| limit | int | Limite de registros a retornar (default: 100) |
+| e_patrimonio | string | Busca por número de patrimônio (opcional) |
 
 **Response (200 OK):**
 ```json
 [
   {
     "id": 1,
-    "nome": "Notebook Dell",
+    "nome": "Notebook Latitude",
     "e_patrimonio": "EP-0001",
-    "numero_serie": "XYZ123",
     "status": "Disponível",
-    "modelo": "Latitude 5420",
-    "categoria_id": 1,
-    "created_at": "2024-01-01T12:00:00"
+    "bloqueado": true,
+    "categoria": {
+      "id": 1,
+      "nome": "Notebooks"
+    }
   }
 ]
 ```
 
-### POST `/assets/`
-Cria um novo ativo. (Requer permissão Admin/Gerente/Gerente Infra)
+### POST `/assets`
+Cadastra um novo ativo. (Requer permissão Admin/Gerente/Gerente Infra/Técnico)
 
 **Body (JSON):**
 ```json
 {
-  "nome": "Monitor LG 24",
-  "e_patrimonio": "EP-1234",
-  "numero_serie": "MON12345",
-  "modelo": "24MK600",
+  "nome": "Monitor Dell 27",
+  "e_patrimonio": "EP-0982",
+  "modelo": "U2723QE",
+  "descricao": "Monitor 4K IPS Black",
+  "valor": 2499.90,
   "status": "Disponível",
-  "valor": 800.00,
-  "data_aquisicao": "2024-01-01",
-  "fornecedor_id": 2,
-  "categoria_id": 1
+  "numero_serie": "CN-082J29",
+  "bloqueado": false,
+  "requer_termo_rh": false,
+  "categoria_id": 2,
+  "fornecedor_id": 1,
+  "current_local_id": 1,
+  "current_armazenamento_id": 1
 }
 ```
 
-### GET `/assets/{asset_id}`
-Retorna detalhes de um ativo específico.
+### GET `/assets/{id}`
+Busca os detalhes completos de um ativo específico.
 
-### PUT `/assets/{asset_id}`
-Atualiza um ativo existente.
+### PUT `/assets/{id}`
+Atualiza dados do ativo. (Requer permissão Admin/Gerente/Gerente Infra/Técnico)
 
-### GET `/assets/{asset_id}/qrcode`
-Retorna o QR Code do ativo.
+> [!NOTE]
+> **Regra de Negócio de Ativos Bloqueados (Ativo Fixo):**
+> Se o ativo possui a flag `"bloqueado": true` e seu status é alterado para `"Manutenção"`, o sistema realiza um snapshot do estado de localização atual (colunas `prev_*`). Durante a manutenção, qualquer alteração nas colunas de localização/setor/posse será ignorada/bloqueada para preservar a integridade. Ao final da manutenção (mudança de status para qualquer outro valor), os valores de localização anteriores são restaurados de forma automática.
+
+### DELETE `/assets/{id}`
+Remove permanentemente o ativo. (Requer permissão Admin)
+
+### GET `/assets/{id}/qrcode`
+Gera e retorna um stream de imagem em formato PNG contendo o QR Code do ativo.
 
 ### POST `/assets/scan-qr`
-Escaneia um QR Code de ativo e retorna seus dados.
+Escaneia uma imagem enviada via multipart/form-data e localiza o ativo associado.
+
+**Request (Multipart Form):**
+- `file`: Arquivo de imagem do QR Code.
+
+**Response (200 OK):**
+Retorna o objeto do ativo decodificado.
+
+### POST `/assets/bulk`
+Duplica um ativo base em lote com suporte a sucesso parcial e rollback interno de falhas. (Requer permissão Admin/Gerente/Gerente Infra/Técnico)
+
+**Body (JSON):**
+```json
+{
+  "template_id": 1,
+  "copies": [
+    {
+      "e_patrimonio": "EP-0002",
+      "numero_serie": "SN-002",
+      "current_local_id": 1,
+      "current_armazenamento_id": 1
+    },
+    {
+      "e_patrimonio": "EP-0003",
+      "numero_serie": "SN-003",
+      "current_local_id": 1,
+      "current_armazenamento_id": 1
+    }
+  ]
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success_count": 2,
+  "failed_count": 0,
+  "results": [
+    {
+      "e_patrimonio": "EP-0002",
+      "success": true,
+      "asset_id": 12
+    },
+    {
+      "e_patrimonio": "EP-0003",
+      "success": true,
+      "asset_id": 13
+    }
+  ]
+}
+```
 
 ---
 
@@ -304,6 +380,74 @@ As rotas abaixo retornam páginas HTML renderizadas pelo servidor.
 | POST | `/profile/pin` | Configurar PIN | Todos |
 | GET | `/meu-qrcode` | Visualizar QR Code pessoal | Todos |
 | GET | `/qr/scanner/usuario` | Scanner de usuário | Técnico/Admin |
+
+---
+
+## 🤖 Assistente de Inteligência Artificial (`/api/v1/chat`)
+
+| Método | Rota | Descrição | Acesso |
+|--------|------|-----------|--------|
+| POST | `/api/v1/chat` | Endpoint do assistente virtual Kimi para consultas contextuais do ERP | Autenticado |
+
+---
+
+## ⚙️ Manutenção Preventiva (CMMS)
+
+| Método | Rota | Descrição | Acesso |
+|--------|------|-----------|--------|
+| GET | `/manutencao/preventiva` | Dashboard CMMS | Admin/Técnico |
+| GET/POST | `/manutencao/preventiva/planos` | Gestão de Planos de Manutenção | Admin/Gerente |
+| GET/POST | `/manutencao/preventiva/ordens` | Gestão de Ordens de Serviço (OS) | Admin/Técnico |
+| GET | `/manutencao/preventiva/calendario` | Calendário de manutenções | Admin/Técnico |
+| POST | `/manutencao/preventiva/ordens/{id}/executar-checklist` | Execução de checklist de OS | Técnico |
+| GET | `/manutencao/preventiva/relatorios` | Relatórios de manutenção (Preventiva vs Corretiva) | Admin/Gerente |
+
+---
+
+## 🛒 Compras e Suprimentos (Procurement)
+
+| Método | Rota | Descrição | Acesso |
+|--------|------|-----------|--------|
+| GET | `/compras` | Dashboard de Compras | Comprador/Admin |
+| GET/POST | `/compras/solicitacoes` | Solicitações de Compra (SC) | Todos / Comprador |
+| GET/POST | `/compras/cotacoes` | Gestão de Cotações e seleção de Fornecedor Vencedor | Comprador/Admin |
+| GET/POST | `/compras/pedidos` | Ordens de Compra (PO) e Recebimento de material | Comprador/Admin |
+| GET | `/compras/estoque` | Controle de estoque de itens/materiais | Comprador/Admin |
+| GET/POST | `/compras/produtos` | Catálogo de produtos e insumos | Comprador/Admin |
+
+---
+
+## 📋 Kanban (Projetos Internos)
+
+| Método | Rota | Descrição | Acesso |
+|--------|------|-----------|--------|
+| GET | `/kanban` | Dashboard principal de Projetos | Admin/Técnico/RH/Comprador |
+| GET/POST | `/kanban/projetos/novo` | Criação de Projetos/Quadros | Admin/Gerentes |
+| POST | `/kanban/projetos/{id}/colunas/nova` | Gestão de Colunas do Quadro | Admin/Gerentes |
+| POST | `/kanban/cards/novo` | Criação de Cards/Tarefas | Equipe |
+| POST | `/kanban/cards/{id}/mover` | Movimentação Drag & Drop de Cards | Equipe |
+| POST | `/kanban/cards/{id}/anexo` | Upload de anexos e vínculos de ativos | Equipe |
+
+---
+
+## 🤝 Recursos Humanos (RH)
+
+| Método | Rota | Descrição | Acesso |
+|--------|------|-----------|--------|
+| GET | `/rh/termos` | Listagem de Termos de Responsabilidade | RH/Admin |
+| GET/POST | `/rh/termos/criar/{solicitacao_id}` | Emissão de novo termo a partir de solicitação | RH/Admin |
+| POST | `/rh/termos/{id}/assinar` | Registro de assinatura/aceite | RH/Admin |
+| GET | `/rh/termos/{id}/pdf` | Geração do Termo em PDF | RH/Admin |
+
+---
+
+## 🎛️ Administração e Webhooks
+
+| Método | Rota | Descrição | Acesso |
+|--------|------|-----------|--------|
+| GET | `/admin/modulos` | Habilitar/Desabilitar Módulos Globais e Permissões (RBAC) | Admin |
+| GET/POST | `/admin/webhooks` | Gestão de integrações Webhook (N8N, Zapier, etc) | Admin |
+| GET/POST | `/admin/backup` | Gerar e restaurar backups do Banco de Dados | Admin |
 
 ---
 

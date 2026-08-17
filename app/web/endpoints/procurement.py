@@ -1,45 +1,75 @@
 # app/web/endpoints/procurement.py
-from typing import Annotated, Optional, List
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func, and_
-from sqlalchemy.orm import selectinload
 import logging
 from datetime import datetime
-from app.core.datetime_utils import now_sp
 from decimal import Decimal
+from typing import Annotated
 
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import and_, desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.datetime_utils import now_sp
+from app.crud import procurement as crud_proc
 from app.database import get_db
-from app.web.dependencies import get_active_user_web, check_purchases_enabled
-from app.models.user import User, UserRole
-from app.models.supplier import Fornecedor
 from app.models.invoice import NotaFiscal
 from app.models.procurement import (
-    PurchaseRequest, PurchaseRequestItem, PurchaseQuotation, PurchaseQuotationSupplier,
-    PurchaseQuotationItem, PurchaseOrder, PurchaseOrderItem, PurchaseReceiving,
-    PurchaseReceivingItem, PurchaseCategory, PurchaseProduct, CostCenter,
-    ProductType, MaterialStock, MaterialStockTransaction, PurchaseRequestStatus,
-    PurchaseOrderStatus, PurchaseApproval, PurchaseContract, ContractType,
-    PurchaseResearch, PurchaseResearchItem, PurchaseResearchStatus
+    ContractType,
+    CostCenter,
+    MaterialStock,
+    ProductType,
+    PurchaseApproval,
+    PurchaseCategory,
+    PurchaseContract,
+    PurchaseOrder,
+    PurchaseOrderItem,
+    PurchaseOrderStatus,
+    PurchaseProduct,
+    PurchaseQuotation,
+    PurchaseQuotationItem,
+    PurchaseQuotationSupplier,
+    PurchaseReceiving,
+    PurchaseRequest,
+    PurchaseRequestItem,
+    PurchaseRequestStatus,
+    PurchaseResearchStatus,
 )
-from app.crud import procurement as crud_proc
-from app.services import procurement_service as serv_proc
+from app.models.supplier import Fornecedor
+from app.models.user import User, UserRole
 from app.schemas.procurement import (
-    PurchaseRequestCreate, PurchaseRequestItemCreate,
-    PurchaseOrderCreate, PurchaseOrderItemCreate,
-    PurchaseReceivingCreate, PurchaseReceivingItemCreate,
-    PurchaseProductCreate, PurchaseProductUpdate, CostCenterCreate, PurchaseContractCreate, PurchaseContractUpdate,
-    PurchaseCategoryCreate, PurchaseResearchCreate, PurchaseResearchItemCreate,
-    ContractTypeCreate, ContractTypeUpdate
+    ContractTypeCreate,
+    ContractTypeUpdate,
+    CostCenterCreate,
+    PurchaseCategoryCreate,
+    PurchaseContractCreate,
+    PurchaseContractUpdate,
+    PurchaseProductCreate,
+    PurchaseProductUpdate,
+    PurchaseReceivingCreate,
+    PurchaseReceivingItemCreate,
+    PurchaseRequestCreate,
+    PurchaseRequestItemCreate,
+    PurchaseResearchCreate,
+    PurchaseResearchItemCreate,
 )
+from app.services import procurement_service as serv_proc
 from app.services.webhook_service import (
     dispatch_webhook_event,
-    format_purchase_request_payload,
     format_purchase_order_payload,
-    format_purchase_quotation_payload
+    format_purchase_quotation_payload,
+    format_purchase_request_payload,
 )
+from app.web.dependencies import check_purchases_enabled, get_active_user_web
 
 router = APIRouter(dependencies=[Depends(check_purchases_enabled)])
 templates = Jinja2Templates(directory="app/templates")
@@ -102,9 +132,9 @@ async def new_request_form(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    origem_tipo: Optional[str] = None,
-    origem_id: Optional[int] = None,
-    descricao: Optional[str] = None,
+    origem_tipo: str | None = None,
+    origem_id: int | None = None,
+    descricao: str | None = None,
 ):
     products = await crud_proc.get_products(db, limit=500)
     cost_centers = await crud_proc.get_cost_centers(db, limit=100)
@@ -146,11 +176,11 @@ async def create_request_submit(
     centro_custo_id: int = Form(...),
     justificativa: str = Form(...),
     urgencia: str = Form(...),
-    data_necessaria: Optional[str] = Form(None),
-    products_ids: List[int] = Form(...),
-    quantities: List[float] = Form(...),
-    estimated_prices: List[float] = Form(...),
-    fornecedores_sugeridos: List[str] = Form(...)
+    data_necessaria: str | None = Form(None),
+    products_ids: list[int] = Form(...),
+    quantities: list[float] = Form(...),
+    estimated_prices: list[float] = Form(...),
+    fornecedores_sugeridos: list[str] = Form(...)
 ):
     try:
         dt_necessaria = None
@@ -232,7 +262,7 @@ async def create_request_submit(
             "products": products,
             "cost_centers": cost_centers,
             "suppliers": suppliers,
-            "error": f"Erro: {str(e)}",
+            "error": f"Erro: {e!s}",
             "title": "Nova Solicitação de Compra"
         })
 
@@ -267,15 +297,7 @@ async def request_detail(
     can_approve = False
     if pending_level and req_obj.status != PurchaseRequestStatus.AGUARDANDO_ORCAMENTO:
         role_lower = current_user.role.value.lower()
-        if pending_level == "Gestor" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"]:
-            can_approve = True
-        elif pending_level == "Gerente" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"]:
-            can_approve = True
-        elif pending_level == "Financeiro" and role_lower in ["admin", "comprador"]: # or finance role
-            can_approve = True
-        elif pending_level == "Diretoria" and role_lower in ["admin", "comprador"]:
-            can_approve = True
-        elif pending_level == "Compras" and role_lower in ["admin", "comprador"]:
+        if pending_level == "Gestor" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"] or pending_level == "Gerente" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"] or pending_level == "Financeiro" and role_lower in ["admin", "comprador"] or pending_level == "Diretoria" and role_lower in ["admin", "comprador"] or pending_level == "Compras" and role_lower in ["admin", "comprador"]:
             can_approve = True
 
     return templates.TemplateResponse("procurement/request_detail.html", {
@@ -296,7 +318,7 @@ async def decide_request(
     db: Annotated[AsyncSession, Depends(get_db)],
     nivel: str = Form(...),
     decisao: str = Form(...), # Aprovado or Reprovado
-    observacao: Optional[str] = Form(None)
+    observacao: str | None = Form(None)
 ):
     req_obj = await crud_proc.get_purchase_request(db, request_id)
     if not req_obj:
@@ -305,15 +327,7 @@ async def decide_request(
     # Check if the user is authorized to approve this level
     authorized = False
     role_lower = current_user.role.value.lower()
-    if nivel == "Gestor" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"]:
-        authorized = True
-    elif nivel == "Gerente" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"]:
-        authorized = True
-    elif nivel == "Financeiro" and role_lower in ["admin", "comprador"]:
-        authorized = True
-    elif nivel == "Diretoria" and role_lower in ["admin", "comprador"]:
-        authorized = True
-    elif nivel == "Compras" and role_lower in ["admin", "comprador"]:
+    if nivel == "Gestor" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"] or nivel == "Gerente" and role_lower in ["admin", "gerente_ti", "gerente_infra", "comprador"] or nivel == "Financeiro" and role_lower in ["admin", "comprador"] or nivel == "Diretoria" and role_lower in ["admin", "comprador"] or nivel == "Compras" and role_lower in ["admin", "comprador"]:
         authorized = True
 
     if not authorized:
@@ -435,12 +449,12 @@ async def create_quotation_submit(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
     request_id: int = Form(...),
-    fornecedor_ids: List[int] = Form(...),
-    fretes: List[float] = Form(...),
-    prazos: List[int] = Form(...),
-    garantias: List[int] = Form(...),
-    formas_pagamento: List[str] = Form(...),
-    observacoes: List[str] = Form(...),
+    fornecedor_ids: list[int] = Form(...),
+    fretes: list[float] = Form(...),
+    prazos: list[int] = Form(...),
+    garantias: list[int] = Form(...),
+    formas_pagamento: list[str] = Form(...),
+    observacoes: list[str] = Form(...),
     # Preços unitários dos itens indexados por fornecedor e produto
     # Formato dos campos: unit_price_{supplier_id}_{product_id}
 ):
@@ -735,13 +749,13 @@ async def create_receiving_submit(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    nota_fiscal_id: Optional[int] = Form(None),
-    observacoes: Optional[str] = Form(None),
-    product_ids: List[int] = Form(...),
-    quantities_received: List[float] = Form(...),
-    divergencias: List[Optional[str]] = Form(...),
-    current_local_id: Optional[int] = Form(None),
-    current_armazenamento_id: Optional[int] = Form(None)
+    nota_fiscal_id: int | None = Form(None),
+    observacoes: str | None = Form(None),
+    product_ids: list[int] = Form(...),
+    quantities_received: list[float] = Form(...),
+    divergencias: list[str | None] = Form(...),
+    current_local_id: int | None = Form(None),
+    current_armazenamento_id: int | None = Form(None)
 ):
     try:
         itens_in = []
@@ -787,8 +801,8 @@ async def create_receiving_submit(
 
         # Verificar itens de consumo com estoque baixo após recebimento
         try:
-            from app.services.notification_service import notification_service
             from app.models.procurement import ProductType
+            from app.services.notification_service import notification_service
             for item_rec in rec.itens:
                 if item_rec.product and item_rec.product.tipo == ProductType.CONSUMIVEL:
                     stock_res = await db.execute(
@@ -888,9 +902,10 @@ async def export_stock_pdf(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    from weasyprint import HTML
-    from app.core.datetime_utils import now_sp
     from fastapi.responses import Response
+    from weasyprint import HTML
+
+    from app.core.datetime_utils import now_sp
 
     stocks = (await db.execute(
         select(MaterialStock)
@@ -965,7 +980,7 @@ async def new_product_form(
 @router.post("/api/categorias")
 async def api_create_category(
     nome: str = Form(...),
-    descricao: Optional[str] = Form(None),
+    descricao: str | None = Form(None),
     current_user: User = Depends(get_active_user_web),
     db: AsyncSession = Depends(get_db)
 ):
@@ -982,7 +997,7 @@ async def api_create_category(
 @router.post("/api/unidades")
 async def api_create_unit(
     sigla: str = Form(...),
-    descricao: Optional[str] = Form(None),
+    descricao: str | None = Form(None),
     current_user: User = Depends(get_active_user_web),
     db: AsyncSession = Depends(get_db)
 ):
@@ -1002,10 +1017,10 @@ async def api_create_product(
     categoria_id: int = Form(...),
     unidade: str = Form(...),
     tipo: str = Form(...),
-    marca: Optional[str] = Form(None),
-    modelo: Optional[str] = Form(None),
-    fabricante: Optional[str] = Form(None),
-    descricao: Optional[str] = Form(None),
+    marca: str | None = Form(None),
+    modelo: str | None = Form(None),
+    fabricante: str | None = Form(None),
+    descricao: str | None = Form(None),
     current_user: User = Depends(get_active_user_web),
     db: AsyncSession = Depends(get_db)
 ):
@@ -1046,10 +1061,10 @@ async def create_product_submit(
     categoria_id: int = Form(...),
     unidade: str = Form(...),
     tipo: str = Form(...),
-    marca: Optional[str] = Form(None),
-    modelo: Optional[str] = Form(None),
-    fabricante: Optional[str] = Form(None),
-    descricao: Optional[str] = Form(None)
+    marca: str | None = Form(None),
+    modelo: str | None = Form(None),
+    fabricante: str | None = Form(None),
+    descricao: str | None = Form(None)
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         raise HTTPException(status_code=403, detail="Não autorizado")
@@ -1119,11 +1134,11 @@ async def edit_product_submit(
     categoria_id: int = Form(...),
     unidade: str = Form(...),
     tipo: str = Form(...),
-    marca: Optional[str] = Form(None),
-    modelo: Optional[str] = Form(None),
-    fabricante: Optional[str] = Form(None),
-    descricao: Optional[str] = Form(None),
-    ativo: Optional[str] = Form(None)
+    marca: str | None = Form(None),
+    modelo: str | None = Form(None),
+    fabricante: str | None = Form(None),
+    descricao: str | None = Form(None),
+    ativo: str | None = Form(None)
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         raise HTTPException(status_code=403, detail="Não autorizado")
@@ -1217,12 +1232,12 @@ async def create_cost_center_submit(
     db: Annotated[AsyncSession, Depends(get_db)],
     codigo: str = Form(...),
     nome: str = Form(...),
-    departamento_id: Optional[int] = Form(None),
-    responsavel_id: Optional[int] = Form(None),
+    departamento_id: int | None = Form(None),
+    responsavel_id: int | None = Form(None),
     orcamento_mensal: float = Form(...),
     orcamento_anual: float = Form(...),
-    alerta_limite: Optional[str] = Form(None),
-    bloquear_limite: Optional[str] = Form(None)
+    alerta_limite: str | None = Form(None),
+    bloquear_limite: str | None = Form(None)
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         raise HTTPException(status_code=403, detail="Não autorizado")
@@ -1308,12 +1323,12 @@ async def edit_cost_center_submit(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
     nome: str = Form(...),
-    departamento_id: Optional[int] = Form(None),
-    responsavel_id: Optional[int] = Form(None),
+    departamento_id: int | None = Form(None),
+    responsavel_id: int | None = Form(None),
     orcamento_mensal: float = Form(...),
     orcamento_anual: float = Form(...),
-    alerta_limite: Optional[str] = Form(None),
-    bloquear_limite: Optional[str] = Form(None)
+    alerta_limite: str | None = Form(None),
+    bloquear_limite: str | None = Form(None)
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         raise HTTPException(status_code=403, detail="Não autorizado")
@@ -1427,8 +1442,8 @@ async def create_contract_type_submit(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
     nome: str = Form(...),
-    descricao: Optional[str] = Form(None),
-    ativo: Optional[str] = Form(None)
+    descricao: str | None = Form(None),
+    ativo: str | None = Form(None)
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         raise HTTPException(status_code=403, detail="Não autorizado")
@@ -1480,8 +1495,8 @@ async def edit_contract_type_submit(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
     nome: str = Form(...),
-    descricao: Optional[str] = Form(None),
-    ativo: Optional[str] = Form(None)
+    descricao: str | None = Form(None),
+    ativo: str | None = Form(None)
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
         raise HTTPException(status_code=403, detail="Não autorizado")
@@ -1614,6 +1629,7 @@ async def new_contract_form(
 import os
 import shutil
 
+
 @router.post("/contratos/new")
 async def create_contract_submit(
     request: Request,
@@ -1621,13 +1637,13 @@ async def create_contract_submit(
     db: Annotated[AsyncSession, Depends(get_db)],
     numero: str = Form(...),
     fornecedor_id: int = Form(...),
-    tipo_id: Optional[int] = Form(None),
+    tipo_id: int | None = Form(None),
     tipo: str = Form(...),
     periodicidade: str = Form(...),
     data_inicio: str = Form(...),
     data_fim: str = Form(...),
     valor: float = Form(...),
-    renovacao_automatica: Optional[str] = Form(None),
+    renovacao_automatica: str | None = Form(None),
     pdf_file: UploadFile = File(None)
 ):
     try:
@@ -1754,13 +1770,13 @@ async def edit_contract_submit(
     db: Annotated[AsyncSession, Depends(get_db)],
     numero: str = Form(...),
     fornecedor_id: int = Form(...),
-    tipo_id: Optional[int] = Form(None),
+    tipo_id: int | None = Form(None),
     tipo: str = Form(...),
     periodicidade: str = Form(...),
     data_inicio: str = Form(...),
     data_fim: str = Form(...),
     valor: float = Form(...),
-    renovacao_automatica: Optional[str] = Form(None),
+    renovacao_automatica: str | None = Form(None),
     pdf_file: UploadFile = File(None)
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA, UserRole.COMPRADOR]:
@@ -1915,11 +1931,13 @@ async def export_procurement_csv(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    tipo: Optional[str] = "solicitacoes",
-    status_filter: Optional[str] = None,
+    tipo: str | None = "solicitacoes",
+    status_filter: str | None = None,
 ):
     """Exporta dados do módulo de Compras em CSV."""
-    import io, csv
+    import csv
+    import io
+
     from fastapi.responses import StreamingResponse
 
     output = io.StringIO()
@@ -2010,8 +2028,8 @@ async def create_research_submit(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    import shutil
     import os
+    import shutil
     import uuid
 
     try:

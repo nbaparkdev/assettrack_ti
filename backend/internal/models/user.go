@@ -1,0 +1,63 @@
+package models
+
+import "time"
+
+// UserRole constants matching PostgreSQL enum values
+const (
+	RoleAdmin        = "admin"
+	RoleGerente      = "gerente_ti"
+	RoleTecnico      = "tecnico"
+	RoleGerenteInfra = "gerente_infra"
+	RoleComprador    = "comprador"
+	RoleUsuario      = "usuario_comum"
+	RoleRH           = "rh"
+)
+
+// ValidRoles for validation
+var ValidRoles = []string{
+	RoleAdmin, RoleGerente, RoleTecnico, RoleGerenteInfra,
+	RoleComprador, RoleUsuario, RoleRH,
+}
+
+// User maps to the existing "users" table
+type User struct {
+	ID               uint       `gorm:"primaryKey" json:"id"`
+	Email            string     `gorm:"uniqueIndex;not null" json:"email"`
+	HashedPassword   string     `gorm:"column:hashed_password;not null" json:"-"`
+	Nome             string     `gorm:"not null" json:"nome"`
+	Matricula        *string    `gorm:"uniqueIndex" json:"matricula"`
+	Cargo            *string    `json:"cargo"`
+	Role             string     `gorm:"type:varchar(20);default:'usuario_comum'" json:"role"`
+	IsActive         bool       `gorm:"default:false" json:"is_active"`
+	AvatarURL        *string    `gorm:"column:avatar_url" json:"avatar_url"`
+	QRToken          *string    `gorm:"column:qr_token;uniqueIndex" json:"-"`
+	QRTokenCreatedAt *time.Time `gorm:"column:qr_token_created_at" json:"-"`
+	PINHash          *string    `gorm:"column:pin_hash" json:"-"`
+	DepartamentoID   *uint      `gorm:"column:departamento_id" json:"departamento_id"`
+
+	// Relationships (loaded explicitly)
+	Departamento *Departamento `gorm:"foreignKey:DepartamentoID" json:"departamento,omitempty"`
+
+	SolicitacoesManutencao            []SolicitacaoManutencao `gorm:"foreignKey:SolicitanteID;constraint:OnDelete:SET NULL" json:"solicitacoes_manutencao,omitempty"`
+	SolicitacoesManutencaoResponsavel []SolicitacaoManutencao `gorm:"foreignKey:ResponsavelID;constraint:OnDelete:SET NULL" json:"solicitacoes_manutencao_responsavel,omitempty"`
+	ManutencoesResponsavel            []Manutencao            `gorm:"foreignKey:ResponsavelID;constraint:OnDelete:SET NULL" json:"manutencoes_responsavel,omitempty"`
+	ManutencoesRecebidas              []Manutencao            `gorm:"foreignKey:DestinoUserID;constraint:OnDelete:SET NULL" json:"manutencoes_recebidas,omitempty"`
+	MovimentacoesOrigem               []Movimentacao          `gorm:"foreignKey:DeUserID;constraint:OnDelete:SET NULL" json:"movimentacoes_origem,omitempty"`
+	MovimentacoesDestino              []Movimentacao          `gorm:"foreignKey:ParaUserID;constraint:OnDelete:SET NULL" json:"movimentacoes_destino,omitempty"`
+	Solicitacoes                      []Solicitacao           `gorm:"foreignKey:SolicitanteID;constraint:OnDelete:SET NULL" json:"solicitacoes,omitempty"`
+	Aprovacoes                        []Solicitacao           `gorm:"foreignKey:AprovadorID;constraint:OnDelete:SET NULL" json:"aprovacoes,omitempty"`
+}
+
+func (User) TableName() string { return "users" }
+
+// IsAdmin checks if user has admin role
+func (u *User) IsAdmin() bool { return u.Role == RoleAdmin }
+
+// IsManagerOrAbove checks manager-level permissions
+func (u *User) IsManagerOrAbove() bool {
+	return u.Role == RoleAdmin || u.Role == RoleGerente ||
+		u.Role == RoleGerenteInfra || u.Role == RoleComprador || u.Role == RoleTecnico
+}
+
+// HasPIN returns whether user has a PIN configured
+func (u *User) HasPIN() bool { return u.PINHash != nil && *u.PINHash != "" }

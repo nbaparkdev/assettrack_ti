@@ -1,16 +1,19 @@
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.procurement import (
-    PurchaseResearch, PurchaseResearchItem, PurchaseResearchStatus,
-    PurchaseRequest, PurchaseProduct, ProductType, MaterialStock,
-    MaterialStockTransaction, CostCenter
-)
-from app.schemas.procurement import (
-    PurchaseResearchCreate, PurchaseResearchItemCreate
-)
+
 from app.crud import procurement as crud_proc
+from app.models.procurement import (
+    CostCenter,
+    MaterialStock,
+    MaterialStockTransaction,
+    ProductType,
+    PurchaseProduct,
+    PurchaseResearchStatus,
+)
+from app.schemas.procurement import PurchaseResearchCreate, PurchaseResearchItemCreate
 from app.services import procurement_service as serv_proc
+
 
 @pytest.mark.asyncio
 async def test_create_and_convert_purchase_research(db_session: AsyncSession):

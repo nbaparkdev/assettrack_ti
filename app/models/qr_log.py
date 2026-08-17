@@ -4,11 +4,15 @@ Modelo para registro de uso do QR Code.
 Mantém auditoria de ações relacionadas a QR Code.
 """
 from datetime import datetime
-from app.core.datetime_utils import now_sp
-from sqlalchemy import String, DateTime, Integer, Boolean, ForeignKey, Enum as SAEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base
 from enum import Enum
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.datetime_utils import now_sp
+from app.database import Base
+
 
 class QRLogAction(str, Enum):
     """Tipos de ação de QR Code"""

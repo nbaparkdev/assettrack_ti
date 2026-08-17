@@ -1,11 +1,14 @@
 # app/models/procurement.py
-from sqlalchemy import String, DateTime, Enum as SAEnum, ForeignKey, Numeric, Boolean, Integer, Text, JSON
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from enum import Enum
 from datetime import datetime
-from typing import List, Optional
-from app.database import Base
+from enum import Enum
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.datetime_utils import now_sp
+from app.database import Base
+
 
 class ProductType(str, Enum):
     PRODUTO = "Produto"
@@ -39,7 +42,7 @@ class PurchaseCategory(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     nome: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
-    descricao: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    descricao: Mapped[str | None] = mapped_column(String(255), nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
 
     products = relationship("PurchaseProduct", back_populates="categoria")
@@ -49,7 +52,7 @@ class PurchaseUnit(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     sigla: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
-    descricao: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    descricao: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
 class PurchaseProduct(Base):
     __tablename__ = "purchase_products"
@@ -59,12 +62,12 @@ class PurchaseProduct(Base):
     nome: Mapped[str] = mapped_column(String(150), index=True, nullable=False)
     categoria_id: Mapped[int] = mapped_column(ForeignKey("purchase_categories.id"), nullable=False)
     unidade: Mapped[str] = mapped_column(String(20), default="UN")
-    marca: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    modelo: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    fabricante: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    marca: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    modelo: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    fabricante: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
     tipo: Mapped[ProductType] = mapped_column(SAEnum(ProductType), default=ProductType.PRODUTO)
-    imagem_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    imagem_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
 
     categoria = relationship("PurchaseCategory", back_populates="products")
@@ -76,8 +79,8 @@ class CostCenter(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     codigo: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
     nome: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
-    departamento_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departamentos.id"), nullable=True)
-    responsavel_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    departamento_id: Mapped[int | None] = mapped_column(ForeignKey("departamentos.id"), nullable=True)
+    responsavel_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     
     orcamento_anual: Mapped[float] = mapped_column(Numeric(12, 2), default=0.00)
     orcamento_mensal: Mapped[float] = mapped_column(Numeric(12, 2), default=0.00)
@@ -101,13 +104,13 @@ class PurchaseRequest(Base):
     
     justificativa: Mapped[str] = mapped_column(Text, nullable=False)
     urgencia: Mapped[str] = mapped_column(String(20), default="Média") # Baixa, Média, Alta, Urgente
-    data_necessaria: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_necessaria: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     status: Mapped[PurchaseRequestStatus] = mapped_column(SAEnum(PurchaseRequestStatus), default=PurchaseRequestStatus.RASCUNHO, index=True)
     data_criacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
     
     # Integrações
-    origem_os_id: Mapped[Optional[int]] = mapped_column(ForeignKey("maintenance_orders.id"), nullable=True)
-    origem_ticket_id: Mapped[Optional[int]] = mapped_column(ForeignKey("service_tickets.id"), nullable=True)
+    origem_os_id: Mapped[int | None] = mapped_column(ForeignKey("maintenance_orders.id"), nullable=True)
+    origem_ticket_id: Mapped[int | None] = mapped_column(ForeignKey("service_tickets.id"), nullable=True)
 
     solicitante = relationship("User", foreign_keys=[solicitante_id])
     departamento = relationship("Departamento")
@@ -126,8 +129,8 @@ class PurchaseRequestItem(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("purchase_products.id"), nullable=False)
     quantidade: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     valor_estimado: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
-    fornecedor_sugerido_id: Mapped[Optional[int]] = mapped_column(ForeignKey("fornecedores.id"), nullable=True)
-    observacao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    fornecedor_sugerido_id: Mapped[int | None] = mapped_column(ForeignKey("fornecedores.id"), nullable=True)
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     request = relationship("PurchaseRequest", back_populates="itens")
     product = relationship("PurchaseProduct")
@@ -139,10 +142,10 @@ class PurchaseApproval(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     request_id: Mapped[int] = mapped_column(ForeignKey("purchase_requests.id"), nullable=False)
     nivel: Mapped[str] = mapped_column(String(50), nullable=False) # Gestor, Gerente, Financeiro, Diretoria, Compras
-    aprovador_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    aprovador_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="Pendente") # Pendente, Aprovado, Reprovado, Ajuste Solicitado
-    observacao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    data_decisao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    data_decisao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     request = relationship("PurchaseRequest", back_populates="approvals")
     aprovador = relationship("User")
@@ -170,8 +173,8 @@ class PurchaseQuotationSupplier(Base):
     frete: Mapped[float] = mapped_column(Numeric(10, 2), default=0.00)
     prazo_entrega_dias: Mapped[int] = mapped_column(Integer, default=0)
     garantia_meses: Mapped[int] = mapped_column(Integer, default=0)
-    forma_pagamento: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    observacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    forma_pagamento: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
     escolhido: Mapped[bool] = mapped_column(Boolean, default=False)
 
     quotation = relationship("PurchaseQuotation", back_populates="suppliers")
@@ -197,8 +200,8 @@ class PurchaseOrder(Base):
     numero: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
     fornecedor_id: Mapped[int] = mapped_column(ForeignKey("fornecedores.id"), nullable=False)
     centro_custo_id: Mapped[int] = mapped_column(ForeignKey("cost_centers.id"), nullable=False)
-    request_id: Mapped[Optional[int]] = mapped_column(ForeignKey("purchase_requests.id"), nullable=True)
-    quotation_id: Mapped[Optional[int]] = mapped_column(ForeignKey("purchase_quotations.id"), nullable=True)
+    request_id: Mapped[int | None] = mapped_column(ForeignKey("purchase_requests.id"), nullable=True)
+    quotation_id: Mapped[int | None] = mapped_column(ForeignKey("purchase_quotations.id"), nullable=True)
     
     valor_total: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     desconto: Mapped[float] = mapped_column(Numeric(10, 2), default=0.00)
@@ -237,8 +240,8 @@ class PurchaseReceiving(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey("purchase_orders.id"), nullable=False)
     data_recebimento: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
     responsavel_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    nota_fiscal_id: Mapped[Optional[int]] = mapped_column(ForeignKey("notas_fiscais.id"), nullable=True)
-    observacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    nota_fiscal_id: Mapped[int | None] = mapped_column(ForeignKey("notas_fiscais.id"), nullable=True)
+    observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     order = relationship("PurchaseOrder", back_populates="receivings")
     responsavel = relationship("User")
@@ -252,9 +255,9 @@ class PurchaseReceivingItem(Base):
     receiving_id: Mapped[int] = mapped_column(ForeignKey("purchase_receivings.id"), nullable=False)
     product_id: Mapped[int] = mapped_column(ForeignKey("purchase_products.id"), nullable=False)
     quantidade_recebida: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
-    divergencias: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    divergencias: Mapped[str | None] = mapped_column(String(255), nullable=True)
     estoque_atualizado: Mapped[bool] = mapped_column(Boolean, default=False)
-    ativo_criado_id: Mapped[Optional[int]] = mapped_column(ForeignKey("assets.id"), nullable=True)
+    ativo_criado_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id"), nullable=True)
 
     receiving = relationship("PurchaseReceiving", back_populates="itens")
     product = relationship("PurchaseProduct")
@@ -265,7 +268,7 @@ class ContractType(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     nome: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
-    descricao: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    descricao: Mapped[str | None] = mapped_column(String(255), nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
 
     contracts = relationship("PurchaseContract", back_populates="tipo_contrato")
@@ -277,15 +280,15 @@ class PurchaseContract(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     fornecedor_id: Mapped[int] = mapped_column(ForeignKey("fornecedores.id"), nullable=False)
     tipo: Mapped[str] = mapped_column(String(100), nullable=False)
-    tipo_id: Mapped[Optional[int]] = mapped_column(ForeignKey("contract_types.id"), nullable=True)
+    tipo_id: Mapped[int | None] = mapped_column(ForeignKey("contract_types.id"), nullable=True)
     numero: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     data_inicio: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     data_fim: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     renovacao_automatica: Mapped[bool] = mapped_column(Boolean, default=False)
     valor: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     periodicidade: Mapped[str] = mapped_column(String(50), default="Mensal") # Mensal, Anual, etc.
-    arquivo_pdf_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    alertado_dias: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    arquivo_pdf_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    alertado_dias: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     fornecedor = relationship("Fornecedor")
     tipo_contrato = relationship("ContractType", back_populates="contracts")
@@ -310,8 +313,8 @@ class PurchaseHistory(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     acao: Mapped[str] = mapped_column(String(100), nullable=False) # Criou, Aprovou, Recebeu, etc.
     data_acao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
-    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
-    observacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     user = relationship("User")
 
@@ -323,7 +326,7 @@ class PurchaseNotification(Base):
     mensagem: Mapped[str] = mapped_column(Text, nullable=False)
     lido: Mapped[bool] = mapped_column(Boolean, default=False)
     data_criacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
-    link_redirecionamento: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    link_redirecionamento: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     user = relationship("User")
 
@@ -333,7 +336,7 @@ class MaterialStock(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("purchase_products.id"), unique=True, nullable=False)
     quantidade_saldo: Mapped[float] = mapped_column(Numeric(10, 2), default=0.00)
-    localizacao_almoxarifado: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    localizacao_almoxarifado: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     product = relationship("PurchaseProduct", back_populates="stock")
 
@@ -344,11 +347,11 @@ class MaterialStockTransaction(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("purchase_products.id"), nullable=False)
     quantidade: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     tipo_movimentacao: Mapped[str] = mapped_column(String(20), nullable=False) # Entrada, Saída
-    origem_tabela: Mapped[Optional[str]] = mapped_column(String(50), nullable=True) # purchase_receivings, maintenance_execution, etc.
-    origem_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    origem_tabela: Mapped[str | None] = mapped_column(String(50), nullable=True) # purchase_receivings, maintenance_execution, etc.
+    origem_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     data_transacao: Mapped[datetime] = mapped_column(DateTime, default=now_sp)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    justificativa: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    justificativa: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     product = relationship("PurchaseProduct")
     user = relationship("User")
@@ -382,8 +385,8 @@ class PurchaseResearchItem(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     research_id: Mapped[int] = mapped_column(ForeignKey("purchase_researches.id"), nullable=False)
     nome_produto: Mapped[str] = mapped_column(String(150), index=True, nullable=False)
-    link_produto: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    imagem_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    link_produto: Mapped[str | None] = mapped_column(Text, nullable=True)
+    imagem_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     valor_estimado: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     quantidade: Mapped[float] = mapped_column(Numeric(10, 2), default=1.0)
     tipo_produto: Mapped[str] = mapped_column(String(20), default="Consumo") # "Consumo" ou "Imobilizado"

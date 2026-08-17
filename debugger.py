@@ -16,20 +16,23 @@ Uso:
 
 import argparse
 import asyncio
-import sys
 from datetime import datetime, timezone
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from app.database import SessionLocal
-from app.models.user import User, UserRole
-from app.models.asset import Asset, AssetStatus
-from app.models.transaction import Movimentacao, Solicitacao, TipoMovimentacao, StatusSolicitacao
-from app.models.location import Localizacao
-from app.models.asset_category import AssetCategory
 from app.crud import asset as asset_crud
-
+from app.database import SessionLocal
+from app.models.asset import Asset, AssetStatus
+from app.models.asset_category import AssetCategory
+from app.models.location import Localizacao
+from app.models.transaction import (
+    Movimentacao,
+    Solicitacao,
+    StatusSolicitacao,
+    TipoMovimentacao,
+)
+from app.models.user import User, UserRole
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -1,17 +1,23 @@
 
 # app/crud/maintenance_request.py
-from typing import Optional, List
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from datetime import datetime
-from app.core.datetime_utils import now_sp
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.datetime_utils import now_sp
 from app.crud.base import CRUDBase
-from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
-from app.models.maintenance import Manutencao, TipoManutencao, StatusManutencao
 from app.models.asset import Asset, AssetStatus
-from app.schemas.maintenance_request import SolicitacaoManutencaoCreate, SolicitacaoManutencaoUpdate
+from app.models.maintenance import Manutencao, StatusManutencao, TipoManutencao
+from app.models.maintenance_request import (
+    SolicitacaoManutencao,
+    StatusSolicitacaoManutencao,
+)
+from app.schemas.maintenance_request import (
+    SolicitacaoManutencaoCreate,
+    SolicitacaoManutencaoUpdate,
+)
 
 
 class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutencaoCreate, SolicitacaoManutencaoUpdate]):
@@ -41,7 +47,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         db: AsyncSession, 
         *, 
         id: int
-    ) -> Optional[SolicitacaoManutencao]:
+    ) -> SolicitacaoManutencao | None:
         """Busca solicitação com relacionamentos carregados"""
         result = await db.execute(
             select(SolicitacaoManutencao)
@@ -61,7 +67,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         *,
         skip: int = 0,
         limit: int = 100
-    ) -> List[SolicitacaoManutencao]:
+    ) -> list[SolicitacaoManutencao]:
         """Lista solicitações pendentes (para técnicos/gerentes)"""
         result = await db.execute(
             select(SolicitacaoManutencao)
@@ -82,7 +88,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         *,
         skip: int = 0,
         limit: int = 100
-    ) -> List[SolicitacaoManutencao]:
+    ) -> list[SolicitacaoManutencao]:
         """Lista todas as solicitações (para técnicos/gerentes)"""
         result = await db.execute(
             select(SolicitacaoManutencao)
@@ -104,7 +110,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         user_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[SolicitacaoManutencao]:
+    ) -> list[SolicitacaoManutencao]:
         """Lista solicitações de um usuário específico"""
         result = await db.execute(
             select(SolicitacaoManutencao)
@@ -125,8 +131,8 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         *, 
         request_id: int,
         responsavel_id: int,
-        observacao: Optional[str] = None
-    ) -> Optional[SolicitacaoManutencao]:
+        observacao: str | None = None
+    ) -> SolicitacaoManutencao | None:
         """
         Aceita uma solicitação e cria a manutenção correspondente.
         Muda status do asset para MANUTENCAO.
@@ -172,7 +178,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         request_id: int,
         responsavel_id: int,
         observacao: str
-    ) -> Optional[SolicitacaoManutencao]:
+    ) -> SolicitacaoManutencao | None:
         """Rejeita uma solicitação com justificativa"""
         solicitacao = await self.get(db, id=request_id)
         if not solicitacao:
@@ -195,8 +201,8 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         db: AsyncSession, 
         *, 
         request_id: int,
-        observacao_conclusao: Optional[str] = None
-    ) -> Optional[SolicitacaoManutencao]:
+        observacao_conclusao: str | None = None
+    ) -> SolicitacaoManutencao | None:
         """
         Técnico marca a manutenção como concluída.
         Status muda para AGUARDANDO_ENTREGA.
@@ -231,7 +237,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         *, 
         request_id: int,
         user_id: int
-    ) -> Optional[SolicitacaoManutencao]:
+    ) -> SolicitacaoManutencao | None:
         """
         Usuário confirma recebimento do ativo após manutenção.
         Status muda para CONCLUIDA e ativo volta para status ATIVO.
@@ -268,7 +274,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         user_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[SolicitacaoManutencao]:
+    ) -> list[SolicitacaoManutencao]:
         """Lista solicitações aguardando confirmação de entrega para um usuário"""
         result = await db.execute(
             select(SolicitacaoManutencao)
@@ -295,8 +301,8 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         *, 
         request_id: int,
         tech_id: int,
-        observation: Optional[str] = None
-    ) -> Optional[SolicitacaoManutencao]:
+        observation: str | None = None
+    ) -> SolicitacaoManutencao | None:
         """
         Técnico confirma entrega após validar QR do usuário.
         Status muda para CONCLUIDA e ativo volta para DISPONIVEL.
@@ -330,7 +336,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         *,
         request_id: int,
         user_id: int
-    ) -> Optional[SolicitacaoManutencao]:
+    ) -> SolicitacaoManutencao | None:
         """
         Usuário confirma que recebeu o ativo e que está tudo ok.
         Status muda de ENTREGUE para CONCLUIDA.
@@ -366,7 +372,7 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         status: StatusSolicitacaoManutencao,
         skip: int = 0,
         limit: int = 20
-    ) -> List[SolicitacaoManutencao]:
+    ) -> list[SolicitacaoManutencao]:
         """Lista solicitações de um usuário com status específico"""
         result = await db.execute(
             select(SolicitacaoManutencao)
@@ -388,13 +394,13 @@ class CRUDMaintenanceRequest(CRUDBase[SolicitacaoManutencao, SolicitacaoManutenc
         self,
         db: AsyncSession,
         *,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        status: Optional[StatusSolicitacaoManutencao] = None,
-        responsavel_id: Optional[int] = None,
-        asset_id: Optional[int] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        status: StatusSolicitacaoManutencao | None = None,
+        responsavel_id: int | None = None,
+        asset_id: int | None = None,
         limit: int = 200
-    ) -> List[SolicitacaoManutencao]:
+    ) -> list[SolicitacaoManutencao]:
         """Gera relatório de manutenções com filtros"""
         query = select(SolicitacaoManutencao).options(
             selectinload(SolicitacaoManutencao.asset),

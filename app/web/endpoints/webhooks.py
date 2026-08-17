@@ -1,24 +1,26 @@
-from fastapi import APIRouter, Request, Depends, Form, BackgroundTasks
-from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
-from app.database import get_db
-from app.web.dependencies import get_current_user_from_cookie, get_admin_user_web
-from app.models.webhook import Webhook, WebhookLog
 import json
-from datetime import datetime
+
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.models.webhook import Webhook, WebhookLog
+from app.web.dependencies import get_admin_user_web
 
 router = APIRouter()
 
 from fastapi.templating import Jinja2Templates
+
 templates = Jinja2Templates(directory="app/templates")
 
 from app.services.webhook_service import (
     WEBHOOK_EVENTS,
-    WEBHOOK_EVENT_DETAILS,
     get_grouped_webhook_events,
-    send_test_webhook_event
+    send_test_webhook_event,
 )
+
 
 @router.get("/webhooks", response_class=HTMLResponse)
 async def list_webhooks(

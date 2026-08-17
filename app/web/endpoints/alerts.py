@@ -1,20 +1,28 @@
 # app/web/endpoints/alerts.py
-from typing import Annotated
 import asyncio
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, BackgroundTasks
+from typing import Annotated
+
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Form,
+    HTTPException,
+    Request,
+)
 from fastapi.responses import JSONResponse, StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database import get_db, SessionLocal
-from app.web.dependencies import get_active_user_web
-from app.models.user import User, UserRole
+from app.database import SessionLocal, get_db
 from app.models.asset import Asset, AssetStatus
 from app.models.emergency_alert import EmergencyAlert
+from app.models.user import User, UserRole
 from app.services.alert_broadcaster import alert_broadcaster
 from app.services.email_service import EmailService
 from app.services.webhook_service import dispatch_webhook_event
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter(prefix="/emergencia", tags=["emergency-alerts"])
 email_service = EmailService()

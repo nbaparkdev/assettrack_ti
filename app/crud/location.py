@@ -1,12 +1,16 @@
 
 # app/crud/location.py
 from app.crud.base import CRUDBase
-from app.models.location import Departamento, Localizacao, Armazenamento
+from app.models.location import Armazenamento, Departamento, Localizacao
 from app.schemas.location import (
-    DepartamentoCreate, DepartamentoUpdate,
-    LocalizacaoCreate, LocalizacaoUpdate,
-    ArmazenamentoCreate, ArmazenamentoUpdate
+    ArmazenamentoCreate,
+    ArmazenamentoUpdate,
+    DepartamentoCreate,
+    DepartamentoUpdate,
+    LocalizacaoCreate,
+    LocalizacaoUpdate,
 )
+
 
 class CRUDDepartamento(CRUDBase[Departamento, DepartamentoCreate, DepartamentoUpdate]):
     pass

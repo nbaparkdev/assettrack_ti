@@ -1,30 +1,42 @@
 
 # app/web/endpoints/assets.py
-from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, HTTPException, BackgroundTasks
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
 import os
 import shutil
-from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import date, datetime
-from app.core.datetime_utils import now_sp
-from app.services.webhook_service import dispatch_webhook_event
+from datetime import datetime
+from typing import Annotated
 
-from app.web.dependencies import get_active_user_web
-from app.models.user import User, UserRole
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.datetime_utils import now_sp
+from app.crud import asset as asset_crud
+from app.crud import asset_category as asset_category_crud
+from app.crud import crud_supplier, location
+from app.database import get_db
 from app.models.asset import AssetStatus
 from app.models.location import Localizacao
+from app.models.transaction import (
+    Movimentacao,
+    Solicitacao,
+    StatusSolicitacao,
+    TipoMovimentacao,
+)
+from app.models.user import User, UserRole
 from app.schemas.asset import AssetCreate, AssetUpdate
-from app.models.transaction import Movimentacao, TipoMovimentacao, Solicitacao, StatusSolicitacao
-from app.database import get_db
-from app.crud import transaction as transaction_crud
-from app.crud import asset as asset_crud
-from app.crud import crud_supplier, crud_invoice
-from app.crud import asset_category as asset_category_crud
-from app.crud import location
-from app.schemas.invoice import NotaFiscalCreate
 from app.services.qr_service import QRService
+from app.services.webhook_service import dispatch_webhook_event
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -34,8 +46,8 @@ async def list_assets(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    categoria_id: Optional[str] = None,
-    status: Optional[str] = None
+    categoria_id: str | None = None,
+    status: str | None = None
 ):
     # Calculate stats for the header
     from sqlalchemy import func, select
@@ -61,6 +73,7 @@ async def list_assets(
     maintenance_assets = await db.scalar(select(func.count(asset_crud.asset.model.id)).filter(asset_crud.asset.model.status == AssetStatus.MANUTENCAO))
 
     from sqlalchemy.orm import selectinload
+
     from app.models.asset_category import AssetCategory
     query = select(asset_crud.asset.model).outerjoin(
         AssetCategory, asset_crud.asset.model.categoria_id == AssetCategory.id
@@ -136,18 +149,20 @@ async def scanner_page(
 @router.get("/search", response_class=HTMLResponse)
 async def search_asset(
     request: Request,
-    q: Optional[str] = None, # Alterado para 'q' para ser mais genérico (nome ou serial)
+    q: str | None = None, # Alterado para 'q' para ser mais genérico (nome ou serial)
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     """Search asset by name or serial number and redirect to detail page"""
-    from sqlalchemy import select, func, or_
+    from sqlalchemy import func, or_, select
+
     from app.models.asset import Asset
     
     if not q:
         return RedirectResponse(url="/assets", status_code=303)
 
     from sqlalchemy.orm import selectinload
+
     from app.models.asset_category import AssetCategory
 
     query = select(Asset).outerjoin(
@@ -225,18 +240,18 @@ async def create_asset(
     nome: Annotated[str, Form()],
     modelo: Annotated[str, Form()],
     e_patrimonio: Annotated[str, Form()],
-    descricao: Annotated[Optional[str], Form()] = None,
-    data_aquisicao: Annotated[Optional[str], Form()] = None,
-    valor_aquisicao: Annotated[Optional[str], Form()] = None,
-    numero_serie: Annotated[Optional[str], Form()] = None,
-    fornecedor_id: Annotated[Optional[str], Form()] = None,
-    nota_fiscal_id: Annotated[Optional[str], Form()] = None,
-    categoria_id: Annotated[Optional[str], Form()] = None,
-    current_local_id: Annotated[Optional[str], Form()] = None,
-    em_posse_de: Annotated[Optional[str], Form()] = None,
-    bloqueado: Annotated[Optional[str], Form()] = None,
-    requer_termo_rh: Annotated[Optional[str], Form()] = None,
-    foto: Annotated[Optional[UploadFile], File()] = None,
+    descricao: Annotated[str | None, Form()] = None,
+    data_aquisicao: Annotated[str | None, Form()] = None,
+    valor_aquisicao: Annotated[str | None, Form()] = None,
+    numero_serie: Annotated[str | None, Form()] = None,
+    fornecedor_id: Annotated[str | None, Form()] = None,
+    nota_fiscal_id: Annotated[str | None, Form()] = None,
+    categoria_id: Annotated[str | None, Form()] = None,
+    current_local_id: Annotated[str | None, Form()] = None,
+    em_posse_de: Annotated[str | None, Form()] = None,
+    bloqueado: Annotated[str | None, Form()] = None,
+    requer_termo_rh: Annotated[str | None, Form()] = None,
+    foto: Annotated[UploadFile | None, File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -266,7 +281,11 @@ async def create_asset(
 
         foto_path = None
         if foto and foto.filename:
-            from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_IMAGE_EXTENSIONS
+            from app.core.security_utils import (
+                ALLOWED_IMAGE_EXTENSIONS,
+                generate_safe_filename,
+                validate_uploaded_file,
+            )
             ext = validate_uploaded_file(foto, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
             upload_dir = "static/uploads/assets"
             os.makedirs(upload_dir, exist_ok=True)
@@ -332,7 +351,7 @@ async def list_categories(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    error: Optional[str] = None
+    error: str | None = None
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/assets", status_code=303)
@@ -350,15 +369,15 @@ async def list_categories(
 @router.post("/admin/categorias")
 async def create_category(
     nome: Annotated[str, Form()],
-    descricao: Annotated[Optional[str], Form()] = None,
+    descricao: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         raise HTTPException(status_code=403)
 
-    from app.schemas.asset_category import AssetCategoryCreate
     from app.core.errors import get_friendly_db_error
+    from app.schemas.asset_category import AssetCategoryCreate
     try:
         cat_in = AssetCategoryCreate(nome=nome, descricao=descricao)
         await asset_category_crud.category.create(db, obj_in=cat_in)
@@ -389,23 +408,24 @@ async def reports_page(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    data_inicio: Optional[str] = None,
-    data_fim: Optional[str] = None,
-    nome: Optional[str] = None,
-    categoria_id: Optional[str] = None,
-    localizacao_id: Optional[str] = None,
-    fornecedor_id: Optional[str] = None,
-    nfe: Optional[str] = None,
-    patrimonio: Optional[str] = None,
-    usuario_id: Optional[str] = None,
-    status: Optional[str] = None
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    nome: str | None = None,
+    categoria_id: str | None = None,
+    localizacao_id: str | None = None,
+    fornecedor_id: str | None = None,
+    nfe: str | None = None,
+    patrimonio: str | None = None,
+    usuario_id: str | None = None,
+    status: str | None = None
 ):
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
-    from app.models.invoice import NotaFiscal
-    from app.models.asset_category import AssetCategory
-    from app.models.location import Localizacao
+
     from app.crud.user import user as user_crud_obj
+    from app.models.asset_category import AssetCategory
+    from app.models.invoice import NotaFiscal
+    from app.models.location import Localizacao
 
     # Convert empty string params to int
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
@@ -549,24 +569,25 @@ async def reports_pdf(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    data_inicio: Optional[str] = None,
-    data_fim: Optional[str] = None,
-    nome: Optional[str] = None,
-    categoria_id: Optional[str] = None,
-    localizacao_id: Optional[str] = None,
-    fornecedor_id: Optional[str] = None,
-    nfe: Optional[str] = None,
-    patrimonio: Optional[str] = None,
-    usuario_id: Optional[str] = None,
-    status: Optional[str] = None
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    nome: str | None = None,
+    categoria_id: str | None = None,
+    localizacao_id: str | None = None,
+    fornecedor_id: str | None = None,
+    nfe: str | None = None,
+    patrimonio: str | None = None,
+    usuario_id: str | None = None,
+    status: str | None = None
 ):
-    from weasyprint import HTML
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
-    from app.models.invoice import NotaFiscal
-    from app.models.asset_category import AssetCategory
-    from app.models.location import Localizacao
+    from weasyprint import HTML
+
     from app.crud.user import user as user_crud_obj
+    from app.models.asset_category import AssetCategory
+    from app.models.invoice import NotaFiscal
+    from app.models.location import Localizacao
 
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
     loc_id = int(localizacao_id) if localizacao_id and localizacao_id.strip() else None
@@ -742,8 +763,9 @@ async def asset_detail(
 
     # Fetch history
     from sqlalchemy import select
-    from app.models.transaction import Movimentacao, Solicitacao
+
     from app.models.maintenance import Manutencao
+    from app.models.transaction import Movimentacao, Solicitacao
     
     # 1. Movimentações
     mov_result = await db.execute(
@@ -832,18 +854,18 @@ async def update_asset(
     nome: Annotated[str, Form()],
     modelo: Annotated[str, Form()],
     e_patrimonio: Annotated[str, Form()],
-    descricao: Annotated[Optional[str], Form()] = None,
-    data_aquisicao: Annotated[Optional[str], Form()] = None,
-    valor_aquisicao: Annotated[Optional[str], Form()] = None,
-    numero_serie: Annotated[Optional[str], Form()] = None,
-    fornecedor_id: Annotated[Optional[str], Form()] = None,
-    nota_fiscal_id: Annotated[Optional[str], Form()] = None,
-    categoria_id: Annotated[Optional[str], Form()] = None,
-    current_local_id: Annotated[Optional[str], Form()] = None,
-    em_posse_de: Annotated[Optional[str], Form()] = None,
-    bloqueado: Annotated[Optional[str], Form()] = None,
-    requer_termo_rh: Annotated[Optional[str], Form()] = None,
-    foto: Annotated[Optional[UploadFile], File()] = None,
+    descricao: Annotated[str | None, Form()] = None,
+    data_aquisicao: Annotated[str | None, Form()] = None,
+    valor_aquisicao: Annotated[str | None, Form()] = None,
+    numero_serie: Annotated[str | None, Form()] = None,
+    fornecedor_id: Annotated[str | None, Form()] = None,
+    nota_fiscal_id: Annotated[str | None, Form()] = None,
+    categoria_id: Annotated[str | None, Form()] = None,
+    current_local_id: Annotated[str | None, Form()] = None,
+    em_posse_de: Annotated[str | None, Form()] = None,
+    bloqueado: Annotated[str | None, Form()] = None,
+    requer_termo_rh: Annotated[str | None, Form()] = None,
+    foto: Annotated[UploadFile | None, File()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -881,7 +903,11 @@ async def update_asset(
         
         foto_path = asset.foto_path
         if foto and foto.filename:
-            from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_IMAGE_EXTENSIONS
+            from app.core.security_utils import (
+                ALLOWED_IMAGE_EXTENSIONS,
+                generate_safe_filename,
+                validate_uploaded_file,
+            )
             ext = validate_uploaded_file(foto, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
             upload_dir = "static/uploads/assets"
             os.makedirs(upload_dir, exist_ok=True)
@@ -1047,6 +1073,7 @@ async def duplicate_asset_submit(
 
         # Check for existing E-Patrimônios in DB
         from sqlalchemy import select
+
         from app.models.asset import Asset
         existing_check = await db.execute(
             select(Asset.e_patrimonio).where(Asset.e_patrimonio.in_(e_patrimonios))
@@ -1137,8 +1164,8 @@ async def delete_asset(
         await db.rollback()
         
         # Explicitly eager load relationships to prevent MissingGreenlet in template
-        from sqlalchemy.orm import selectinload
         from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
         
         # Re-fetch asset with necessary relationships
         result = await db.execute(
@@ -1152,7 +1179,7 @@ async def delete_asset(
         )
         asset = result.scalars().first()
         
-        error_msg = f"Erro ao excluir ativo: {str(e)}"
+        error_msg = f"Erro ao excluir ativo: {e!s}"
         if "constraint" in str(e).lower() or "cforeign" in str(e).lower():
              error_msg = "Não é possível excluir este ativo pois ele possui histórico (movimentações, solicitações, etc). Considere apenas atualizar o status para 'Baixado'."
 
@@ -1226,11 +1253,11 @@ async def start_maintenance(
     asset_id: int,
     motivo: Annotated[str, Form()],
     tipo: Annotated[str, Form()],
-    data_previsao: Annotated[Optional[str], Form()] = None,
+    data_previsao: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
-    from app.models.maintenance import Manutencao, TipoManutencao, StatusManutencao
+    from app.models.maintenance import Manutencao, StatusManutencao, TipoManutencao
     
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
@@ -1289,6 +1316,7 @@ async def finish_maintenance_form(
 ):
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
+
     from app.models.maintenance import Manutencao, StatusManutencao
     
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
@@ -1338,13 +1366,14 @@ async def finish_maintenance(
     asset_id: int,
     observacao_conclusao: Annotated[str, Form()],
     destino_tipo: Annotated[str, Form()],
-    custo: Annotated[Optional[str], Form()] = None,
-    destino_user_id: Annotated[Optional[str], Form()] = None,
+    custo: Annotated[str | None, Form()] = None,
+    destino_user_id: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     from sqlalchemy import select
-    from app.models.maintenance import Manutencao, StatusManutencao, DestinoManutencao
+
+    from app.models.maintenance import DestinoManutencao, Manutencao, StatusManutencao
     
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.TECNICO]:
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
@@ -1445,6 +1474,7 @@ async def transfer_asset_form(
     
     # Get active users for destination selection
     from sqlalchemy import select
+
     from app.models.user import User
     result = await db.execute(
         select(User).filter(User.is_active == True).order_by(User.nome)
@@ -1491,7 +1521,7 @@ async def transfer_asset(
         await db.commit()
         
         return RedirectResponse(url=f"/assets/{asset_id}", status_code=303)
-    except Exception as e:
+    except Exception:
         import traceback
         error_msg = traceback.format_exc()
         return Response(content=f"ERRO DEBUG: {error_msg}", status_code=500, media_type="text/plain")
@@ -1562,16 +1592,17 @@ async def list_locais(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    error: Optional[str] = None,
-    success: Optional[str] = None
+    error: str | None = None,
+    success: str | None = None
 ):
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/assets", status_code=303)
 
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
-    from app.models.location import Armazenamento
+    from sqlalchemy.orm import selectinload
+
     from app.models.asset import Asset
+    from app.models.location import Armazenamento
     
     result = await db.execute(
         select(Localizacao).options(
@@ -1711,7 +1742,7 @@ async def list_locais(
 @router.post("/admin/localizacoes")
 async def create_local(
     nome: Annotated[str, Form()],
-    departamento_id: Annotated[Optional[str], Form()] = None,
+    departamento_id: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -1737,7 +1768,7 @@ async def delete_local(
     try:
         await location.localizacao.remove(db, id=local_id)
         return RedirectResponse(url="/assets/admin/localizacoes?success=Localização+excluída+com+sucesso!", status_code=303)
-    except Exception as e:
+    except Exception:
         await db.rollback()
         error_msg = "Não é possível excluir esta localização pois há ativos vinculados a ela."
         return RedirectResponse(url=f"/assets/admin/localizacoes?error={error_msg}", status_code=303)
@@ -1746,8 +1777,8 @@ async def delete_local(
 @router.post("/admin/armazenamentos")
 async def create_armazenamento(
     nome: Annotated[str, Form()],
-    capacidade_max: Annotated[Optional[str], Form()] = "0",
-    tipo_itens: Annotated[Optional[str], Form()] = None,
+    capacidade_max: Annotated[str | None, Form()] = "0",
+    tipo_itens: Annotated[str | None, Form()] = None,
     current_user: Annotated[User, Depends(get_active_user_web)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
@@ -1755,8 +1786,9 @@ async def create_armazenamento(
         return RedirectResponse(url="/assets", status_code=303)
         
     cap_max = int(capacidade_max) if capacidade_max and capacidade_max.strip() and capacidade_max.strip().isdigit() else 0
-    from app.models.location import Armazenamento
     from sqlalchemy import select
+
+    from app.models.location import Armazenamento
     existing = await db.scalar(select(Armazenamento).filter(Armazenamento.nome == nome))
     if existing:
         return RedirectResponse(url="/assets/admin/localizacoes?error=Já+existe+um+armazenamento+com+este+nome!", status_code=303)
@@ -1777,9 +1809,10 @@ async def delete_armazenamento(
     if current_user.role not in [UserRole.ADMIN, UserRole.GERENTE, UserRole.GERENTE_INFRA]:
         return RedirectResponse(url="/assets", status_code=303)
         
-    from app.models.location import Armazenamento
+    from sqlalchemy import func, select
+
     from app.models.asset import Asset
-    from sqlalchemy import select, func
+    from app.models.location import Armazenamento
     armazenamento = await db.get(Armazenamento, armazenamento_id)
     if not armazenamento:
         return RedirectResponse(url="/assets/admin/localizacoes?error=Armazenamento+não+encontrado!", status_code=303)
@@ -1804,11 +1837,10 @@ async def asset_pdf_resumo(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Gera PDF com resumo completo e histórico do ativo."""
-    from weasyprint import HTML
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
-    from app.models.transaction import Movimentacao
-    from app.models.preventive_maintenance import MaintenanceOrder
+    from weasyprint import HTML
+
     from app.models.asset import Asset
 
     asset = await db.get(Asset, asset_id)
@@ -1832,7 +1864,6 @@ async def asset_pdf_resumo(
 
     # Movimentações completas com usuários
     from app.models.transaction import Movimentacao as Mov
-    from app.models.user import User as UserModel
     mov_stmt = (
         select(Mov)
         .options(selectinload(Mov.de_user), selectinload(Mov.para_user))

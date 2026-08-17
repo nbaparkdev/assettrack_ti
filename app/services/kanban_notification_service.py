@@ -1,12 +1,14 @@
 # app/services/kanban_notification_service.py
-from typing import List, Optional, Set
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from app.models.kanban import KanbanNotification, KanbanProject, KanbanCard
+
+from app.models.kanban import KanbanCard, KanbanNotification, KanbanProject
 from app.models.user import User, UserRole
 
-async def get_admin_user_ids(db: AsyncSession) -> Set[int]:
+
+async def get_admin_user_ids(db: AsyncSession) -> set[int]:
     """Helper to fetch IDs of all active administrators and IT managers."""
     stmt = select(User.id).where(
         User.is_active == True,
@@ -21,10 +23,10 @@ async def create_kanban_notification(
     tipo: str,
     titulo: str,
     mensagem: str,
-    project_id: Optional[int] = None,
-    card_id: Optional[int] = None,
-    autor_id: Optional[int] = None,
-    link: Optional[str] = None
+    project_id: int | None = None,
+    card_id: int | None = None,
+    autor_id: int | None = None,
+    link: str | None = None
 ) -> KanbanNotification:
     """Helper to create and persist a Kanban notification/progress entry for a target user."""
     notif = KanbanNotification(
@@ -41,7 +43,7 @@ async def create_kanban_notification(
     db.add(notif)
     return notif
 
-async def get_project_recipients(db: AsyncSession, project_id: Optional[int] = None, extra_user_ids: Optional[List[int]] = None) -> Set[int]:
+async def get_project_recipients(db: AsyncSession, project_id: int | None = None, extra_user_ids: list[int] | None = None) -> set[int]:
     """Collect all target recipient IDs: Project Creator + Project Participants + Administrators + Extra Users."""
     recipients = set(extra_user_ids or [])
     
@@ -65,7 +67,7 @@ async def get_project_recipients(db: AsyncSession, project_id: Optional[int] = N
 async def notify_project_created(
     db: AsyncSession,
     project: KanbanProject,
-    user_ids: List[int],
+    user_ids: list[int],
     author: User
 ):
     """Notify users and administrators when a new Kanban project is created."""
@@ -152,7 +154,7 @@ async def notify_card_created(
 async def notify_card_assigned(
     db: AsyncSession,
     card: KanbanCard,
-    user_ids: List[int],
+    user_ids: list[int],
     author: User
 ):
     """Notify assigned users and administrators for card assignment."""

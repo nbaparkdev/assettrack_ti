@@ -1,16 +1,17 @@
 
 # app/web/endpoints/setores.py
 from typing import Annotated
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.web.dependencies import get_active_user_web
-from app.models.user import User, UserRole
-from app.models.location import Departamento
 from app.database import get_db
+from app.models.location import Departamento
+from app.models.user import User, UserRole
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")

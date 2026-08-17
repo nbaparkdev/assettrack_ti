@@ -3,9 +3,8 @@
 Rate Limiting para proteção de endpoints sensíveis.
 Usa slowapi para limitar requisições por IP.
 """
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 
 # Limiter global - usa IP como identificador
 limiter = Limiter(key_func=get_remote_address)

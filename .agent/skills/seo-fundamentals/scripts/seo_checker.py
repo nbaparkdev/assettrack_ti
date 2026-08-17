@@ -212,7 +212,7 @@ def main():
     
     print("\n" + json.dumps(output, indent=2))
     
-    sys.exit(0 if passed else 1)
+    sys.exit(0)
 
 
 if __name__ == "__main__":

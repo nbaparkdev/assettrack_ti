@@ -1,23 +1,24 @@
 
 # app/crud/user.py
-from typing import Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from datetime import datetime
 import uuid
+from datetime import datetime
+
+from passlib.context import CryptContext
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.crud.base import CRUDBase
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
-from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
-    async def get_by_email(self, db: AsyncSession, *, email: str) -> Optional[User]:
+    async def get_by_email(self, db: AsyncSession, *, email: str) -> User | None:
         result = await db.execute(select(User).filter(User.email == email))
         return result.scalars().first()
 
-    async def get_by_qr_token(self, db: AsyncSession, *, token: str) -> Optional[User]:
+    async def get_by_qr_token(self, db: AsyncSession, *, token: str) -> User | None:
         """Busca usuário pelo token QR"""
         result = await db.execute(select(User).filter(User.qr_token == token))
         return result.scalars().first()

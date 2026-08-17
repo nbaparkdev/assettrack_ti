@@ -1,23 +1,23 @@
 # app/main.py
-import os
-import uvicorn
 import logging
-from fastapi import FastAPI, Request, Depends
+import os
+from contextlib import asynccontextmanager
+
+import uvicorn
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
-from app.config import settings
-from app.api.v1 import api_router
-from app.database import engine, Base, get_db
-from app.web import web_router
-from app.web.endpoints import admin 
-from app.core.rate_limit import limiter
-import app.models
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from app.web.dependencies import get_current_user_from_cookie, get_admin_user_web
-from app.database import SessionLocal
+
+import app.models
+from app.api.v1 import api_router
+from app.config import settings
+from app.core.rate_limit import limiter
+from app.database import Base, SessionLocal, engine, get_db
+from app.web import web_router
+from app.web.dependencies import get_admin_user_web, get_current_user_from_cookie
 
 # Base directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI):
                         if not exists:
                             await _ac_conn.execute(f"ALTER TYPE purchaseresearchstatus ADD VALUE '{val}'")
                             _logger.info(f"✅ Enum purchaseresearchstatus: adicionado valor '{val}'")
-                    except Exception as e:
+                    except Exception:
                         pass
             finally:
                 await _ac_conn.close()
@@ -176,6 +176,7 @@ async def lifespan(app: FastAPI):
 
     # Iniciar agendador de manutenção preventiva em background
     import asyncio
+
     from app.services.maintenance_scheduler import start_maintenance_scheduler_loop
     
     # Executa a verificação imediatamente no startup e depois a cada 1 hora (3600s)
@@ -250,6 +251,7 @@ async def lifespan(app: FastAPI):
         # Este bloco é apenas diagnóstico e nunca pode impedir o startup.
         try:
             from sqlalchemy import select
+
             from app.models.user import User
             res = await session.execute(select(User).order_by(User.id))
             users = res.scalars().all()
@@ -282,6 +284,7 @@ app = FastAPI(
 )
 
 import time
+
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
@@ -419,6 +422,7 @@ async def debug_db(
     db = Depends(get_db)
 ):
     from sqlalchemy import select
+
     from app.models.system_settings import SystemSettings
     result = await db.execute(select(SystemSettings))
     settings_list = result.scalars().all()

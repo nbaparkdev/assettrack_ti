@@ -1,11 +1,12 @@
 
 # app/services/qr_service.py
-import qrcode
-from io import BytesIO
 import base64
-from typing import Optional
-from pyzbar.pyzbar import decode
+from io import BytesIO
+
+import qrcode
 from PIL import Image
+from pyzbar.pyzbar import decode
+
 
 class QRService:
     @staticmethod
@@ -38,7 +39,7 @@ class QRService:
         return base64.b64encode(img_io.getvalue()).decode('utf-8')
 
     @staticmethod
-    def decode_qr_image(file_bytes: bytes) -> Optional[str]:
+    def decode_qr_image(file_bytes: bytes) -> str | None:
         """
         Lê um QR code de bytes de imagem
         """

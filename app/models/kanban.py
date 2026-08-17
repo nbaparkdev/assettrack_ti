@@ -1,10 +1,21 @@
 # app/models/kanban.py
 from datetime import datetime
-from typing import List, Optional
-from sqlalchemy import String, Text, Boolean, Integer, DateTime, ForeignKey, Table, Column
+from typing import Optional
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base
+
 from app.core.datetime_utils import now_sp
+from app.database import Base
 
 # Association Table: Project Participants (N:M)
 kanban_project_participants = Table(
@@ -35,7 +46,7 @@ class KanbanProject(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     titulo: Mapped[str] = mapped_column(String(255), nullable=False)
-    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
     criador_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -44,19 +55,19 @@ class KanbanProject(Base):
 
     # Relationships
     criador: Mapped["User"] = relationship("User", foreign_keys=[criador_id])
-    participantes: Mapped[List["User"]] = relationship(
+    participantes: Mapped[list["User"]] = relationship(
         "User",
         secondary=kanban_project_participants,
         lazy="selectin"
     )
-    colunas: Mapped[List["KanbanColumn"]] = relationship(
+    colunas: Mapped[list["KanbanColumn"]] = relationship(
         "KanbanColumn",
         back_populates="project",
         cascade="all, delete-orphan",
         order_by="KanbanColumn.ordem",
         lazy="selectin"
     )
-    cards: Mapped[List["KanbanCard"]] = relationship(
+    cards: Mapped[list["KanbanCard"]] = relationship(
         "KanbanCard",
         back_populates="project",
         cascade="all, delete-orphan",
@@ -75,7 +86,7 @@ class KanbanColumn(Base):
 
     # Relationships
     project: Mapped["KanbanProject"] = relationship("KanbanProject", back_populates="colunas")
-    cards: Mapped[List["KanbanCard"]] = relationship(
+    cards: Mapped[list["KanbanCard"]] = relationship(
         "KanbanCard",
         back_populates="column",
         cascade="all, delete-orphan",
@@ -90,41 +101,41 @@ class KanbanCard(Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("kanban_projects.id", ondelete="CASCADE"), nullable=False)
     column_id: Mapped[int] = mapped_column(ForeignKey("kanban_columns.id", ondelete="CASCADE"), nullable=False)
     titulo: Mapped[str] = mapped_column(String(255), nullable=False)
-    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # Markdown text
+    descricao: Mapped[str | None] = mapped_column(Text, nullable=True) # Markdown text
     criador_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    responsavel_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    responsavel_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     prioridade: Mapped[str] = mapped_column(String(20), default="media", nullable=False) # baixa, media, alta, urgente
-    data_entrega: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_entrega: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     ordem: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_sp, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_sp, onupdate=now_sp, nullable=False)
 
-    purchase_request_id: Mapped[Optional[int]] = mapped_column(ForeignKey("purchase_requests.id"), nullable=True)
-    material_stock_id: Mapped[Optional[int]] = mapped_column(ForeignKey("material_stocks.id"), nullable=True)
-    tipo_item_necessario: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    purchase_request_id: Mapped[int | None] = mapped_column(ForeignKey("purchase_requests.id"), nullable=True)
+    material_stock_id: Mapped[int | None] = mapped_column(ForeignKey("material_stocks.id"), nullable=True)
+    tipo_item_necessario: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Relationships
     project: Mapped["KanbanProject"] = relationship("KanbanProject", back_populates="cards", lazy="selectin")
     column: Mapped["KanbanColumn"] = relationship("KanbanColumn", back_populates="cards", lazy="selectin")
     criador: Mapped["User"] = relationship("User", foreign_keys=[criador_id], lazy="selectin")
     responsavel: Mapped[Optional["User"]] = relationship("User", foreign_keys=[responsavel_id], lazy="selectin")
-    participantes: Mapped[List["User"]] = relationship(
+    participantes: Mapped[list["User"]] = relationship(
         "User",
         secondary=kanban_card_assignees,
         lazy="selectin"
     )
-    ativos: Mapped[List["Asset"]] = relationship(
+    ativos: Mapped[list["Asset"]] = relationship(
         "Asset",
         secondary=kanban_card_assets,
         lazy="selectin"
     )
-    anexos: Mapped[List["KanbanAttachment"]] = relationship(
+    anexos: Mapped[list["KanbanAttachment"]] = relationship(
         "KanbanAttachment",
         back_populates="card",
         cascade="all, delete-orphan",
         lazy="selectin"
     )
-    interacoes: Mapped[List["KanbanCardInteraction"]] = relationship(
+    interacoes: Mapped[list["KanbanCardInteraction"]] = relationship(
         "KanbanCardInteraction",
         back_populates="card",
         cascade="all, delete-orphan",
@@ -167,13 +178,13 @@ class KanbanNotification(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    project_id: Mapped[Optional[int]] = mapped_column(ForeignKey("kanban_projects.id", ondelete="CASCADE"), nullable=True)
-    card_id: Mapped[Optional[int]] = mapped_column(ForeignKey("kanban_cards.id", ondelete="CASCADE"), nullable=True)
-    autor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("kanban_projects.id", ondelete="CASCADE"), nullable=True)
+    card_id: Mapped[int | None] = mapped_column(ForeignKey("kanban_cards.id", ondelete="CASCADE"), nullable=True)
+    autor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     tipo: Mapped[str] = mapped_column(String(50), nullable=False) # PROJETO_ADICIONADO, CARTAO_ATRIBUIDO, CARTAO_MOVIMENTADO, ANEXO_ADICIONADO
     titulo: Mapped[str] = mapped_column(String(255), nullable=False)
     mensagem: Mapped[str] = mapped_column(Text, nullable=False)
-    link: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    link: Mapped[str | None] = mapped_column(String(255), nullable=True)
     lida: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_sp, nullable=False)
 

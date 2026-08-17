@@ -1,9 +1,12 @@
 # app/models/invoice.py
-from sqlalchemy import String, ForeignKey, DateTime, JSON
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
-from app.database import Base
+
+from sqlalchemy import JSON, DateTime, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.datetime_utils import now_sp
+from app.database import Base
+
 
 class NotaFiscal(Base):
     __tablename__ = "notas_fiscais"

@@ -1,7 +1,10 @@
 import asyncio
+
+from sqlalchemy import update
+
 from app.database import SessionLocal
 from app.models.user import User
-from sqlalchemy import update
+
 
 async def activate_admin():
     async with SessionLocal() as db:

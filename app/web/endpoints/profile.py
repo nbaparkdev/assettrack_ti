@@ -1,19 +1,27 @@
-from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, HTTPException, Form, UploadFile, File, status
+import shutil
+from pathlib import Path
+from typing import Annotated
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-import shutil
-import os
-import uuid
-from pathlib import Path
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.web.dependencies import get_active_user_web
-from app.models.user import User
-from app.models.location import Departamento
 from app.crud import user as user_crud
+from app.database import get_db
+from app.models.location import Departamento
+from app.models.user import User
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -51,7 +59,7 @@ async def update_profile(
     db: Annotated[AsyncSession, Depends(get_db)],
     nome: str = Form(...),
     cargo: str = Form(None),
-    departamento_id: Optional[str] = Form(None),
+    departamento_id: str | None = Form(None),
     avatar: UploadFile = File(None)
 ):
     user_db = await db.get(User, current_user.id)
@@ -70,7 +78,11 @@ async def update_profile(
 
     # Handle Avatar Upload
     if avatar and avatar.filename:
-        from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_IMAGE_EXTENSIONS
+        from app.core.security_utils import (
+            ALLOWED_IMAGE_EXTENSIONS,
+            generate_safe_filename,
+            validate_uploaded_file,
+        )
         ext = validate_uploaded_file(avatar, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
         filename = generate_safe_filename(ext, prefix=f"user_{user_db.id}")
         file_path = UPLOAD_DIR / filename

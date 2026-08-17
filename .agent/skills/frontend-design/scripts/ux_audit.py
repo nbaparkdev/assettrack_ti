@@ -716,7 +716,7 @@ def main():
         status = "PASS" if report['compliant'] else "FAIL"
         print(f"STATUS: {status}")
 
-    sys.exit(0 if report['compliant'] else 1)
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()

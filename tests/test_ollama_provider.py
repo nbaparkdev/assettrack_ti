@@ -1,6 +1,6 @@
-import pytest
 from app.services.ai_assistant.llm_factory import get_llm_service
 from app.services.ai_assistant.ollama_service import OllamaService
+
 
 def test_ollama_factory():
     service = get_llm_service(

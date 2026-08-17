@@ -1,17 +1,18 @@
 
-from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, Query
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.web.dependencies import get_active_user_web
-from app.models.user import User, UserRole
-from app.models.transaction import Movimentacao
-from app.models.asset import Asset
 from app.database import get_db
+from app.models.asset import Asset
+from app.models.transaction import Movimentacao
+from app.models.user import User
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -21,8 +22,8 @@ async def list_movimentacoes(
     request: Request,
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    asset_id: Annotated[Optional[int], Query()] = None,
-    tipo: Annotated[Optional[str], Query()] = None
+    asset_id: Annotated[int | None, Query()] = None,
+    tipo: Annotated[str | None, Query()] = None
 ):
     """List movements with optional filters for asset and type"""
     

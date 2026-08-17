@@ -1,9 +1,12 @@
 # app/models/emergency_alert.py
-from sqlalchemy import String, Boolean, DateTime, ForeignKey, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
-from app.database import Base
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.datetime_utils import now_sp
+from app.database import Base
+
 
 class EmergencyAlert(Base):
     __tablename__ = "emergency_alerts"

@@ -1,22 +1,24 @@
 # app/schemas/service_desk.py
 from datetime import datetime
-from typing import Optional, List
+
 from pydantic import BaseModel, ConfigDict
-from app.models.service_desk import ServiceStatus, ServicePriority
+
+from app.models.service_desk import ServicePriority, ServiceStatus
+
 
 # Categorias
 class ServiceCategoryBase(BaseModel):
     nome: str
-    descricao: Optional[str] = None
+    descricao: str | None = None
     setor: str
 
 class ServiceCategoryCreate(ServiceCategoryBase):
     pass
 
 class ServiceCategoryUpdate(BaseModel):
-    nome: Optional[str] = None
-    descricao: Optional[str] = None
-    setor: Optional[str] = None
+    nome: str | None = None
+    descricao: str | None = None
+    setor: str | None = None
 
 class ServiceCategorySchema(ServiceCategoryBase):
     id: int
@@ -26,19 +28,19 @@ class ServiceCategorySchema(ServiceCategoryBase):
 class ServiceDefinitionBase(BaseModel):
     categoria_id: int
     nome: str
-    descricao: Optional[str] = None
+    descricao: str | None = None
     prioridade_padrao: ServicePriority = ServicePriority.MEDIA
-    tempo_estimado_horas: Optional[float] = None
+    tempo_estimado_horas: float | None = None
 
 class ServiceDefinitionCreate(ServiceDefinitionBase):
     pass
 
 class ServiceDefinitionUpdate(BaseModel):
-    categoria_id: Optional[int] = None
-    nome: Optional[str] = None
-    descricao: Optional[str] = None
-    prioridade_padrao: Optional[ServicePriority] = None
-    tempo_estimado_horas: Optional[float] = None
+    categoria_id: int | None = None
+    nome: str | None = None
+    descricao: str | None = None
+    prioridade_padrao: ServicePriority | None = None
+    tempo_estimado_horas: float | None = None
 
 class ServiceDefinitionSchema(ServiceDefinitionBase):
     id: int
@@ -52,27 +54,27 @@ class ServiceTicketBase(BaseModel):
     prioridade: ServicePriority
 
 class ServiceTicketCreate(ServiceTicketBase):
-    foto: Optional[str] = None
+    foto: str | None = None
 
 class ServiceTicketUpdate(BaseModel):
-    status: Optional[ServiceStatus] = None
-    prioridade: Optional[ServicePriority] = None
-    tecnico_id: Optional[int] = None
-    solucao: Optional[str] = None
-    feedback_usuario: Optional[str] = None
-    avaliacao: Optional[int] = None
+    status: ServiceStatus | None = None
+    prioridade: ServicePriority | None = None
+    tecnico_id: int | None = None
+    solucao: str | None = None
+    feedback_usuario: str | None = None
+    avaliacao: int | None = None
 
 class ServiceTicketSchema(ServiceTicketBase):
     id: int
     codigo: str
     solicitante_id: int
-    tecnico_id: Optional[int] = None
+    tecnico_id: int | None = None
     status: ServiceStatus
-    foto: Optional[str] = None
+    foto: str | None = None
     data_abertura: datetime
     data_atualizacao: datetime
-    data_fechamento: Optional[datetime] = None
-    solucao: Optional[str] = None
+    data_fechamento: datetime | None = None
+    solucao: str | None = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -83,13 +85,13 @@ class ServiceTicketInteractionBase(BaseModel):
 
 class ServiceTicketInteractionCreate(ServiceTicketInteractionBase):
     ticket_id: int
-    foto: Optional[str] = None
+    foto: str | None = None
 
 class ServiceTicketInteractionSchema(ServiceTicketInteractionBase):
     id: int
     ticket_id: int
     usuario_id: int
-    foto: Optional[str] = None
+    foto: str | None = None
     data_criacao: datetime
     
     model_config = ConfigDict(from_attributes=True)

@@ -1,6 +1,7 @@
 import asyncio
-from app.database import engine, Base
-from app.models import Webhook, WebhookLog
+
+from app.database import Base, engine
+
 
 async def create_tables():
     async with engine.begin() as conn:

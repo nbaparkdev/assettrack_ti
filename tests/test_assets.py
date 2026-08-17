@@ -1,10 +1,12 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.crud import user as user_crud
+
 from app.crud import asset as asset_crud
-from app.schemas.user import UserCreate
+from app.crud import user as user_crud
 from app.models.asset import AssetStatus
+from app.schemas.user import UserCreate
+
 
 @pytest.fixture
 async def admin_user(db_session: AsyncSession):
@@ -73,8 +75,9 @@ async def test_create_asset_optional_fields_empty(admin_client: AsyncClient, db_
 @pytest.mark.asyncio
 async def test_maintenance_workflow(admin_client: AsyncClient, db_session: AsyncSession):
     # Arrange: Create available asset
-    from app.schemas.asset import AssetCreate
     from datetime import date
+
+    from app.schemas.asset import AssetCreate
     
     asset_in = AssetCreate(
         nome="Servidor",

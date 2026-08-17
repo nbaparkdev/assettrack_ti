@@ -1,12 +1,19 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.ai_assistant.tools import (
-    list_departments, list_locations, list_categories, list_suppliers, search_users, read_system_manual, clean_unwanted_tool_tags
-)
-from app.models.location import Departamento, Localizacao
+
 from app.models.asset_category import AssetCategory
+from app.models.location import Departamento, Localizacao
 from app.models.supplier import Fornecedor
-from app.models.user import User
+from app.services.ai_assistant.tools import (
+    clean_unwanted_tool_tags,
+    list_categories,
+    list_departments,
+    list_locations,
+    list_suppliers,
+    read_system_manual,
+    search_users,
+)
+
 
 @pytest.mark.asyncio
 async def test_lookup_tools(db_session: AsyncSession):

@@ -1,14 +1,16 @@
 
 # app/crud/asset.py
-from typing import Optional, List
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.crud.base import CRUDBase
 from app.models.asset import Asset
 from app.schemas.asset import AssetCreate, AssetUpdate
 
+
 class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
-    async def get(self, db: AsyncSession, id: int) -> Optional[Asset]:
+    async def get(self, db: AsyncSession, id: int) -> Asset | None:
         from sqlalchemy.orm import selectinload
         result = await db.execute(
             select(Asset)
@@ -27,7 +29,7 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
 
     async def get_multi(
         self, db: AsyncSession, *, skip: int = 0, limit: int = 100
-    ) -> List[Asset]:
+    ) -> list[Asset]:
         from sqlalchemy.orm import selectinload
         result = await db.execute(
             select(Asset)
@@ -45,7 +47,7 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
         )
         return result.scalars().all()
 
-    async def get_by_e_patrimonio(self, db: AsyncSession, *, e_patrimonio: str) -> Optional[Asset]:
+    async def get_by_e_patrimonio(self, db: AsyncSession, *, e_patrimonio: str) -> Asset | None:
         from sqlalchemy.orm import selectinload
         result = await db.execute(
             select(Asset)
@@ -62,7 +64,7 @@ class CRUDAsset(CRUDBase[Asset, AssetCreate, AssetUpdate]):
         )
         return result.scalars().first()
 
-    async def get_by_user(self, db: AsyncSession, user_id: int) -> List[Asset]:
+    async def get_by_user(self, db: AsyncSession, user_id: int) -> list[Asset]:
         from sqlalchemy.orm import selectinload
         result = await db.execute(
             select(Asset)

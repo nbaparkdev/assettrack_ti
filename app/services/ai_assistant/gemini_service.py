@@ -1,10 +1,15 @@
 import json
-from typing import List, Dict, Any, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any
+
 import google.generativeai as genai
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_assistant.llm_base import LLMBaseService
-from app.services.ai_assistant.tools import AVAILABLE_TOOLS, execute_tool, get_tools_summary
+from app.services.ai_assistant.tools import (
+    AVAILABLE_TOOLS,
+    execute_tool,
+    get_tools_summary,
+)
 
 SYSTEM_PROMPT_TEMPLATE = """Você é o assistente virtual do AssetTrack TI, um sistema ERP de gestão de ativos, chamados e manutenção de TI.
 
@@ -56,8 +61,8 @@ class GeminiService(LLMBaseService):
         self.model_name = model
         
     async def chat(
-        self, db: AsyncSession, user_id: int, messages: List[Dict[str, Any]], 
-        allow_advanced_tools: bool = False, user_context: Optional[Dict[str, str]] = None
+        self, db: AsyncSession, user_id: int, messages: list[dict[str, Any]], 
+        allow_advanced_tools: bool = False, user_context: dict[str, str] | None = None
     ) -> str:
         user_name = user_context.get("nome", "Usuário") if user_context else "Usuário"
         user_role = user_context.get("role", "usuario_comum") if user_context else "usuario_comum"

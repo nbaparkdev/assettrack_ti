@@ -1,48 +1,27 @@
 #!/bin/bash
 
 # ==========================================
-# AssetTrack TI - Inicializacao Docker
+# AssetTrack TI - Inicialização Docker (Decoupled Go + React)
 # ==========================================
 
 set -e
 
 echo "------------------------------------------------"
-echo "🚀 Iniciando AssetTrack TI"
+echo "🚀 Iniciando AssetTrack TI (Go + React)"
 echo "------------------------------------------------"
 
 # Ir para pasta do projeto
 cd "$(dirname "$0")"
 
-# ==========================================
 # Verificar Docker
-# ==========================================
 if ! command -v docker &> /dev/null; then
-    echo "❌ Docker nao encontrado."
-    echo "Instale com:"
-    echo "apt install docker.io docker-compose-plugin -y"
+    echo "❌ Docker não encontrado."
     exit 1
 fi
 
-# ==========================================
-# Verificar servico Docker
-# ==========================================
-if command -v systemctl &> /dev/null; then
-    if ! systemctl is-active --quiet docker 2>/dev/null; then
-        echo "⚙️ Iniciando servico Docker..."
-        systemctl start docker 2>/dev/null || true
-    fi
-elif command -v service &> /dev/null; then
-    if ! service docker status &> /dev/null; then
-        echo "⚙️ Iniciando servico Docker..."
-        service docker start 2>/dev/null || true
-    fi
-fi
-
-# ==========================================
 # Verificar Docker Compose
-# ==========================================
 if ! docker compose version &> /dev/null; then
-    echo "❌ Docker Compose nao encontrado."
+    echo "❌ Docker Compose não encontrado."
     exit 1
 fi
 
@@ -51,177 +30,57 @@ COMPOSE_CMD="docker compose"
 echo "✅ Docker OK"
 echo "✅ Docker Compose OK"
 
-# ==========================================
-# Criar .env se nao existir
-# ==========================================
-if [ ! -f ".env" ]; then
-    echo "⚙️ Criando arquivo .env..."
-
-    if [ -f ".env.example" ]; then
-        cp .env.example .env
-    else
-        touch .env
-    fi
-else
-    echo "✅ Arquivo .env encontrado"
-fi
-
-# ==========================================
-# Force stop web container (AppArmor-safe)
-# ==========================================
-force_stop_web() {
-    local WEB_CONTAINER
-    WEB_CONTAINER=$(docker ps -a --filter "name=^assettrack_ti-web" --format "{{.Names}}" 2>/dev/null | head -1)
-    if [ -z "$WEB_CONTAINER" ]; then
-        return 0
-    fi
-
-    # Tentar stop normal primeiro
-    if docker stop "$WEB_CONTAINER" 2>/dev/null; then
-        docker rm "$WEB_CONTAINER" 2>/dev/null || true
-        return 0
-    fi
-
-    echo "⚠️ Container preso (AppArmor/snap). Usando metodo alternativo..."
-
-    # Renomear para liberar o nome no compose
-    local OLD_NAME="${WEB_CONTAINER}-old-$(date +%Y%m%d%H%M%S)"
-    docker rename "$WEB_CONTAINER" "$OLD_NAME" 2>/dev/null || true
-
-    # Matar uvicorn de dentro do container via Python
-    docker exec "$OLD_NAME" python3 -c "
-import os, signal
-for pid in [int(p) for p in os.listdir('/proc') if p.isdigit()]:
-    try:
-        with open(f'/proc/{pid}/cmdline', 'rb') as f:
-            cmd = f.read().decode()
-        if 'python' in cmd and 'uvicorn' in cmd and 'app.main' in cmd:
-            os.kill(pid, signal.SIGTERM)
-            break
-    except:
-        pass
-" 2>/dev/null || true
-
-    # Aguardar container sair
-    for i in $(seq 1 15); do
-        if ! docker ps --filter "name=$OLD_NAME" --format "{{.Names}}" 2>/dev/null | grep -q .; then
-            break
-        fi
-        sleep 1
-    done
-
-    # Remover containers antigos
-    docker rm -f "$OLD_NAME" 2>/dev/null || true
-    for c in $(docker ps -a --filter "name=assettrack_ti-web" --format "{{.Names}}" 2>/dev/null); do
-        docker rm -f "$c" 2>/dev/null || true
-    done
-    echo "✅ Container antigo removido"
-}
-
-# ==========================================
-# Derrubar ambiente antigo
-# ==========================================
+# Derrubar ambiente antigo se estiver ativo
 echo "🛑 Parando containers antigos..."
+$COMPOSE_CMD down --remove-orphans 2>/dev/null || true
 
-# Tentar compose down normal primeiro
-if ! $COMPOSE_CMD down --remove-orphans 2>/dev/null; then
-    # Fallback: force stop web
-    force_stop_web
-fi
-
-# Garantir remocao de qualquer container ocupando as portas 5456, 5455 e 8000
-PORT_5456=$(docker ps -a --filter "publish=5456" -q 2>/dev/null)
-PORT_5455=$(docker ps -a --filter "publish=5455" -q 2>/dev/null)
+# Garantir remoção de processos conflitantes nas portas 8080 e 8000
+PORT_8080=$(docker ps -a --filter "publish=8080" -q 2>/dev/null)
 PORT_8000=$(docker ps -a --filter "publish=8000" -q 2>/dev/null)
-CONFLICT_CONTAINERS=$(echo "$PORT_5456 $PORT_5455 $PORT_8000" | xargs)
+CONFLICT_CONTAINERS=$(echo "$PORT_8080 $PORT_8000" | xargs)
 if [ -n "$CONFLICT_CONTAINERS" ]; then
-    echo "🧹 Removendo container(s) conflitantes nas portas 5456/5455/8000..."
+    echo "🧹 Removendo containers conflitantes nas portas 8080/8000..."
     docker rm -f $CONFLICT_CONTAINERS 2>/dev/null || true
 fi
 
-# Matar qualquer processo nativo uvicorn/python escutando na porta 8000 no host
-if command -v fuser &>/dev/null; then
-    fuser -k 8000/tcp 2>/dev/null || true
-fi
-pkill -f "uvicorn app.main:app" 2>/dev/null || true
-
-# ==========================================
 # Build e Start
-# ==========================================
-echo "🏗️ Construindo containers..."
+echo "🏗️ Construindo e iniciando os containers (API, Web, DB, Redis)..."
 $COMPOSE_CMD up -d --build
 
-# ==========================================
-# Aguardar inicializacao
-# ==========================================
-echo "⏳ Aguardando container web iniciar..."
-MAX_WAIT=120
+# Aguardar inicialização da API
+echo "⏳ Aguardando API (Go) ficar saudável..."
+MAX_WAIT=60
 WAITED=0
 while [ $WAITED -lt $MAX_WAIT ]; do
-    STATUS=$($COMPOSE_CMD ps --format json 2>/dev/null | python3 -c "
-import sys, json
-try:
-    content = sys.stdin.read().strip()
-    if content.startswith('['):
-        data = json.loads(content)
-    else:
-        data = [json.loads(line) for line in content.splitlines() if line.strip()]
-    for s in data:
-        if s.get('Service') == 'web' and s.get('State') == 'running':
-            if s.get('Health', '') in ('healthy', ''):
-                print('ready')
-                break
-except Exception:
-    pass
-" 2>/dev/null)
-    if [ "$STATUS" = "ready" ]; then
-        echo "✅ Container web pronto"
+    if curl -s http://localhost:8080/health | grep -q '"status":"ok"'; then
+        echo "✅ API (Go) está ativa e saudável!"
         break
     fi
-    sleep 3
-    WAITED=$((WAITED + 3))
+    sleep 2
+    WAITED=$((WAITED + 2))
 done
+
 if [ $WAITED -ge $MAX_WAIT ]; then
-    echo "⚠️ Timeout aguardando container web. Tentando prosseguir mesmo assim..."
+    echo "⚠️ Timeout aguardando API. Verifique os logs com: docker compose logs api"
 fi
 
-# ==========================================
 # Status
-# ==========================================
 echo "📦 Containers ativos:"
 docker ps --format "table {{.Names}}\t{{.Status}}" 2>/dev/null || docker ps
 
-# ==========================================
-# Criar Admin
-# ==========================================
-echo "👤 Configurando usuario administrador..."
-
-ADMIN_OK=true
-$COMPOSE_CMD exec -T web python create_admin.py || ADMIN_OK=false
-$COMPOSE_CMD exec -T web python activate_user_admin.py || ADMIN_OK=false
-
-# ==========================================
-# Informacoes finais
-# ==========================================
+# Informações finais
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-[ -z "$IP" ] && IP="<IP da maquina>"
+[ -z "$IP" ] && IP="<IP da máquina>"
 
 echo ""
 echo "------------------------------------------------"
 echo "✅ AssetTrack TI iniciado com sucesso!"
 echo "------------------------------------------------"
-echo "🌐 Local:    http://localhost:8000"
-echo "🌐 Rede:     http://$IP:8000"
-if [ "$IP" != "<IP da maquina>" ]; then
-    echo "📖 Swagger:  http://$IP:8000/docs"
-fi
-if [ "$ADMIN_OK" = true ]; then
-    echo "👤 Admin:    admin@example.com"
-    echo "🔑 Senha:    admin"
-else
-    echo "⚠️  Admin nao pode ser criado. Verifique:"
-    echo "   $COMPOSE_CMD exec web python create_admin.py"
-fi
+echo "🌐 Frontend URL: http://localhost:8000"
+echo "🌐 Backend API:  http://localhost:8080/api/v1"
+echo "🌐 API Health:   http://localhost:8080/health"
+echo "👤 Admin Padrão: admin@example.com"
+echo "🔑 Senha:        admin"
 echo "------------------------------------------------"
 echo "📜 Logs:"
 echo "$COMPOSE_CMD logs -f"

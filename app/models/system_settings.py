@@ -1,7 +1,9 @@
 # app/models/system_settings.py
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.database import Base
+
 
 class SystemSettings(Base):
     __tablename__ = "system_settings"

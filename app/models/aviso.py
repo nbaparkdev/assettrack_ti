@@ -1,9 +1,12 @@
 # app/models/aviso.py
-from sqlalchemy import String, Boolean, DateTime
-from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
-from app.database import Base
+
+from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy.orm import Mapped, mapped_column
+
 from app.core.datetime_utils import now_sp
+from app.database import Base
+
 
 class Aviso(Base):
     __tablename__ = "avisos"

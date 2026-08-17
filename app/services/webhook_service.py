@@ -261,48 +261,51 @@ async def dispatch_webhook_event(evento: str, payload: dict):
     Sends a POST request to all active webhooks subscribed to the given event.
     Logs the attempt and outcome. This should run in a background task.
     """
-    if evento not in WEBHOOK_EVENTS:
-        return
-        
-    async with SessionLocal() as db:
-        result = await db.execute(select(Webhook).filter(Webhook.is_active == True))
-        webhooks = result.scalars().all()
-        
-        target_webhooks = []
-        for w in webhooks:
-            try:
-                eventos_permitidos = json.loads(w.eventos_permitidos)
-                if evento in eventos_permitidos:
-                    target_webhooks.append(w)
-            except:
-                pass
-                
-        if not target_webhooks:
+    try:
+        if evento not in WEBHOOK_EVENTS:
             return
-
-        payload_str = json.dumps(payload)
-        
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            async def _send_single_webhook(w):
-                log_entry = WebhookLog(
-                    webhook_id=w.id,
-                    evento=evento,
-                    payload_enviado=payload_str,
-                    sucesso=False
-                )
-                db.add(log_entry)
+            
+        async with SessionLocal() as db:
+            result = await db.execute(select(Webhook).filter(Webhook.is_active == True))
+            webhooks = result.scalars().all()
+            
+            target_webhooks = []
+            for w in webhooks:
                 try:
-                    response = await client.post(w.url, json=payload)
-                    log_entry.status_code = response.status_code
-                    log_entry.response_body = response.text[:2000] # Limit to 2000 chars
-                    if 200 <= response.status_code < 300:
-                        log_entry.sucesso = True
-                except Exception as e:
-                    log_entry.response_body = str(e)[:2000]
-                    log_entry.status_code = 0
+                    eventos_permitidos = json.loads(w.eventos_permitidos)
+                    if evento in eventos_permitidos:
+                        target_webhooks.append(w)
+                except:
+                    pass
+                    
+            if not target_webhooks:
+                return
 
-            await asyncio.gather(*[_send_single_webhook(w) for w in target_webhooks], return_exceptions=True)
-            await db.commit()
+            payload_str = json.dumps(payload)
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                async def _send_single_webhook(w):
+                    log_entry = WebhookLog(
+                        webhook_id=w.id,
+                        evento=evento,
+                        payload_enviado=payload_str,
+                        sucesso=False
+                    )
+                    db.add(log_entry)
+                    try:
+                        response = await client.post(w.url, json=payload)
+                        log_entry.status_code = response.status_code
+                        log_entry.response_body = response.text[:2000] # Limit to 2000 chars
+                        if 200 <= response.status_code < 300:
+                            log_entry.sucesso = True
+                    except Exception as e:
+                        log_entry.response_body = str(e)[:2000]
+                        log_entry.status_code = 0
+
+                await asyncio.gather(*[_send_single_webhook(w) for w in target_webhooks], return_exceptions=True)
+                await db.commit()
+    except Exception as e:
+        print(f"[WEBHOOK][ERRO] Falha ao despachar evento {evento}: {e}")
 
 
 async def send_test_webhook_event(webhook_id: int) -> tuple[bool, str]:
@@ -388,7 +391,7 @@ def format_maintenance_request_payload(solicitacao, evento: str) -> dict:
         "status": status_val,
         "prioridade": prioridade_val,
         "descricao": solicitacao.descricao,
-        "observacao": solicitacao.observacao,
+        "observacao": getattr(solicitacao, 'observacao_resposta', None),
         "observacao_conclusao": getattr(solicitacao, 'observacao_conclusao', None),
         "ativo": {
             "id": solicitacao.asset_id,

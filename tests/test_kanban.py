@@ -1,7 +1,9 @@
 # tests/test_kanban.py
 import pytest
+
 from app.crud.kanban import crud_kanban
 from app.models.user import User, UserRole
+
 
 @pytest.mark.asyncio
 async def test_kanban_crud_workflow(db_session):
@@ -91,8 +93,16 @@ async def test_kanban_crud_workflow(db_session):
 
 @pytest.mark.asyncio
 async def test_kanban_procurement_and_stock_linking(db_session):
-    from app.models.procurement import CostCenter, PurchaseCategory, PurchaseProduct, MaterialStock, PurchaseRequest, ProductType, PurchaseRequestStatus
     from app.models.location import Departamento
+    from app.models.procurement import (
+        CostCenter,
+        MaterialStock,
+        ProductType,
+        PurchaseCategory,
+        PurchaseProduct,
+        PurchaseRequest,
+        PurchaseRequestStatus,
+    )
 
     # 1. Create base data
     dept = Departamento(nome="TI Infra")

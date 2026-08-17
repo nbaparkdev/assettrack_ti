@@ -1,6 +1,7 @@
 
 import sqlite3
 
+
 def migrate():
     try:
         conn = sqlite3.connect('assettrack.db')

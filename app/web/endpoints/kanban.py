@@ -1,28 +1,44 @@
 # app/web/endpoints/kanban.py
 import os
 import uuid
-from typing import Annotated, List, Optional
 from datetime import datetime
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, UploadFile, File
+from typing import Annotated
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.crud import user as user_crud
+from app.crud.kanban import crud_kanban
+from app.crud.procurement import create_or_update_stock, generate_request_number
 from app.database import get_db
-from app.models.user import User, UserRole
 from app.models.asset import Asset
 from app.models.location import Departamento
 from app.models.procurement import (
-    CostCenter, PurchaseRequest, PurchaseRequestItem, PurchaseProduct,
-    MaterialStock, ProductType, PurchaseRequestStatus, PurchaseCategory
+    CostCenter,
+    MaterialStock,
+    ProductType,
+    PurchaseCategory,
+    PurchaseProduct,
+    PurchaseRequest,
+    PurchaseRequestItem,
+    PurchaseRequestStatus,
 )
-from app.crud.procurement import generate_request_number, create_or_update_stock
-from app.crud.kanban import crud_kanban
-from app.crud import user as user_crud
-from app.web.dependencies import get_active_user_web, check_kanban_enabled
+from app.models.user import User
 from app.services import kanban_notification_service as notif_service
+from app.web.dependencies import check_kanban_enabled, get_active_user_web
 
 router = APIRouter(prefix="/kanban", tags=["Kanban Projects"])
 templates = Jinja2Templates(directory="app/templates")
@@ -103,8 +119,8 @@ async def create_project_submit(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: None = Depends(check_kanban_enabled),
     titulo: str = Form(...),
-    descricao: Optional[str] = Form(None),
-    participante_ids: List[int] = Form([])
+    descricao: str | None = Form(None),
+    participante_ids: list[int] = Form([])
 ):
     project = await crud_kanban.create_project(
         db=db,
@@ -200,10 +216,10 @@ async def edit_project_submit(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: None = Depends(check_kanban_enabled),
     titulo: str = Form(...),
-    descricao: Optional[str] = Form(None),
-    participante_ids: List[int] = Form([]),
-    is_active: Optional[str] = Form(None),
-    is_archived: Optional[str] = Form(None)
+    descricao: str | None = Form(None),
+    participante_ids: list[int] = Form([]),
+    is_active: str | None = Form(None),
+    is_archived: str | None = Form(None)
 ):
     project = await crud_kanban.get_project_by_id(db, project_id)
     if not project:
@@ -276,12 +292,12 @@ async def create_card_submit(
     project_id: int = Form(...),
     column_id: int = Form(...),
     titulo: str = Form(...),
-    descricao: Optional[str] = Form(None),
-    responsavel_id: Optional[int] = Form(None),
+    descricao: str | None = Form(None),
+    responsavel_id: int | None = Form(None),
     prioridade: str = Form("media"),
-    data_entrega: Optional[str] = Form(None),
-    participante_ids: List[int] = Form([]),
-    ativo_ids: List[int] = Form([])
+    data_entrega: str | None = Form(None),
+    participante_ids: list[int] = Form([]),
+    ativo_ids: list[int] = Form([])
 ):
     due_dt = datetime.strptime(data_entrega, "%Y-%m-%d") if data_entrega else None
     resp_id = responsavel_id if (responsavel_id and responsavel_id > 0) else None
@@ -317,7 +333,7 @@ async def get_card_modal(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)],
     _: None = Depends(check_kanban_enabled),
-    error_msg: Optional[str] = None
+    error_msg: str | None = None
 ):
     # Fetch project board to get full context
     from app.models.kanban import KanbanCard
@@ -380,13 +396,13 @@ async def update_card_submit(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: None = Depends(check_kanban_enabled),
     titulo: str = Form(...),
-    descricao: Optional[str] = Form(None),
+    descricao: str | None = Form(None),
     column_id: int = Form(...),
-    responsavel_id: Optional[int] = Form(None),
+    responsavel_id: int | None = Form(None),
     prioridade: str = Form("media"),
-    data_entrega: Optional[str] = Form(None),
-    participante_ids: List[int] = Form([]),
-    ativo_ids: List[int] = Form([])
+    data_entrega: str | None = Form(None),
+    participante_ids: list[int] = Form([]),
+    ativo_ids: list[int] = Form([])
 ):
     from app.models.kanban import KanbanCard
     card = await db.get(KanbanCard, card_id)
@@ -471,9 +487,9 @@ async def upload_attachment_submit(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: None = Depends(check_kanban_enabled),
     tipo_anexo: str = Form("imagem"), # imagem, link, arquivo
-    link_url: Optional[str] = Form(None),
-    nome_anexo: Optional[str] = Form(None),
-    arquivo: Optional[UploadFile] = File(None)
+    link_url: str | None = Form(None),
+    nome_anexo: str | None = Form(None),
+    arquivo: UploadFile | None = File(None)
 ):
     from app.models.kanban import KanbanCard
     card = await db.get(KanbanCard, card_id)
@@ -497,7 +513,11 @@ async def upload_attachment_submit(
             error_msg = "Por favor, selecione um arquivo para upload."
         else:
             try:
-                from app.core.security_utils import validate_uploaded_file, generate_safe_filename, ALLOWED_DOCUMENT_EXTENSIONS
+                from app.core.security_utils import (
+                    ALLOWED_DOCUMENT_EXTENSIONS,
+                    generate_safe_filename,
+                    validate_uploaded_file,
+                )
                 ext = validate_uploaded_file(arquivo, allowed_extensions=ALLOWED_DOCUMENT_EXTENSIONS)
                 upload_dir = os.path.join("static", "uploads", "kanban")
                 os.makedirs(upload_dir, exist_ok=True)
@@ -518,7 +538,7 @@ async def upload_attachment_submit(
             except HTTPException as exc:
                 error_msg = exc.detail
             except Exception as e:
-                error_msg = f"Erro ao salvar arquivo: {str(e)}"
+                error_msg = f"Erro ao salvar arquivo: {e!s}"
 
     if att_added:
         await crud_kanban.add_interaction(
@@ -560,9 +580,9 @@ async def create_purchase_request_from_card(
     nome_produto: str = Form(...),
     quantidade: float = Form(1.0),
     valor_estimado: float = Form(0.0),
-    departamento_id: Optional[int] = Form(None),
-    centro_custo_id: Optional[int] = Form(None),
-    justificativa: Optional[str] = Form(None)
+    departamento_id: int | None = Form(None),
+    centro_custo_id: int | None = Form(None),
+    justificativa: str | None = Form(None)
 ):
     from app.models.kanban import KanbanCard
     card = await db.get(KanbanCard, card_id)
@@ -659,7 +679,7 @@ async def link_stock_to_card(
     _: None = Depends(check_kanban_enabled),
     stock_id: int = Form(...),
     quantidade_usar: float = Form(1.0),
-    dar_baixa_estoque: Optional[bool] = Form(False)
+    dar_baixa_estoque: bool | None = Form(False)
 ):
     from app.models.kanban import KanbanCard
     card = await db.get(KanbanCard, card_id)
@@ -738,6 +758,7 @@ async def get_unread_notification_count(
 ):
     """Return the unread notification count for the logged user."""
     from sqlalchemy import func
+
     from app.models.kanban import KanbanNotification
     stmt = select(func.count(KanbanNotification.id)).where(
         KanbanNotification.user_id == current_user.id,
@@ -754,7 +775,7 @@ async def get_notifications_list(
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Return HTML partial of recent notifications for header dropdown and dashboard."""
-    from app.models.kanban import KanbanNotification, KanbanCard
+    from app.models.kanban import KanbanCard, KanbanNotification
     stmt = select(KanbanNotification).options(
         selectinload(KanbanNotification.card).selectinload(KanbanCard.column)
     ).where(
@@ -786,8 +807,9 @@ async def mark_all_notifications_read(
     current_user: Annotated[User, Depends(get_active_user_web)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    from app.models.kanban import KanbanNotification
     from sqlalchemy import update
+
+    from app.models.kanban import KanbanNotification
     stmt = update(KanbanNotification).where(
         KanbanNotification.user_id == current_user.id,
         KanbanNotification.lida == False

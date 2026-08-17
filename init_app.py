@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 import asyncio
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from app.database import engine, Base
-from app.models import User
-from sqlalchemy import select, text
 from passlib.context import CryptContext
+from sqlalchemy import select, text
+
+from app.database import Base, engine
+from app.models import User
 
 
 async def init_database():
@@ -85,7 +86,6 @@ async def create_admin_user():
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     hashed_password = pwd_context.hash("admin")
     
-    from app.database import get_db
     from sqlalchemy.ext.asyncio import AsyncSession
     
     async with AsyncSession(engine) as db:
@@ -119,9 +119,10 @@ async def create_admin_user():
 
 async def seed_maintenance_types():
     print("🔧 Semeando tipos de manutenção padrão...")
-    from app.models.preventive_maintenance import CustomMaintenanceType, MaintenanceType
-    from app.core.datetime_utils import now_sp
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.core.datetime_utils import now_sp
+    from app.models.preventive_maintenance import CustomMaintenanceType, MaintenanceType
     
     async with AsyncSession(engine) as db:
         result = await db.execute(select(CustomMaintenanceType))

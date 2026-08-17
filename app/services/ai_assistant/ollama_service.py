@@ -1,12 +1,16 @@
-import json
-import httpx
 import re
-from typing import List, Dict, Any, Optional
+from typing import Any
+
+import httpx
+from openai import APIConnectionError, AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
-from openai import AsyncOpenAI, APIConnectionError, APIError
 
 from app.services.ai_assistant.llm_base import LLMBaseService
-from app.services.ai_assistant.tools import get_openai_tools_schema, execute_tool, get_tools_summary
+from app.services.ai_assistant.tools import (
+    execute_tool,
+    get_openai_tools_schema,
+    get_tools_summary,
+)
 
 SYSTEM_PROMPT_TEMPLATE = """Você é o assistente virtual do AssetTrack TI, um sistema ERP de gestão de ativos, chamados e manutenção de TI.
 
@@ -46,7 +50,7 @@ class OllamaService(LLMBaseService):
             clean_base_url += "/v1"
         return AsyncOpenAI(api_key=self.api_key, base_url=clean_base_url)
 
-    async def _try_completion(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]]):
+    async def _try_completion(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None):
         # List of candidate URLs to auto-fallback if connection is refused
         candidates = [self.raw_base_url]
         for fallback in ["http://host.docker.internal:11434", "http://host.containers.internal:11434", "http://10.89.0.1:11434", "http://172.17.0.1:11434", "http://localhost:11434"]:
@@ -99,8 +103,8 @@ class OllamaService(LLMBaseService):
         raise RuntimeError(err_msg) from last_conn_err
 
     async def chat(
-        self, db: AsyncSession, user_id: int, messages: List[Dict[str, Any]], 
-        allow_advanced_tools: bool = False, user_context: Optional[Dict[str, str]] = None
+        self, db: AsyncSession, user_id: int, messages: list[dict[str, Any]], 
+        allow_advanced_tools: bool = False, user_context: dict[str, str] | None = None
     ) -> str:
         user_name = user_context.get("nome", "Usuário") if user_context else "Usuário"
         user_role = user_context.get("role", "usuario_comum") if user_context else "usuario_comum"
@@ -140,7 +144,10 @@ class OllamaService(LLMBaseService):
                 continue
 
             # 2. Text-based parsed Tool Call (ReAct format fallback)
-            from app.services.ai_assistant.tools import AVAILABLE_TOOLS, clean_unwanted_tool_tags
+            from app.services.ai_assistant.tools import (
+                AVAILABLE_TOOLS,
+                clean_unwanted_tool_tags,
+            )
             matches = list(re.finditer(r'\[(?:CALL:\s*)?([a-zA-Z0-9_]+)(?:\s+({.*?}|\[.*?\])?)?\]', content))
             if matches:
                 executed_any = False

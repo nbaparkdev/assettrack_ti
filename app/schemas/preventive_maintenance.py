@@ -1,20 +1,21 @@
 
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict
+
 from app.models.preventive_maintenance import (
-    MaintenanceType,
+    MaintenanceCriticality,
     MaintenancePeriodicity,
     MaintenancePriority,
-    MaintenanceCriticality,
+    MaintenanceType,
     OrderStatus,
-    PhotoType
+    PhotoType,
 )
-from app.schemas.user import UserResponse
-from app.schemas.location import Departamento
-from app.schemas.asset_category import AssetCategoryResponse
 from app.schemas.asset import AssetResponse
+from app.schemas.asset_category import AssetCategoryResponse
+from app.schemas.location import Departamento
+from app.schemas.user import UserResponse
 
 
 # ============== Maintenance Checklist Item ==============
@@ -30,10 +31,10 @@ class MaintenanceChecklistItemCreate(MaintenanceChecklistItemBase):
 
 
 class MaintenanceChecklistItemUpdate(BaseModel):
-    descricao: Optional[str] = None
-    obrigatorio: Optional[bool] = None
-    ordem: Optional[int] = None
-    requer_foto: Optional[bool] = None
+    descricao: str | None = None
+    obrigatorio: bool | None = None
+    ordem: int | None = None
+    requer_foto: bool | None = None
 
 
 class MaintenanceChecklistItemResponse(MaintenanceChecklistItemBase):
@@ -51,18 +52,18 @@ class MaintenanceChecklistBase(BaseModel):
 
 class MaintenanceChecklistCreate(MaintenanceChecklistBase):
     plan_id: int
-    items: Optional[List[MaintenanceChecklistItemCreate]] = None
+    items: list[MaintenanceChecklistItemCreate] | None = None
 
 
 class MaintenanceChecklistUpdate(BaseModel):
-    nome: Optional[str] = None
-    ordem: Optional[int] = None
+    nome: str | None = None
+    ordem: int | None = None
 
 
 class MaintenanceChecklistResponse(MaintenanceChecklistBase):
     id: int
     plan_id: int
-    items: Optional[List[MaintenanceChecklistItemResponse]] = None
+    items: list[MaintenanceChecklistItemResponse] | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -78,13 +79,13 @@ class MaintenancePlanAssetCreate(MaintenancePlanAssetBase):
 
 
 class MaintenancePlanAssetUpdate(BaseModel):
-    plan_id: Optional[int] = None
-    asset_id: Optional[int] = None
+    plan_id: int | None = None
+    asset_id: int | None = None
 
 
 class MaintenancePlanAssetResponse(MaintenancePlanAssetBase):
     id: int
-    asset: Optional[AssetResponse] = None
+    asset: AssetResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -92,51 +93,51 @@ class MaintenancePlanAssetResponse(MaintenancePlanAssetBase):
 # ============== Maintenance Plan ==============
 class MaintenancePlanBase(BaseModel):
     nome: str
-    descricao: Optional[str] = None
+    descricao: str | None = None
     tipo: MaintenanceType = MaintenanceType.PREVENTIVA
     periodicidade: MaintenancePeriodicity = MaintenancePeriodicity.MENSAL
-    dias_personalizado: Optional[int] = None
-    tempo_estimado_horas: Optional[Decimal] = None
+    dias_personalizado: int | None = None
+    tempo_estimado_horas: Decimal | None = None
     criticidade: MaintenanceCriticality = MaintenanceCriticality.MEDIA
     prioridade: MaintenancePriority = MaintenancePriority.MEDIA
     ativo: bool = True
-    responsavel_id: Optional[int] = None
-    departamento_id: Optional[int] = None
-    categoria_id: Optional[int] = None
+    responsavel_id: int | None = None
+    departamento_id: int | None = None
+    categoria_id: int | None = None
     proxima_execucao: datetime
 
 
 class MaintenancePlanCreate(MaintenancePlanBase):
-    asset_ids: Optional[List[int]] = None
-    checklists: Optional[List[MaintenanceChecklistCreate]] = None
+    asset_ids: list[int] | None = None
+    checklists: list[MaintenanceChecklistCreate] | None = None
 
 
 class MaintenancePlanUpdate(BaseModel):
-    nome: Optional[str] = None
-    descricao: Optional[str] = None
-    tipo: Optional[MaintenanceType] = None
-    periodicidade: Optional[MaintenancePeriodicity] = None
-    dias_personalizado: Optional[int] = None
-    tempo_estimado_horas: Optional[Decimal] = None
-    criticidade: Optional[MaintenanceCriticality] = None
-    prioridade: Optional[MaintenancePriority] = None
-    ativo: Optional[bool] = None
-    responsavel_id: Optional[int] = None
-    departamento_id: Optional[int] = None
-    categoria_id: Optional[int] = None
-    proxima_execucao: Optional[datetime] = None
+    nome: str | None = None
+    descricao: str | None = None
+    tipo: MaintenanceType | None = None
+    periodicidade: MaintenancePeriodicity | None = None
+    dias_personalizado: int | None = None
+    tempo_estimado_horas: Decimal | None = None
+    criticidade: MaintenanceCriticality | None = None
+    prioridade: MaintenancePriority | None = None
+    ativo: bool | None = None
+    responsavel_id: int | None = None
+    departamento_id: int | None = None
+    categoria_id: int | None = None
+    proxima_execucao: datetime | None = None
 
 
 class MaintenancePlanResponse(MaintenancePlanBase):
     id: int
     codigo: str
     data_criacao: datetime
-    data_ultima_execucao: Optional[datetime] = None
-    responsavel: Optional[UserResponse] = None
-    departamento: Optional[Departamento] = None
-    categoria: Optional[AssetCategoryResponse] = None
-    assets: Optional[List[MaintenancePlanAssetResponse]] = None
-    checklists: Optional[List[MaintenanceChecklistResponse]] = None
+    data_ultima_execucao: datetime | None = None
+    responsavel: UserResponse | None = None
+    departamento: Departamento | None = None
+    categoria: AssetCategoryResponse | None = None
+    assets: list[MaintenancePlanAssetResponse] | None = None
+    checklists: list[MaintenanceChecklistResponse] | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -147,8 +148,8 @@ class MaintenanceMaterialBase(BaseModel):
     quantidade: Decimal
     valor_unitario: Decimal
     valor_total: Decimal
-    product_id: Optional[int] = None
-    observacao: Optional[str] = None
+    product_id: int | None = None
+    observacao: str | None = None
 
 
 class MaintenanceMaterialCreate(MaintenanceMaterialBase):
@@ -156,11 +157,11 @@ class MaintenanceMaterialCreate(MaintenanceMaterialBase):
 
 
 class MaintenanceMaterialUpdate(BaseModel):
-    produto: Optional[str] = None
-    quantidade: Optional[Decimal] = None
-    valor_unitario: Optional[Decimal] = None
-    valor_total: Optional[Decimal] = None
-    observacao: Optional[str] = None
+    produto: str | None = None
+    quantidade: Decimal | None = None
+    valor_unitario: Decimal | None = None
+    valor_total: Decimal | None = None
+    observacao: str | None = None
 
 
 class MaintenanceMaterialResponse(MaintenanceMaterialBase):
@@ -174,25 +175,25 @@ class MaintenanceMaterialResponse(MaintenanceMaterialBase):
 class MaintenancePhotoBase(BaseModel):
     tipo: PhotoType = PhotoType.DURANTE
     caminho_arquivo: str
-    descricao: Optional[str] = None
+    descricao: str | None = None
 
 
 class MaintenancePhotoCreate(MaintenancePhotoBase):
     order_id: int
-    execution_id: Optional[int] = None
+    execution_id: int | None = None
 
 
 class MaintenancePhotoUpdate(BaseModel):
-    tipo: Optional[PhotoType] = None
-    descricao: Optional[str] = None
+    tipo: PhotoType | None = None
+    descricao: str | None = None
 
 
 class MaintenancePhotoResponse(MaintenancePhotoBase):
     id: int
     order_id: int
-    execution_id: Optional[int] = None
+    execution_id: int | None = None
     data_upload: datetime
-    upload_por: Optional[UserResponse] = None
+    upload_por: UserResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -201,7 +202,7 @@ class MaintenancePhotoResponse(MaintenancePhotoBase):
 class MaintenanceExecutionBase(BaseModel):
     checklist_item_id: int
     concluido: bool = False
-    observacao: Optional[str] = None
+    observacao: str | None = None
 
 
 class MaintenanceExecutionCreate(MaintenanceExecutionBase):
@@ -209,16 +210,16 @@ class MaintenanceExecutionCreate(MaintenanceExecutionBase):
 
 
 class MaintenanceExecutionUpdate(BaseModel):
-    concluido: Optional[bool] = None
-    observacao: Optional[str] = None
+    concluido: bool | None = None
+    observacao: str | None = None
 
 
 class MaintenanceExecutionResponse(MaintenanceExecutionBase):
     id: int
     order_id: int
-    data_execucao: Optional[datetime] = None
-    executado_por: Optional[UserResponse] = None
-    checklist_item: Optional[MaintenanceChecklistItemResponse] = None
+    data_execucao: datetime | None = None
+    executado_por: UserResponse | None = None
+    checklist_item: MaintenanceChecklistItemResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -227,19 +228,19 @@ class MaintenanceExecutionResponse(MaintenanceExecutionBase):
 class MaintenanceHistoryBase(BaseModel):
     acao: str
     descricao: str
-    status_anterior: Optional[str] = None
-    status_novo: Optional[str] = None
+    status_anterior: str | None = None
+    status_novo: str | None = None
 
 
 class MaintenanceHistoryCreate(MaintenanceHistoryBase):
     order_id: int
-    usuario_id: Optional[int] = None
+    usuario_id: int | None = None
 
 
 class MaintenanceHistoryResponse(MaintenanceHistoryBase):
     id: int
     order_id: int
-    usuario: Optional[UserResponse] = None
+    usuario: UserResponse | None = None
     data_hora: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -253,19 +254,19 @@ class MaintenanceNotificationBase(BaseModel):
 
 
 class MaintenanceNotificationCreate(MaintenanceNotificationBase):
-    order_id: Optional[int] = None
-    plan_id: Optional[int] = None
+    order_id: int | None = None
+    plan_id: int | None = None
     usuario_id: int
 
 
 class MaintenanceNotificationUpdate(BaseModel):
-    lida: Optional[bool] = None
+    lida: bool | None = None
 
 
 class MaintenanceNotificationResponse(MaintenanceNotificationBase):
     id: int
-    order_id: Optional[int] = None
-    plan_id: Optional[int] = None
+    order_id: int | None = None
+    plan_id: int | None = None
     usuario_id: int
     data_criacao: datetime
 
@@ -274,18 +275,18 @@ class MaintenanceNotificationResponse(MaintenanceNotificationBase):
 
 # ============== Maintenance Order ==============
 class MaintenanceOrderBase(BaseModel):
-    plan_id: Optional[int] = None
-    asset_id: Optional[int] = None
-    infra_predial_servico: Optional[str] = None
-    tecnico_id: Optional[int] = None
-    solicitante_id: Optional[int] = None
+    plan_id: int | None = None
+    asset_id: int | None = None
+    infra_predial_servico: str | None = None
+    tecnico_id: int | None = None
+    solicitante_id: int | None = None
     status: OrderStatus = OrderStatus.ABERTA
     prioridade: MaintenancePriority = MaintenancePriority.MEDIA
     criticidade: MaintenanceCriticality = MaintenanceCriticality.MEDIA
     tipo: MaintenanceType = MaintenanceType.PREVENTIVA
-    data_agendada: Optional[datetime] = None
-    observacoes: Optional[str] = None
-    service_ticket_id: Optional[int] = None
+    data_agendada: datetime | None = None
+    observacoes: str | None = None
+    service_ticket_id: int | None = None
 
 
 class MaintenanceOrderCreate(MaintenanceOrderBase):
@@ -293,37 +294,37 @@ class MaintenanceOrderCreate(MaintenanceOrderBase):
 
 
 class MaintenanceOrderUpdate(BaseModel):
-    plan_id: Optional[int] = None
-    tecnico_id: Optional[int] = None
-    solicitante_id: Optional[int] = None
-    status: Optional[OrderStatus] = None
-    prioridade: Optional[MaintenancePriority] = None
-    criticidade: Optional[MaintenanceCriticality] = None
-    tipo: Optional[MaintenanceType] = None
-    data_agendada: Optional[datetime] = None
-    observacoes: Optional[str] = None
-    solucao: Optional[str] = None
-    service_ticket_id: Optional[int] = None
+    plan_id: int | None = None
+    tecnico_id: int | None = None
+    solicitante_id: int | None = None
+    status: OrderStatus | None = None
+    prioridade: MaintenancePriority | None = None
+    criticidade: MaintenanceCriticality | None = None
+    tipo: MaintenanceType | None = None
+    data_agendada: datetime | None = None
+    observacoes: str | None = None
+    solucao: str | None = None
+    service_ticket_id: int | None = None
 
 
 class MaintenanceOrderResponse(MaintenanceOrderBase):
     id: int
     numero: str
     data_abertura: datetime
-    data_inicio: Optional[datetime] = None
-    data_pausa: Optional[datetime] = None
-    data_conclusao: Optional[datetime] = None
-    tempo_total_minutos: Optional[int] = None
-    solucao: Optional[str] = None
-    custo_total: Optional[Decimal] = None
-    plan: Optional[MaintenancePlanResponse] = None
-    asset: Optional[AssetResponse] = None
-    tecnico: Optional[UserResponse] = None
-    solicitante: Optional[UserResponse] = None
-    executions: Optional[List[MaintenanceExecutionResponse]] = None
-    materials: Optional[List[MaintenanceMaterialResponse]] = None
-    photos: Optional[List[MaintenancePhotoResponse]] = None
-    history: Optional[List[MaintenanceHistoryResponse]] = None
+    data_inicio: datetime | None = None
+    data_pausa: datetime | None = None
+    data_conclusao: datetime | None = None
+    tempo_total_minutos: int | None = None
+    solucao: str | None = None
+    custo_total: Decimal | None = None
+    plan: MaintenancePlanResponse | None = None
+    asset: AssetResponse | None = None
+    tecnico: UserResponse | None = None
+    solicitante: UserResponse | None = None
+    executions: list[MaintenanceExecutionResponse] | None = None
+    materials: list[MaintenanceMaterialResponse] | None = None
+    photos: list[MaintenancePhotoResponse] | None = None
+    history: list[MaintenanceHistoryResponse] | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -334,8 +335,8 @@ class MaintenanceMaterialBase(BaseModel):
     quantidade: float
     valor_unitario: float
     valor_total: float
-    product_id: Optional[int] = None
-    observacao: Optional[str] = None
+    product_id: int | None = None
+    observacao: str | None = None
 
 
 class MaintenanceMaterialCreate(MaintenanceMaterialBase):
@@ -343,11 +344,11 @@ class MaintenanceMaterialCreate(MaintenanceMaterialBase):
 
 
 class MaintenanceMaterialUpdate(BaseModel):
-    produto: Optional[str] = None
-    quantidade: Optional[float] = None
-    valor_unitario: Optional[float] = None
-    valor_total: Optional[float] = None
-    observacao: Optional[str] = None
+    produto: str | None = None
+    quantidade: float | None = None
+    valor_unitario: float | None = None
+    valor_total: float | None = None
+    observacao: str | None = None
 
 
 class MaintenanceMaterialResponse(MaintenanceMaterialBase):
@@ -361,25 +362,25 @@ class MaintenanceMaterialResponse(MaintenanceMaterialBase):
 class MaintenancePhotoBase(BaseModel):
     tipo: str
     caminho_arquivo: str
-    descricao: Optional[str] = None
+    descricao: str | None = None
 
 
 class MaintenancePhotoCreate(MaintenancePhotoBase):
     order_id: int
-    execution_id: Optional[int] = None
+    execution_id: int | None = None
 
 
 class MaintenancePhotoUpdate(BaseModel):
-    tipo: Optional[str] = None
-    descricao: Optional[str] = None
+    tipo: str | None = None
+    descricao: str | None = None
 
 
 class MaintenancePhotoResponse(MaintenancePhotoBase):
     id: int
     order_id: int
-    execution_id: Optional[int] = None
+    execution_id: int | None = None
     data_upload: datetime
-    upload_por: Optional[UserResponse] = None
+    upload_por: UserResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -388,7 +389,7 @@ class MaintenancePhotoResponse(MaintenancePhotoBase):
 class MaintenanceExecutionBase(BaseModel):
     checklist_item_id: int
     concluido: bool = False
-    observacao: Optional[str] = None
+    observacao: str | None = None
 
 
 class MaintenanceExecutionCreate(MaintenanceExecutionBase):
@@ -396,16 +397,16 @@ class MaintenanceExecutionCreate(MaintenanceExecutionBase):
 
 
 class MaintenanceExecutionUpdate(BaseModel):
-    concluido: Optional[bool] = None
-    observacao: Optional[str] = None
+    concluido: bool | None = None
+    observacao: str | None = None
 
 
 class MaintenanceExecutionResponse(MaintenanceExecutionBase):
     id: int
     order_id: int
-    data_execucao: Optional[datetime] = None
-    executado_por: Optional[UserResponse] = None
-    checklist_item: Optional[MaintenanceChecklistItemResponse] = None
+    data_execucao: datetime | None = None
+    executado_por: UserResponse | None = None
+    checklist_item: MaintenanceChecklistItemResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -414,19 +415,19 @@ class MaintenanceExecutionResponse(MaintenanceExecutionBase):
 class MaintenanceHistoryBase(BaseModel):
     acao: str
     descricao: str
-    status_anterior: Optional[str] = None
-    status_novo: Optional[str] = None
+    status_anterior: str | None = None
+    status_novo: str | None = None
 
 
 class MaintenanceHistoryCreate(MaintenanceHistoryBase):
     order_id: int
-    usuario_id: Optional[int] = None
+    usuario_id: int | None = None
 
 
 class MaintenanceHistoryResponse(MaintenanceHistoryBase):
     id: int
     order_id: int
-    usuario: Optional[UserResponse] = None
+    usuario: UserResponse | None = None
     data_hora: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -440,19 +441,19 @@ class MaintenanceNotificationBase(BaseModel):
 
 
 class MaintenanceNotificationCreate(MaintenanceNotificationBase):
-    order_id: Optional[int] = None
-    plan_id: Optional[int] = None
+    order_id: int | None = None
+    plan_id: int | None = None
     usuario_id: int
 
 
 class MaintenanceNotificationUpdate(BaseModel):
-    lida: Optional[bool] = None
+    lida: bool | None = None
 
 
 class MaintenanceNotificationResponse(MaintenanceNotificationBase):
     id: int
-    order_id: Optional[int] = None
-    plan_id: Optional[int] = None
+    order_id: int | None = None
+    plan_id: int | None = None
     usuario_id: int
     data_criacao: datetime
 
@@ -481,5 +482,5 @@ class DashboardChartData(BaseModel):
 class MaintenanceDashboardResponse(BaseModel):
     stats: DashboardStats
     charts: DashboardChartData
-    proximas_manutencoes: List[MaintenanceOrderResponse]
+    proximas_manutencoes: list[MaintenanceOrderResponse]
 

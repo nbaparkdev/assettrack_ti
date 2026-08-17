@@ -1,10 +1,13 @@
 import asyncio
+from datetime import datetime
+
 from sqlalchemy import select
+
 from app.database import SessionLocal
-from app.models.user import User
 from app.models.asset import Asset, AssetStatus
 from app.models.transaction import Movimentacao, TipoMovimentacao
-from datetime import datetime
+from app.models.user import User
+
 
 async def debug_baixa():
     async with SessionLocal() as db:

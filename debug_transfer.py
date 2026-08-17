@@ -1,10 +1,13 @@
 import asyncio
+from datetime import datetime
+
 from sqlalchemy import select
+
 from app.database import SessionLocal
-from app.models.user import User
 from app.models.asset import Asset
 from app.models.transaction import Solicitacao, StatusSolicitacao
-from datetime import datetime
+from app.models.user import User
+
 
 async def debug_transfer():
     async with SessionLocal() as db:

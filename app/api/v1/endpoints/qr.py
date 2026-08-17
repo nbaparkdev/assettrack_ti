@@ -1,36 +1,44 @@
 
 # app/api/v1/endpoints/qr.py
+from datetime import datetime, timedelta
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from datetime import timedelta, datetime
 
-from app.database import get_db
 from app.api import dependencies
-from app.crud import user as user_crud
-from app.services.qr_service import QRService
-from app.schemas.user import (
-    UserQRResponse, 
-    UserBadgeResponse, 
-    PINSetupRequest, 
-    QRLoginRequest,
-    UserPublicProfile,
-    DeliveryConfirmRequest,
-
-    Token,
-    PendingDeliveryItem
-)
-from app.models.user import User, UserRole
-from app.models.transaction import Solicitacao, Movimentacao, StatusSolicitacao, TipoMovimentacao
-from app.models.asset import Asset, AssetStatus
-from app.models.maintenance_request import SolicitacaoManutencao, StatusSolicitacaoManutencao
-from app.core.datetime_utils import now_sp
 from app.api.v1.endpoints.auth import create_access_token
 from app.config import settings
-from app.core.rate_limit import limiter, get_rate_limit
+from app.core.datetime_utils import now_sp
+from app.core.rate_limit import get_rate_limit, limiter
+from app.crud import user as user_crud
+from app.database import get_db
+from app.models.asset import AssetStatus
+from app.models.maintenance_request import (
+    SolicitacaoManutencao,
+    StatusSolicitacaoManutencao,
+)
+from app.models.transaction import (
+    Movimentacao,
+    Solicitacao,
+    StatusSolicitacao,
+    TipoMovimentacao,
+)
+from app.models.user import User, UserRole
+from app.schemas.user import (
+    DeliveryConfirmRequest,
+    PendingDeliveryItem,
+    PINSetupRequest,
+    QRLoginRequest,
+    Token,
+    UserBadgeResponse,
+    UserPublicProfile,
+    UserQRResponse,
+)
 from app.services.qr_log_service import QRLogService
+from app.services.qr_service import QRService
 
 # Token QR expira em 90 dias por padrão (configurável)
 QR_TOKEN_EXPIRY_DAYS = 90

@@ -1,17 +1,18 @@
 
 # app/api/v1/endpoints/users.py
-from typing import Annotated, List
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import dependencies
 from app.crud import user as user_crud
-from app.schemas.user import UserCreate, UserUpdate, UserResponse
 from app.database import get_db
+from app.schemas.user import UserCreate, UserResponse, UserUpdate
 
 router = APIRouter()
 
-@router.get("/", response_model=List[UserResponse])
+@router.get("/", response_model=list[UserResponse])
 async def read_users(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[dependencies.User, Depends(dependencies.get_current_active_manager_or_superuser)],

@@ -1,14 +1,14 @@
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy import select
-import sys
 import os
+import sys
+
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 # Add app to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app.models.email_log import EmailLog
 from app.crud.system_settings import system_settings
+from app.models.email_log import EmailLog
 
 DATABASE_URL = "postgresql+asyncpg://user:password@localhost:5456/assettrack"
 

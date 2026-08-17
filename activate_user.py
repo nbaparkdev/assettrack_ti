@@ -1,8 +1,11 @@
 import asyncio
 import sys
+
+from sqlalchemy import select
+
 from app.database import SessionLocal
 from app.models.user import User
-from sqlalchemy import select
+
 
 async def activate_user(email=None):
     async with SessionLocal() as db:

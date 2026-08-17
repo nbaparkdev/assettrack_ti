@@ -1,18 +1,19 @@
-from typing import Annotated, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
+from typing import Annotated, Any
 
-from app.database import get_db
-from app.web.dependencies import get_active_user_web
-from app.models.user import User
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.crud.system_settings import system_settings
+from app.database import get_db
+from app.models.user import User
 from app.services.ai_assistant.llm_factory import get_llm_service
+from app.web.dependencies import get_active_user_web
 
 router = APIRouter()
 
 class ChatRequest(BaseModel):
-    messages: List[Dict[str, Any]]
+    messages: list[dict[str, Any]]
 
 class ChatResponse(BaseModel):
     response: str

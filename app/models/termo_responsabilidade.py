@@ -1,9 +1,12 @@
 # app/models/termo_responsabilidade.py
-from sqlalchemy import String, ForeignKey, DateTime, Text, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
-from app.database import Base
+
+from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.datetime_utils import now_sp
+from app.database import Base
+
 
 class TermoResponsabilidade(Base):
     __tablename__ = "termos_responsabilidade"

@@ -1,12 +1,18 @@
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.crud import user as user_crud
-from app.schemas.user import UserCreate
-from app.models.preventive_maintenance import MaintenanceOrder, MaintenanceMaterial, OrderStatus
-from app.models.procurement import PurchaseProduct, PurchaseCategory, MaterialStock
 from app.crud.procurement import create_or_update_stock
+from app.models.preventive_maintenance import (
+    MaintenanceMaterial,
+    MaintenanceOrder,
+    OrderStatus,
+)
+from app.models.procurement import MaterialStock, PurchaseCategory, PurchaseProduct
+from app.schemas.user import UserCreate
+
 
 @pytest.fixture
 async def admin_user(db_session: AsyncSession):
