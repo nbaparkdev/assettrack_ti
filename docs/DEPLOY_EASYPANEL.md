@@ -34,26 +34,15 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
 # Configuração do Banco de Dados
-# IMPORTANTE: Mude o início de 'postgres://' para 'postgresql+asyncpg://'
-DATABASE_URL=postgresql+asyncpg://postgres:suasenha@asset-db:5432/postgres
+DATABASE_URL=postgres://postgres:suasenha@asset-db:5432/postgres?sslmode=disable
+REDIS_URL=redis://asset-redis:6379/0
 ```
 
 ## 5. Porta e Domínio
 1.  Vá na aba **Domains**.
 2.  Certifique-se de que a **Container Port** está definida como `8000`.
 
-## 6. Inicializar Usuário (Admin)
-Como o banco é novo, você precisa criar e ativar o admin manualmente no console do container.
-
-1.  No serviço da aplicação, clique em **Console**.
-2.  Execute os comandos de inicialização:
-    ```bash
-    # Criar o usuário
-    python create_admin.py
-    
-    # Ativar o usuário (Obrigatório para login)
-    python activate_user_admin.py
-    ```
+O usuário administrador (admin@npg.com) com a senha padrão será criado automaticamente via GORM AutoMigrate na inicialização da aplicação em Go. Não é necessário executar scripts manuais de criação.
 
 Seu deploy está concluído! ✅
 
@@ -93,4 +82,4 @@ Após fazer pull de novas alterações do repositório, execute:
 Este script reconstrói as imagens e sobe os containers com as últimas mudanças.
 
 ### Auto-Migration no Startup
-O sistema agora executa migrações automáticas de colunas no banco de dados durante a inicialização (lifespan do FastAPI). Novas colunas como `categoria_id` em ativos e `foto` em chamados são adicionadas automaticamente, sem necessidade de migrações manuais.
+O sistema executa migrações automáticas (`GORM AutoMigrate`) no banco de dados durante a inicialização da API em Go. Novas tabelas e colunas são adicionadas automaticamente.

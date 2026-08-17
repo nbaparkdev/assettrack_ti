@@ -143,7 +143,7 @@ Módulo de assistente virtual cognitivo integrado nativamente ao ERP, operando v
 
 ## 🔧 Stack Tecnológica
 
-- **Backend:** FastAPI (Python 3.12).
-- **Frontend:** Jinja2 + Tailwind CSS.
+- **Backend:** Go 1.21+ (Gin Web Framework + GORM).
+- **Frontend:** React 18+ (Vite, TypeScript, Zustand, Tailwind CSS v4, Lucide).
 - **Banco de Dados:** PostgreSQL (Dockerizado).
 - **Infra:** Docker & Docker Compose.

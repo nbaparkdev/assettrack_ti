@@ -87,6 +87,7 @@ func main() {
 		&models.MaterialStockTransaction{},
 		&models.PurchaseResearch{},
 		&models.PurchaseResearchItem{},
+		&models.KanbanAttachment{},
 		&models.TermoResponsabilidade{},
 		&models.Webhook{},
 		&models.WebhookLog{},

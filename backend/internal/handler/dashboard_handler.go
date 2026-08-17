@@ -52,13 +52,13 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 
 	// 5. Main Alerts
 	var alerts []models.EmergencyAlert
-	h.db.Where("status = ?", "ACTIVE").Order("created_at DESC").Limit(5).Find(&alerts)
+	h.db.Where("atendido = ?", false).Order("created_at DESC").Limit(5).Find(&alerts)
 	
 	for _, a := range alerts {
 		response.ActiveAlerts = append(response.ActiveAlerts, dto.AlertSummary{
 			ID:        a.ID,
-			Title:     a.Title,
-			Severity:  a.Severity,
+			Title:     "Alerta Crítico: " + a.UsuarioNome + " (" + a.Motivo + ")",
+			Severity:  "CRITICAL",
 			CreatedAt: a.CreatedAt.Format(time.RFC3339),
 		})
 	}

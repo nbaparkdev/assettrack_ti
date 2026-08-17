@@ -2,8 +2,8 @@
 
 Documentação completa dos endpoints do AssetTrack TI. A aplicação possui dois tipos de rotas:
 
-- **API REST** (`/api/v1`): endpoints que retornam JSON para integração com sistemas externos.
-- **Rotas Web**: páginas HTML renderizadas no servidor (interface do usuário).
+- **API REST** (`/api/v1`): endpoints em Go (Gin) que retornam JSON para integração e consumo do frontend.
+- **Rotas Web (Frontend)**: páginas Single Page Application (SPA) renderizadas via React (Vite + React Router).
 
 ---
 
@@ -250,9 +250,10 @@ Atualiza dados de um usuário.
 
 ---
 
-# Rotas Web — HTML (Interface do Usuário)
+# Rotas do Frontend (React Router)
 
-As rotas abaixo retornam páginas HTML renderizadas pelo servidor.
+As rotas abaixo representam as páginas da interface da Single Page Application (SPA) no React.
+Elas não batem no backend para renderizar HTML, mas sim consomem a API REST mapeada acima.
 
 ## 📦 Ativos (`/assets`)
 

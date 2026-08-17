@@ -98,8 +98,8 @@ Solicite equipamentos e acompanhe suas solicitações com transparência.
 
 | Stack | Tecnologia |
 |-------|------------|
-| Backend | Python 3.11 + FastAPI |
-| Frontend | Jinja2 + Tailwind CSS |
+| Backend | Go 1.21+ (Gin + GORM) |
+| Frontend | React 18+ (Vite, TypeScript, Tailwind CSS v4) |
 | Database | PostgreSQL |
 | Auth | JWT com HttpOnly Cookies |
 | Deploy | Docker Ready |
