@@ -1,128 +1,93 @@
-# Comandos Docker — AssetTrack TI
+# Comandos Docker — AssetTrack TI (Go + React)
 
 ## Ambiente
 
 | Serviço | Container | Porta |
 |---|---|---|
-| Web (FastAPI) | `assettrack_ti-web-1` | `8000` |
-| Banco (PostgreSQL 15) | `assettrack_ti-db-1` | `5455` |
-
-Docker via snap. Uvicorn sem `--reload`: mudanças em rota Python exigem restart do container; templates e estáticos são montados via volume e atualizam automaticamente.
+| Web (React/Nginx) | `assettrack_ti-web-1` | `8000` |
+| API (Go/Gin) | `assettrack_ti-api-1` | `8080` |
+| Banco (PostgreSQL 15) | `assettrack_ti-db-1` | `5456` |
+| Cache/Rate Limit (Redis 7) | `assettrack_ti-redis-1` | `6380` |
 
 ---
 
-## Scripts de Automação
+## Scripts de Automação (Raiz do Projeto)
+
+Criamos uma suíte de scripts na raiz para facilitar o uso diário:
 
 ```bash
-./init_docker.sh      # Primeira inicialização (build + admin)
-./update_docker.sh    # Git pull + rebuild + restart
-./stop_docker.sh      # Parar containers
-./reset_docker.sh     # Derrubar containers (--full: remove volumes/imagens)
-./scripts/backup.sh   # Backup do banco (pg_dump)
-./scripts/reset_db.sh  # Reset completo do banco (destroi volume, recria, seed admin)
+./init_docker.sh      # Inicialização principal (Build + Start API, Web, DB, Redis)
+./update_docker.sh    # Git pull + Rebuild silencioso + Restart sem downtime
+./stop_docker.sh      # Parar containers com segurança (mantém banco)
+./reset_docker.sh     # Derrubar containers (--full: remove volumes/banco e imagens)
+./start_local.sh      # Modo Desenvolvimento Nativo (Sobe DB+Redis no docker, roda Go e React no terminal)
 ```
 
 ---
 
-## Comandos Manuais
+## Comandos Manuais Frequentes
 
-### Status
+### Status e Monitoramento
 
 ```bash
 docker ps --filter "name=assettrack_ti"
 docker compose ps
-docker logs assettrack_ti-web-1 --tail 50
-docker logs assettrack_ti-db-1 --tail 50
 ```
 
-### Subir / Parar
+### Subir / Parar / Reiniciar
 
 ```bash
 docker compose up -d          # Subir em background
 docker compose up -d --build  # Rebuild e subir
 docker compose down           # Parar e remover containers
-docker compose restart web    # Reiniciar só o web
+docker compose restart api    # Reiniciar só a API (Go)
+docker compose restart web    # Reiniciar só o Frontend (React/Nginx)
 ```
 
-### Reiniciar uvicorn sem rebuild (via volume)
+### Visualizar Logs
 
 ```bash
-# Quando só código Python mudou (não Dockerfile/dependências)
-docker exec assettrack_ti-web-1 python3 -c "
-import os, signal
-for pid in [int(p) for p in os.listdir('/proc') if p.isdigit()]:
-    try:
-        with open(f'/proc/{pid}/cmdline', 'rb') as f:
-            cmd = f.read().decode()
-        if 'python' in cmd and 'uvicorn' in cmd and 'app.main' in cmd:
-            os.kill(pid, signal.SIGTERM)
-            print(f'uvicorn PID {pid} reiniciado')
-            break
-    except:
-        pass
-"
-```
-
-### Container preso (AppArmor/snap bloqueando stop/kill)
-
-```bash
-# Renomear para liberar o nome
-docker rename assettrack_ti-web-1 assettrack_ti-web-1-old
-
-# Matar processo interno
-docker exec assettrack_ti-web-1-old python3 -c "
-import os, signal
-for pid in [int(p) for p in os.listdir('/proc') if p.isdigit()]:
-    try:
-        with open(f'/proc/{pid}/cmdline', 'rb') as f:
-            cmd = f.read().decode()
-        if 'python' in cmd and 'uvicorn' in cmd and 'app.main' in cmd:
-            os.kill(pid, signal.SIGTERM)
-            break
-    except:
-        pass
-"
-
-# Aguardar sair e remover
-docker rm -f assettrack_ti-web-1-old
-
-# Subir de novo
-docker compose up -d
-```
-
-### Banco de Dados
-
-```bash
-# Conectar via psql
-docker exec -it assettrack_ti-db-1 psql -U user -d assettrack
-
-# Backup manual
-docker exec -t assettrack_ti-db-1 pg_dump -U user assettrack | gzip > backup_$(date +%Y%m%d).sql.gz
-
-# Restore
-gunzip -c backup.sql.gz | docker exec -i assettrack_ti-db-1 psql -U user assettrack
-
-# Reset DB (destroi volume, recria, seed admin)
-./scripts/reset_db.sh              # Reset limpo
-./scripts/reset_db.sh --backup     # Faz backup antes de resetar
-
-# Reset DB manual (sem script)
-docker compose down -v
-docker compose up -d
-```
-
-### Logs
-
-```bash
-docker compose logs -f           # Todos os serviços
-docker compose logs -f web       # Só web
+docker compose logs -f           # Ver logs de todos os 4 serviços ao vivo
+docker compose logs -f api       # Logs só da API (Go)
+docker compose logs -f web       # Logs só do Frontend (React)
 docker compose logs --tail=100   # Últimas 100 linhas
 ```
 
-### Limpeza
+---
+
+## Manutenção do Banco de Dados
+
+### Conectar ao Banco de Dados (psql)
+```bash
+docker exec -it assettrack_ti-db-1 psql -U user -d assettrack
+```
+
+### Backup Manual via Terminal
+> **Nota:** Agora você pode fazer backups graficamente pela interface web acessando o menu "Admin > Backup de Dados". Caso precise fazer via terminal:
+```bash
+docker exec -t assettrack_ti-db-1 pg_dump -U user assettrack | gzip > backup_$(date +%Y%m%d).sql.gz
+```
+
+### Restaurar Backup
+```bash
+gunzip -c backup.sql.gz | docker exec -i assettrack_ti-db-1 psql -U user assettrack
+```
+
+### Reset Completo do Banco de Dados
+> ⚠️ **Atenção:** Destrói todo o banco e recria um novo em branco com o Admin padrão.
+```bash
+./reset_docker.sh --full
+./init_docker.sh
+```
+
+---
+
+## Limpeza de Disco
+
+Se o Docker começar a ocupar muito espaço no servidor, utilize:
 
 ```bash
-docker image prune -f            # Remove imagens não usadas
-docker builder prune -f          # Limpa cache de build
-docker system prune -f           # Remove tudo não usado (cuidado)
+docker image prune -f            # Remove imagens antigas ou não utilizadas pelo compose
+docker builder prune -f          # Limpa cache temporário de build
+docker system prune -f           # Remove tudo não usado (Atenção: limpará outros projetos parados)
 ```

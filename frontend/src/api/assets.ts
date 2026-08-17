@@ -1,5 +1,5 @@
 import { API_BASE_URL, apiClient } from './client';
-import type { Asset, AssetReferences, BulkDuplicateRequest, BulkDuplicateResponse } from '../types';
+import type { Asset, AssetReferences, BulkDuplicateRequest, BulkDuplicateResponse, AssetCategory, Localizacao, Armazenamento } from '../types';
 
 export interface AssetListFilters {
   e_patrimonio?: string;
@@ -82,6 +82,26 @@ export const assetsApi = {
 
   getReferences: async (): Promise<AssetReferences> => {
     const response = await apiClient.get<AssetReferences>('/assets/referencias');
+    return response.data;
+  },
+
+  createCategoria: async (nome: string): Promise<AssetCategory> => {
+    const response = await apiClient.post<AssetCategory>('/assets/categorias', { nome });
+    return response.data;
+  },
+
+  createLocalizacao: async (nome: string): Promise<Localizacao> => {
+    const response = await apiClient.post<Localizacao>('/assets/localizacoes', { nome });
+    return response.data;
+  },
+
+  createArmazenamento: async (nome: string): Promise<Armazenamento> => {
+    const response = await apiClient.post<Armazenamento>('/assets/armazenamentos', { nome });
+    return response.data;
+  },
+
+  createDepartamento: async (nome: string): Promise<any> => {
+    const response = await apiClient.post<any>('/assets/departamentos', { nome });
     return response.data;
   },
 

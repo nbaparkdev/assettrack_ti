@@ -146,6 +146,10 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		assets := v1.Group("/assets", authMW, rActive)
 		{
 			assets.GET("/referencias", assetHandler.GetReferences)
+			assets.POST("/categorias", rManager, assetHandler.CreateCategoria)
+			assets.POST("/localizacoes", rManager, assetHandler.CreateLocalizacao)
+			assets.POST("/armazenamentos", rManager, assetHandler.CreateArmazenamento)
+			assets.POST("/departamentos", rManager, assetHandler.CreateDepartamento)
 			assets.GET("", assetHandler.List)
 			assets.GET("/export.csv", assetHandler.ExportCSV)
 			assets.POST("", rManager, assetHandler.Create)

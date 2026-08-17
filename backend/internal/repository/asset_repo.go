@@ -11,6 +11,10 @@ type AssetRepository struct {
 	db *gorm.DB
 }
 
+func (r *AssetRepository) DB() *gorm.DB {
+	return r.db
+}
+
 type AssetListFilters struct {
 	EPatrimonio   string
 	Nome          string

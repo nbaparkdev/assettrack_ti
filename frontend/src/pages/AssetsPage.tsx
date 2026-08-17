@@ -71,6 +71,8 @@ export const AssetsPage: React.FC = () => {
   const [assetFornecedorId, setAssetFornecedorId] = useState<number | ''>('');
   const [assetLocalId, setAssetLocalId] = useState<number | ''>('');
   const [assetArmazenamentoId, setAssetArmazenamentoId] = useState<number | ''>('');
+  const [assetDataAquisicao, setAssetDataAquisicao] = useState('');
+  const [assetDepartamentoId, setAssetDepartamentoId] = useState<number | ''>('');
 
   // Duplication Wizard State
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
@@ -141,6 +143,8 @@ export const AssetsPage: React.FC = () => {
     setAssetFornecedorId('');
     setAssetLocalId('');
     setAssetArmazenamentoId('');
+    setAssetDataAquisicao('');
+    setAssetDepartamentoId('');
     setFormError(null);
     setShowFormModal(true);
   };
@@ -161,6 +165,8 @@ export const AssetsPage: React.FC = () => {
     setAssetFornecedorId(a.fornecedor_id || '');
     setAssetLocalId(a.current_local_id || '');
     setAssetArmazenamentoId(a.current_armazenamento_id || '');
+    setAssetDataAquisicao(a.data_aquisicao ? a.data_aquisicao.split('T')[0] : '');
+    setAssetDepartamentoId(a.current_departamento_id || '');
     setFormError(null);
     setShowFormModal(true);
   };
@@ -184,6 +190,8 @@ export const AssetsPage: React.FC = () => {
       fornecedor_id: assetFornecedorId ? Number(assetFornecedorId) : null,
       current_local_id: assetLocalId ? Number(assetLocalId) : null,
       current_armazenamento_id: assetArmazenamentoId ? Number(assetArmazenamentoId) : null,
+      current_departamento_id: assetDepartamentoId ? Number(assetDepartamentoId) : null,
+      data_aquisicao: assetDataAquisicao ? new Date(assetDataAquisicao).toISOString() : null,
     };
 
     try {
@@ -209,6 +217,30 @@ export const AssetsPage: React.FC = () => {
       fetchAssets();
     } catch (err: any) {
       setGlobalError('Não foi possível excluir o ativo.');
+    }
+  };
+
+  const handleCreateReference = async (type: 'categoria' | 'localizacao' | 'armazenamento' | 'departamento') => {
+    const nome = window.prompt(`Digite o nome para o novo registro:`);
+    if (!nome || !nome.trim()) return;
+
+    try {
+      if (type === 'categoria') {
+        const res = await assetsApi.createCategoria(nome.trim());
+        setAssetCategoriaId(res.id);
+      } else if (type === 'localizacao') {
+        const res = await assetsApi.createLocalizacao(nome.trim());
+        setAssetLocalId(res.id);
+      } else if (type === 'armazenamento') {
+        const res = await assetsApi.createArmazenamento(nome.trim());
+        setAssetArmazenamentoId(res.id);
+      } else if (type === 'departamento') {
+        const res = await assetsApi.createDepartamento(nome.trim());
+        setAssetDepartamentoId(res.id);
+      }
+      fetchReferences(); // re-fetch references
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Erro ao criar referência.');
     }
   };
 
@@ -858,7 +890,22 @@ export const AssetsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">Categoria</label>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">Data de Aquisição</label>
+                  <input
+                    type="date"
+                    value={assetDataAquisicao}
+                    onChange={(e) => setAssetDataAquisicao(e.target.value)}
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary font-mono"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted">Categoria</label>
+                    <button type="button" onClick={() => handleCreateReference('categoria')} className="text-brand-primary hover:text-brand-primary/80" title="Criar Nova Categoria">
+                      <Plus size={14} />
+                    </button>
+                  </div>
                   <select
                     value={assetCategoriaId}
                     onChange={(e) => setAssetCategoriaId(e.target.value ? Number(e.target.value) : '')}
@@ -870,7 +917,9 @@ export const AssetsPage: React.FC = () => {
                     ))}
                   </select>
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">Fornecedor</label>
                   <select
@@ -903,7 +952,12 @@ export const AssetsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">Localização Física</label>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted">Localização Física</label>
+                    <button type="button" onClick={() => handleCreateReference('localizacao')} className="text-brand-primary hover:text-brand-primary/80" title="Criar Nova Localização">
+                      <Plus size={14} />
+                    </button>
+                  </div>
                   <select
                     value={assetLocalId}
                     onChange={(e) => setAssetLocalId(e.target.value ? Number(e.target.value) : '')}
@@ -917,7 +971,12 @@ export const AssetsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">Armazenamento (Rack/Escaninho)</label>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted">Armazenamento (Rack/Escaninho)</label>
+                    <button type="button" onClick={() => handleCreateReference('armazenamento')} className="text-brand-primary hover:text-brand-primary/80" title="Criar Novo Armazenamento">
+                      <Plus size={14} />
+                    </button>
+                  </div>
                   <select
                     value={assetArmazenamentoId}
                     onChange={(e) => setAssetArmazenamentoId(e.target.value ? Number(e.target.value) : '')}
@@ -926,6 +985,37 @@ export const AssetsPage: React.FC = () => {
                     <option value="">Selecione...</option>
                     {references?.armazenamentos.map(arm => (
                       <option key={arm.id} value={arm.id}>{arm.nome}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">Em Posse De (Pessoa / Usuário)</label>
+                  <input
+                    type="text"
+                    value={assetEmPosseDe}
+                    onChange={(e) => setAssetEmPosseDe(e.target.value)}
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary font-mono"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted">Setor (Departamento)</label>
+                    <button type="button" onClick={() => handleCreateReference('departamento')} className="text-brand-primary hover:text-brand-primary/80" title="Criar Novo Setor">
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                  <select
+                    value={assetDepartamentoId}
+                    onChange={(e) => setAssetDepartamentoId(e.target.value ? Number(e.target.value) : '')}
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary font-mono"
+                  >
+                    <option value="">Selecione...</option>
+                    {references?.setores.map(setor => (
+                      <option key={setor.id} value={setor.id}>{setor.nome}</option>
                     ))}
                   </select>
                 </div>

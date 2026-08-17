@@ -310,6 +310,58 @@ func (h *AssetHandler) GetReferences(c *gin.Context) {
 	c.JSON(http.StatusOK, refs)
 }
 
+func (h *AssetHandler) CreateCategoria(c *gin.Context) {
+	var item models.AssetCategory
+	if err := c.ShouldBindJSON(&item); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.repo.DB().Create(&item).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar categoria"})
+		return
+	}
+	c.JSON(http.StatusCreated, item)
+}
+
+func (h *AssetHandler) CreateLocalizacao(c *gin.Context) {
+	var item models.Localizacao
+	if err := c.ShouldBindJSON(&item); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.repo.DB().Create(&item).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar localização"})
+		return
+	}
+	c.JSON(http.StatusCreated, item)
+}
+
+func (h *AssetHandler) CreateArmazenamento(c *gin.Context) {
+	var item models.Armazenamento
+	if err := c.ShouldBindJSON(&item); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.repo.DB().Create(&item).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar armazenamento"})
+		return
+	}
+	c.JSON(http.StatusCreated, item)
+}
+
+func (h *AssetHandler) CreateDepartamento(c *gin.Context) {
+	var item models.Departamento
+	if err := c.ShouldBindJSON(&item); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.repo.DB().Create(&item).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar departamento"})
+		return
+	}
+	c.JSON(http.StatusCreated, item)
+}
+
 func (h *AssetHandler) GetQRCode(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

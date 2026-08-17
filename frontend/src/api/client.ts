@@ -1,6 +1,13 @@
 import axios from 'axios';
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+const getApiBaseUrl = () => {
+  // Always use the browser's hostname to connect to the API on port 8080
+  // This allows access from other devices on the local network (e.g., 10.100.110.155)
+  const { hostname, protocol } = window.location;
+  return `${protocol}//${hostname}:8080/api/v1`;
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
