@@ -1,0 +1,92 @@
+export interface KanbanProject {
+  id: number;
+  titulo: string;
+  descricao?: string;
+  criador_id: number;
+  is_active: boolean;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+  criador?: { id: number; nome: string };
+  participantes?: { id: number; nome: string }[];
+  colunas?: KanbanColumn[];
+  cards?: KanbanCard[];
+}
+
+export interface KanbanColumn {
+  id: number;
+  project_id: number;
+  nome: string;
+  cor: string;
+  ordem: number;
+  is_default: boolean;
+  cards?: KanbanCard[];
+}
+
+export interface KanbanCard {
+  id: number;
+  project_id: number;
+  column_id: number;
+  titulo: string;
+  descricao?: string;
+  criador_id: number;
+  responsavel_id?: number;
+  prioridade: string;
+  data_entrega?: string;
+  ordem: number;
+  created_at: string;
+  updated_at: string;
+  purchase_request_id?: number;
+  material_stock_id?: number;
+  tipo_item_necessario?: string;
+  column?: KanbanColumn;
+  criador?: { id: number; nome: string };
+  responsavel?: { id: number; nome: string };
+  participantes?: { id: number; nome: string }[];
+  ativos?: { id: number; nome: string }[];
+  anexos?: KanbanAttachment[];
+  interacoes?: KanbanCardInteraction[];
+}
+
+export interface KanbanCardInteraction {
+  id: number;
+  card_id: number;
+  usuario_id: number;
+  mensagem: string;
+  tipo: string;
+  created_at: string;
+  usuario?: { id: number; nome: string };
+}
+
+export interface KanbanAttachment {
+  id: number;
+  card_id: number;
+  nome: string;
+  tipo: string; // imagem, link, arquivo
+  url: string;
+  criado_em: string;
+}
+
+export interface KanbanNotification {
+  id: number;
+  user_id: number;
+  project_id?: number;
+  card_id?: number;
+  autor_id?: number;
+  tipo: string;
+  titulo: string;
+  mensagem: string;
+  link?: string;
+  lida: boolean;
+  created_at: string;
+  autor?: { id: number; nome: string };
+}
+
+export const CARD_PRIORITIES = ['baixa', 'media', 'alta', 'urgente'];
+
+export const priorityColor: Record<string, string> = {
+  baixa: 'text-brand-muted border-brand-border',
+  media: 'text-blue-400 border-blue-500/30',
+  alta: 'text-yellow-400 border-yellow-500/30',
+  urgente: 'text-red-400 border-red-500/30',
+};

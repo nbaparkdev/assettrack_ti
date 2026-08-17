@@ -10,6 +10,15 @@ import { AssetsPage } from './pages/AssetsPage';
 import { ServiceDeskPage } from './pages/ServiceDeskPage';
 import { MaintenancePage } from './pages/MaintenancePage';
 import { BorrowingsPage } from './pages/BorrowingsPage';
+import { SuppliersPage } from './pages/SuppliersPage';
+import { PreventiveMaintenancePage } from './pages/PreventiveMaintenancePage';
+import { KanbanPage } from './pages/KanbanPage';
+import { AlertsPage } from './pages/AlertsPage';
+import { ProcurementPage } from './pages/ProcurementPage';
+import { RHPage } from './pages/RHPage';
+import { WebhooksPage } from './pages/WebhooksPage';
+import { BackupPage } from './pages/BackupPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
@@ -82,6 +91,78 @@ const App: React.FC = () => {
             element={
               <MainLayout>
                 <BorrowingsPage />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/fornecedores"
+            element={
+              <MainLayout>
+                <SuppliersPage />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/manutencao-preventiva"
+            element={
+              <MainLayout>
+                <PreventiveMaintenancePage />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/kanban"
+            element={
+              <MainLayout>
+                <KanbanPage />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/alertas"
+            element={
+              <MainLayout>
+                <AlertsPage />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/compras"
+            element={
+              <MainLayout>
+                <ProcurementPage />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/rh"
+            element={
+              <MainLayout>
+                <RHPage />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/webhooks"
+            element={
+              <MainLayout>
+                <WebhooksPage />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/backups"
+            element={
+              <MainLayout>
+                <BackupPage />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <MainLayout>
+                <ProfilePage />
               </MainLayout>
             }
           />

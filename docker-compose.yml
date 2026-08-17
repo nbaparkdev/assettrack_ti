@@ -1,13 +1,11 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: assettrack
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-assettrack}
     ports:
       - "5456:5432"
     volumes:
@@ -23,6 +21,8 @@ services:
     restart: unless-stopped
     ports:
       - "6380:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -37,9 +37,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: postgres://user:password@db:5432/assettrack?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-assettrack}?sslmode=disable
       REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: changethis_to_something_secure
+      SECRET_KEY: ${SECRET_KEY:-changethis_to_something_secure}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
+      PROJECT_NAME: ${PROJECT_NAME:-AssetTrack TI}
+      TZ: ${TZ:-America/Sao_Paulo}
       PORT: "8080"
       GIN_MODE: release
     depends_on:
@@ -47,11 +50,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
 
   web:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080/api/v1}
     restart: unless-stopped
     ports:
       - "8000:80"
@@ -62,3 +69,5 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
+  uploads_data:

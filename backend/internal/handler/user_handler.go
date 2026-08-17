@@ -1,8 +1,14 @@
 package handler
 
 import (
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/assettrack/backend/internal/dto"
 	"github.com/assettrack/backend/internal/models"
@@ -161,6 +167,110 @@ func (h *UserHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, toUserResponse(updated))
 }
 
+// UpdateProfile PUT /api/v1/profile
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	userObj, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	activeUser := userObj.(*models.User)
+
+	var req dto.UserUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"detail": err.Error()})
+		return
+	}
+
+	user, err := h.userRepo.GetByID(activeUser.ID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "User not found"})
+		return
+	}
+
+	if req.Email != nil { user.Email = *req.Email }
+	if req.Nome != nil { user.Nome = *req.Nome }
+	if req.Matricula != nil { user.Matricula = req.Matricula }
+	
+	if err := h.userRepo.Update(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Failed to update profile"})
+		return
+	}
+	c.JSON(http.StatusOK, toUserResponse(user))
+}
+
+// UploadAvatar POST /api/v1/profile/avatar
+func (h *UserHandler) UploadAvatar(c *gin.Context) {
+	userObj, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	activeUser := userObj.(*models.User)
+
+	fileHeader, err := c.FormFile("avatar")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Avatar file not provided"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format"})
+		return
+	}
+
+	os.MkdirAll("uploads/avatars", os.ModePerm)
+	filename := fmt.Sprintf("avatar_%d_%d%s", activeUser.ID, time.Now().Unix(), ext)
+	dst := filepath.Join("uploads", "avatars", filename)
+
+	if err := c.SaveUploadedFile(fileHeader, dst); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save avatar"})
+		return
+	}
+
+	publicPath := fmt.Sprintf("/uploads/avatars/%s", filename)
+	
+	user, _ := h.userRepo.GetByID(activeUser.ID)
+	user.AvatarURL = &publicPath
+	h.userRepo.Update(user)
+
+	c.JSON(http.StatusOK, gin.H{"avatar_url": publicPath})
+}
+
+// ChangePassword PUT /api/v1/profile/password
+func (h *UserHandler) ChangePassword(c *gin.Context) {
+	userObj, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	activeUser := userObj.(*models.User)
+
+	var req dto.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, _ := h.userRepo.GetByID(activeUser.ID)
+	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.CurrentPassword)); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Senha atual incorreta"})
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+
+	user.HashedPassword = string(hash)
+	h.userRepo.Update(user)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Senha atualizada com sucesso"})
+}
+
 // toUserResponse converts model to DTO
 func toUserResponse(u *models.User) *dto.UserResponse {
 	if u == nil {
@@ -174,6 +284,7 @@ func toUserResponse(u *models.User) *dto.UserResponse {
 		Cargo:          u.Cargo,
 		Role:           u.Role,
 		IsActive:       u.IsActive,
+		AvatarURL:      u.AvatarURL,
 		DepartamentoID: u.DepartamentoID,
 	}
 	if u.Departamento != nil {

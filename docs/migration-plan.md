@@ -15,6 +15,15 @@
 | **Capacitor** | Fase 5 (pós-migração) |
 | **Fase 1** | Auth completo (login/register/me + QR Code + PIN) + CRUD Users |
 
+### Status Atual Observado (2026-08-17)
+
+- **Backend Go/React TS**: Concluída a migração estrutural 100% de todos os módulos core.
+- **Fase 1 (Auth/Users/QR)**: Concluída.
+- **Fase 2 (Ativos/Categorias/Fornecedores)**: Concluída.
+- **Fase 3 (Service Desk/Manutenção/Empréstimos)**: Concluída.
+- **Fase 4 (Kanban/Alertas/Compras/RH/Preventivas/Admin)**: Concluída. O sistema de Webhooks (Dispatcher assíncrono), Backup/Restore (pg_dump) e Perfil de Usuário com Avatar estão totalmente operacionais.
+- **Próxima frente prática (Fase 4 - Business Intelligence / Relatórios)**: Iniciar a construção de Relatórios e Dashboards analíticos. Estruturar visualização de métricas e exportações avançadas.
+
 ---
 
 ## 2. Arquitetura Final (Monorepo)

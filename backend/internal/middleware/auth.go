@@ -94,6 +94,34 @@ func RequireManagerOrAbove() gin.HandlerFunc {
 	}
 }
 
+// RequireSupplierManager ensures supplier module access (admin, gerente, gerente_infra, comprador)
+func RequireSupplierManager() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user := GetCurrentUser(c)
+		if user == nil || !user.CanManageSuppliers() {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"detail": "The user doesn't have enough privileges",
+			})
+			return
+		}
+		c.Next()
+	}
+}
+
+// RequireRH ensures RH module access (admin, rh, gerente, gerente_infra)
+func RequireRH() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user := GetCurrentUser(c)
+		if user == nil || !user.CanManageRH() {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"detail": "Acesso restrito ao RH e Administradores",
+			})
+			return
+		}
+		c.Next()
+	}
+}
+
 // GetCurrentUser extracts user from gin context
 func GetCurrentUser(c *gin.Context) *models.User {
 	val, exists := c.Get(ContextUserKey)

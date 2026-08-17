@@ -31,11 +31,51 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	serviceDeskRepo := repository.NewServiceDeskRepository(db)
 	maintRepo := repository.NewMaintenanceRepository(db)
 	txRepo := repository.NewTransactionRepository(db)
+	supplierRepo := repository.NewSupplierRepository(db)
+	invoiceRepo := repository.NewInvoiceRepository(db)
+	pmPlanRepo := repository.NewPMPlanRepository(db)
+	pmChecklistRepo := repository.NewPMChecklistRepository(db)
+	pmItemRepo := repository.NewPMChecklistItemRepository(db)
+	pmPlanAssetRepo := repository.NewPMPlanAssetRepository(db)
+	pmOrderRepo := repository.NewPMOrderRepository(db)
+	pmExecRepo := repository.NewPMExecutionRepository(db)
+	pmHistoryRepo := repository.NewPMHistoryRepository(db)
+	pmMaterialRepo := repository.NewPMMaterialRepository(db)
+	pmPhotoRepo := repository.NewPMPhotoRepository(db)
+	pmNotifRepo := repository.NewPMNotificationRepository(db)
+	pmCustomTypeRepo := repository.NewPMCustomTypeRepository(db)
+	kanbanProjectRepo := repository.NewKanbanProjectRepository(db)
+	kanbanColumnRepo := repository.NewKanbanColumnRepository(db)
+	kanbanCardRepo := repository.NewKanbanCardRepository(db)
+	kanbanInteractionRepo := repository.NewKanbanInteractionRepository(db)
+	kanbanAttachmentRepo := repository.NewKanbanAttachmentRepository(db)
+	kanbanNotifRepo := repository.NewKanbanNotificationRepository(db)
+	kanbanBroker := handler.NewKanbanSSEBroker()
+	procCategoryRepo := repository.NewProcurementCategoryRepository(db)
+	procProductRepo := repository.NewProcurementProductRepository(db)
+	procCCRepo := repository.NewProcurementCostCenterRepository(db)
+	procRequestRepo := repository.NewProcurementRequestRepository(db)
+	procApprovalRepo := repository.NewProcurementApprovalRepository(db)
+	procQuotationRepo := repository.NewProcurementQuotationRepository(db)
+	procOrderRepo := repository.NewProcurementOrderRepository(db)
+	procReceivingRepo := repository.NewProcurementReceivingRepository(db)
+	procStockRepo := repository.NewProcurementStockRepository(db)
+	procContractRepo := repository.NewProcurementContractRepository(db)
+	procContractTypeRepo := repository.NewProcurementContractTypeRepository(db)
+	procHistoryRepo := repository.NewProcurementHistoryRepository(db)
+	procNotifRepo := repository.NewProcurementNotificationRepository(db)
+	procResearchRepo := repository.NewProcurementResearchRepository(db)
+	alertRepo := repository.NewEmergencyAlertRepository(db)
+	avisoRepo := repository.NewAvisoRepository(db)
+	alertBroker := handler.NewAlertSSEBroker()
+	rhRepo := repository.NewRHRepository(db)
+	webhookRepo := repository.NewWebhookRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, cfg)
 	qrSvc := service.NewQRService()
 	qrLogSvc := service.NewQRLogService(qrLogRepo)
+	webhookDispatcher := service.NewWebhookDispatcher(webhookRepo)
 
 	// Rate limiter
 	rateLimiter := middleware.NewRateLimiter(rdb)
@@ -48,12 +88,34 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	serviceDeskHandler := handler.NewServiceDeskHandler(serviceDeskRepo)
 	maintenanceHandler := handler.NewMaintenanceHandler(maintRepo, assetRepo, txRepo)
 	transactionHandler := handler.NewTransactionHandler(txRepo, assetRepo)
+	supplierHandler := handler.NewSupplierHandler(supplierRepo, invoiceRepo)
+	preventiveHandler := handler.NewPreventiveHandler(
+		pmPlanRepo, pmChecklistRepo, pmItemRepo, pmPlanAssetRepo, pmOrderRepo,
+		pmExecRepo, pmHistoryRepo, pmMaterialRepo, pmPhotoRepo, pmNotifRepo,
+		pmCustomTypeRepo, assetRepo, userRepo, categoryRepo,
+	)
+	kanbanHandler := handler.NewKanbanHandler(
+		kanbanProjectRepo, kanbanColumnRepo, kanbanCardRepo, kanbanInteractionRepo,
+		kanbanAttachmentRepo, kanbanNotifRepo, userRepo, kanbanBroker,
+	)
+	alertsHandler := handler.NewAlertsHandler(alertRepo, avisoRepo, userRepo, assetRepo, alertBroker)
+	procurementHandler := handler.NewProcurementHandler(
+		procCategoryRepo, procProductRepo, procCCRepo, procRequestRepo, procApprovalRepo,
+		procQuotationRepo, procOrderRepo, procReceivingRepo, procStockRepo,
+		procContractRepo, procContractTypeRepo, procHistoryRepo, procNotifRepo,
+		procResearchRepo, assetRepo, userRepo, kanbanCardRepo, kanbanInteractionRepo,
+	)
+	rhHandler := handler.NewRHHandler(rhRepo, userRepo, assetRepo)
+	webhookHandler := handler.NewWebhookHandler(webhookRepo, webhookDispatcher)
+	backupHandler := handler.NewBackupHandler(cfg)
+	dashboardHandler := handler.NewDashboardHandler(db)
 
 	// Auth middleware helper
 	authMW := middleware.AuthMiddleware(authSvc, userRepo)
 	rActive := middleware.RequireActive()
 	rAdmin := middleware.RequireAdmin()
 	rManager := middleware.RequireManagerOrAbove()
+	rRH := middleware.RequireRH()
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -85,6 +147,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		{
 			assets.GET("/referencias", assetHandler.GetReferences)
 			assets.GET("", assetHandler.List)
+			assets.GET("/export.csv", assetHandler.ExportCSV)
 			assets.POST("", rManager, assetHandler.Create)
 			assets.POST("/bulk", rManager, assetHandler.BulkDuplicate)
 			assets.GET("/:id", assetHandler.GetByID)
@@ -135,6 +198,180 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			movs.POST("/devolver/:asset_id", transactionHandler.DevolverAsset)
 		}
 
+		// Supplier routes (protected: admin, gerente, gerente_infra, comprador)
+		rSupplier := middleware.RequireSupplierManager()
+		fornecedores := v1.Group("/fornecedores", authMW, rActive)
+		{
+			fornecedores.GET("", supplierHandler.List)
+			fornecedores.POST("", rSupplier, supplierHandler.Create)
+			fornecedores.GET("/:id", supplierHandler.GetByID)
+			fornecedores.PUT("/:id", rSupplier, supplierHandler.Update)
+			fornecedores.DELETE("/:id", rSupplier, supplierHandler.Delete)
+			fornecedores.GET("/:id/notas-fiscais", supplierHandler.ListInvoices)
+			fornecedores.POST("/:id/notas-fiscais/upload", rSupplier, supplierHandler.UploadInvoice)
+		}
+
+		// Notas fiscais routes (protected)
+		notas := v1.Group("/notas-fiscais", authMW, rActive)
+		{
+			notas.POST("/parse-xml", rSupplier, supplierHandler.ParseXML)
+			notas.GET("/:id", supplierHandler.GetInvoice)
+			notas.DELETE("/:id", rSupplier, supplierHandler.DeleteInvoice)
+		}
+
+		// Preventive maintenance routes (protected)
+		preventiva := v1.Group("/preventiva", authMW, rActive)
+		{
+			preventiva.GET("/dashboard", preventiveHandler.Dashboard)
+			preventiva.GET("/notificacoes", preventiveHandler.MyNotifications)
+			preventiva.POST("/notificacoes/lidas", preventiveHandler.MarkNotificationsRead)
+
+			preventiva.GET("/planos", preventiveHandler.ListPlans)
+			preventiva.POST("/planos", rManager, preventiveHandler.CreatePlan)
+			preventiva.GET("/planos/:id", preventiveHandler.GetPlan)
+			preventiva.PUT("/planos/:id", rManager, preventiveHandler.UpdatePlan)
+			preventiva.DELETE("/planos/:id", rManager, preventiveHandler.DeletePlan)
+			preventiva.POST("/planos/:id/checklists", rManager, preventiveHandler.AddChecklist)
+			preventiva.DELETE("/planos/:id/checklists/:checklistId", rManager, preventiveHandler.DeleteChecklist)
+			preventiva.POST("/planos/:id/checklists/:checklistId/items", rManager, preventiveHandler.AddChecklistItem)
+			preventiva.DELETE("/planos/:id/checklists/:checklistId/items/:itemId", rManager, preventiveHandler.DeleteChecklistItem)
+			preventiva.POST("/planos/:id/assets", rManager, preventiveHandler.AddPlanAsset)
+			preventiva.DELETE("/planos/:id/assets/:linkId", rManager, preventiveHandler.RemovePlanAsset)
+
+			preventiva.GET("/ordens", preventiveHandler.ListOrders)
+			preventiva.POST("/ordens", rManager, preventiveHandler.CreateOrder)
+			preventiva.GET("/ordens/:id", preventiveHandler.GetOrder)
+			preventiva.PUT("/ordens/:id", rManager, preventiveHandler.UpdateOrder)
+			preventiva.DELETE("/ordens/:id", rManager, preventiveHandler.DeleteOrder)
+			preventiva.POST("/ordens/:id/iniciar", preventiveHandler.StartOrder)
+			preventiva.POST("/ordens/:id/pausar", preventiveHandler.PauseOrder)
+			preventiva.POST("/ordens/:id/concluir", preventiveHandler.CompleteOrder)
+			preventiva.POST("/ordens/:id/cancelar", rManager, preventiveHandler.CancelOrder)
+			preventiva.POST("/ordens/:id/executar-checklist", preventiveHandler.ExecuteChecklistItem)
+			preventiva.GET("/ordens/:id/historico", preventiveHandler.OrderHistory)
+			preventiva.POST("/ordens/:id/materiais", preventiveHandler.AddOrderMaterial)
+			preventiva.DELETE("/ordens/:id/materiais/:materialId", preventiveHandler.RemoveOrderMaterial)
+			preventiva.POST("/ordens/:id/fotos", preventiveHandler.UploadOrderPhoto)
+			preventiva.DELETE("/ordens/:id/fotos/:photoId", preventiveHandler.DeleteOrderPhoto)
+
+			preventiva.GET("/tipos", preventiveHandler.ListCustomTypes)
+			preventiva.POST("/tipos", rManager, preventiveHandler.CreateCustomType)
+			preventiva.PUT("/tipos/:id", rManager, preventiveHandler.UpdateCustomType)
+			preventiva.DELETE("/tipos/:id", rManager, preventiveHandler.DeleteCustomType)
+		}
+
+		// Kanban routes (protected)
+		kanban := v1.Group("/kanban", authMW, rActive)
+		{
+			kanban.GET("/sse", kanbanHandler.SSEStream)
+			kanban.GET("/projetos", kanbanHandler.ListProjects)
+			kanban.POST("/projetos", kanbanHandler.CreateProject)
+			kanban.GET("/projetos/:id", kanbanHandler.GetProjectBoard)
+			kanban.PUT("/projetos/:id", kanbanHandler.UpdateProject)
+			kanban.POST("/projetos/:id/status", kanbanHandler.ToggleProjectStatus)
+			kanban.POST("/projetos/:id/colunas", kanbanHandler.AddColumn)
+
+			kanban.POST("/cards", kanbanHandler.CreateCard)
+			kanban.GET("/cards/:id", kanbanHandler.GetCard)
+			kanban.PUT("/cards/:id", kanbanHandler.UpdateCard)
+			kanban.POST("/cards/:id/mover", kanbanHandler.MoveCard)
+			kanban.DELETE("/cards/:id", kanbanHandler.DeleteCard)
+			kanban.POST("/cards/:id/anexo", kanbanHandler.UploadAttachment)
+			kanban.POST("/cards/:id/comentar", kanbanHandler.AddCardComment)
+			kanban.DELETE("/anexos/:attachmentId", kanbanHandler.DeleteAttachment)
+			kanban.POST("/cards/:id/solicitar-compra", procurementHandler.KanbanPurchaseRequest)
+			kanban.POST("/cards/:id/vincular-estoque", procurementHandler.KanbanLinkStock)
+
+			kanban.GET("/notificacoes/unread-count", kanbanHandler.UnreadCount)
+			kanban.GET("/notificacoes", kanbanHandler.ListNotifications)
+			kanban.POST("/notificacoes/:notifId/lida", kanbanHandler.MarkNotificationRead)
+			kanban.POST("/notificacoes/lidas", kanbanHandler.MarkAllNotificationsRead)
+		}
+
+		// Emergency alerts + avisos routes (protected)
+		alerts := v1.Group("/alertas", authMW, rActive)
+		{
+			alerts.POST("/alertar", alertsHandler.SendAlert)
+			alerts.GET("/stream", alertsHandler.AlertStream)
+			alerts.GET("/historico", alertsHandler.History)
+			alerts.POST("/:alertId/atender", alertsHandler.MarkAtendido)
+		}
+
+		avisos := v1.Group("/avisos", authMW, rActive)
+		{
+			avisos.GET("", alertsHandler.ListAvisos)
+			avisos.GET("/ativos", alertsHandler.ListActiveAvisos)
+			avisos.POST("", rManager, alertsHandler.CreateAviso)
+			avisos.PUT("/:avisoId", rManager, alertsHandler.UpdateAviso)
+			avisos.POST("/:avisoId/toggle", rManager, alertsHandler.ToggleAviso)
+			avisos.DELETE("/:avisoId", rManager, alertsHandler.DeleteAviso)
+		}
+
+		// Procurement (Compras) routes (protected)
+		compras := v1.Group("/compras", authMW, rActive)
+		{
+			compras.GET("/dashboard", procurementHandler.Dashboard)
+			compras.GET("/notificacoes", procurementHandler.MyNotifications)
+			compras.POST("/notificacoes/lidas", procurementHandler.MarkNotificationsRead)
+
+			compras.GET("/categorias", procurementHandler.ListCategories)
+			compras.POST("/categorias", rManager, procurementHandler.CreateCategory)
+
+			compras.GET("/produtos", procurementHandler.ListProducts)
+			compras.POST("/produtos", rManager, procurementHandler.CreateProduct)
+
+			compras.GET("/centro-custos", procurementHandler.ListCostCenters)
+			compras.POST("/centro-custos", rManager, procurementHandler.CreateCostCenter)
+			compras.PUT("/centro-custos/:id", rManager, procurementHandler.UpdateCostCenter)
+			compras.DELETE("/centro-custos/:id", rManager, procurementHandler.DeleteCostCenter)
+
+			compras.GET("/solicitacoes", procurementHandler.ListRequests)
+			compras.POST("/solicitacoes", procurementHandler.CreateRequest)
+			compras.GET("/solicitacoes/:id", procurementHandler.GetRequest)
+			compras.POST("/solicitacoes/:id/decidir", procurementHandler.DecideRequest)
+			compras.POST("/solicitacoes/:id/liberar-orcamento", procurementHandler.ReleaseBudget)
+
+			compras.GET("/cotacoes", procurementHandler.ListQuotations)
+			compras.POST("/cotacoes", rManager, procurementHandler.CreateQuotation)
+			compras.GET("/cotacoes/:id", procurementHandler.GetQuotation)
+			compras.POST("/cotacoes/:id/selecionar-vencedor", rManager, procurementHandler.SelectWinner)
+
+			compras.GET("/pedidos", procurementHandler.ListOrders)
+			compras.POST("/pedidos", rManager, procurementHandler.CreateOrder)
+			compras.GET("/pedidos/:id", procurementHandler.GetOrder)
+			compras.POST("/pedidos/:id/receber", procurementHandler.ReceiveOrder)
+
+			compras.GET("/estoque", procurementHandler.ListStock)
+
+			compras.GET("/contratos", procurementHandler.ListContracts)
+			compras.POST("/contratos", rManager, procurementHandler.CreateContract)
+			compras.PUT("/contratos/:id", rManager, procurementHandler.UpdateContract)
+			compras.DELETE("/contratos/:id", rManager, procurementHandler.DeleteContract)
+			compras.GET("/contratos/tipos", procurementHandler.ListContractTypes)
+			compras.POST("/contratos/tipos", rManager, procurementHandler.CreateContractType)
+			compras.PUT("/contratos/tipos/:id", rManager, procurementHandler.UpdateContractType)
+			compras.DELETE("/contratos/tipos/:id", rManager, procurementHandler.DeleteContractType)
+
+			compras.GET("/pesquisas", procurementHandler.ListResearches)
+			compras.POST("/pesquisas", procurementHandler.CreateResearch)
+			compras.GET("/pesquisas/:id", procurementHandler.GetResearch)
+			compras.POST("/pesquisas/:id/enviar", procurementHandler.SendResearch)
+			compras.POST("/pesquisas/:id/decidir", rManager, procurementHandler.DecideResearch)
+		}
+
+		// RH — Termos de Responsabilidade (protected, RH/admin/gerentes)
+		rh := v1.Group("/rh", authMW, rActive, rRH)
+		{
+			rh.GET("/termos", rhHandler.List)
+			rh.GET("/solicitacoes/:id/modelo", rhHandler.GenerateTemplate)
+			rh.POST("/termos", rhHandler.Create)
+			rh.PUT("/termos/:id", rhHandler.Update)
+			rh.POST("/termos/:id/assinar", rhHandler.Sign)
+			rh.POST("/termos/:id/cancelar", rhHandler.Cancel)
+			rh.GET("/termos/:id/pdf", rhHandler.PDF)
+			rh.POST("/colaboradores/:id/desligamento", rhHandler.OffboardUser)
+		}
+
 		// QR routes
 		qr := v1.Group("/qr")
 		{
@@ -155,6 +392,43 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 				// Delivery confirm
 				qrMe.POST("/delivery/confirm", rateLimiter.Limit("delivery_confirm"), qrHandler.DeliveryConfirm)
 			}
+		}
+
+		// Webhooks routes (Admin only)
+		wh := v1.Group("/webhooks", authMW, rActive, rAdmin)
+		{
+			wh.GET("", webhookHandler.List)
+			wh.GET("/:id", webhookHandler.GetByID)
+			wh.POST("", webhookHandler.Create)
+			wh.PUT("/:id", webhookHandler.Update)
+			wh.DELETE("/:id", webhookHandler.Delete)
+			wh.POST("/:id/test", webhookHandler.Test)
+			wh.GET("/:id/logs", webhookHandler.Logs)
+		}
+
+		// Backup routes (Admin only)
+		bkp := v1.Group("/backups", authMW, rActive, rAdmin)
+		{
+			bkp.GET("", backupHandler.List)
+			bkp.POST("/generate", backupHandler.GenerateBackup)
+			bkp.GET("/status", backupHandler.GetStatus)
+			bkp.GET("/download/:filename", backupHandler.Download)
+			bkp.DELETE("/:filename", backupHandler.Delete)
+			bkp.POST("/restore", backupHandler.Restore)
+		}
+
+		// Profile routes (Active users only)
+		prof := v1.Group("/profile", authMW, rActive)
+		{
+			prof.PUT("", userHandler.UpdateProfile)
+			prof.POST("/avatar", userHandler.UploadAvatar)
+			prof.PUT("/password", userHandler.ChangePassword)
+		}
+
+		// Dashboard & Analytics
+		dash := v1.Group("/dashboard", authMW, rActive)
+		{
+			dash.GET("/stats", dashboardHandler.GetStats)
 		}
 	}
 

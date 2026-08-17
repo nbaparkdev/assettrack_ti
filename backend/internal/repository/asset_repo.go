@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+
 	"github.com/assettrack/backend/internal/models"
 	"gorm.io/gorm"
 )
@@ -10,11 +11,27 @@ type AssetRepository struct {
 	db *gorm.DB
 }
 
+type AssetListFilters struct {
+	EPatrimonio   string
+	Nome          string
+	CategoriaID   uint
+	LocalizacaoID uint
+	FornecedorID  uint
+	NotaFiscal    string
+	Status        string
+	DataInicio    string
+	DataFim       string
+}
+
 func NewAssetRepository(db *gorm.DB) *AssetRepository {
 	return &AssetRepository{db: db}
 }
 
 func (r *AssetRepository) List(skip, limit int, ePatrimonio string) ([]models.Asset, error) {
+	return r.ListWithFilters(skip, limit, AssetListFilters{EPatrimonio: ePatrimonio})
+}
+
+func (r *AssetRepository) ListWithFilters(skip, limit int, filters AssetListFilters) ([]models.Asset, error) {
 	var assets []models.Asset
 	query := r.db.Model(&models.Asset{}).
 		Preload("CurrentUser").
@@ -25,8 +42,35 @@ func (r *AssetRepository) List(skip, limit int, ePatrimonio string) ([]models.As
 		Preload("NotaFiscal").
 		Preload("Categoria")
 
-	if ePatrimonio != "" {
-		query = query.Where("e_patrimonio = ?", ePatrimonio)
+	if filters.EPatrimonio != "" {
+		query = query.Where("e_patrimonio ILIKE ?", "%"+filters.EPatrimonio+"%")
+	}
+	if filters.Nome != "" {
+		query = query.Where("nome ILIKE ?", "%"+filters.Nome+"%")
+	}
+	if filters.CategoriaID != 0 {
+		query = query.Where("categoria_id = ?", filters.CategoriaID)
+	}
+	if filters.LocalizacaoID != 0 {
+		query = query.Where("current_local_id = ?", filters.LocalizacaoID)
+	}
+	if filters.FornecedorID != 0 {
+		query = query.Where("fornecedor_id = ?", filters.FornecedorID)
+	}
+	if filters.NotaFiscal != "" {
+		query = query.Joins("LEFT JOIN notas_fiscais ON notas_fiscais.id = assets.nota_fiscal_id").
+			Where("notas_fiscais.numero_nota ILIKE ?", "%"+filters.NotaFiscal+"%")
+	}
+	if filters.Status == "ativo_fixo" {
+		query = query.Where("bloqueado = ?", true)
+	} else if filters.Status != "" {
+		query = query.Where("status = ?", filters.Status)
+	}
+	if filters.DataInicio != "" {
+		query = query.Where("data_aquisicao >= ?", filters.DataInicio)
+	}
+	if filters.DataFim != "" {
+		query = query.Where("data_aquisicao <= ?", filters.DataFim)
 	}
 
 	err := query.Offset(skip).Limit(limit).Order("id desc").Find(&assets).Error
@@ -171,4 +215,11 @@ func uintPtrEqual(a, b *uint) bool {
 		return false
 	}
 	return *a == *b
+}
+
+// ListByCurrentUser returns assets currently assigned to a user.
+func (r *AssetRepository) ListByCurrentUser(userID uint) ([]models.Asset, error) {
+	var assets []models.Asset
+	err := r.db.Where("current_user_id = ? AND status = ?", userID, "EM_USO").Find(&assets).Error
+	return assets, err
 }

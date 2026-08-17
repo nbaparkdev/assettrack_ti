@@ -1,0 +1,364 @@
+package handler
+
+import (
+	"fmt"
+	"html"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/assettrack/backend/internal/models"
+	"github.com/assettrack/backend/internal/repository"
+	"github.com/gin-gonic/gin"
+)
+
+// defaultTermTemplate mirrors app/web/endpoints/rh.py DEFAULT_TEMPLATE
+const defaultTermTemplate = `TERMO DE RESPONSABILIDADE PELA GUARDA E USO DE EQUIPAMENTO
+
+Eu, %s, denominado USUÁRIO, inscrito(a) no CPF sob o nº %s, declaro que recebi de NPG BRASIL PARQUES TEMÁTICOS LTDA, inscrita no CNPJ sob o nº.47.911.142/0001-74, com sede à Av. Das Hortênsias, nº 4795, Gramado/RS, a título de comodato, para uso exclusivo, os equipamentos abaixo especificados:
+
+• EQUIPAMENTO: %s
+• MODELO: %s
+• PATRIMÔNIO / REF: %s
+• NÚMERO DE SÉRIE: %s
+
+
+TERMOS E CONDIÇÕES
+------------------
+
+1. O equipamento deverá ser utilizado ÚNICA e EXCLUSIVAMENTE a serviço da empresa, tendo em vista a atividade a ser exercida pelo USUÁRIO;
+2. Ficará o USUÁRIO responsável pelo uso e conservação do equipamento;
+3. O USUÁRIO tem somente a posse do(s) item(ns) acima descrito(s), não detendo qualquer propriedade do equipamento, tendo em vista o uso exclusivo para prestação dos serviços profissionais para o qual fora contratado, sendo terminantemente proibido o empréstimo, locação e/ou cessão deste a terceiros;
+4. Ao término da prestação de serviço ou do contrato individual de trabalho, o USUÁRIO compromete-se a devolver o equipamento em perfeito estado de conservação e no mesmo dia em que tiver ciência de seu desligamento, salvo o desgaste natural pelo uso natural do equipamento.
+5. O USUÁRIO fica autorizado o equipamento acima descrito para sua residência, devendo seu uso ser voltado exclusivamente para fins corporativos e em viagens a trabalho, comprometendo-se a não utilizá-lo para outros fins.
+6. Na hipótese de haver roubo ou furto do equipamento, o USUÁRIO compromete-se a realizar registro de Boletim de Ocorrência junto à Autoridade Policial competente, bem como, informar a empresa de forma imediata, para que esta possa realizar o bloqueio de acesso aos dados empresariais contidos no equipamento.
+7. Se o equipamento for danificado e/ou inutilizado por emprego inadequado do equipamento, mau uso, negligência, imprudência, imperícia e/ou extravio, ficará obrigado a ressarcir os prejuízos decorrentes à empresa, que cobrará o valor de 1 (um) equipamento novo da mesma marca e modelo ou similar.
+
+Declaro estar ciente e de acordo com as cláusulas acima.
+
+
+Gramado, RS, %s.
+
+
+
+__________________________________________________
+             Assinatura Usuario`
+
+var ptMonths = []string{
+	"janeiro", "fevereiro", "março", "abril", "maio", "junho",
+	"julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+}
+
+// formatDatePT renders "02 de agosto de 2026"
+func formatDatePT(t time.Time) string {
+	return fmt.Sprintf("%02d de %s de %d", t.Day(), ptMonths[t.Month()-1], t.Year())
+}
+
+func strOrDash(s *string) string {
+	if s == nil || strings.TrimSpace(*s) == "" {
+		return "-"
+	}
+	return strings.TrimSpace(*s)
+}
+
+// generateTermContent builds the default term text from a solicitacao
+func generateTermContent(sol *models.Solicitacao) string {
+	nome := "-"
+	matricula := "-"
+	if sol.Solicitante != nil {
+		nome = sol.Solicitante.Nome
+		if sol.Solicitante.Matricula != nil {
+			matricula = *sol.Solicitante.Matricula
+		}
+	}
+	nomeAtivo := "-"
+	modelo := "-"
+	patrimonio := "-"
+	serie := "-"
+	if sol.Asset != nil {
+		nomeAtivo = sol.Asset.Nome
+		modelo = strOrDash(sol.Asset.Modelo)
+		patrimonio = sol.Asset.EPatrimonio
+		serie = strOrDash(sol.Asset.NumeroSerie)
+	}
+	return fmt.Sprintf(defaultTermTemplate,
+		nome, matricula, nomeAtivo, modelo, patrimonio, serie,
+		formatDatePT(time.Now()))
+}
+
+type RHHandler struct {
+	rhRepo    *repository.RHRepository
+	userRepo  *repository.UserRepository
+	assetRepo *repository.AssetRepository
+}
+
+func NewRHHandler(rhRepo *repository.RHRepository, userRepo *repository.UserRepository, assetRepo *repository.AssetRepository) *RHHandler {
+	return &RHHandler{
+		rhRepo:    rhRepo,
+		userRepo:  userRepo,
+		assetRepo: assetRepo,
+	}
+}
+
+// List returns all terms + pending solicitacoes that need a term
+func (h *RHHandler) List(c *gin.Context) {
+	termos, err := h.rhRepo.ListTermos()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	pendentes, err := h.rhRepo.GetPendingSolicitacoesRH()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"termos": termos, "pendentes": pendentes})
+}
+
+// GenerateTemplate returns the default term text for a solicitacao
+func (h *RHHandler) GenerateTemplate(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	sol, err := h.rhRepo.GetSolicitacaoWithDetails(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Solicitação não encontrada"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"conteudo_termo": generateTermContent(sol),
+		"solicitacao":    sol,
+	})
+}
+
+type createTermoInput struct {
+	SolicitacaoID *uint  `json:"solicitacao_id"`
+	ConteudoTermo string `json:"conteudo_termo"`
+}
+
+// Create creates a new term (generating default content when not provided)
+func (h *RHHandler) Create(c *gin.Context) {
+	var in createTermoInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if in.SolicitacaoID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "É obrigatório informar a solicitação"})
+		return
+	}
+
+	sol, err := h.rhRepo.GetSolicitacaoWithDetails(*in.SolicitacaoID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Solicitação não encontrada"})
+		return
+	}
+	if sol.AssetID == nil || sol.SolicitanteID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Solicitação sem ativo ou usuário vinculado"})
+		return
+	}
+
+	termo := &models.TermoResponsabilidade{
+		SolicitacaoID: in.SolicitacaoID,
+		AssetID:       *sol.AssetID,
+		UsuarioID:     *sol.SolicitanteID,
+		Status:        "Pendente",
+		ConteudoTermo: strings.TrimSpace(in.ConteudoTermo),
+	}
+	if termo.ConteudoTermo == "" {
+		termo.ConteudoTermo = generateTermContent(sol)
+	}
+
+	if termo.ConteudoTermo == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "O conteúdo do termo não pode estar em branco"})
+		return
+	}
+
+	if err := h.rhRepo.CreateTermo(termo); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	created, err := h.rhRepo.GetTermoByID(termo.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, created)
+}
+
+type updateTermoInput struct {
+	ConteudoTermo string `json:"conteudo_termo"`
+}
+
+// Update edits the term content
+func (h *RHHandler) Update(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	termo, err := h.rhRepo.GetTermoByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Termo não encontrado"})
+		return
+	}
+
+	var in updateTermoInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(in.ConteudoTermo) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "O conteúdo do termo não pode estar em branco"})
+		return
+	}
+
+	termo.ConteudoTermo = strings.TrimSpace(in.ConteudoTermo)
+	if err := h.rhRepo.UpdateTermo(termo); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, termo)
+}
+
+// Sign marks the term as signed by the user
+func (h *RHHandler) Sign(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	termo, err := h.rhRepo.GetTermoByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Termo não encontrado"})
+		return
+	}
+
+	termo.Status = "Assinado"
+	now := time.Now()
+	termo.DataAssinatura = &now
+	if err := h.rhRepo.UpdateTermo(termo); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, termo)
+}
+
+// Cancel marks the term as cancelled
+func (h *RHHandler) Cancel(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	termo, err := h.rhRepo.GetTermoByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Termo não encontrado"})
+		return
+	}
+
+	termo.Status = "Cancelado"
+	if err := h.rhRepo.UpdateTermo(termo); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, termo)
+}
+
+// PDF returns a printable HTML document (browser print → PDF), mirroring termo_pdf.html
+func (h *RHHandler) PDF(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	termo, err := h.rhRepo.GetTermoByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Termo não encontrado"})
+		return
+	}
+
+	nome := "-"
+	patrimonio := "-"
+	if termo.Usuario != nil {
+		nome = termo.Usuario.Nome
+	}
+	if termo.Asset != nil {
+		patrimonio = termo.Asset.EPatrimonio
+	}
+
+	escaped := html.EscapeString(termo.ConteudoTermo)
+	doc := `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Termo de Responsabilidade - ` + html.EscapeString(nome) + `</title>
+<style>
+  @page { size: A4; margin: 3cm 2.5cm 2.5cm 2.5cm; }
+  body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #111111; }
+  .header { text-align: center; margin-bottom: 2.5cm; border-bottom: 2px solid #000; padding-bottom: 10px; }
+  .header h1 { font-size: 16pt; text-transform: uppercase; letter-spacing: 1px; margin: 0; font-weight: bold; }
+  .header .subtitle { font-family: 'Courier New', Courier, monospace; font-size: 9pt; color: #666; margin-top: 5px; }
+  .content { text-align: justify; white-space: pre-line; margin-bottom: 2cm; }
+  .footer-info { margin-top: 3cm; font-size: 9pt; color: #777; font-family: 'Courier New', Courier, monospace; border-top: 1px dashed #ccc; padding-top: 10px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Termo de Responsabilidade</h1>
+  <div class="subtitle">NBAPARK // CONTROLE INTERNO DE ATIVOS DE TI</div>
+</div>
+<div class="content">` + escaped + `</div>
+<div class="footer-info">
+  Documento gerado eletronicamente em ` + formatDatePT(time.Now()) + ` pelo módulo RH Audit Workflow.<br>
+  Identificador do Termo: #` + strconv.FormatUint(uint64(termo.ID), 10) + ` · Ref: Patrimônio ` + html.EscapeString(patrimonio) + `
+</div>
+</body>
+</html>`
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.String(http.StatusOK, doc)
+}
+
+// OffboardUser processes an employee offboarding
+func (h *RHHandler) OffboardUser(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de usuário inválido"})
+		return
+	}
+
+	user, err := h.userRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Usuário não encontrado"})
+		return
+	}
+
+	// Set inactive
+	user.IsActive = false
+	if err := h.userRepo.Update(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao inativar usuário"})
+		return
+	}
+
+	// Update user assets
+	assets, err := h.assetRepo.ListByCurrentUser(uint(id))
+	if err == nil {
+		for _, asset := range assets {
+			asset.Status = models.AssetStatusManutencao
+			asset.CurrentUserID = nil
+			h.assetRepo.Update(&asset)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Colaborador desligado com sucesso. Ativos movidos para Revisão/Manutenção.",
+		"assets_affected": len(assets),
+	})
+}
+

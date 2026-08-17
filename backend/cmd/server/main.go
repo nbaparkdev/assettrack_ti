@@ -3,11 +3,14 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/assettrack/backend/internal/config"
 	"github.com/assettrack/backend/internal/database"
 	"github.com/assettrack/backend/internal/models"
+	"github.com/assettrack/backend/internal/repository"
 	"github.com/assettrack/backend/internal/router"
+	"github.com/assettrack/backend/internal/service"
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -42,6 +45,51 @@ func main() {
 		&models.Manutencao{},
 		&models.Movimentacao{},
 		&models.Solicitacao{},
+		&models.MaintenancePlan{},
+		&models.MaintenancePlanAsset{},
+		&models.MaintenanceChecklist{},
+		&models.MaintenanceChecklistItem{},
+		&models.MaintenanceOrder{},
+		&models.MaintenanceExecution{},
+		&models.MaintenanceMaterial{},
+		&models.MaintenancePhoto{},
+		&models.MaintenanceHistory{},
+		&models.MaintenanceNotification{},
+		&models.CustomMaintenanceType{},
+		&models.KanbanProject{},
+		&models.KanbanColumn{},
+		&models.KanbanCard{},
+		&models.KanbanCardInteraction{},
+		&models.KanbanAttachment{},
+		&models.KanbanNotification{},
+		&models.EmergencyAlert{},
+		&models.Aviso{},
+		&models.PurchaseCategory{},
+		&models.PurchaseUnit{},
+		&models.PurchaseProduct{},
+		&models.CostCenter{},
+		&models.PurchaseRequest{},
+		&models.PurchaseRequestItem{},
+		&models.PurchaseApproval{},
+		&models.PurchaseQuotation{},
+		&models.PurchaseQuotationSupplier{},
+		&models.PurchaseQuotationItem{},
+		&models.PurchaseOrder{},
+		&models.PurchaseOrderItem{},
+		&models.PurchaseReceiving{},
+		&models.PurchaseReceivingItem{},
+		&models.ContractType{},
+		&models.PurchaseContract{},
+		&models.PurchaseAttachment{},
+		&models.PurchaseHistory{},
+		&models.PurchaseNotification{},
+		&models.MaterialStock{},
+		&models.MaterialStockTransaction{},
+		&models.PurchaseResearch{},
+		&models.PurchaseResearchItem{},
+		&models.TermoResponsabilidade{},
+		&models.Webhook{},
+		&models.WebhookLog{},
 	); err != nil {
 		log.Printf("⚠️ Auto-migration warning: %v", err)
 	}
@@ -73,6 +121,18 @@ func main() {
 			log.Println("✅ Default admin user created (admin@example.com / admin)")
 		}
 	}
+
+	// Start preventive maintenance scheduler (generates orders from due plans)
+	scheduler := service.NewMaintenanceScheduler(
+		db,
+		repository.NewPMPlanRepository(db),
+		repository.NewPMPlanAssetRepository(db),
+		repository.NewPMOrderRepository(db),
+		repository.NewPMHistoryRepository(db),
+		repository.NewPMNotificationRepository(db),
+		repository.NewAssetCategoryRepository(db),
+	)
+	scheduler.Start(time.Hour)
 
 	// Setup router
 	r := router.Setup(db, rdb, cfg)

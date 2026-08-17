@@ -97,7 +97,11 @@ export const AssetsPage: React.FC = () => {
     setLoading(true);
     setGlobalError(null);
     try {
-      const data = await assetsApi.list(0, 100, searchEP);
+      const data = await assetsApi.list(0, 100, {
+        e_patrimonio: searchEP,
+        categoria_id: filterCategory,
+        status: filterStatus,
+      });
       setAssets(data);
     } catch (err: any) {
       setGlobalError('Falha ao buscar ativos no servidor.');
@@ -118,7 +122,7 @@ export const AssetsPage: React.FC = () => {
   useEffect(() => {
     fetchAssets();
     fetchReferences();
-  }, [searchEP]);
+  }, [searchEP, filterCategory, filterStatus]);
 
   // Asset crud triggers
   const handleOpenCreate = () => {
@@ -286,24 +290,13 @@ export const AssetsPage: React.FC = () => {
 
   // Group assets by category name for list view
   const groupedAssets: Record<string, Asset[]> = {};
-  assets
-    .filter(a => {
-      if (filterCategory && a.categoria_id !== Number(filterCategory)) return false;
-      if (filterStatus) {
-        if (filterStatus === 'ativo_fixo') {
-          return a.bloqueado;
-        }
-        if (a.status !== filterStatus) return false;
-      }
-      return true;
-    })
-    .forEach(a => {
-      const catName = a.categoria?.nome || 'Sem Categoria';
-      if (!groupedAssets[catName]) {
-        groupedAssets[catName] = [];
-      }
-      groupedAssets[catName].push(a);
-    });
+  assets.forEach(a => {
+    const catName = a.categoria?.nome || 'Sem Categoria';
+    if (!groupedAssets[catName]) {
+      groupedAssets[catName] = [];
+    }
+    groupedAssets[catName].push(a);
+  });
 
   // Kanban statuses list
   const statusesList: { name: AssetStatus; color: string; label: string }[] = [
@@ -761,24 +754,24 @@ export const AssetsPage: React.FC = () => {
               
               <button
                 onClick={() => {
-                  // Simulate report download / PDF generation
-                  const queryParams = new URLSearchParams();
-                  if (reportStartDate) queryParams.append('data_inicio', reportStartDate);
-                  if (reportEndDate) queryParams.append('data_fim', reportEndDate);
-                  if (reportName) queryParams.append('nome', reportName);
-                  if (reportCategory) queryParams.append('categoria_id', String(reportCategory));
-                  if (reportLocation) queryParams.append('localizacao_id', String(reportLocation));
-                  if (reportSupplier) queryParams.append('fornecedor_id', String(reportSupplier));
-                  if (reportInvoice) queryParams.append('nfe', reportInvoice);
-                  if (reportPatrimonio) queryParams.append('patrimonio', reportPatrimonio);
-                  if (reportStatus) queryParams.append('status', reportStatus);
-
-                  window.open(`http://localhost:8080/api/v1/assets?${queryParams.toString()}`, '_blank');
+                  assetsApi.exportCsv({
+                    data_inicio: reportStartDate,
+                    data_fim: reportEndDate,
+                    nome: reportName,
+                    categoria_id: reportCategory,
+                    localizacao_id: reportLocation,
+                    fornecedor_id: reportSupplier,
+                    nfe: reportInvoice,
+                    e_patrimonio: reportPatrimonio,
+                    status: reportStatus,
+                  }).catch(() => {
+                    setGlobalError('Falha ao exportar relatório de ativos.');
+                  });
                 }}
                 className="bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono px-5 py-2 uppercase tracking-wider text-xs flex items-center space-x-1.5"
               >
                 <FileText size={14} />
-                <span>Exportar PDF</span>
+                <span>Exportar CSV</span>
               </button>
             </div>
           </div>

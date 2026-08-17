@@ -59,5 +59,17 @@ func (u *User) IsManagerOrAbove() bool {
 		u.Role == RoleGerenteInfra || u.Role == RoleComprador || u.Role == RoleTecnico
 }
 
+// CanManageSuppliers checks supplier module access (admin, gerente, gerente_infra, comprador)
+func (u *User) CanManageSuppliers() bool {
+	return u.Role == RoleAdmin || u.Role == RoleGerente ||
+		u.Role == RoleGerenteInfra || u.Role == RoleComprador
+}
+
+// CanManageRH checks RH module access (admin, rh, gerente, gerente_infra)
+func (u *User) CanManageRH() bool {
+	return u.Role == RoleAdmin || u.Role == RoleRH ||
+		u.Role == RoleGerente || u.Role == RoleGerenteInfra
+}
+
 // HasPIN returns whether user has a PIN configured
 func (u *User) HasPIN() bool { return u.PINHash != nil && *u.PINHash != "" }

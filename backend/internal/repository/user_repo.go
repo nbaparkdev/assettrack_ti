@@ -88,3 +88,13 @@ func (r *UserRepository) SetPIN(userID uint, pin string) error {
 	return r.db.Model(&models.User{}).Where("id = ?", userID).
 		Update("pin_hash", string(hash)).Error
 }
+
+// ListByRoles returns users with any of the given roles.
+func (r *UserRepository) ListByRoles(roles []string) ([]models.User, error) {
+	var users []models.User
+	err := r.db.Where("role IN ? AND is_active = true", roles).Find(&users).Error
+	return users, err
+}
+
+// DB exposes the underlying gorm DB for auxiliary queries.
+func (r *UserRepository) DB() *gorm.DB { return r.db }

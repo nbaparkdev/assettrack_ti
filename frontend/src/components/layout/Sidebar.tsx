@@ -1,17 +1,25 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import { 
-  LayoutDashboard, 
-  Users, 
-  QrCode, 
-  LogOut, 
-  Briefcase, 
-  Cpu, 
+import { apiClient as api } from '../../api/client';
+import {
+  LayoutDashboard,
+  Users,
+  QrCode,
+  LogOut,
+  Briefcase,
+  Cpu,
   FileSpreadsheet,
   Wrench,
   ArrowLeftRight,
-  MessageSquare
+  MessageSquare,
+  Truck,
+  ClipboardList,
+  Columns3,
+  BellRing,
+  FileSignature,
+  Webhook,
+  Database
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -22,13 +30,20 @@ export const Sidebar: React.FC = () => {
     { name: 'Ativos & Inventário', path: '/assets', icon: Cpu },
     { name: 'Central de Suporte', path: '/servicos', icon: MessageSquare },
     { name: 'Manutenções', path: '/manutencoes', icon: Wrench },
+    { name: 'Prev. Programada', path: '/manutencao-preventiva', icon: ClipboardList },
+    { name: 'Kanban', path: '/kanban', icon: Columns3 },
+    { name: 'Alertas', path: '/alertas', icon: BellRing },
     { name: 'Empréstimos', path: '/emprestimos', icon: ArrowLeftRight },
+    { name: 'Fornecedores', path: '/fornecedores', icon: Truck, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'comprador'] },
+    { name: 'Compras', path: '/compras', icon: Briefcase, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'comprador'] },
+    { name: 'Portal RH', path: '/rh', icon: FileSignature, roleLimit: ['admin', 'rh', 'gerente_ti', 'gerente_infra'] },
     { name: 'Usuários', path: '/users', icon: Users, roleLimit: ['admin', 'gerente_ti'] },
+    { name: 'Webhooks', path: '/webhooks', icon: Webhook, roleLimit: ['admin'] },
+    { name: 'Backup & Restore', path: '/backups', icon: Database, roleLimit: ['admin'] },
     { name: 'Meu Crachá QR', path: '/badge', icon: QrCode },
   ];
 
   const adminModules = [
-    { name: 'Compras (Fase 2)', path: '#', icon: Briefcase, disabled: true },
     { name: 'Relatórios (Fase 4)', path: '#', icon: FileSpreadsheet, disabled: true },
   ];
 
@@ -43,19 +58,23 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* User Info Card */}
-        <div className="p-4 border-b border-brand-border bg-brand-card/30">
+        <NavLink to="/profile" className="p-4 border-b border-brand-border bg-brand-card/30 hover:bg-brand-card/70 transition-colors block cursor-pointer">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 border border-brand-primary flex items-center justify-center font-mono text-brand-primary text-lg bg-brand-primary/5">
-              {user?.nome.substring(0, 2).toUpperCase()}
+            <div className="w-10 h-10 border border-brand-primary flex items-center justify-center font-mono text-brand-primary text-lg bg-brand-primary/5 overflow-hidden">
+              {user?.avatar_url ? (
+                <img src={`${api.defaults.baseURL}${user.avatar_url}`} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                user?.nome.substring(0, 2).toUpperCase()
+              )}
             </div>
             <div className="overflow-hidden">
-              <h4 className="text-sm font-semibold truncate text-brand-text">{user?.nome}</h4>
-              <span className="text-xs text-brand-primary font-mono uppercase bg-brand-primary/10 px-1.5 py-0.5 border border-brand-primary/20">
+              <h4 className="text-sm font-semibold truncate text-brand-text group-hover:text-brand-primary">{user?.nome}</h4>
+              <span className="text-xs text-brand-primary font-mono uppercase bg-brand-primary/10 px-1.5 py-0.5 border border-brand-primary/20 mt-1 inline-block">
                 {user?.role.replace('_', ' ')}
               </span>
             </div>
           </div>
-        </div>
+        </NavLink>
 
         {/* Navigation */}
         <nav className="p-4 space-y-1">

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"encoding/csv"
 	"fmt"
 	_ "image/gif"
 	_ "image/jpeg"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/assettrack/backend/internal/models"
 	"github.com/assettrack/backend/internal/repository"
@@ -33,14 +35,181 @@ func NewAssetHandler(repo *repository.AssetRepository, categoryRepo *repository.
 func (h *AssetHandler) List(c *gin.Context) {
 	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
-	ePatrimonio := c.Query("e_patrimonio")
 
-	assets, err := h.repo.List(skip, limit, ePatrimonio)
+	assets, err := h.repo.ListWithFilters(skip, limit, buildAssetFilters(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, assets)
+}
+
+func (h *AssetHandler) ExportCSV(c *gin.Context) {
+	assets, err := h.repo.ListWithFilters(0, 10000, buildAssetFilters(c))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString("\xEF\xBB\xBF")
+
+	writer := csv.NewWriter(&buf)
+	writer.Comma = ';'
+
+	if err := writer.Write([]string{
+		"ID",
+		"E-Patrimonio",
+		"Nome",
+		"Modelo",
+		"Numero de Serie",
+		"Status",
+		"Categoria",
+		"Localizacao",
+		"Armazenamento",
+		"Fornecedor",
+		"Nota Fiscal",
+		"Data Aquisicao",
+		"Valor",
+		"Ativo Fixo",
+		"Em Posse De",
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao gerar CSV"})
+		return
+	}
+
+	for _, asset := range assets {
+		row := []string{
+			strconv.FormatUint(uint64(asset.ID), 10),
+			safeCSV(asset.EPatrimonio),
+			safeCSV(asset.Nome),
+			safeCSV(stringValue(asset.Modelo)),
+			safeCSV(stringValue(asset.NumeroSerie)),
+			string(asset.Status),
+			safeCSV(assetCategoryName(asset)),
+			safeCSV(assetLocationName(asset)),
+			safeCSV(assetStorageName(asset)),
+			safeCSV(assetSupplierName(asset)),
+			safeCSV(assetInvoiceNumber(asset)),
+			formatDate(asset.DataAquisicao),
+			formatFloat(asset.Valor),
+			formatBool(asset.Bloqueado),
+			safeCSV(stringValue(asset.EmPosseDe)),
+		}
+		if err := writer.Write(row); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao gerar CSV"})
+			return
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao finalizar CSV"})
+		return
+	}
+
+	filename := fmt.Sprintf("ativos_%s.csv", time.Now().Format("20060102_150405"))
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", buf.Bytes())
+}
+
+func buildAssetFilters(c *gin.Context) repository.AssetListFilters {
+	return repository.AssetListFilters{
+		EPatrimonio:   c.Query("e_patrimonio"),
+		Nome:          c.Query("nome"),
+		CategoriaID:   parseUintQuery(c, "categoria_id"),
+		LocalizacaoID: parseUintQuery(c, "localizacao_id"),
+		FornecedorID:  parseUintQuery(c, "fornecedor_id"),
+		NotaFiscal:    c.Query("nfe"),
+		Status:        c.Query("status"),
+		DataInicio:    c.Query("data_inicio"),
+		DataFim:       c.Query("data_fim"),
+	}
+}
+
+func parseUintQuery(c *gin.Context, name string) uint {
+	value := c.Query(name)
+	if value == "" {
+		return 0
+	}
+	parsed, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return 0
+	}
+	return uint(parsed)
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func formatDate(value *time.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.Format("02/01/2006")
+}
+
+func formatFloat(value *float64) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprintf("%.2f", *value)
+}
+
+func formatBool(value bool) string {
+	if value {
+		return "Sim"
+	}
+	return "Nao"
+}
+
+func safeCSV(value string) string {
+	if value == "" {
+		return ""
+	}
+	if strings.ContainsAny(value[:1], "=+-@") {
+		return "'" + value
+	}
+	return value
+}
+
+func assetCategoryName(asset models.Asset) string {
+	if asset.Categoria == nil {
+		return ""
+	}
+	return asset.Categoria.Nome
+}
+
+func assetLocationName(asset models.Asset) string {
+	if asset.CurrentLocal == nil {
+		return ""
+	}
+	return asset.CurrentLocal.Nome
+}
+
+func assetStorageName(asset models.Asset) string {
+	if asset.CurrentArmazenamento == nil {
+		return ""
+	}
+	return asset.CurrentArmazenamento.Nome
+}
+
+func assetSupplierName(asset models.Asset) string {
+	if asset.Fornecedor == nil {
+		return ""
+	}
+	return asset.Fornecedor.Nome
+}
+
+func assetInvoiceNumber(asset models.Asset) string {
+	if asset.NotaFiscal == nil {
+		return ""
+	}
+	return asset.NotaFiscal.NumeroNota
 }
 
 func (h *AssetHandler) GetByID(c *gin.Context) {

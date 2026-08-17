@@ -33,8 +33,14 @@ type UserResponse struct {
 	Cargo          *string          `json:"cargo"`
 	Role           string           `json:"role"`
 	IsActive       bool             `json:"is_active"`
+	AvatarURL      *string          `json:"avatar_url"`
 	DepartamentoID *uint            `json:"departamento_id"`
 	Departamento   *DepartamentoDTO `json:"departamento,omitempty"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=4"`
 }
 
 // DepartamentoDTO - nested department info
