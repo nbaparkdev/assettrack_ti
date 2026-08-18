@@ -1,5 +1,7 @@
 # 🚀 Melhorias e Atualizações no Módulo de Service Desk
 
+> Documento histórico de evolução. Alguns trechos abaixo descrevem a fase anterior em Python/FastAPI e servem como registro técnico, não como documentação operacional atual.
+
 Este documento consolida todas as melhorias visuais, funcionais e de infraestrutura implementadas no módulo de **Service Desk** da plataforma **AssetTrack TI**.
 
 ---

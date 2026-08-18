@@ -252,203 +252,38 @@ Atualiza dados de um usuário.
 
 # Rotas do Frontend (React Router)
 
-As rotas abaixo representam as páginas da interface da Single Page Application (SPA) no React.
-Elas não batem no backend para renderizar HTML, mas sim consomem a API REST mapeada acima.
+As rotas abaixo representam as páginas atuais da SPA em React. Elas são renderizadas no frontend e consomem a API REST em `/api/v1`.
 
-## 📦 Ativos (`/assets`)
+| Rota | Página |
+|------|--------|
+| `/` | Dashboard principal |
+| `/login` | Login |
+| `/users` | Usuários |
+| `/assets` | Ativos & Inventário, incluindo filtros e relatórios |
+| `/badge` | Meu crachá / QR |
+| `/servicos` | Service Desk |
+| `/manutencoes` | Manutenções corretivas |
+| `/emprestimos` | Empréstimos e devoluções |
+| `/fornecedores` | Fornecedores |
+| `/setores` | Setores |
+| `/manutencao-preventiva` | Manutenção preventiva |
+| `/kanban` | Kanban |
+| `/alertas` | Alertas de emergência |
+| `/compras` | Compras / Procurement |
+| `/rh` | Portal RH |
+| `/webhooks` | Webhooks |
+| `/backups` | Backup & Restore |
+| `/profile` | Perfil |
+| `/configuracoes` | Configurações administrativas |
+| `/logs-email` | Logs de e-mail |
 
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| GET | `/assets` | Listagem de ativos com filtros | Todos |
-| GET | `/assets/search` | Busca de ativos | Todos |
-| GET | `/assets/scanner` | Scanner QR de ativos | Todos |
-| GET | `/assets/new` | Formulário de novo ativo | Admin/Gerente/Gerente Infra |
-| POST | `/assets/new` | Criar ativo | Admin/Gerente/Gerente Infra |
-| GET | `/assets/reports` | Relatórios com filtros | Admin/Gerente/Gerente Infra |
-| GET | `/assets/reports/pdf` | Exportar relatório em PDF | Admin/Gerente/Gerente Infra |
-| GET | `/assets/admin/categorias` | Gestão de categorias | Admin/Gerente/Gerente Infra |
-| POST | `/assets/admin/categorias` | Criar categoria | Admin/Gerente/Gerente Infra |
-| POST | `/assets/admin/categorias/{cat_id}/delete` | Remover categoria | Admin/Gerente/Gerente Infra |
-| GET | `/assets/{asset_id}` | Detalhes do ativo | Todos |
-| GET | `/assets/ep/{e_patrimonio}` | Detalhes por E-Patrimônio | Todos |
-| GET | `/assets/{asset_id}/edit` | Editar ativo | Admin/Gerente/Gerente Infra |
-| POST | `/assets/{asset_id}/edit` | Salvar edição | Admin/Gerente/Gerente Infra |
-| POST | `/assets/{asset_id}/delete` | Excluir ativo | Admin/Gerente/Gerente Infra |
-| POST | `/assets/{asset_id}/transfer` | Transferir responsável | Admin/Gerente/Gerente Infra |
-| POST | `/assets/{asset_id}/baixa` | Dar baixa no ativo | Admin/Gerente/Gerente Infra |
-| GET | `/assets/{asset_id}/maintenance/start` | Iniciar manutenção | Técnico/Admin/Gerente |
-| POST | `/assets/{asset_id}/maintenance/start` | Confirmar início | Técnico/Admin/Gerente |
-| GET | `/assets/{asset_id}/maintenance/finish` | Finalizar manutenção | Técnico/Admin/Gerente |
-| POST | `/assets/{asset_id}/maintenance/finish` | Confirmar finalização | Técnico/Admin/Gerente |
-| POST | `/assets/{asset_id}/return` | Devolver ativo | Admin/Gerente |
+## Observações importantes da arquitetura atual
 
----
-
-## 🏢 Fornecedores (`/suppliers`)
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| GET | `/suppliers` | Lista de fornecedores | Admin/Gerente/Gerente Infra |
-| GET | `/suppliers/new` | Formulário de novo fornecedor | Admin/Gerente/Gerente Infra |
-| POST | `/suppliers/new` | Criar fornecedor | Admin/Gerente/Gerente Infra |
-| POST | `/suppliers/parse-xml` | Upload de NF-e XML para auto-preenchimento | Admin/Gerente/Gerente Infra |
-| GET | `/suppliers/{fornecedor_id}/edit` | Editar fornecedor | Admin/Gerente/Gerente Infra |
-| POST | `/suppliers/{fornecedor_id}/edit` | Salvar edição | Admin/Gerente/Gerente Infra |
-| POST | `/suppliers/{fornecedor_id}/delete` | Excluir fornecedor | Admin/Gerente/Gerente Infra |
-| GET | `/suppliers/{fornecedor_id}/invoices` | Notas fiscais do fornecedor | Admin/Gerente/Gerente Infra |
-| GET | `/suppliers/invoices/{invoice_id}` | Detalhes da nota fiscal | Admin/Gerente/Gerente Infra |
-| POST | `/suppliers/{fornecedor_id}/invoices/{invoice_id}/delete` | Remover nota fiscal | Admin/Gerente/Gerente Infra |
-
-**Campos do formulário de fornecedor (POST `/suppliers/new`):**
-
-| Campo | Tipo | Obrigatório | Descrição |
-|-------|------|-------------|-----------|
-| nome | string | Sim | Nome do fornecedor |
-| razao_social | string | Não | Razão social |
-| cnpj | string | Não | CNPJ |
-| telefone | string | Não | Telefone |
-| email | string | Não | E-mail de contato |
-| endereco | string | Não | Endereço |
-| cidade | string | Não | Cidade |
-| estado | string | Não | Estado (UF) |
-| tipo_fornecedor | string | Não | Tipo de fornecedor |
-
----
-
-## 🎧 Service Desk (`/servicos`)
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| GET | `/servicos` | Dashboard e listagem de chamados | Todos |
-| GET | `/servicos/novo` | Formulário de novo chamado | Todos |
-| POST | `/servicos/novo` | Criar chamado | Todos |
-| GET | `/servicos/chamado/{ticket_id}` | Visualizar chamado (ex: `CH-2026-0001`) | Todos |
-| POST | `/servicos/chamado/{ticket_id}/update` | Atualizar status | Técnico/Admin/Gerente |
-| POST | `/servicos/chamado/{ticket_id}/interacao` | Adicionar interação | Todos |
-| GET | `/servicos/admin/categorias` | Gestão de categorias de serviço | Admin/Gerente |
-| POST | `/servicos/admin/categorias` | Criar categoria de serviço | Admin/Gerente |
-| GET | `/servicos/admin/servicos` | Gestão de serviços | Admin/Gerente |
-| POST | `/servicos/admin/servicos` | Criar serviço | Admin/Gerente |
-
----
-
-## 🚨 Alertas de Emergência (`/emergencia`)
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| POST | `/emergencia/alert` | Acionar chamado de emergência | Usuários autenticados |
-| GET | `/emergencia/stream` | Stream SSE em tempo real de novos alertas | Técnico/Admin/Gerente |
-| GET | `/emergencia/historico` | Consulta de lista de alertas e contadores agregados | Técnico/Admin/Gerente |
-| POST | `/emergencia/{alert_id}/atender` | Marcar alerta emergencial como atendido | Técnico/Admin/Gerente |
-
----
-
-## 🛠️ Manutenção
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| GET | `/solicitar-manutencao` | Formulário de solicitação | Todos |
-| POST | `/solicitar-manutencao` | Criar solicitação | Todos |
-| GET | `/minhas-solicitacoes-manutencao` | Minhas manutenções | Todos |
-| GET | `/solicitacoes-manutencao` | Todas as manutenções | Técnico/Admin/Gerente |
-| GET | `/solicitacoes-manutencao/{id}` | Detalhes da manutenção | Todos |
-| POST | `/solicitacoes-manutencao/{id}/aceitar` | Aceitar manutenção | Técnico |
-| POST | `/solicitacoes-manutencao/{id}/rejeitar` | Rejeitar manutenção | Técnico/Admin |
-| POST | `/solicitacoes-manutencao/{id}/concluir` | Concluir manutenção | Técnico |
-| POST | `/solicitacoes-manutencao/{id}/confirmar-recebimento` | Confirmar recebimento | Usuário |
-| GET | `/manutencao/entrega/scanner` | Scanner de entrega | Técnico |
-
----
-
-## 🏢 Setores (`/setores`)
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| GET | `/setores` | Lista de setores | Admin/Gerente |
-| POST | `/setores/new` | Criar setor | Admin/Gerente |
-| POST | `/setores/{setor_id}/delete` | Excluir setor | Admin/Gerente |
-
----
-
-## 👤 Perfil e QR Code
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| GET | `/profile` | Perfil do usuário | Todos |
-| POST | `/profile/update` | Atualizar perfil | Todos |
-| POST | `/profile/password` | Alterar senha | Todos |
-| POST | `/profile/qr/generate` | Regenerar token QR | Todos |
-| POST | `/profile/pin` | Configurar PIN | Todos |
-| GET | `/meu-qrcode` | Visualizar QR Code pessoal | Todos |
-| GET | `/qr/scanner/usuario` | Scanner de usuário | Técnico/Admin |
-
----
-
-## 🤖 Assistente de Inteligência Artificial (`/api/v1/chat`)
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| POST | `/api/v1/chat` | Endpoint do assistente virtual Kimi para consultas contextuais do ERP | Autenticado |
-
----
-
-## ⚙️ Manutenção Preventiva (CMMS)
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| GET | `/manutencao/preventiva` | Dashboard CMMS | Admin/Técnico |
-| GET/POST | `/manutencao/preventiva/planos` | Gestão de Planos de Manutenção | Admin/Gerente |
-| GET/POST | `/manutencao/preventiva/ordens` | Gestão de Ordens de Serviço (OS) | Admin/Técnico |
-| GET | `/manutencao/preventiva/calendario` | Calendário de manutenções | Admin/Técnico |
-| POST | `/manutencao/preventiva/ordens/{id}/executar-checklist` | Execução de checklist de OS | Técnico |
-| GET | `/manutencao/preventiva/relatorios` | Relatórios de manutenção (Preventiva vs Corretiva) | Admin/Gerente |
-
----
-
-## 🛒 Compras e Suprimentos (Procurement)
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| GET | `/compras` | Dashboard de Compras | Comprador/Admin |
-| GET/POST | `/compras/solicitacoes` | Solicitações de Compra (SC) | Todos / Comprador |
-| GET/POST | `/compras/cotacoes` | Gestão de Cotações e seleção de Fornecedor Vencedor | Comprador/Admin |
-| GET/POST | `/compras/pedidos` | Ordens de Compra (PO) e Recebimento de material | Comprador/Admin |
-| GET | `/compras/estoque` | Controle de estoque de itens/materiais | Comprador/Admin |
-| GET/POST | `/compras/produtos` | Catálogo de produtos e insumos | Comprador/Admin |
-
----
-
-## 📋 Kanban (Projetos Internos)
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| GET | `/kanban` | Dashboard principal de Projetos | Admin/Técnico/RH/Comprador |
-| GET/POST | `/kanban/projetos/novo` | Criação de Projetos/Quadros | Admin/Gerentes |
-| POST | `/kanban/projetos/{id}/colunas/nova` | Gestão de Colunas do Quadro | Admin/Gerentes |
-| POST | `/kanban/cards/novo` | Criação de Cards/Tarefas | Equipe |
-| POST | `/kanban/cards/{id}/mover` | Movimentação Drag & Drop de Cards | Equipe |
-| POST | `/kanban/cards/{id}/anexo` | Upload de anexos e vínculos de ativos | Equipe |
-
----
-
-## 🤝 Recursos Humanos (RH)
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| GET | `/rh/termos` | Listagem de Termos de Responsabilidade | RH/Admin |
-| GET/POST | `/rh/termos/criar/{solicitacao_id}` | Emissão de novo termo a partir de solicitação | RH/Admin |
-| POST | `/rh/termos/{id}/assinar` | Registro de assinatura/aceite | RH/Admin |
-| GET | `/rh/termos/{id}/pdf` | Geração do Termo em PDF | RH/Admin |
-
----
-
-## 🎛️ Administração e Webhooks
-
-| Método | Rota | Descrição | Acesso |
-|--------|------|-----------|--------|
-| GET | `/admin/modulos` | Habilitar/Desabilitar Módulos Globais e Permissões (RBAC) | Admin |
-| GET/POST | `/admin/webhooks` | Gestão de integrações Webhook (N8N, Zapier, etc) | Admin |
-| GET/POST | `/admin/backup` | Gerar e restaurar backups do Banco de Dados | Admin |
+- A UI não usa mais rotas HTML server-side como `/assets/new`, `/admin/modulos` ou `/servicos/novo`.
+- Exportação de relatórios de ativos é feita via `GET /api/v1/assets/export.csv`.
+- Configurações administrativas são feitas via `GET/PUT /api/v1/admin/settings`.
+- Alertas aceitam dois estágios operacionais distintos: `ciente` e `atendido`.
+- A manutenção preventiva possui rotas REST próprias em `/api/v1/preventiva/*`.
 
 ---
 

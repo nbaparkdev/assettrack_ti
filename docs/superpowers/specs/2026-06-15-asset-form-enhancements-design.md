@@ -1,5 +1,7 @@
 # Design: Aprimoramentos no Formulário de Cadastro de Ativo
 
+> Documento histórico de design. Reflete a implementação anterior em Python/FastAPI + Jinja2 e não deve ser usado como referência operacional atual.
+
 **Data:** 2026-06-15
 **Status:** Aprovado
 

@@ -1,5 +1,7 @@
 # Emergency Alert Feature (Botão Emergencial)
 
+> Historical implementation note. It documents the original rollout in the previous stack and may mention Python files, template paths and legacy endpoint names.
+
 ## Goal
 Implement a real-time emergency alert system with a high-visibility red button on the common user dashboard, allowing users to send alerts with a reason, saving the alert to the DB and broadcasting a real-time popup modal to Administrators, Technicians, and Managers containing the user's name, sector, assigned active asset(s), and reason text.
 

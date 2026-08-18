@@ -1,5 +1,7 @@
 # Módulo de Cotação/Pesquisa de Compra (Purchase Research Module)
 
+> Historical planning document. It references the former Python/FastAPI implementation and should be used only as product and migration context.
+
 ## Goal
 Implement a Purchase Research module inside the Procurement (Compras) module. Users can search for products, add photos, links, prices, and quantities. Upon approval, these items automatically convert into an approved Purchase Request and are registered as internal products (either Consumables or Fixed Assets).
 

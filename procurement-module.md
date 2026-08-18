@@ -1,5 +1,7 @@
 # Plan: Implantação do Módulo ERP de Compras (Procurement) Integrado
 
+> Documento histórico de planejamento. O texto abaixo foi produzido antes da arquitetura atual em Go/React e deve ser lido como contexto funcional, não como implementação vigente.
+
 ## 📋 Overview
 Este plano descreve o desenvolvimento e a integração de um novo **Módulo de Compras (Procurement)** ao ERP AssetTrack TI. Ele cobrirá todo o ciclo de compras: desde solicitações de compras (com alçadas e controle de orçamento por centro de custo), cotações com comparativos, pedidos de compra, recebimentos físicos (parciais/totais com controle de estoque de uso interno e criação automática de Ativos), contratos com alertas de vencimento, até relatórios gerenciais e auditoria.
 

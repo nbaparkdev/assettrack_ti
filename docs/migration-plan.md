@@ -1,6 +1,7 @@
 # AssetTrack TI — Plano de Migração Completo
 
-> **Python/FastAPI + Jinja2 → Go/Gin + React/TypeScript**
+> Documento histórico de planejamento da migração: **Python/FastAPI + Jinja2 → Go/Gin + React/TypeScript**.
+> Use este arquivo como contexto da transição arquitetural, não como manual operacional da aplicação atual.
 
 ---
 

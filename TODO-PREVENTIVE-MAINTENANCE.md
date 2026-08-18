@@ -1,5 +1,7 @@
 # TODO - Manutenção Preventiva (CMMS/EAM)
 
+> Documento histórico de acompanhamento. Vários itens abaixo foram registrados durante a fase anterior da implementação e podem mencionar SQLAlchemy, Pydantic e templates HTML legados.
+
 ## ✅ Já Implementado
 - [x] Modelos SQLAlchemy para todo o módulo
 - [x] Schemas Pydantic para validação

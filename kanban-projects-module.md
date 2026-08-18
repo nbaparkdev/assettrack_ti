@@ -1,5 +1,7 @@
 # Plan: Módulo Projetos Internos (Kanban)
 
+> Documento histórico de planejamento. Reflete a fase anterior da aplicação e pode mencionar `/admin/modulos`, FastAPI, SQLAlchemy, Jinja2 e outras estruturas já substituídas.
+
 ## 📋 Overview
 Este plano define a arquitetura, o modelo de dados e os passos de implementação para o novo módulo plugável **"Projetos Internos (Kanban)"** na aplicação Assettrack TI. O módulo permite o gerenciamento visual estilo Trello de projetos e tarefas da empresa, totalmente integrado aos Usuários e ao módulo de Ativos/Patrimônio.
 

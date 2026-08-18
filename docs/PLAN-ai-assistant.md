@@ -1,5 +1,7 @@
 # Plan: Assistente de IA Integrado (Gemini / OpenAI / Groq / OpenRouter / Kimi)
 
+> Documento histórico de planejamento. O conteúdo abaixo foi escrito antes da arquitetura atual em Go/React e pode citar Python/FastAPI, Jinja2 e estruturas legadas.
+
 ## Overview
 Integração de um assistente virtual na aplicação AssetTrack TI para gerenciar funções e avisos. O sistema terá suporte a múltiplos provedores (OpenAI, Gemini, Groq, OpenRouter e Kimi), permitindo ao administrador escolher qual usar (um ou outro) ou desativar completamente a funcionalidade através de um toggle (botão liga/desliga) nas configurações do sistema. O assistente usará *Function Calling* (chamada de função) para consultar e interagir com os dados do ERP.
 

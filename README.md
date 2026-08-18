@@ -1,19 +1,78 @@
 
 # README - AssetTrack TI
 
-Sistema de Controle de Ativos de TI completo em Python (FastAPI).
+Sistema de Controle de Ativos de TI com backend em Go (Gin + GORM), frontend em React + Vite, PostgreSQL e Redis.
 
 [Consulte os Requisitos do Sistema aqui](./REQUIREMENTS.md) | [Política de Segurança](./SECURITY.md) | [Licença](./LICENSE)
 
 ## Estrutura
-- **app/models**: Modelos do Banco de Dados (SQLAlchemy)
-- **app/schemas**: Schemas de Validação (Pydantic)
-- **app/api**: Endpoints da API REST
-- **app/services**: Serviços de QR Code e Email
+- **backend/**: API em Go, regras de negócio, modelos GORM e migração automática
+- **frontend/**: aplicação React + Vite
+- **docker-compose.yml**: ambiente de desenvolvimento com PostgreSQL, Redis, API e Web
+- **start_local.ps1 / start_local.sh**: inicialização local nativa do backend e frontend
 
-## 🚀 Como Rodar (Recomendado: Docker)
+## 🚀 Como Rodar
+
+O projeto hoje possui dois fluxos principais:
+
+1. **Modo local nativo**: sobe PostgreSQL e Redis via Docker, e roda backend Go + frontend React no host.
+2. **Modo Docker completo**: sobe tudo via `docker compose`.
+
+## 💻 Desenvolvimento Local (Recomendado)
+
+### Windows PowerShell
+
+```powershell
+./start_local.ps1
+```
+
+### Linux / macOS / WSL
+
+```bash
+chmod +x start_local.sh
+./start_local.sh
+```
+
+Esse modo sobe:
+
+- **PostgreSQL** em `localhost:5456`
+- **Redis** em `localhost:6380`
+- **Backend Go** em `http://localhost:8080`
+- **Frontend React/Vite** em `http://localhost:3000`
+
+### Requisitos para o modo local
+
+- Go
+- Node.js + npm
+- Docker com `docker compose`
+
+### Inicialização manual do modo local
+
+Se preferir rodar por etapas:
+
+```powershell
+docker compose up -d db redis
+cd backend
+go run ./cmd/server
+```
+
+Em outro terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+## 🐳 Docker Completo
 
 Certifique-se de ter Docker e Docker Compose instalados.
+
+Nesse modo:
+
+- **Frontend Web** fica em `http://localhost:8000`
+- **API Go** fica em `http://localhost:8080`
+- **Healthcheck da API** fica em `http://localhost:8080/health`
 
 ### 1. Inicialização Rápida (Automação)
 O projeto inclui um script que configura o ambiente, sobe os containers e inicializa o usuário administrador automaticamente:
@@ -44,11 +103,12 @@ Caso prefira rodar os comandos passo a passo:
     ```
 2.  **Subir os containers:**
     ```bash
-    docker-compose up -d --build
+    docker compose up -d --build
     ```
 3.  **Acesse o sistema:**
-    - App: [http://localhost:8000](http://localhost:8000)
-    - Documentação (Swagger UI): [http://localhost:8000/docs](http://localhost:8000/docs)
+    - Frontend Web: [http://localhost:8000](http://localhost:8000)
+    - API Go: [http://localhost:8080](http://localhost:8080)
+    - Healthcheck da API: [http://localhost:8080/health](http://localhost:8080/health)
 
 ---
 
@@ -63,15 +123,11 @@ Credenciais sugeridas para teste:
 | **Técnico** | `tecnico@example.com` | `123` | Operacional (Manutenções e Devoluções) |
 
 ### Gerenciar usuários via terminal (Docker)
-Se precisar criar ou ativar usuários manualmente:
+Hoje, o usuário administrador padrão é criado automaticamente no startup da API Go quando ainda não existe. Se você precisar inspecionar manualmente o container web, pode usar:
 
 ```bash
-# Criar/Ativar Admin
-docker-compose exec web python create_admin.py
-docker-compose exec web python activate_user_admin.py
-
-# Criar Técnico
-docker-compose exec web python create_technician.py
+# Exemplo de acesso ao container web legado
+docker compose exec web sh
 ```
 
 ---
@@ -88,16 +144,15 @@ O sistema possui um módulo completo para controle e relacionamento de Fornecedo
 | **Rastreabilidade** | Vínculo automático de Nota Fiscal ao fornecedor |
 | **Upload de Imagens** | Foto/comprovante do equipamento no servidor |
 
-## 📊 Relatórios de Ativos (`/assets/reports`)
+## 📊 Relatórios de Ativos (`/assets`)
 
-Tela dedicada para geração de relatórios e exportação em PDF dos ativos cadastrados.
+Os relatórios e filtros de ativos ficam integrados na própria tela de inventário, com exportação em CSV pelo frontend consumindo a API.
 
 | Recurso | Descrição |
 | :--- | :--- |
-| **Filtros Combinados** | Data início/fim, nome do ativo, categoria, fornecedor, número de NFe, E-Patrimônio e **usuário atual**. |
-| **Filtro por Usuário Atual** | Dropdown com todos os usuários do sistema (nome + matrícula), permitindo listar todos os ativos alocados a um colaborador específico. |
-| **Coluna "Usuário Atual"** | Exibição do colaborador que possui o ativo alocado no momento (termo de responsabilidade vigente), tanto na tabela HTML quanto no PDF exportado. |
-| **Exportação PDF** | Geração do PDF via WeasyPrint com todos os filtros aplicados preservados (incluindo `usuario_id`). |
+| **Filtros Combinados** | Data início/fim, nome do ativo, categoria, localização, fornecedor, número de NF e E-Patrimônio. |
+| **Painel Integrado** | O painel de filtros fica na própria página de Ativos & Inventário, sem depender de rota separada. |
+| **Exportação CSV** | Exportação dos resultados filtrados via endpoint `/api/v1/assets/export.csv`. |
 
 ## 🎧 Service Desk (Help Desk)
 
@@ -139,7 +194,9 @@ Funcionalidades de identificação, login rápido e acompanhamento ágil.
 > 📸 **Nota sobre Scanner via Rede Local (HTTP):**
 > Navegadores bloqueiam a câmera em conexões HTTP. Para liberar em sua rede local:
 > 1. No Chrome/Edge, acesse: `chrome://flags/#unsafely-treat-insecure-origin-as-secure`
-> 2. Em "Insecure origins treated as secure", adicione o endereço: `http://SEU_IP:8000`
+> 2. Em "Insecure origins treated as secure", adicione o endereço do frontend que você estiver usando:
+>    `http://SEU_IP:3000` no modo local nativo
+>    `http://SEU_IP:8000` no modo Docker completo
 > 3. Mude para **Enabled** e reinicie o navegador.
 
 ---
@@ -211,7 +268,7 @@ O sistema possui uma arquitetura modular e flexível que permite ao administrado
 - **Habilitação de Recursos Globais:** Ativação/desativação sob demanda dos módulos de **Manutenção Preventiva** e **Compras**, ocultando rotas e menus associados.
 - **Controle de Acessos por Menu (Matriz RBAC):** Uma grade de controle onde o administrador define quais perfis de acesso (`ADMIN`, `GERENTE_TI`, `GERENTE_INFRA`, `TECNICO`, `COMPRADOR`, `RH`, `USUARIO_COMUM`) podem visualizar e acessar cada menu da aplicação (`Ativos`, `Fornecedores`, `Manutenção`, `Tickets`, `Compras`, `Termos RH`, `Relatórios`, `Usuários`, `Backup`).
 - **Trava de Segurança:** O perfil `Administrador` possui permissões garantidas e travadas para leitura em todos os módulos, evitando bloqueios acidentais.
-- **Acesso:** Painel administrativo em `/admin/modulos`.
+- **Acesso:** Tela administrativa em `/configuracoes`, integrada ao frontend React e à API `/api/v1/admin/settings`.
 
 ---
 

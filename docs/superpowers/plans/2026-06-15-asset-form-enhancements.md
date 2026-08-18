@@ -1,5 +1,7 @@
 # Asset Form Enhancements — Implementation Plan
 
+> Historical planning document. It was written before the Go/React migration and references the former Python/FastAPI + Jinja2 stack.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add location dropdown, free-text "em posse de" field, and make supplier/invoice non-required with warning to the asset registration/edit forms.

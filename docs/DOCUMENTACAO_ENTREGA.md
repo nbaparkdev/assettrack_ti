@@ -1,5 +1,7 @@
 # AssetTrack TI - Documentação de Entrega e Migração
 
+> Documento histórico da migração concluída em 17/08/2026. Use este arquivo como registro da transição arquitetural, não como referência operacional de rotas ou telas atuais.
+
 **Data:** 17 de Agosto de 2026
 **De:** Python (FastAPI + Jinja2)
 **Para:** Go (Gin + GORM) e React (Vite + TypeScript + Tailwind)

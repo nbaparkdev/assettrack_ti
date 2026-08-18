@@ -1,5 +1,7 @@
 # Plan: Toggle Módulo de Manutenção Preventiva e Corretiva
 
+> Documento histórico de planejamento. O conteúdo abaixo foi escrito na fase anterior da aplicação e pode citar FastAPI, SQLAlchemy, Jinja2 e rotas legadas.
+
 ## 📋 Overview
 Este plano define a arquitetura e os passos de implementação para transformar o módulo de **Gestão de Manutenção Preventiva e Corretiva** em um recurso chaveável (*feature toggle*). A ativação/desativação será persistida no banco de dados, e **apenas administradores** terão permissão para alternar esse estado através de um novo gerenciador de módulos no painel administrativo.
 

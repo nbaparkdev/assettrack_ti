@@ -16,11 +16,12 @@ Atualmente, apenas a versão mais recente da branch principal (main) recebe atua
 O AssetTrack TI foi construído com as seguintes camadas de proteção:
 
 1.  **Autenticação JWT:** Uso de JSON Web Tokens com expiração configurável para sessões seguras.
-2.  **Hashing de Senhas:** Todas as senhas são armazenadas utilizando o algoritmo `Bcrypt` (via `passlib`).
-3.  **Controle de Acesso (RBAC):** Diferenciação de permissões entre Usuários, Técnicos e Administradores.
+2.  **Hashing de Senhas:** Todas as senhas são armazenadas utilizando `bcrypt` no backend em Go.
+3.  **Controle de Acesso (RBAC):** Diferenciação de permissões entre usuários, técnicos, RH, gerentes e administradores.
 4.  **Rate Limiting:** Proteção contra ataques de força bruta e DoS nos endpoints de autenticação e geração de QR Code (limite de 10 tentativas/min).
-5.  **Validação de Dados:** Uso rigoroso de Pydantic para garantir que apenas dados válidos entrem no sistema.
+5.  **Validação de Dados:** Validação de payloads, permissões e regras de negócio na camada de handlers, serviços e modelos do backend Go.
 6.  **Isolamento via Docker:** Execução em containers para mitigar riscos de comprometimento do host.
+7.  **Auditoria Operacional:** Movimentações de ativos, devoluções, OS, alertas e ações administrativas mantêm histórico operacional no banco.
 
 ## Como Relatar uma Vulnerabilidade
 
@@ -36,4 +37,4 @@ Prometemos analisar e responder a todos os relatos de segurança em até 48 hora
 
 - **Mude o SECRET_KEY:** Sempre altere a variável `SECRET_KEY` no arquivo `.env` ao implantar em produção.
 - **Use HTTPS:** Recomendamos o uso de um Proxy Reverso (como Nginx ou Traefik) com certificados SSL/TLS na frente da aplicação.
-- **Mantenha o Docker atualizado:** Verifique regularmente se há atualizações para as imagens base do Python e PostgreSQL.
+- **Mantenha a stack atualizada:** Verifique regularmente atualizações de Go, Node.js, PostgreSQL, Redis e imagens Docker usadas no deploy.

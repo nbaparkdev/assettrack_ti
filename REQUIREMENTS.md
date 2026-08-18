@@ -1,15 +1,20 @@
 
 # Requisitos do Sistema - AssetTrack TI
 
-Este documento detalha os requisitos técnicos necessários para a implantação e operação do AssetTrack TI utilizando Docker.
+Este documento detalha os requisitos técnicos necessários para executar e implantar o AssetTrack TI na arquitetura atual, com backend em Go (Gin + GORM), frontend em React/Vite, PostgreSQL e Redis.
 
 ## 💻 Requisitos de Software
 
 ### Essenciais
-- **Sistema Operacional:** Linux (Recomendado: Ubuntu 22.04 LTS ou superior). Também compatível com Windows (via Docker Desktop/WSL2) e macOS.
+- **Sistema Operacional:** Linux (Recomendado: Ubuntu 22.04 LTS ou superior). Também compatível com Windows (PowerShell / Docker Desktop / WSL2) e macOS.
 - **Docker Engine:** Versão 20.10.0 ou superior.
-- **Docker Compose:** Versão 2.0.0 ou superior (Plugin `docker compose` ou standalone `docker-compose`).
+- **Docker Compose:** Versão 2.0.0 ou superior (plugin `docker compose`).
 - **Git:** Para clonagem e atualização do repositório.
+
+### Para desenvolvimento local nativo
+- **Go:** 1.21 ou superior.
+- **Node.js:** 20 ou superior.
+- **npm:** 10 ou superior.
 
 ### Navegadores Suportados (Para o Scanner de QR Code)
 - Google Chrome (Versão estável)
@@ -39,8 +44,11 @@ O sistema utiliza as seguintes portas por padrão:
 
 | Porta | Serviço | Descrição |
 | :--- | :--- | :--- |
-| **8000** | Web Service (API/UI) | Acesso principal ao sistema via navegador. |
-| **5455** | PostgreSQL DB | Acesso externo ao banco de dados (opcional). |
+| **3000** | Frontend React/Vite | Interface web no modo local nativo. |
+| **8000** | Web Docker (Nginx) | Interface web quando a stack completa roda em Docker. |
+| **8080** | API Go/Gin | Backend REST e healthcheck. |
+| **5456** | PostgreSQL DB | Acesso externo ao banco de dados local. |
+| **6380** | Redis | Cache e rate limiting local. |
 
 > **Importante:** Certifique-se de que estas portas não estão sendo utilizadas por outros serviços no servidor hospedeiro.
 
@@ -53,17 +61,20 @@ O arquivo `.env` é fundamental para o funcionamento. Abaixo os principais campo
 | Variável | Descrição | Valor Padrão |
 | :--- | :--- | :--- |
 | `SECRET_KEY` | Chave para criptografia de tokens JWT | *Deve ser alterada em produção* |
-| `DATABASE_URL` | String de conexão com o banco | `postgresql+asyncpg://user:password@db:5432/assettrack` |
-| `FIRST_SUPERUSER` | E-mail do administrador inicial | `admin@example.com` |
-| `FIRST_SUPERUSER_PASSWORD` | Senha do administrador inicial | `admin` |
+| `DATABASE_URL` | String de conexão com o PostgreSQL | `postgres://user:password@localhost:5456/assettrack?sslmode=disable` |
+| `REDIS_URL` | String de conexão com o Redis | `redis://localhost:6380/0` |
+| `PORT` | Porta da API Go | `8080` |
+| `GIN_MODE` | Modo de execução do Gin | `debug` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Tempo de expiração do JWT | `60` |
 
 ---
 
 ## 📸 Dependências de Sistema (Internas)
 
-Estas dependências já estão incluídas na imagem Docker, mas são listadas para referência:
-- **Python 3.11-slim:** Base da aplicação.
-- **Postgres 15-alpine:** Banco de dados.
-- **libzbar0:** Biblioteca para processamento de QR Codes.
-- **libpq-dev & gcc:** Drivers para conexão com PostgreSQL.
-- **WeasyPrint:** Renderização de relatórios em PDF (Relatórios de Ativos, Termos de Responsabilidade, etc.).
+Estas dependências já estão incluídas na stack atual, mas são listadas para referência:
+- **Go 1.21+**: Runtime da API.
+- **Node.js 20+**: Runtime do frontend e toolchain Vite.
+- **PostgreSQL 15**: Banco de dados principal.
+- **Redis 7**: Cache, notificações leves e rate limiting.
+- **libzbar0**: Biblioteca para leitura de QR Codes.
+- **Nginx**: Entrega do frontend no modo Docker completo.

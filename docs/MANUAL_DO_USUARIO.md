@@ -104,9 +104,10 @@ Os administradores podem organizar os ativos em categorias customizáveis para f
 
 O sistema oferece relatórios gerenciais com filtros avançados.
 
-1. Acesse **Ativos > Relatórios**.
-2. Utilize os filtros por data de aquisição, categoria, fornecedor, NF-e ou E-Patrimônio.
-3. Visualize os resultados na tela ou exporte para **PDF** com um clique.
+1. Acesse o menu **Ativos & Inventário**.
+2. Utilize o painel **Filtros & Relatórios** na própria página.
+3. Filtre por data de aquisição, categoria, fornecedor, localização, nota fiscal ou E-Patrimônio.
+4. Exporte o resultado atual para **CSV** quando necessário.
 
 ---
 
@@ -148,13 +149,13 @@ O ciclo de compras no sistema é completamente integrado e segue o fluxo abaixo:
 
 ## 🎛️ 12. Configurações de Módulos e Acessos por Menu (RBAC)
 
-Os administradores têm controle total sobre as seções de menu da aplicação através do painel de Módulos:
+Os administradores têm controle total sobre as seções de menu da aplicação através da tela **Configurações**:
 
-1. Acesse o menu **Módulos** (canto superior direito no dropdown do Administrador ou em `/admin/modulos`).
-2. **Ativar/Desativar Módulos Globais:** Você pode ligar ou desligar funcionalidades inteiras (como Compras e Manutenção Preventiva). Isso oculta links e bloqueia acessos a endpoints dessas seções imediatamente em todo o sistema.
-3. **Matriz de Permissões de Menu:** Abaixo dos módulos, use a tabela para conceder ou revogar o acesso de visualização de cada menu principal (Ex: *Ativos*, *Compras*, *Backup*, *Usuários*) para cada Perfil de Acesso do sistema.
-4. Clique em **Salvar Configurações** para aplicar instantaneamente na interface de todos os usuários.
-5. *Nota de segurança:* O perfil do Administrador é travado com acesso completo a tudo por padrão para prevenir bloqueios permanentes acidentais.
+1. Acesse **Configurações** no menu lateral ou a rota `/configuracoes`.
+2. **Ativar/Desativar Módulos Globais:** Você pode ligar ou desligar funcionalidades inteiras, como Compras e Manutenção Preventiva.
+3. **Permissões administrativas:** As alterações são persistidas pela API administrativa e refletidas no frontend conforme o perfil do usuário.
+4. Clique em **Salvar Configurações** para aplicar as mudanças.
+5. O perfil de administrador continua protegido para evitar bloqueio acidental do sistema.
 
 ---
 

@@ -1,5 +1,7 @@
 # Resoluções Técnicas e Correções Críticas
 
+> Documento histórico de incidentes e correções. Pode conter referências a SQLAlchemy, Jinja2 e rotinas que pertencem à arquitetura anterior.
+
 Este documento registra as resoluções arquiteturais e correções críticas aplicadas para estabilizar o processo de inicialização do sistema (`init_app.py`) e o fluxo de aprovação do módulo de Compras (Pesquisa e Cotação Prévia).
 
 ## 1. Correções no Fluxo de Pesquisa e Cotação Prévia (Compras)
