@@ -1052,7 +1052,7 @@ func (h *KanbanHandler) syncKanbanAssetsMaintenance(card *models.KanbanCard, ass
 		}
 
 		if isConcluido {
-			// Mark asset as available and conclude maintenance record
+			// Mark asset as available and conclude maintenance records
 			db.Model(&asset).Update("status", models.AssetStatusDisponivel)
 			var now = time.Now()
 			db.Model(&models.Manutencao{}).
@@ -1061,7 +1061,17 @@ func (h *KanbanHandler) syncKanbanAssetsMaintenance(card *models.KanbanCard, ass
 					"status":         models.StatusManutencaoConcluida,
 					"data_conclusao": &now,
 				})
-		} else if isOficinaOrMaintenance || len(assetIDs) > 0 {
+			// Also update linked SolicitacaoManutencao
+			db.Model(&models.SolicitacaoManutencao{}).
+				Where("asset_id = ? AND status IN ?", assetID, []string{
+					string(models.StatusMaintAceita),
+					string(models.StatusMaintEmAndamento),
+				}).
+				Updates(map[string]interface{}{
+					"status":               models.StatusMaintAguardandoEntrega,
+					"data_conclusao_tecnico": &now,
+				})
+		} else if isOficinaOrMaintenance {
 			// Update asset status to Manutenção
 			if asset.Status != models.AssetStatusManutencao {
 				db.Model(&asset).Updates(map[string]interface{}{
@@ -1070,17 +1080,23 @@ func (h *KanbanHandler) syncKanbanAssetsMaintenance(card *models.KanbanCard, ass
 				})
 			}
 
-			// Ensure active record exists in table manutencoes
-			var count int64
-			db.Model(&models.Manutencao{}).
-				Where("asset_id = ? AND status = ?", assetID, models.StatusManutencaoEmAndamento).
-				Count(&count)
+			// Check if an active SolicitacaoManutencao already exists for this asset
+			var solCount int64
+			db.Model(&models.SolicitacaoManutencao{}).
+				Where("asset_id = ? AND status IN ?", assetID, []string{
+					string(models.StatusMaintPendente),
+					string(models.StatusMaintAceita),
+					string(models.StatusMaintEmAndamento),
+				}).
+				Count(&solCount)
 
-			if count == 0 {
+			if solCount == 0 {
 				maintMotivo := motivo
 				if maintMotivo == "" {
 					maintMotivo = fmt.Sprintf("Adicionado à Oficina Kanban: %s", card.Titulo)
 				}
+
+				// Create Manutencao record
 				maint := models.Manutencao{
 					AssetID:       assetID,
 					ResponsavelID: card.ResponsavelID,
@@ -1089,7 +1105,28 @@ func (h *KanbanHandler) syncKanbanAssetsMaintenance(card *models.KanbanCard, ass
 					DataEntrada:   time.Now(),
 					Status:        models.StatusManutencaoEmAndamento,
 				}
-				_ = db.Create(&maint).Error
+				if err := db.Create(&maint).Error; err != nil {
+					continue
+				}
+
+				// Create SolicitacaoManutencao linked to the Manutencao
+				now := time.Now()
+				responsavelID := card.ResponsavelID
+				if responsavelID == nil {
+					responsavelID = &userID
+				}
+				solicitacao := models.SolicitacaoManutencao{
+					SolicitanteID:   &userID,
+					AssetID:         assetID,
+					Descricao:       maintMotivo,
+					Prioridade:      models.PrioridadeSolicitacaoMedia,
+					DataSolicitacao: now,
+					DataResposta:    &now,
+					Status:          models.StatusMaintAceita,
+					ResponsavelID:   responsavelID,
+					ManutencaoID:    &maint.ID,
+				}
+				_ = db.Create(&solicitacao).Error
 			}
 		}
 	}

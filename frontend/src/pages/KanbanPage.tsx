@@ -173,7 +173,9 @@ export const KanbanPage: React.FC = () => {
     if (card.column_id === column.id) return;
     
     const colName = column.nome.toLowerCase();
-    const isMaintenance = colName.includes('manuten') || colName.includes('oficina') || colName.includes('reparo');
+    const projName = board?.project.titulo?.toLowerCase() || '';
+    const isMaintenance = colName.includes('manuten') || colName.includes('oficina') || colName.includes('reparo')
+      || projName.includes('oficina') || projName.includes('manuten');
 
     if (isMaintenance) {
       setMMotivo('');
