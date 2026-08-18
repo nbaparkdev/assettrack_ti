@@ -24,28 +24,35 @@ import {
 
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuthStore();
+  const userRole = user?.role?.toLowerCase() || '';
 
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Ativos & Inventário', path: '/assets', icon: Cpu },
+    { name: 'Ativos & Inventário', path: '/assets', icon: Cpu, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador'] },
     { name: 'Central de Suporte', path: '/servicos', icon: MessageSquare },
-    { name: 'Manutenções', path: '/manutencoes', icon: Wrench },
-    { name: 'Prev. Programada', path: '/manutencao-preventiva', icon: ClipboardList },
-    { name: 'Kanban', path: '/kanban', icon: Columns3 },
-    { name: 'Alertas', path: '/alertas', icon: BellRing },
+    { name: 'Manutenções', path: '/manutencoes', icon: Wrench, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
+    { name: 'Prev. Programada', path: '/manutencao-preventiva', icon: ClipboardList, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
+    { name: 'Kanban', path: '/kanban', icon: Columns3, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
+    { name: 'Alertas', path: '/alertas', icon: BellRing, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
     { name: 'Empréstimos', path: '/emprestimos', icon: ArrowLeftRight },
     { name: 'Fornecedores', path: '/fornecedores', icon: Truck, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'comprador'] },
     { name: 'Compras', path: '/compras', icon: Briefcase, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'comprador'] },
     { name: 'Portal RH', path: '/rh', icon: FileSignature, roleLimit: ['admin', 'rh', 'gerente_ti', 'gerente_infra'] },
-    { name: 'Usuários', path: '/users', icon: Users, roleLimit: ['admin', 'gerente_ti'] },
+    { name: 'Usuários', path: '/users', icon: Users, roleLimit: ['admin', 'gerente_ti', 'gerente_infra'] },
     { name: 'Webhooks', path: '/webhooks', icon: Webhook, roleLimit: ['admin'] },
-    { name: 'Backup & Restore', path: '/backups', icon: Database, roleLimit: ['admin'] },
+    { name: 'Backup & Restore', path: '/backups', icon: Database, roleLimit: ['admin', 'gerente_ti', 'gerente_infra'] },
     { name: 'Meu Crachá QR', path: '/badge', icon: QrCode },
   ];
 
   const adminModules = [
-    { name: 'Relatórios (Fase 4)', path: '#', icon: FileSpreadsheet, disabled: true },
+    { name: 'Setores', path: '/setores', icon: ClipboardList, roleLimit: ['admin', 'gerente_ti', 'gerente_infra'] },
+    { name: 'Configurações', path: '/configuracoes', icon: Wrench, roleLimit: ['admin'] },
+    { name: 'Logs de E-mail', path: '/logs-email', icon: FileSpreadsheet, roleLimit: ['admin'] },
   ];
+
+  const visibleAdminModules = adminModules.filter(
+    item => !item.roleLimit || item.roleLimit.includes(userRole)
+  );
 
   return (
     <aside className="w-64 bg-brand-dark border-r border-brand-border h-screen flex flex-col justify-between select-none">
@@ -79,7 +86,7 @@ export const Sidebar: React.FC = () => {
         {/* Navigation */}
         <nav className="p-4 space-y-1">
           {menuItems.map((item) => {
-            if (item.roleLimit && !item.roleLimit.includes(user?.role || '')) {
+            if (item.roleLimit && !item.roleLimit.includes(userRole)) {
               return null;
             }
             return (
@@ -100,19 +107,30 @@ export const Sidebar: React.FC = () => {
             );
           })}
 
-          <div className="pt-4 pb-2 px-4 text-xs font-mono font-semibold text-brand-muted/70 tracking-widest uppercase">
-            Módulos Legados
-          </div>
+          {visibleAdminModules.length > 0 && (
+            <>
+              <div className="pt-4 pb-2 px-4 text-xs font-mono font-semibold text-brand-muted/70 tracking-widest uppercase">
+                Administração
+              </div>
 
-          {adminModules.map((item) => (
-            <div
-              key={item.name}
-              className="flex items-center space-x-3 px-4 py-3 text-sm text-brand-muted/40 cursor-not-allowed"
-            >
-              <item.icon size={18} />
-              <span>{item.name}</span>
-            </div>
-          ))}
+              {visibleAdminModules.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex items-center space-x-3 px-4 py-3 text-sm transition-all duration-150 ${
+                      isActive
+                        ? 'bg-brand-primary/10 text-brand-primary border-r-2 border-brand-primary font-medium'
+                        : 'text-brand-muted/70 hover:bg-brand-card/50 hover:text-brand-text'
+                    }`
+                  }
+                >
+                  <item.icon size={18} />
+                  <span>{item.name}</span>
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
       </div>
 

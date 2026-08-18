@@ -45,8 +45,8 @@ export const kanbanApi = {
     const response = await apiClient.put<KanbanCard>(`/kanban/cards/${id}`, data);
     return response.data;
   },
-  moveCard: async (id: number, column_id: number, ordem: number): Promise<void> => {
-    await apiClient.post(`/kanban/cards/${id}/mover`, { column_id, ordem });
+  moveCard: async (id: number, column_id: number, ordem: number, motivo?: string): Promise<void> => {
+    await apiClient.post(`/kanban/cards/${id}/mover`, { column_id, ordem, motivo });
   },
   deleteCard: async (id: number): Promise<{ message: string; project_id: number }> => {
     const response = await apiClient.delete(`/kanban/cards/${id}`);

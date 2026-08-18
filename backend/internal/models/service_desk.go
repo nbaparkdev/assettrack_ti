@@ -12,6 +12,7 @@ const (
 	ServiceStatusAguardandoTerceiro ServiceStatus = "Aguardando Terceiro"
 	ServiceStatusEsperandoCompra    ServiceStatus = "Esperando Compra"
 	ServiceStatusResolvido          ServiceStatus = "Resolvido"
+	ServiceStatusFechado            ServiceStatus = "Fechado"
 	ServiceStatusCancelado          ServiceStatus = "Cancelado"
 )
 

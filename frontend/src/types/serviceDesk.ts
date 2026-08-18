@@ -38,7 +38,13 @@ export interface ServiceTicket {
     nome: string;
     email: string;
   };
+  tecnico_id?: number;
   responsavel_id?: number;
+  tecnico?: {
+    id: number;
+    nome: string;
+    email: string;
+  };
   responsavel?: {
     id: number;
     nome: string;
@@ -49,7 +55,10 @@ export interface ServiceTicket {
   data_abertura: string;
   data_fechamento?: string;
   nota_resolucao?: string;
+  solucao?: string;
   nota_feedback?: number;
+  avaliacao?: number;
   comentario_feedback?: string;
+  feedback_usuario?: string;
   interacoes?: ServiceTicketInteraction[];
 }

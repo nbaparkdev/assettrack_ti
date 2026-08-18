@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/assettrack/backend/internal/dto"
@@ -22,23 +23,21 @@ func NewDashboardHandler(db *gorm.DB) *DashboardHandler {
 func (h *DashboardHandler) GetStats(c *gin.Context) {
 	var response dto.DashboardStatsResponse
 
-	// 1. Total Assets in Maintenance (status = 'MANUTENCAO')
-	h.db.Model(&models.Asset{}).Where("status = ?", "MANUTENCAO").Count(&response.TotalAssetsInMaintenance)
+	// 1. Total Assets in Maintenance (status = 'Manutenção' or 'manutencao' or 'em_manutencao')
+	h.db.Model(&models.Asset{}).Where("LOWER(status) LIKE '%manuten%' OR status IN ('Manutenção', 'MANUTENCAO', 'Em Manutenção')").Count(&response.TotalAssetsInMaintenance)
 
 	// 2. Open vs Resolved Tickets
-	h.db.Model(&models.ServiceTicket{}).Where("status IN ?", []string{"ABERTO", "EM_ANDAMENTO"}).Count(&response.TicketsOpen)
-	h.db.Model(&models.ServiceTicket{}).Where("status = ?", "RESOLVIDO").Count(&response.TicketsResolved)
+	h.db.Model(&models.ServiceTicket{}).Where("UPPER(status) IN ?", []string{"ABERTO", "EM_ANDAMENTO", "EM ATENDIMENTO"}).Count(&response.TicketsOpen)
+	h.db.Model(&models.ServiceTicket{}).Where("UPPER(status) = ?", "RESOLVIDO").Count(&response.TicketsResolved)
 
-	// 3. Supplier Cost Monthly (PurchaseOrders where Status = 'RECEBIDO' or 'APROVADO' in current month)
+	// 3. Supplier Cost Monthly
 	now := time.Now()
 	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	
-	// Assuming PurchaseOrder has TotalAmount
-	// If it doesn't have a direct float sum, we might need to sum items. Let's just do raw query summing total_amount.
 	var totalCost *float64
 	h.db.Model(&models.PurchaseOrder{}).
-		Select("SUM(total_amount)").
-		Where("status IN ('APROVADO', 'RECEBIDO') AND created_at >= ?", startOfMonth).
+		Select("SUM(valor_total)").
+		Where("UPPER(status) IN ('APROVADO', 'RECEBIDO', 'ACEITO', 'RECEBIDO TOTALMENTE') AND data_emissao >= ?", startOfMonth).
 		Scan(&totalCost)
 
 	if totalCost != nil {
@@ -48,9 +47,9 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 	}
 
 	// 4. Pending Asset Requests
-	h.db.Model(&models.Solicitacao{}).Where("status = ?", "PENDENTE").Count(&response.PendingAssetRequests)
+	h.db.Model(&models.Solicitacao{}).Where("LOWER(status) = ?", "pendente").Count(&response.PendingAssetRequests)
 
-	// 5. Main Alerts
+	// 5. Main Alerts (Emergency Alerts + Pending Asset Requests + Assets in Maintenance)
 	var alerts []models.EmergencyAlert
 	h.db.Where("atendido = ?", false).Order("created_at DESC").Limit(5).Find(&alerts)
 	
@@ -63,5 +62,58 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 		})
 	}
 
+	// Also fetch active maintenance items (Oficina / Manutenções) to display as Alerts
+	var activeMaint []models.Manutencao
+	h.db.Preload("Asset").Where("LOWER(status) IN ?", []string{"em_andamento", "pendente"}).Order("data_entrada DESC").Limit(5).Find(&activeMaint)
+
+	for _, m := range activeMaint {
+		assetStr := "Equipamento"
+		if m.Asset != nil {
+			assetStr = m.Asset.Nome
+			if m.Asset.EPatrimonio != "" {
+				assetStr += " (" + m.Asset.EPatrimonio + ")"
+			}
+		}
+		response.ActiveAlerts = append(response.ActiveAlerts, dto.AlertSummary{
+			ID:        m.ID,
+			Title:     "Equipamento em Manutenção (Oficina): " + assetStr + " — " + m.Motivo,
+			Severity:  "WARNING",
+			CreatedAt: m.DataEntrada.Format(time.RFC3339),
+		})
+	}
+
+	// Also fetch pending or approved asset solicitations to display as Alerts on the main dashboard!
+	var pendingSol []models.Solicitacao
+	h.db.Preload("Solicitante").Preload("Asset").Where("LOWER(status) IN ?", []string{"pendente", "aprovada"}).Order("data_solicitacao DESC").Limit(5).Find(&pendingSol)
+
+	for _, s := range pendingSol {
+		userStr := "Usuário"
+		if s.Solicitante != nil {
+			userStr = s.Solicitante.Nome
+		}
+		assetStr := "Equipamento"
+		if s.Asset != nil {
+			assetStr = s.Asset.Nome
+		}
+
+		title := ""
+		severity := "WARNING"
+		if strings.EqualFold(string(s.Status), "pendente") {
+			title = "Solicitação de Ativo Pendente: " + userStr + " solicitou " + assetStr
+			severity = "WARNING"
+		} else {
+			title = "Ativo Aprovado Aguardando Entrega: " + assetStr + " para " + userStr
+			severity = "INFO"
+		}
+
+		response.ActiveAlerts = append(response.ActiveAlerts, dto.AlertSummary{
+			ID:        s.ID,
+			Title:     title,
+			Severity:  severity,
+			CreatedAt: s.DataSolicitacao.Format(time.RFC3339),
+		})
+	}
+
 	c.JSON(http.StatusOK, response)
 }
+

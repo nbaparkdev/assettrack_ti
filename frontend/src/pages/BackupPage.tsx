@@ -16,7 +16,7 @@ export const BackupPage: React.FC = () => {
   const fetchBackups = async () => {
     try {
       const data = await backupApi.list();
-      setBackups(data);
+      setBackups(data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -154,7 +154,7 @@ export const BackupPage: React.FC = () => {
           Backups Disponíveis
         </div>
         
-        {backups.length === 0 ? (
+        {(!backups || backups.length === 0) ? (
           <div className="p-8 text-center text-brand-muted font-mono text-sm">
             Nenhum backup encontrado.
           </div>

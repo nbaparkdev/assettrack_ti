@@ -3,6 +3,8 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAuthStore } from '../../stores/authStore';
 import { Navigate } from 'react-router-dom';
+import { ChatbotWidget } from '../chat/ChatbotWidget';
+import { EmergencyGlobalHandler } from '../emergency/EmergencyGlobalHandler';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -36,6 +38,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <main className="flex-1 overflow-y-auto p-8 bg-brand-dark/30">
           {children}
         </main>
+        <ChatbotWidget />
+        <EmergencyGlobalHandler />
       </div>
     </div>
   );

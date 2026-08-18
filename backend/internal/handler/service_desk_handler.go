@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/assettrack/backend/internal/middleware"
@@ -166,12 +167,16 @@ func (h *ServiceDeskHandler) UpdateTicket(c *gin.Context) {
 	}
 
 	var req struct {
-		Status          *models.ServiceStatus   `json:"status"`
-		Prioridade      *models.ServicePriority `json:"prioridade"`
-		TecnicoID       *uint                   `json:"tecnico_id"`
-		Solucao         *string                 `json:"solucao"`
-		FeedbackUsuario *string                 `json:"feedback_usuario"`
-		Avaliacao       *int                    `json:"avaliacao"`
+		Status             *models.ServiceStatus   `json:"status"`
+		Prioridade         *models.ServicePriority `json:"prioridade"`
+		TecnicoID          *uint                   `json:"tecnico_id"`
+		ResponsavelID      *uint                   `json:"responsavel_id"`
+		Solucao            *string                 `json:"solucao"`
+		NotaResolucao      *string                 `json:"nota_resolucao"`
+		FeedbackUsuario    *string                 `json:"feedback_usuario"`
+		ComentarioFeedback *string                 `json:"comentario_feedback"`
+		Avaliacao          *int                    `json:"avaliacao"`
+		NotaFeedback       *int                    `json:"nota_feedback"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -179,11 +184,39 @@ func (h *ServiceDeskHandler) UpdateTicket(c *gin.Context) {
 		return
 	}
 
-	// Non-staff can only update feedback/avaliacao on Resolvido tickets
+	// Normalize technician ID
+	if req.TecnicoID == nil && req.ResponsavelID != nil {
+		req.TecnicoID = req.ResponsavelID
+	}
+	// Normalize solution note
+	if req.Solucao == nil && req.NotaResolucao != nil {
+		req.Solucao = req.NotaResolucao
+	}
+	// Normalize feedback text
+	if req.FeedbackUsuario == nil && req.ComentarioFeedback != nil {
+		req.FeedbackUsuario = req.ComentarioFeedback
+	}
+	// Normalize rating
+	if req.Avaliacao == nil && req.NotaFeedback != nil {
+		req.Avaliacao = req.NotaFeedback
+	}
+
+	// Non-staff can update feedback/avaliacao on tickets they own
 	if !isStaff(user.Role) {
-		if req.Status != nil || req.Prioridade != nil || req.TecnicoID != nil || req.Solucao != nil {
+		if req.Prioridade != nil || req.TecnicoID != nil || req.Solucao != nil {
 			c.JSON(http.StatusForbidden, gin.H{"detail": "Apenas técnicos e gerentes podem modificar metadados do chamado"})
 			return
+		}
+		if req.Status != nil {
+			stStr := strings.ToLower(string(*req.Status))
+			if stStr == "fechado" || stStr == "resolvido" {
+				ticket.Status = models.ServiceStatusFechado
+				now := time.Now()
+				ticket.DataFechamento = &now
+			} else {
+				c.JSON(http.StatusForbidden, gin.H{"detail": "Usuários comuns só podem encerrar o chamado ao avaliar"})
+				return
+			}
 		}
 		if req.FeedbackUsuario != nil {
 			ticket.FeedbackUsuario = req.FeedbackUsuario
@@ -194,8 +227,20 @@ func (h *ServiceDeskHandler) UpdateTicket(c *gin.Context) {
 	} else {
 		// Staff updates
 		if req.Status != nil {
-			ticket.Status = *req.Status
-			if *req.Status == models.ServiceStatusResolvido || *req.Status == models.ServiceStatusCancelado {
+			stStr := strings.ToLower(string(*req.Status))
+			if stStr == "fechado" {
+				ticket.Status = models.ServiceStatusFechado
+			} else if stStr == "resolvido" {
+				ticket.Status = models.ServiceStatusResolvido
+			} else if stStr == "em_andamento" || stStr == "em andamento" || stStr == "em_atendimento" {
+				ticket.Status = models.ServiceStatusEmAtendimento
+			} else if stStr == "cancelado" {
+				ticket.Status = models.ServiceStatusCancelado
+			} else {
+				ticket.Status = *req.Status
+			}
+
+			if ticket.Status == models.ServiceStatusResolvido || ticket.Status == models.ServiceStatusFechado || ticket.Status == models.ServiceStatusCancelado {
 				now := time.Now()
 				ticket.DataFechamento = &now
 			}

@@ -155,7 +155,7 @@ func (h *AlertsHandler) SendAlert(c *gin.Context) {
 
 // StaffRole checks whether a user may receive the emergency SSE stream.
 func staffRole(role string) bool {
-	switch role {
+	switch strings.ToLower(role) {
 	case models.RoleAdmin, models.RoleGerente, models.RoleGerenteInfra, models.RoleTecnico:
 		return true
 	}

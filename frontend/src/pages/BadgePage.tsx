@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usersApi } from '../api/users';
 import type { BadgeInfo, QRTokenInfo } from '../types';
-import { QrCode, RefreshCw, KeyRound, CheckCircle, AlertCircle } from 'lucide-react';
+import { QrCode, RefreshCw, KeyRound, CheckCircle, AlertCircle, Copy } from 'lucide-react';
 
 export const BadgePage: React.FC = () => {
   const [badge, setBadge] = useState<BadgeInfo | null>(null);
@@ -97,12 +97,24 @@ export const BadgePage: React.FC = () => {
 
             {/* QR base64 */}
             {badge?.qr_code_base64 ? (
-              <div className="bg-white p-2 border border-brand-border select-none">
-                <img
-                  src={`data:image/png;base64,${badge.qr_code_base64}`}
-                  alt="QR Code de Acesso"
-                  className="w-40 h-40"
-                />
+              <div className="flex flex-col items-center space-y-3 w-full">
+                <div className="bg-white p-2 border border-brand-border select-none">
+                  <img
+                    src={`data:image/png;base64,${badge.qr_code_base64}`}
+                    alt="QR Code do Usuário"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                {qrInfo?.qr_token && (
+                  <button
+                    onClick={() => navigator.clipboard.writeText(qrInfo.qr_token)}
+                    className="flex items-center space-x-2 text-[10px] font-mono text-brand-muted hover:text-brand-primary hover:bg-brand-primary/10 border border-brand-border hover:border-brand-primary/50 px-3 py-1.5 transition-all w-full justify-center group"
+                    title="Copiar Token"
+                  >
+                    <span className="truncate">{qrInfo.qr_token}</span>
+                    <Copy size={12} className="opacity-50 group-hover:opacity-100 flex-shrink-0" />
+                  </button>
+                )}
               </div>
             ) : (
               <div className="w-40 h-40 bg-brand-card flex items-center justify-center border border-brand-border/60">

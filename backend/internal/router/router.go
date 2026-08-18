@@ -70,12 +70,15 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	alertBroker := handler.NewAlertSSEBroker()
 	rhRepo := repository.NewRHRepository(db)
 	webhookRepo := repository.NewWebhookRepository(db)
+	systemSettingsRepo := repository.NewSystemSettingsRepository(db)
+	emailLogRepo := repository.NewEmailLogRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, cfg)
 	qrSvc := service.NewQRService()
 	qrLogSvc := service.NewQRLogService(qrLogRepo)
 	webhookDispatcher := service.NewWebhookDispatcher(webhookRepo)
+	aiSvc := service.NewAIService(systemSettingsRepo)
 
 	// Rate limiter
 	rateLimiter := middleware.NewRateLimiter(rdb)
@@ -109,6 +112,9 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	webhookHandler := handler.NewWebhookHandler(webhookRepo, webhookDispatcher)
 	backupHandler := handler.NewBackupHandler(cfg)
 	dashboardHandler := handler.NewDashboardHandler(db)
+	settingsHandler := handler.NewSettingsHandler(systemSettingsRepo)
+	emailLogHandler := handler.NewEmailLogHandler(emailLogRepo)
+	aiHandler := handler.NewAIHandler(aiSvc)
 
 	// Auth middleware helper
 	authMW := middleware.AuthMiddleware(authSvc, userRepo)
@@ -140,6 +146,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			users.POST("", rAdmin, userHandler.Create)
 			users.GET("/:id", userHandler.GetByID)
 			users.PUT("/:id", rAdmin, userHandler.Update)
+			users.DELETE("/:id", rAdmin, userHandler.Delete)
 		}
 
 		// Asset routes (protected)
@@ -150,6 +157,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			assets.POST("/localizacoes", rManager, assetHandler.CreateLocalizacao)
 			assets.POST("/armazenamentos", rManager, assetHandler.CreateArmazenamento)
 			assets.POST("/departamentos", rManager, assetHandler.CreateDepartamento)
+			assets.DELETE("/departamentos/:id", rManager, assetHandler.DeleteDepartamento)
 			assets.GET("", assetHandler.List)
 			assets.GET("/export.csv", assetHandler.ExportCSV)
 			assets.POST("", rManager, assetHandler.Create)
@@ -301,6 +309,14 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			alerts.POST("/:alertId/atender", alertsHandler.MarkAtendido)
 		}
 
+		emergencia := v1.Group("/emergencia", authMW, rActive)
+		{
+			emergencia.POST("/alertar", alertsHandler.SendAlert)
+			emergencia.GET("/stream", alertsHandler.AlertStream)
+			emergencia.GET("/historico", alertsHandler.History)
+			emergencia.POST("/:alertId/atender", alertsHandler.MarkAtendido)
+		}
+
 		avisos := v1.Group("/avisos", authMW, rActive)
 		{
 			avisos.GET("", alertsHandler.ListAvisos)
@@ -433,6 +449,24 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		dash := v1.Group("/dashboard", authMW, rActive)
 		{
 			dash.GET("/stats", dashboardHandler.GetStats)
+		}
+
+		// Admin config routes (protected: admin)
+		adminSettings := v1.Group("/admin/settings", authMW, rActive, rAdmin)
+		{
+			adminSettings.GET("", settingsHandler.GetAll)
+			adminSettings.PUT("", settingsHandler.UpdateMany)
+		}
+
+		adminEmailLogs := v1.Group("/admin/email-logs", authMW, rActive, rAdmin)
+		{
+			adminEmailLogs.GET("", emailLogHandler.List)
+		}
+
+		// AI Chat route
+		chat := v1.Group("/chat", authMW, rActive)
+		{
+			chat.POST("", aiHandler.Chat)
 		}
 	}
 

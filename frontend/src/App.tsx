@@ -19,6 +19,9 @@ import { RHPage } from './pages/RHPage';
 import { WebhooksPage } from './pages/WebhooksPage';
 import { BackupPage } from './pages/BackupPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { SettingsPage } from './pages/SettingsPage';
+import { EmailLogsPage } from './pages/EmailLogsPage';
+import { SetoresPage } from './pages/SetoresPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
@@ -103,6 +106,14 @@ const App: React.FC = () => {
             }
           />
           <Route
+            path="/setores"
+            element={
+              <MainLayout>
+                <SetoresPage />
+              </MainLayout>
+            }
+          />
+          <Route
             path="/manutencao-preventiva"
             element={
               <MainLayout>
@@ -163,6 +174,22 @@ const App: React.FC = () => {
             element={
               <MainLayout>
                 <ProfilePage />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/configuracoes"
+            element={
+              <MainLayout>
+                <SettingsPage />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/logs-email"
+            element={
+              <MainLayout>
+                <EmailLogsPage />
               </MainLayout>
             }
           />

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore';
 import { dashboardApi } from '../api/dashboard';
 import type { DashboardStats } from '../api/dashboard';
 import { 
   LayoutDashboard, Wrench, MessageSquare, Briefcase, BellRing, FileDown,
-  AlertTriangle, Info, ShieldAlert, Cpu
+  AlertTriangle, Info, ShieldAlert, Cpu, QrCode, ArrowLeftRight, UserCheck
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -29,9 +31,14 @@ ChartJS.register(
 );
 
 export const DashboardPage: React.FC = () => {
+  const { user } = useAuthStore();
+  const userRole = user?.role?.toLowerCase() || '';
+  const isStaff = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador'].includes(userRole);
+
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+
 
   useEffect(() => {
     fetchStats();
@@ -169,83 +176,181 @@ export const DashboardPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold uppercase tracking-wider font-mono text-brand-text m-0 flex items-center">
             <LayoutDashboard className="mr-3 text-brand-primary" size={28} />
-            Painel Executivo
+            {isStaff ? 'Painel Executivo' : `Portal do Colaborador (${user?.nome})`}
           </h1>
-          <p className="text-brand-muted text-sm mt-1">Visão geral do ecossistema de TI, métricas e análises</p>
+          <p className="text-brand-muted text-sm mt-1">
+            {isStaff 
+              ? 'Visão geral do ecossistema de TI, métricas e análises' 
+              : 'Gerencie seus chamados de TI, solicitações de equipamentos e crachá digital'}
+          </p>
         </div>
-        <button
-          onClick={exportPDF}
-          disabled={exporting}
-          className="bg-brand-primary text-brand-dark font-bold font-mono px-4 py-2 uppercase tracking-wider text-sm flex items-center hover:bg-brand-primary/90 transition-colors shadow-lg shadow-brand-primary/20 disabled:opacity-50"
-        >
-          <FileDown size={18} className="mr-2" />
-          {exporting ? 'Gerando...' : 'Exportar Relatório PDF'}
-        </button>
+        {isStaff && (
+          <button
+            onClick={exportPDF}
+            disabled={exporting}
+            className="bg-brand-primary text-brand-dark font-bold font-mono px-4 py-2 uppercase tracking-wider text-sm flex items-center hover:bg-brand-primary/90 transition-colors shadow-lg shadow-brand-primary/20 disabled:opacity-50"
+          >
+            <FileDown size={18} className="mr-2" />
+            {exporting ? 'Gerando...' : 'Exportar Relatório PDF'}
+          </button>
+        )}
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        
-        <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
-            <Wrench size={100} />
-          </div>
-          <div className="flex items-center space-x-3 mb-2">
-            <div className="p-2 bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-              <Wrench size={20} />
+      {/* Alert Banner for Pending Asset Requests (Staff/Managers) */}
+      {isStaff && stats.pending_asset_requests > 0 && (
+        <div className="bg-amber-500/10 border-l-4 border-amber-500 p-4 flex items-center justify-between shadow-lg">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-amber-500/20 text-amber-400 rounded">
+              <AlertTriangle size={24} />
             </div>
-            <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Ativos em Manutenção</h3>
-          </div>
-          <div className="text-4xl font-black font-mono text-brand-text">{stats.total_assets_maintenance}</div>
-          <div className="text-xs text-brand-muted mt-2">Equipamentos no conserto</div>
-        </div>
-
-        <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
-            <MessageSquare size={100} />
-          </div>
-          <div className="flex items-center space-x-3 mb-2">
-            <div className="p-2 bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              <MessageSquare size={20} />
+            <div>
+              <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider font-mono">
+                Atenção: {stats.pending_asset_requests} {stats.pending_asset_requests === 1 ? 'Solicitação de Ativo Pendente' : 'Solicitações de Ativos Pendentes'}
+              </h3>
+              <p className="text-xs text-brand-muted mt-0.5">
+                Existem solicitações de empréstimo de equipamentos aguardando aprovação ou confirmação de entrega.
+              </p>
             </div>
-            <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Tickets Abertos</h3>
           </div>
-          <div className="flex items-baseline space-x-2">
-            <div className="text-4xl font-black font-mono text-brand-text">{stats.tickets_open}</div>
-            <div className="text-sm font-mono text-green-400">/ {stats.tickets_resolved} resolvidos</div>
-          </div>
-          <div className="text-xs text-brand-muted mt-2">Chamados pendentes no Service Desk</div>
+          <Link
+            to="/emprestimos"
+            className="px-4 py-2 bg-amber-500 text-brand-dark font-bold text-xs uppercase tracking-wider font-mono hover:bg-amber-400 transition-all shrink-0"
+          >
+            Ver Solicitações →
+          </Link>
         </div>
+      )}
 
-        <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
-            <Cpu size={100} />
+      {!isStaff ? (
+        /* Portal do Colaborador Layout */
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Link 
+              to="/servicos" 
+              className="p-6 bg-brand-card border border-brand-border hover:border-brand-primary/50 transition-all group flex flex-col justify-between space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="p-3 bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <MessageSquare size={28} />
+                </div>
+                <span className="text-xs font-mono text-brand-muted group-hover:text-brand-primary transition-colors">Acessar →</span>
+              </div>
+              <div>
+                <h3 className="font-bold text-brand-text text-lg group-hover:text-brand-primary transition-colors">Central de Suporte</h3>
+                <p className="text-xs text-brand-muted mt-1">Abra chamados para suporte técnico, incidentes ou dúvidas com a equipe de TI.</p>
+              </div>
+            </Link>
+
+            <Link 
+              to="/emprestimos" 
+              className="p-6 bg-brand-card border border-brand-border hover:border-brand-primary/50 transition-all group flex flex-col justify-between space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="p-3 bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                  <ArrowLeftRight size={28} />
+                </div>
+                <span className="text-xs font-mono text-brand-muted group-hover:text-brand-primary transition-colors">Acessar →</span>
+              </div>
+              <div>
+                <h3 className="font-bold text-brand-text text-lg group-hover:text-brand-primary transition-colors">Solicitar Equipamento</h3>
+                <p className="text-xs text-brand-muted mt-1">Solicite empréstimos temporários de notebooks, periféricos ou dispositivos.</p>
+              </div>
+            </Link>
+
+            <Link 
+              to="/badge" 
+              className="p-6 bg-brand-card border border-brand-border hover:border-brand-primary/50 transition-all group flex flex-col justify-between space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="p-3 bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+                  <QrCode size={28} />
+                </div>
+                <span className="text-xs font-mono text-brand-muted group-hover:text-brand-primary transition-colors">Acessar →</span>
+              </div>
+              <div>
+                <h3 className="font-bold text-brand-text text-lg group-hover:text-brand-primary transition-colors">Meu Crachá QR</h3>
+                <p className="text-xs text-brand-muted mt-1">Visualize seu token QR pessoal para identificação e retirada rápida de ativos.</p>
+              </div>
+            </Link>
           </div>
-          <div className="flex items-center space-x-3 mb-2">
-            <div className="p-2 bg-purple-500/10 text-purple-400 border border-purple-500/20">
-              <Cpu size={20} />
+
+          <div className="p-6 bg-brand-card border border-brand-border flex items-center space-x-4">
+            <div className="p-3 bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shrink-0">
+              <UserCheck size={24} />
             </div>
-            <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Solicitações de Ativos</h3>
-          </div>
-          <div className="text-4xl font-black font-mono text-brand-text">{stats.pending_asset_requests}</div>
-          <div className="text-xs text-brand-muted mt-2">Pendentes de aprovação/entrega</div>
-        </div>
-
-        <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
-            <Briefcase size={100} />
-          </div>
-          <div className="flex items-center space-x-3 mb-2">
-            <div className="p-2 bg-green-500/10 text-green-400 border border-green-500/20">
-              <Briefcase size={20} />
+            <div>
+              <h4 className="font-semibold text-brand-text text-sm">Status do Seu Perfil ({user?.role.replace('_', ' ')})</h4>
+              <p className="text-xs text-brand-muted mt-0.5">Você está com perfil de colaborador ativo. Para alteração de permissões ou acesso administrativo, entre em contato com a equipe de TI.</p>
             </div>
-            <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Custo Mensal (Compras)</h3>
           </div>
-          <div className="text-2xl font-black font-mono text-green-400 mt-2">{formatCurrency(stats.supplier_cost_monthly)}</div>
-          <div className="text-xs text-brand-muted mt-2">Ordens de Compra aprovadas/recebidas</div>
         </div>
+      ) : (
+        /* Executive Dashboard Layout (Staff/Admin) */
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
+              <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
+                <Wrench size={100} />
+              </div>
+              <div className="flex items-center space-x-3 mb-2">
+                <div className="p-2 bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                  <Wrench size={20} />
+                </div>
+                <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Ativos em Manutenção</h3>
+              </div>
+              <div className="text-4xl font-black font-mono text-brand-text">{stats.total_assets_maintenance}</div>
+              <div className="text-xs text-brand-muted mt-2">Equipamentos no conserto</div>
+            </div>
 
-      </div>
+            <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
+              <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
+                <MessageSquare size={100} />
+              </div>
+              <div className="flex items-center space-x-3 mb-2">
+                <div className="p-2 bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <MessageSquare size={20} />
+                </div>
+                <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Tickets Abertos</h3>
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <div className="text-4xl font-black font-mono text-brand-text">{stats.tickets_open}</div>
+                <div className="text-sm font-mono text-green-400">/ {stats.tickets_resolved} resolvidos</div>
+              </div>
+              <div className="text-xs text-brand-muted mt-2">Chamados pendentes no Service Desk</div>
+            </div>
+
+            <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
+              <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
+                <Cpu size={100} />
+              </div>
+              <div className="flex items-center space-x-3 mb-2">
+                <div className="p-2 bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                  <Cpu size={20} />
+                </div>
+                <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Solicitações de Ativos</h3>
+              </div>
+              <div className="text-4xl font-black font-mono text-brand-text">{stats.pending_asset_requests}</div>
+              <div className="text-xs text-brand-muted mt-2">Pendentes de aprovação/entrega</div>
+            </div>
+
+            <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
+              <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
+                <Briefcase size={100} />
+              </div>
+              <div className="flex items-center space-x-3 mb-2">
+                <div className="p-2 bg-green-500/10 text-green-400 border border-green-500/20">
+                  <Briefcase size={20} />
+                </div>
+                <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Custo Mensal (Compras)</h3>
+              </div>
+              <div className="text-2xl font-black font-mono text-green-400 mt-2">{formatCurrency(stats.supplier_cost_monthly)}</div>
+              <div className="text-xs text-brand-muted mt-2">Ordens de Compra aprovadas/recebidas</div>
+            </div>
+
+          </div>
+        </>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         

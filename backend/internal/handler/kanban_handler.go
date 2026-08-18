@@ -527,6 +527,7 @@ func (h *KanbanHandler) CreateCard(c *gin.Context) {
 	}
 	if len(in.AtivoIDs) > 0 {
 		_ = h.cardRepo.ReplaceAssets(card, in.AtivoIDs)
+		h.syncKanbanAssetsMaintenance(card, in.AtivoIDs, user.ID, "")
 	}
 
 	// Notify assignees
@@ -627,6 +628,9 @@ func (h *KanbanHandler) UpdateCard(c *gin.Context) {
 
 	_ = h.cardRepo.ReplaceParticipantes(card, in.ParticipanteIDs)
 	_ = h.cardRepo.ReplaceAssets(card, in.AtivoIDs)
+	if len(in.AtivoIDs) > 0 {
+		h.syncKanbanAssetsMaintenance(card, in.AtivoIDs, user.ID, "")
+	}
 
 	notifyIDs := in.ParticipanteIDs
 	if card.ResponsavelID != nil {
@@ -661,8 +665,9 @@ func (h *KanbanHandler) MoveCard(c *gin.Context) {
 	}
 
 	var in struct {
-		ColumnID uint `json:"column_id"`
-		Ordem    int  `json:"ordem"`
+		ColumnID uint   `json:"column_id"`
+		Ordem    int    `json:"ordem"`
+		Motivo   string `json:"motivo"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -702,6 +707,16 @@ func (h *KanbanHandler) MoveCard(c *gin.Context) {
 				fmt.Sprintf("O cartão '%s' foi movido de '%s' para '%s'.", card.Titulo, sourceColName, targetColName),
 				&card.ProjectID, &card.ID)
 		}
+	}
+
+	// Sync assets maintenance status if card has assets
+	cardFull, _ := h.cardRepo.GetByID(card.ID)
+	if cardFull != nil && len(cardFull.Ativos) > 0 {
+		var assetIDs []uint
+		for _, a := range cardFull.Ativos {
+			assetIDs = append(assetIDs, a.ID)
+		}
+		h.syncKanbanAssetsMaintenance(cardFull, assetIDs, user.ID, in.Motivo)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "card_id": card.ID, "column_id": in.ColumnID})
@@ -1005,4 +1020,77 @@ func uniqueUints(ids []uint) []uint {
 		}
 	}
 	return result
+}
+
+func (h *KanbanHandler) syncKanbanAssetsMaintenance(card *models.KanbanCard, assetIDs []uint, userID uint, motivo string) {
+	if len(assetIDs) == 0 {
+		return
+	}
+	db := h.userRepo.DB()
+
+	// Check column or project name to see if it's maintenance/workshop related
+	var col models.KanbanColumn
+	var proj models.KanbanProject
+	_ = db.First(&col, card.ColumnID).Error
+	_ = db.First(&proj, card.ProjectID).Error
+
+	colName := strings.ToLower(col.Nome)
+	projName := strings.ToLower(proj.Titulo)
+
+	isOficinaOrMaintenance := strings.Contains(colName, "oficina") ||
+		strings.Contains(colName, "manuten") ||
+		strings.Contains(colName, "reparo") ||
+		strings.Contains(projName, "oficina") ||
+		strings.Contains(projName, "manuten")
+
+	isConcluido := strings.Contains(colName, "conclu") || strings.Contains(colName, "pronto") || strings.Contains(colName, "finaliz") || strings.Contains(colName, "entregue")
+
+	for _, assetID := range assetIDs {
+		var asset models.Asset
+		if err := db.First(&asset, assetID).Error; err != nil {
+			continue
+		}
+
+		if isConcluido {
+			// Mark asset as available and conclude maintenance record
+			db.Model(&asset).Update("status", models.AssetStatusDisponivel)
+			var now = time.Now()
+			db.Model(&models.Manutencao{}).
+				Where("asset_id = ? AND status = ?", assetID, models.StatusManutencaoEmAndamento).
+				Updates(map[string]interface{}{
+					"status":         models.StatusManutencaoConcluida,
+					"data_conclusao": &now,
+				})
+		} else if isOficinaOrMaintenance || len(assetIDs) > 0 {
+			// Update asset status to Manutenção
+			if asset.Status != models.AssetStatusManutencao {
+				db.Model(&asset).Updates(map[string]interface{}{
+					"status":      models.AssetStatusManutencao,
+					"prev_status": string(asset.Status),
+				})
+			}
+
+			// Ensure active record exists in table manutencoes
+			var count int64
+			db.Model(&models.Manutencao{}).
+				Where("asset_id = ? AND status = ?", assetID, models.StatusManutencaoEmAndamento).
+				Count(&count)
+
+			if count == 0 {
+				maintMotivo := motivo
+				if maintMotivo == "" {
+					maintMotivo = fmt.Sprintf("Adicionado à Oficina Kanban: %s", card.Titulo)
+				}
+				maint := models.Manutencao{
+					AssetID:       assetID,
+					ResponsavelID: card.ResponsavelID,
+					Motivo:        maintMotivo,
+					Tipo:          models.TipoManutencaoCorretiva,
+					DataEntrada:   time.Now(),
+					Status:        models.StatusManutencaoEmAndamento,
+				}
+				_ = db.Create(&maint).Error
+			}
+		}
+	}
 }

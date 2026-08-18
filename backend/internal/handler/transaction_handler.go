@@ -53,8 +53,21 @@ func (h *TransactionHandler) CreateSolicitacao(c *gin.Context) {
 		return
 	}
 
-	if asset.Status == models.AssetStatusManutencao || asset.Status == models.AssetStatusBaixado {
-		c.JSON(http.StatusBadRequest, gin.H{"detail": "Este ativo não está disponível para empréstimo"})
+	if asset.Bloqueado {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Este ativo é fixo da empresa e não pode ser solicitado para empréstimo."})
+		return
+	}
+
+	if asset.Status != models.AssetStatusDisponivel {
+		msg := "Ativo indisponível para solicitação."
+		if asset.CurrentUserID != nil && *asset.CurrentUserID == user.ID {
+			msg = "Você já possui este ativo (está em seu uso)."
+		} else if asset.Status == models.AssetStatusEmUso {
+			msg = "Este ativo já está em uso por outro usuário."
+		} else if asset.Status == models.AssetStatusManutencao {
+			msg = "Este ativo está em manutenção."
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"detail": msg})
 		return
 	}
 
@@ -109,6 +122,25 @@ func (h *TransactionHandler) ApproveSolicitacao(c *gin.Context) {
 	if err := h.repo.UpdateSolicitacao(sol); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": err.Error()})
 		return
+	}
+
+	// NEW LOGIC: Update Asset and register Movement
+	if sol.AssetID != nil {
+		asset, err := h.assetRepo.GetByID(*sol.AssetID)
+		if err == nil {
+			asset.Status = models.AssetStatusEmUso
+			asset.CurrentUserID = sol.SolicitanteID
+			_ = h.assetRepo.Update(asset)
+
+			mov := &models.Movimentacao{
+				AssetID:    asset.ID,
+				Tipo:       models.TipoMovimentacaoEmprestimo,
+				DeUserID:   &uid,
+				ParaUserID: sol.SolicitanteID,
+				Observacao: stringPtr("Solicitação de empréstimo aprovada via sistema"),
+			}
+			_ = h.repo.CreateMovement(mov)
+		}
 	}
 
 	c.JSON(http.StatusOK, sol)
@@ -172,7 +204,7 @@ func (h *TransactionHandler) DevolverAsset(c *gin.Context) {
 	if asset.Bloqueado {
 		asset.Status = models.AssetStatusEmUso
 	} else {
-		asset.Status = models.AssetStatusArmazenado
+		asset.Status = models.AssetStatusDisponivel
 	}
 	asset.CurrentUserID = nil
 	asset.CurrentLocalID = nil

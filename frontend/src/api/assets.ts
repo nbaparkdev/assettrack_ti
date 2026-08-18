@@ -1,5 +1,5 @@
 import { API_BASE_URL, apiClient } from './client';
-import type { Asset, AssetReferences, BulkDuplicateRequest, BulkDuplicateResponse, AssetCategory, Localizacao, Armazenamento } from '../types';
+import type { Asset, AssetReferences, BulkDuplicateRequest, BulkDuplicateResponse, AssetCategory, Localizacao, Armazenamento, Departamento } from '../types';
 
 export interface AssetListFilters {
   e_patrimonio?: string;
@@ -100,8 +100,13 @@ export const assetsApi = {
     return response.data;
   },
 
-  createDepartamento: async (nome: string): Promise<any> => {
-    const response = await apiClient.post<any>('/assets/departamentos', { nome });
+  createDepartamento: async (nome: string): Promise<Departamento> => {
+    const response = await apiClient.post<Departamento>('/assets/departamentos', { nome });
+    return response.data;
+  },
+
+  deleteDepartamento: async (id: number): Promise<{ detail: string }> => {
+    const response = await apiClient.delete<{ detail: string }>(`/assets/departamentos/${id}`);
     return response.data;
   },
 

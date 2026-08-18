@@ -7,9 +7,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "mobile:sync": "npm run build && npx cap sync",
+    "mobile:open-android": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@tanstack/react-query": "^5.101.4",
     "axios": "^1.19.0",
     "chart.js": "^4.5.1",

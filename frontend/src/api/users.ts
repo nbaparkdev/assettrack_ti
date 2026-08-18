@@ -22,6 +22,11 @@ export const usersApi = {
     return response.data;
   },
 
+  delete: async (id: number): Promise<{ detail: string }> => {
+    const response = await apiClient.delete<{ detail: string }>(`/users/${id}`);
+    return response.data;
+  },
+
   getMyQR: async (): Promise<QRTokenInfo> => {
     const response = await apiClient.get<QRTokenInfo>('/qr/me');
     return response.data;

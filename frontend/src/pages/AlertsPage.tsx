@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { alertsApi } from '../api/alerts';
 import type { EmergencyAlert, Aviso } from '../types/alerts';
 import { useAuthStore } from '../stores/authStore';
-import { ShieldAlert, Siren, Bell, Plus, Trash2, Edit2, X, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, Siren, Bell, Plus, Trash2, Edit2, X, CheckCircle2, Volume2 } from 'lucide-react';
+import { triggerTestEmergencyAlert } from '../components/emergency/EmergencyGlobalHandler';
 
 const staffRoles = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'];
 
@@ -109,9 +110,20 @@ export const AlertsPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold uppercase tracking-wider font-mono text-brand-text m-0">Alertas & Avisos</h1>
-        <p className="text-brand-muted text-sm mt-1">Alertas emergenciais em tempo real e avisos do sistema.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-brand-border pb-4">
+        <div>
+          <h1 className="text-3xl font-bold uppercase tracking-wider font-mono text-brand-text m-0">Alertas & Avisos</h1>
+          <p className="text-brand-muted text-sm mt-1">Alertas emergenciais em tempo real e avisos do sistema.</p>
+        </div>
+        {isStaff && (
+          <button
+            onClick={triggerTestEmergencyAlert}
+            className="px-4 py-2 bg-brand-card border border-red-500/40 text-red-400 font-mono font-bold text-xs uppercase tracking-wider flex items-center hover:bg-red-500/10 transition-colors shadow-lg"
+          >
+            <Volume2 size={16} className="mr-2" />
+            Testar Som & Popup de Alerta
+          </button>
+        )}
       </div>
 
       {/* Live alerts (staff) */}

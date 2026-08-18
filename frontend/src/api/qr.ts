@@ -27,7 +27,7 @@ export const qrApi = {
   },
 
   confirmDelivery: async (data: {
-    qr_token: string;
+    qr_token?: string;
     pin?: string;
     bypass_pin?: boolean;
     solicitacao_id?: number;

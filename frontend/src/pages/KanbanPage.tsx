@@ -46,6 +46,10 @@ export const KanbanPage: React.FC = () => {
   // Comment form
   const [comment, setComment] = useState('');
 
+  // Move card with motive
+  const [moveModal, setMoveModal] = useState<{ card: KanbanCard, column: KanbanColumn } | null>(null);
+  const [mMotivo, setMMotivo] = useState('');
+
   // SSE
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -167,10 +171,33 @@ export const KanbanPage: React.FC = () => {
 
   const moveCard = async (card: KanbanCard, column: KanbanColumn) => {
     if (card.column_id === column.id) return;
+    
+    const colName = column.nome.toLowerCase();
+    const isMaintenance = colName.includes('manuten') || colName.includes('oficina') || colName.includes('reparo');
+
+    if (isMaintenance) {
+      setMMotivo('');
+      setMoveModal({ card, column });
+      return;
+    }
+
     try {
       await kanbanApi.moveCard(card.id, column.id, column.cards ? column.cards.length : 0);
       if (board) openBoard(board.project.id);
       if (cardDetail?.id === card.id) openCard(card.id);
+    } catch (err) {
+      showError(err);
+    }
+  };
+
+  const confirmMoveCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!moveModal) return;
+    try {
+      await kanbanApi.moveCard(moveModal.card.id, moveModal.column.id, moveModal.column.cards ? moveModal.column.cards.length : 0, mMotivo);
+      setMoveModal(null);
+      if (board) openBoard(board.project.id);
+      if (cardDetail?.id === moveModal.card.id) openCard(moveModal.card.id);
     } catch (err) {
       showError(err);
     }
@@ -571,6 +598,29 @@ export const KanbanPage: React.FC = () => {
                 <button type="submit" className="bg-brand-primary text-brand-dark font-bold font-mono px-4 uppercase text-xs">Enviar</button>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move Card Modal */}
+      {moveModal && (
+        <div className="fixed inset-0 bg-brand-dark/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg border border-brand-border bg-brand-card p-6 space-y-6">
+            <div className="flex justify-between items-center border-b border-brand-border pb-4">
+              <h3 className="text-lg font-bold font-mono uppercase tracking-wider text-brand-text">Mover para {moveModal.column.nome}</h3>
+              <button onClick={() => setMoveModal(null)} className="text-brand-muted hover:text-brand-text"><X size={20} /></button>
+            </div>
+            <form onSubmit={confirmMoveCard} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Descrição do Defeito / Motivo</label>
+                <textarea required value={mMotivo} onChange={(e) => setMMotivo(e.target.value)} rows={4} placeholder="Informe o defeito ou motivo da manutenção..."
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary" />
+              </div>
+              <div className="flex justify-end space-x-3 pt-4 border-t border-brand-border">
+                <button type="button" onClick={() => setMoveModal(null)} className="border border-brand-border px-4 py-2 font-mono text-xs uppercase text-brand-muted hover:text-brand-text">Cancelar</button>
+                <button type="submit" className="bg-brand-primary text-brand-dark font-bold font-mono px-4 py-2 uppercase text-xs">Confirmar</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

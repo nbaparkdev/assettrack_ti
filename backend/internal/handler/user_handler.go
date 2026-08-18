@@ -166,6 +166,44 @@ func (h *UserHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, toUserResponse(updated))
 }
 
+// Delete DELETE /api/v1/users/:id
+func (h *UserHandler) Delete(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Invalid user ID"})
+		return
+	}
+
+	userObj, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	activeUser := userObj.(*models.User)
+
+	if activeUser.ID == uint(id) {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Você não pode excluir a si mesmo"})
+		return
+	}
+
+	user, err := h.userRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Usuário não encontrado"})
+		return
+	}
+
+	if err := h.userRepo.Delete(user.ID); err != nil {
+		if strings.Contains(err.Error(), "foreign key constraint") || strings.Contains(err.Error(), "violates foreign key") || strings.Contains(err.Error(), "a foreign key constraint fails") || strings.Contains(err.Error(), "SQLSTATE 23503") {
+			c.JSON(http.StatusBadRequest, gin.H{"detail": "Não é possível excluir este usuário pois ele possui registros vinculados (como Centro de Custo, Ativos ou Chamados)."})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Falha ao excluir usuário"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"detail": "Usuário excluído com sucesso"})
+}
+
 // UpdateProfile PUT /api/v1/profile
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	userObj, exists := c.Get("user")

@@ -40,6 +40,18 @@ export const ServiceDeskPage: React.FC = () => {
   const [newPriority, setNewPriority] = useState<'baixa' | 'media' | 'alta' | 'urgente'>('media');
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<number | ''>('');
 
+  // Config modal state
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [activeConfigTab, setActiveConfigTab] = useState<'categorias' | 'servicos'>('categorias');
+  
+  // Category form
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDesc, setNewCategoryDesc] = useState('');
+  
+  // Definition form
+  const [newDefName, setNewDefName] = useState('');
+  const [newDefDesc, setNewDefDesc] = useState('');
+  const [newDefCategoryId, setNewDefCategoryId] = useState<number | ''>('');
   // Detail panel state (Layout Diversification: Slide-out panel)
   const [selectedTicket, setSelectedTicket] = useState<ServiceTicket | null>(null);
   const [commentMessage, setCommentMessage] = useState('');
@@ -109,6 +121,40 @@ export const ServiceDeskPage: React.FC = () => {
     }
   };
 
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName) return;
+    try {
+      const cat = await serviceDeskApi.createCategory({
+        nome: newCategoryName,
+        descricao: newCategoryDesc
+      });
+      setCategories([...categories, cat]);
+      setNewCategoryName('');
+      setNewCategoryDesc('');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Erro ao criar categoria.');
+    }
+  };
+
+  const handleCreateDefinition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDefName || !newDefCategoryId) return;
+    try {
+      const def = await serviceDeskApi.createDefinition({
+        nome: newDefName,
+        descricao: newDefDesc,
+        categoria_id: Number(newDefCategoryId)
+      });
+      setDefinitions([...definitions, def]);
+      setNewDefName('');
+      setNewDefDesc('');
+      setNewDefCategoryId('');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Erro ao criar serviço.');
+    }
+  };
+
   const handleSendComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTicket || !commentMessage.trim()) return;
@@ -136,6 +182,7 @@ export const ServiceDeskPage: React.FC = () => {
         payload.nota_resolucao = notes;
       }
       if (assignedTechId) {
+        payload.tecnico_id = Number(assignedTechId);
         payload.responsavel_id = Number(assignedTechId);
       }
 
@@ -157,6 +204,7 @@ export const ServiceDeskPage: React.FC = () => {
     if (!selectedTicket) return;
     try {
       const updated = await serviceDeskApi.updateTicket(selectedTicket.id, {
+        tecnico_id: techId,
         responsavel_id: techId,
         status: 'em_atendimento',
       });
@@ -174,9 +222,11 @@ export const ServiceDeskPage: React.FC = () => {
 
     try {
       const updated = await serviceDeskApi.updateTicket(selectedTicket.id, {
+        avaliacao: rating,
+        feedback_usuario: feedbackComment,
         nota_feedback: rating,
         comentario_feedback: feedbackComment,
-        status: 'fechado',
+        status: 'fechado' as any,
       });
       const freshTicket = await serviceDeskApi.getTicketById(updated.id);
       setSelectedTicket(freshTicket);
@@ -218,13 +268,24 @@ export const ServiceDeskPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-brand-text">Central de Suporte & Chamados</h1>
             <p className="text-sm text-brand-muted">Registre e acompanhe incidentes e solicitações de TI</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center space-x-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-medium transition-all"
-          >
-            <Plus size={18} />
-            <span>Abrir Chamado</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            {isTechnicianOrAbove && (
+              <button
+                onClick={() => setShowConfigModal(true)}
+                className="flex items-center space-x-2 px-4 py-2.5 bg-brand-dark border border-brand-border hover:bg-brand-card text-brand-text font-medium transition-all"
+              >
+                <Plus size={18} />
+                <span>Configurar Serviços</span>
+              </button>
+            )}
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center space-x-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-medium transition-all"
+            >
+              <Plus size={18} />
+              <span>Abrir Chamado</span>
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -379,7 +440,7 @@ export const ServiceDeskPage: React.FC = () => {
 
                 <div className="text-brand-muted">Técnico:</div>
                 <div className="text-brand-text text-right truncate">
-                  {selectedTicket.responsavel?.nome || 'Não atribuído'}
+                  {selectedTicket.tecnico?.nome || selectedTicket.responsavel?.nome || 'Não atribuído'}
                 </div>
               </div>
             </div>
@@ -432,13 +493,16 @@ export const ServiceDeskPage: React.FC = () => {
             )}
 
             {/* User Rating / Feedback controls */}
-            {currentUser?.id === selectedTicket.solicitante_id && selectedTicket.status === 'resolvido' && (
+            {currentUser?.id === selectedTicket.solicitante_id && 
+             selectedTicket.status?.toLowerCase() === 'resolvido' && 
+             !selectedTicket.nota_feedback && 
+             !selectedTicket.avaliacao && (
               <div className="border-t border-brand-border/60 pt-4 bg-brand-primary/5 p-3 border border-brand-primary/20 space-y-3">
                 <h5 className="text-xs font-semibold text-brand-primary flex items-center space-x-1">
                   <Star size={14} />
                   <span>Avaliar Atendimento</span>
                 </h5>
-                <p className="text-[11px] text-brand-text">Este chamado foi resolvido. Por favor, forneça sua avaliação para fechá-lo.</p>
+                <p className="text-[11px] text-brand-text">Este chamado foi resolvido. Por favor, forneça sua avaliação de atendimento.</p>
                 <button
                   onClick={() => setShowFeedbackForm(true)}
                   className="w-full py-1.5 bg-brand-primary text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1"
@@ -448,34 +512,39 @@ export const ServiceDeskPage: React.FC = () => {
               </div>
             )}
 
-            {/* Feedback Detail (if closed) */}
-            {selectedTicket.nota_feedback && (
+            {/* Feedback Detail (if rated) */}
+            {(selectedTicket.nota_feedback || selectedTicket.avaliacao) && (
               <div className="border-t border-brand-border/60 pt-4 space-y-2">
                 <h5 className="text-xs font-semibold text-brand-text flex items-center space-x-1">
                   <Star size={14} className="text-amber-500" />
                   <span>Avaliação do Usuário</span>
                 </h5>
                 <div className="flex items-center space-x-1">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star
-                      key={s}
-                      size={12}
-                      className={s <= (selectedTicket.nota_feedback || 0) ? 'text-amber-500 fill-amber-500' : 'text-brand-muted'}
-                    />
-                  ))}
+                  {[1, 2, 3, 4, 5].map((s) => {
+                    const ratingScore = selectedTicket.nota_feedback || selectedTicket.avaliacao || 0;
+                    return (
+                      <Star
+                        key={s}
+                        size={14}
+                        className={s <= ratingScore ? 'text-amber-500 fill-amber-500' : 'text-brand-muted'}
+                      />
+                    );
+                  })}
                 </div>
-                {selectedTicket.comentario_feedback && (
-                  <p className="text-xs italic text-brand-muted font-serif">"{selectedTicket.comentario_feedback}"</p>
+                {(selectedTicket.comentario_feedback || selectedTicket.feedback_usuario) && (
+                  <p className="text-xs italic text-brand-muted font-serif">
+                    "{selectedTicket.comentario_feedback || selectedTicket.feedback_usuario}"
+                  </p>
                 )}
               </div>
             )}
 
             {/* Resolution Note */}
-            {selectedTicket.nota_resolucao && (
+            {(selectedTicket.nota_resolucao || selectedTicket.solucao) && (
               <div className="border-t border-brand-border/60 pt-4 space-y-1">
                 <h5 className="text-xs font-semibold text-brand-text">Solução / Resolução:</h5>
                 <p className="text-xs text-brand-muted bg-brand-dark p-2 border border-brand-border/40 font-mono">
-                  {selectedTicket.nota_resolucao}
+                  {selectedTicket.nota_resolucao || selectedTicket.solucao}
                 </p>
               </div>
             )}
@@ -717,6 +786,149 @@ export const ServiceDeskPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+    {/* Configuration Modal */}
+      {showConfigModal && isTechnicianOrAbove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-dark/80 backdrop-blur-md">
+          <div className="w-full max-w-2xl bg-brand-card border border-brand-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border bg-brand-dark/50">
+              <h3 className="font-semibold text-lg text-brand-text">Configurações do Service Desk</h3>
+              <button onClick={() => setShowConfigModal(false)} className="text-brand-muted hover:text-brand-text">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex border-b border-brand-border bg-brand-dark/30">
+              <button
+                onClick={() => setActiveConfigTab('categorias')}
+                className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeConfigTab === 'categorias' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-brand-muted hover:text-brand-text'}`}
+              >
+                1. Categorias de Serviço
+              </button>
+              <button
+                onClick={() => setActiveConfigTab('servicos')}
+                className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeConfigTab === 'servicos' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-brand-muted hover:text-brand-text'}`}
+              >
+                2. Serviços Específicos
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {activeConfigTab === 'categorias' && (
+                <div className="space-y-6">
+                  <form onSubmit={handleCreateCategory} className="space-y-4 p-4 border border-brand-primary/30 bg-brand-primary/5">
+                    <h4 className="text-sm font-bold text-brand-text uppercase font-mono tracking-wider">Nova Categoria</h4>
+                    <div className="space-y-1">
+                      <label className="text-xs text-brand-muted">Nome da Categoria</label>
+                      <input
+                        type="text"
+                        required
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="Ex: Hardware, Redes, Softwares..."
+                        className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm focus:outline-none focus:border-brand-primary text-brand-text placeholder-brand-muted/30"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-brand-muted">Descrição (Opcional)</label>
+                      <input
+                        type="text"
+                        value={newCategoryDesc}
+                        onChange={(e) => setNewCategoryDesc(e.target.value)}
+                        className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm focus:outline-none focus:border-brand-primary text-brand-text placeholder-brand-muted/30"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button type="submit" className="px-4 py-2 bg-brand-primary text-brand-dark font-semibold text-xs">
+                        Adicionar Categoria
+                      </button>
+                    </div>
+                  </form>
+
+                  <div>
+                    <h4 className="text-sm font-bold text-brand-text mb-3">Categorias Existentes</h4>
+                    <div className="space-y-2">
+                      {categories.map(cat => (
+                        <div key={cat.id} className="p-3 bg-brand-dark border border-brand-border flex flex-col text-sm">
+                          <span className="font-semibold text-brand-text">{cat.nome}</span>
+                          {cat.descricao && <span className="text-xs text-brand-muted">{cat.descricao}</span>}
+                        </div>
+                      ))}
+                      {categories.length === 0 && <p className="text-xs text-brand-muted">Nenhuma categoria cadastrada.</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeConfigTab === 'servicos' && (
+                <div className="space-y-6">
+                  <form onSubmit={handleCreateDefinition} className="space-y-4 p-4 border border-brand-primary/30 bg-brand-primary/5">
+                    <h4 className="text-sm font-bold text-brand-text uppercase font-mono tracking-wider">Novo Serviço/Incidente</h4>
+                    
+                    <div className="space-y-1">
+                      <label className="text-xs text-brand-muted">Categoria Relacionada</label>
+                      <select
+                        required
+                        value={newDefCategoryId}
+                        onChange={(e) => setNewDefCategoryId(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm focus:outline-none focus:border-brand-primary text-brand-text"
+                      >
+                        <option value="">Selecione uma categoria...</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs text-brand-muted">Nome do Serviço</label>
+                      <input
+                        type="text"
+                        required
+                        value={newDefName}
+                        onChange={(e) => setNewDefName(e.target.value)}
+                        placeholder="Ex: Formatação de Computador"
+                        className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm focus:outline-none focus:border-brand-primary text-brand-text placeholder-brand-muted/30"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-brand-muted">Descrição / Orientações (Opcional)</label>
+                      <textarea
+                        rows={2}
+                        value={newDefDesc}
+                        onChange={(e) => setNewDefDesc(e.target.value)}
+                        className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm focus:outline-none focus:border-brand-primary text-brand-text placeholder-brand-muted/30"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button type="submit" className="px-4 py-2 bg-brand-primary text-brand-dark font-semibold text-xs">
+                        Adicionar Serviço
+                      </button>
+                    </div>
+                  </form>
+
+                  <div>
+                    <h4 className="text-sm font-bold text-brand-text mb-3">Serviços Existentes</h4>
+                    <div className="space-y-2">
+                      {definitions.map(def => (
+                        <div key={def.id} className="p-3 bg-brand-dark border border-brand-border flex flex-col text-sm">
+                          <div className="flex justify-between items-start">
+                            <span className="font-semibold text-brand-text">{def.nome}</span>
+                            <span className="text-[10px] uppercase px-1.5 py-0.5 bg-brand-muted/10 border border-brand-border text-brand-muted">
+                              {categories.find(c => c.id === def.categoria_id)?.nome || 'Sem Categoria'}
+                            </span>
+                          </div>
+                          {def.descricao && <span className="text-xs text-brand-muted mt-1">{def.descricao}</span>}
+                        </div>
+                      ))}
+                      {definitions.length === 0 && <p className="text-xs text-brand-muted">Nenhum serviço cadastrado.</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

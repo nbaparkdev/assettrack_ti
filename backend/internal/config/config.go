@@ -33,7 +33,7 @@ func Load() *Config {
 		GinMode: getEnv("GIN_MODE", "debug"),
 
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://user:password@localhost:5456/assettrack?sslmode=disable"),
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379/0"),
+		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6380/0"),
 
 		SecretKey:            getEnv("SECRET_KEY", "change_this_to_a_secure_random_string"),
 		Algorithm:            getEnv("ALGORITHM", "HS256"),

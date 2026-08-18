@@ -44,6 +44,20 @@ func NewQRHandler(
 	}
 }
 
+func (h *QRHandler) buildScannerURL(c *gin.Context, token string) string {
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = c.Request.Header.Get("Referer")
+		if len(origin) > 0 && origin[len(origin)-1] == '/' {
+			origin = origin[:len(origin)-1]
+		}
+	}
+	if origin == "" {
+		origin = "http://localhost:5173"
+	}
+	return origin + "/usuario/" + token
+}
+
 // GetMyQR GET /api/v1/qr/me
 func (h *QRHandler) GetMyQR(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
@@ -57,7 +71,8 @@ func (h *QRHandler) GetMyQR(c *gin.Context) {
 		user.QRToken = &newToken
 	}
 
-	qrBase64, err := h.qrSvc.GenerateQRBase64(*user.QRToken)
+	qrContent := h.buildScannerURL(c, *user.QRToken)
+	qrBase64, err := h.qrSvc.GenerateQRBase64(qrContent)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Failed to generate QR code"})
 		return
@@ -83,7 +98,8 @@ func (h *QRHandler) GenerateQRToken(c *gin.Context) {
 
 	h.qrLogSvc.LogRegenerate(c, user.ID)
 
-	qrBase64, _ := h.qrSvc.GenerateQRBase64(newToken)
+	qrContent := h.buildScannerURL(c, newToken)
+	qrBase64, _ := h.qrSvc.GenerateQRBase64(qrContent)
 	now := time.Now().UTC()
 
 	c.JSON(http.StatusOK, dto.UserQRResponse{
@@ -103,7 +119,8 @@ func (h *QRHandler) GetMyBadge(c *gin.Context) {
 		user.QRToken = &newToken
 	}
 
-	qrBase64, _ := h.qrSvc.GenerateQRBase64(*user.QRToken)
+	qrContent := h.buildScannerURL(c, *user.QRToken)
+	qrBase64, _ := h.qrSvc.GenerateQRBase64(qrContent)
 
 	var deptName *string
 	if user.Departamento != nil {
@@ -272,20 +289,31 @@ func (h *QRHandler) DeliveryConfirm(c *gin.Context) {
 		return
 	}
 
-	if req.QRToken == nil || *req.QRToken == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"detail": "QR Token do usuário é obrigatório"})
-		return
-	}
+	currentUser := middleware.GetCurrentUser(c)
+	var user *models.User
 
-	// 1. Find user by QR Token
-	user, err := h.userRepo.GetByQRToken(*req.QRToken)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"detail": "QR Code inválido ou expirado"})
-		return
+	// 1. Fetch User if QR Token is provided
+	if req.QRToken != nil && *req.QRToken != "" {
+		var err error
+		user, err = h.userRepo.GetByQRToken(*req.QRToken)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"detail": "QR Code inválido ou expirado"})
+			return
+		}
+	} else {
+		// If no QR token provided, it MUST be a manual bypass by a manager/admin
+		if currentUser == nil || !currentUser.IsManagerOrAbove() {
+			c.JSON(http.StatusForbidden, gin.H{"detail": "Apenas gerentes e administradores podem realizar entrega manual sem QR Code"})
+			return
+		}
+		// Require explicit bypass PIN flag for manual deliveries
+		if !req.BypassPIN {
+			c.JSON(http.StatusBadRequest, gin.H{"detail": "QR Token do usuário é obrigatório, ou ative a entrega manual (bypass)"})
+			return
+		}
 	}
 
 	// 2. Validate PIN (unless bypassed by manager/admin)
-	currentUser := middleware.GetCurrentUser(c)
 	shouldValidatePIN := true
 	if req.BypassPIN {
 		if currentUser != nil && currentUser.IsManagerOrAbove() {
@@ -297,6 +325,10 @@ func (h *QRHandler) DeliveryConfirm(c *gin.Context) {
 	}
 
 	if shouldValidatePIN {
+		if user == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"detail": "Usuário não identificado para validar o PIN"})
+			return
+		}
 		if req.PIN == nil || *req.PIN == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"detail": "PIN do usuário é obrigatório"})
 			return
@@ -319,9 +351,20 @@ func (h *QRHandler) DeliveryConfirm(c *gin.Context) {
 			return
 		}
 
-		if sol.SolicitanteID == nil || *sol.SolicitanteID != user.ID {
-			c.JSON(http.StatusForbidden, gin.H{"detail": "QR Code não pertence ao solicitante do equipamento"})
-			return
+		// If user was fetched via QR, ensure they are the requester
+		if user != nil {
+			if sol.SolicitanteID == nil || *sol.SolicitanteID != user.ID {
+				c.JSON(http.StatusForbidden, gin.H{"detail": "QR Code não pertence ao solicitante do equipamento"})
+				return
+			}
+		} else {
+			// If manual delivery, fetch the user from the solicitation
+			var fetchErr error
+			user, fetchErr = h.userRepo.GetByID(*sol.SolicitanteID)
+			if fetchErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"detail": "Erro ao localizar usuário solicitante"})
+				return
+			}
 		}
 
 		if sol.Status != models.StatusSolicitacaoAprovada {
@@ -387,9 +430,20 @@ func (h *QRHandler) DeliveryConfirm(c *gin.Context) {
 			return
 		}
 
-		if reqMaint.SolicitanteID == nil || *reqMaint.SolicitanteID != user.ID {
-			c.JSON(http.StatusForbidden, gin.H{"detail": "QR Code não pertence ao solicitante original da manutenção"})
-			return
+		// If user was fetched via QR, ensure they are the requester
+		if user != nil {
+			if reqMaint.SolicitanteID == nil || *reqMaint.SolicitanteID != user.ID {
+				c.JSON(http.StatusForbidden, gin.H{"detail": "QR Code não pertence ao solicitante original da manutenção"})
+				return
+			}
+		} else {
+			// Manual bypass delivery, fetch user from request
+			var fetchErr error
+			user, fetchErr = h.userRepo.GetByID(*reqMaint.SolicitanteID)
+			if fetchErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"detail": "Erro ao localizar usuário solicitante"})
+				return
+			}
 		}
 
 		if reqMaint.Status != models.StatusMaintAguardandoEntrega && reqMaint.Status != models.StatusMaintEntregue {

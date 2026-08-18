@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usersApi } from '../api/users';
 import type { User, UserRole } from '../types';
 import { useAuthStore } from '../stores/authStore';
-import { Plus, Edit2, ShieldAlert, Check, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, ShieldAlert, Check, X } from 'lucide-react';
 
 export const UsersPage: React.FC = () => {
   const currentAuthUser = useAuthStore().user;
@@ -23,11 +23,17 @@ export const UsersPage: React.FC = () => {
 
   const [formError, setFormError] = useState<string | null>(null);
 
-  const fetchUsers = async () => {
+  const [setores, setSetores] = useState<any[]>([]);
+
+  const fetchUsersAndRefs = async () => {
     setLoading(true);
     try {
-      const data = await usersApi.list(0, 100);
-      setUsers(data);
+      const [usersData, refsData] = await Promise.all([
+        usersApi.list(0, 100),
+        import('../api/assets').then(m => m.assetsApi.getReferences())
+      ]);
+      setUsers(usersData);
+      setSetores(refsData.setores || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -36,7 +42,7 @@ export const UsersPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsersAndRefs();
   }, []);
 
   const openCreateModal = () => {
@@ -96,9 +102,20 @@ export const UsersPage: React.FC = () => {
         await usersApi.create({ ...payload, password });
       }
       setShowModal(false);
-      fetchUsers();
+      fetchUsersAndRefs();
     } catch (err: any) {
-      setFormError(err.response?.data?.detail || 'Erro ao salvar dados');
+      setFormError(err.response?.data?.detail || 'Erro ao salvar usuário');
+    }
+  };
+
+  const handleDelete = async (u: User) => {
+    if (window.confirm(`Tem certeza que deseja excluir o usuário "${u.nome}"? Esta ação não pode ser desfeita e removerá seus acessos.`)) {
+      try {
+        await usersApi.delete(u.id);
+        fetchUsersAndRefs();
+      } catch (err: any) {
+        alert(err.response?.data?.detail || 'Erro ao excluir usuário. Verifique se ele possui registros vinculados.');
+      }
     }
   };
 
@@ -183,13 +200,20 @@ export const UsersPage: React.FC = () => {
                       </span>
                     </td>
                     {currentAuthUser?.role === 'admin' && (
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right space-x-2">
                         <button
                           onClick={() => openEditModal(u)}
                           className="text-brand-primary hover:bg-brand-primary/10 border border-brand-primary/30 px-2.5 py-1.5 font-mono text-xs uppercase"
                         >
                           <Edit2 size={12} className="inline mr-1" />
                           Editar
+                        </button>
+                        <button
+                          onClick={() => handleDelete(u)}
+                          className="text-red-400 hover:bg-red-500/10 border border-red-500/30 px-2.5 py-1.5 font-mono text-xs uppercase"
+                        >
+                          <Trash2 size={12} className="inline mr-1" />
+                          Excluir
                         </button>
                       </td>
                     )}
@@ -306,6 +330,24 @@ export const UsersPage: React.FC = () => {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">
+                  Setor (Departamento)
+                </label>
+                <select
+                  value={departamentoId || ''}
+                  onChange={(e) => setDepartamentoId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors font-mono"
+                >
+                  <option value="">-- Nenhum --</option>
+                  {setores.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nome}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex items-center space-x-2 pt-2">

@@ -18,22 +18,25 @@ const (
 func AuthMiddleware(authSvc *service.AuthService, userRepo *repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		tokenStr := ""
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+				tokenStr = parts[1]
+			}
+		}
+		if tokenStr == "" {
+			tokenStr = c.Query("token")
+		}
+
+		if tokenStr == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"detail": "Could not validate credentials",
 			})
 			return
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"detail": "Could not validate credentials",
-			})
-			return
-		}
-
-		email, _, err := authSvc.ValidateToken(parts[1])
+		email, _, err := authSvc.ValidateToken(tokenStr)
 		if err != nil || email == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"detail": "Could not validate credentials",

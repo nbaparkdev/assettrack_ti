@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { transactionApi } from '../api/transaction';
 import { assetsApi } from '../api/assets';
+import { qrApi } from '../api/qr';
 import { useAuthStore } from '../stores/authStore';
 import type { Solicitacao, Asset } from '../types';
 import { QRHandoverModal } from '../components/qr/QRHandoverModal';
@@ -19,7 +20,7 @@ import {
 
 export const BorrowingsPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
-  const isManagerOrAbove = currentUser?.role === 'admin' || currentUser?.role === 'gerente_ti' || currentUser?.role === 'tecnico';
+  const isManagerOrAbove = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'].includes(currentUser?.role?.toLowerCase() || '');
 
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -137,9 +138,25 @@ export const BorrowingsPage: React.FC = () => {
     }
   };
 
+  const handleManualDelivery = async (solicitacaoId: number) => {
+    const obs = window.prompt("Observação para entrega manual (opcional):", "Entrega manual confirmada pelo administrador");
+    if (obs === null) return; // User cancelled
+
+    try {
+      await qrApi.confirmDelivery({
+        solicitacao_id: solicitacaoId,
+        bypass_pin: true,
+        observacao: obs
+      });
+      fetchSolicitacoes();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Erro ao registrar entrega manual.');
+    }
+  };
+
   // Filter list
   const filteredSolicitacoes = solicitacoes.filter(s => {
-    if (statusFilter && s.status !== statusFilter) return false;
+    if (statusFilter && s.status?.toLowerCase() !== statusFilter.toLowerCase()) return false;
     return true;
   });
 
@@ -157,7 +174,7 @@ export const BorrowingsPage: React.FC = () => {
               className="flex items-center space-x-2 px-4 py-2.5 bg-brand-dark border border-brand-primary/30 hover:border-brand-primary text-brand-primary font-medium transition-all"
             >
               <QrCode size={18} />
-              <span>Confirmar Entrega QR</span>
+              <span>Scanner QR</span>
             </button>
           )}
           <button
@@ -207,97 +224,109 @@ export const BorrowingsPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredSolicitacoes.map((item) => (
-            <div
-              key={item.id}
-              className="p-5 bg-brand-card border border-brand-border hover:border-brand-primary/20 transition-all flex flex-col justify-between space-y-4"
-            >
-              <div className="space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold text-brand-text text-sm">{item.asset?.nome || 'Equipamento'}</h3>
-                    <p className="text-xs text-brand-muted font-mono mt-0.5">EP: {item.asset?.e_patrimonio}</p>
-                  </div>
-                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 border ${
-                    item.status === 'pendente'
-                      ? 'text-blue-400 bg-blue-400/10 border-blue-400/20'
-                      : item.status === 'aprovada'
-                      ? 'text-amber-400 bg-amber-400/10 border-amber-400/20'
-                      : item.status === 'entregue'
-                      ? 'text-brand-primary bg-brand-primary/10 border-brand-primary/20'
-                      : item.status === 'devolvida'
-                      ? 'text-brand-muted bg-brand-muted/10 border-brand-border'
-                      : 'text-red-400 bg-red-500/10 border-red-500/20'
-                  }`}>
-                    {item.status}
-                  </span>
-                </div>
-
-                <div className="text-xs text-brand-muted bg-brand-dark/40 p-3 border border-brand-border/40 font-mono whitespace-pre-wrap">
-                  Motivo: "{item.motivo}"
-                </div>
-
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-brand-muted font-mono pt-1">
-                  <div className="flex items-center space-x-1">
-                    <User size={12} />
-                    <span>Solicitante: {item.solicitante?.nome || 'Usuário'}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar size={12} />
-                    <span>Abertura: {new Date(item.data_solicitacao).toLocaleDateString('pt-BR')}</span>
-                  </div>
-                  {item.data_prevista_devolucao && (
-                    <div className="flex items-center space-x-1 text-amber-500/80">
-                      <Clock size={12} />
-                      <span>Prev. Retorno: {new Date(item.data_prevista_devolucao).toLocaleDateString('pt-BR')}</span>
+          {filteredSolicitacoes.map((item) => {
+            const st = item.status?.toLowerCase() || '';
+            return (
+              <div
+                key={item.id}
+                className="p-5 bg-brand-card border border-brand-border hover:border-brand-primary/20 transition-all flex flex-col justify-between space-y-4"
+              >
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold text-brand-text text-sm">{item.asset?.nome || 'Equipamento'}</h3>
+                      <p className="text-xs text-brand-muted font-mono mt-0.5">EP: {item.asset?.e_patrimonio}</p>
                     </div>
+                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 border ${
+                      st === 'pendente'
+                        ? 'text-blue-400 bg-blue-400/10 border-blue-400/20'
+                        : st === 'aprovada'
+                        ? 'text-amber-400 bg-amber-400/10 border-amber-400/20'
+                        : st === 'entregue'
+                        ? 'text-brand-primary bg-brand-primary/10 border-brand-primary/20'
+                        : st === 'devolvida'
+                        ? 'text-brand-muted bg-brand-muted/10 border-brand-border'
+                        : 'text-red-400 bg-red-500/10 border-red-500/20'
+                    }`}>
+                      {item.status}
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-brand-muted bg-brand-dark/40 p-3 border border-brand-border/40 font-mono whitespace-pre-wrap">
+                    Motivo: "{item.motivo}"
+                  </div>
+
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-brand-muted font-mono pt-1">
+                    <div className="flex items-center space-x-1">
+                      <User size={12} />
+                      <span>Solicitante: {item.solicitante?.nome || 'Usuário'}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Calendar size={12} />
+                      <span>Abertura: {new Date(item.data_solicitacao).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    {item.data_prevista_devolucao && (
+                      <div className="flex items-center space-x-1 text-amber-500/80">
+                        <Clock size={12} />
+                        <span>Prev. Retorno: {new Date(item.data_prevista_devolucao).toLocaleDateString('pt-BR')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex space-x-2 border-t border-brand-border/40 pt-3">
+                  {isManagerOrAbove && st === 'pendente' && (
+                    <>
+                      <button
+                        onClick={() => handleApprove(item.id)}
+                        className="flex-1 py-1.5 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1"
+                      >
+                        <Check size={14} />
+                        <span>Aprovar</span>
+                      </button>
+                      <button
+                        onClick={() => handleReject(item.id)}
+                        className="flex-1 py-1.5 bg-brand-muted/10 border border-brand-border hover:bg-red-500/10 hover:text-red-400 text-brand-text text-xs font-semibold flex items-center justify-center space-x-1"
+                      >
+                        <X size={14} />
+                        <span>Rejeitar</span>
+                      </button>
+                    </>
+                  )}
+
+                  {isManagerOrAbove && st === 'aprovada' && (
+                    <>
+                      <button
+                        onClick={() => handleManualDelivery(item.id)}
+                        className="flex-1 py-1.5 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1"
+                      >
+                        <Check size={14} />
+                        <span>Entregar (Manual)</span>
+                      </button>
+                      <button
+                        onClick={() => setShowQRModal(true)}
+                        className="flex-1 py-1.5 bg-brand-muted/10 border border-brand-border hover:bg-brand-primary hover:text-brand-dark text-brand-text text-xs font-semibold flex items-center justify-center space-x-1"
+                      >
+                        <QrCode size={14} />
+                        <span>Entregar c/ QR</span>
+                      </button>
+                    </>
+                  )}
+
+                  {st === 'entregue' && item.asset_id && (
+                    <button
+                      onClick={() => handleDevolve(item.asset_id!)}
+                      className="w-full py-1.5 bg-brand-muted/10 border border-brand-border hover:bg-brand-primary hover:text-brand-dark text-brand-text text-xs font-semibold flex items-center justify-center space-x-1 transition-all"
+                    >
+                      <Undo2 size={14} />
+                      <span>Confirmar Devolução</span>
+                    </button>
                   )}
                 </div>
               </div>
-
-              {/* Action buttons */}
-              <div className="flex space-x-2 border-t border-brand-border/40 pt-3">
-                {isManagerOrAbove && item.status === 'pendente' && (
-                  <>
-                    <button
-                      onClick={() => handleApprove(item.id)}
-                      className="flex-1 py-1.5 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1"
-                    >
-                      <Check size={14} />
-                      <span>Aprovar</span>
-                    </button>
-                    <button
-                      onClick={() => handleReject(item.id)}
-                      className="flex-1 py-1.5 bg-brand-muted/10 border border-brand-border hover:bg-red-500/10 hover:text-red-400 text-brand-text text-xs font-semibold flex items-center justify-center space-x-1"
-                    >
-                      <X size={14} />
-                      <span>Rejeitar</span>
-                    </button>
-                  </>
-                )}
-
-                {isManagerOrAbove && item.status === 'aprovada' && (
-                  <button
-                    onClick={() => setShowQRModal(true)}
-                    className="w-full py-1.5 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1"
-                  >
-                    <QrCode size={14} />
-                    <span>Realizar Entrega QR Code</span>
-                  </button>
-                )}
-
-                {item.status === 'entregue' && item.asset_id && (
-                  <button
-                    onClick={() => handleDevolve(item.asset_id!)}
-                    className="w-full py-1.5 bg-brand-muted/10 border border-brand-border hover:bg-brand-primary hover:text-brand-dark text-brand-text text-xs font-semibold flex items-center justify-center space-x-1 transition-all"
-                  >
-                    <Undo2 size={14} />
-                    <span>Confirmar Devolução</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

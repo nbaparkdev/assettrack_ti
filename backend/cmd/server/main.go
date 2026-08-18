@@ -91,6 +91,8 @@ func main() {
 		&models.TermoResponsabilidade{},
 		&models.Webhook{},
 		&models.WebhookLog{},
+		&models.SystemSetting{},
+		&models.EmailLog{},
 	); err != nil {
 		log.Printf("⚠️ Auto-migration warning: %v", err)
 	}

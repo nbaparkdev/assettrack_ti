@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AssetTrack TI</string>
+    <string name="title_activity_main">AssetTrack TI</string>
+    <string name="package_name">com.assettrack.app</string>
+    <string name="custom_url_scheme">com.assettrack.app</string>
+</resources>

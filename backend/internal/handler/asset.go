@@ -269,6 +269,8 @@ func (h *AssetHandler) Update(c *gin.Context) {
 		return
 	}
 
+	oldStatus := asset.Status
+
 	// Bind update payload into existing struct
 	if err := c.ShouldBindJSON(asset); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -281,6 +283,44 @@ func (h *AssetHandler) Update(c *gin.Context) {
 	if err := h.repo.Update(asset); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Sync maintenance records if status changed to/from Manutenção
+	newStatusLower := strings.ToLower(string(asset.Status))
+	oldStatusLower := strings.ToLower(string(oldStatus))
+
+	if (strings.Contains(newStatusLower, "manuten") || asset.Status == models.AssetStatusManutencao) && !strings.Contains(oldStatusLower, "manuten") {
+		// Ensure active record exists in table manutencoes
+		var count int64
+		h.repo.DB().Model(&models.Manutencao{}).
+			Where("asset_id = ? AND status = ?", asset.ID, models.StatusManutencaoEmAndamento).
+			Count(&count)
+
+		if count == 0 {
+			var userIDPtr *uint
+			if val, exists := c.Get("user_id"); exists {
+				uid := val.(uint)
+				userIDPtr = &uid
+			}
+			maint := models.Manutencao{
+				AssetID:       asset.ID,
+				ResponsavelID: userIDPtr,
+				Motivo:        "Ativo alterado para Manutenção via cadastro de ativos",
+				Tipo:          models.TipoManutencaoCorretiva,
+				DataEntrada:   time.Now(),
+				Status:        models.StatusManutencaoEmAndamento,
+			}
+			_ = h.repo.DB().Create(&maint).Error
+		}
+	} else if strings.Contains(oldStatusLower, "manuten") && !strings.Contains(newStatusLower, "manuten") {
+		// Conclude active maintenance
+		now := time.Now()
+		h.repo.DB().Model(&models.Manutencao{}).
+			Where("asset_id = ? AND status = ?", asset.ID, models.StatusManutencaoEmAndamento).
+			Updates(map[string]interface{}{
+				"status":         models.StatusManutencaoConcluida,
+				"data_conclusao": &now,
+			})
 	}
 
 	c.JSON(http.StatusOK, asset)
@@ -362,6 +402,23 @@ func (h *AssetHandler) CreateDepartamento(c *gin.Context) {
 	c.JSON(http.StatusCreated, item)
 }
 
+func (h *AssetHandler) DeleteDepartamento(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.repo.DB().Delete(&models.Departamento{}, id).Error; err != nil {
+		if strings.Contains(err.Error(), "foreign key constraint") || strings.Contains(err.Error(), "violates foreign key") || strings.Contains(err.Error(), "a foreign key constraint fails") || strings.Contains(err.Error(), "SQLSTATE 23503") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Não é possível excluir este setor pois existem usuários ou ativos vinculados a ele."})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir departamento"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"detail": "Setor excluído com sucesso"})
+}
 func (h *AssetHandler) GetQRCode(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
