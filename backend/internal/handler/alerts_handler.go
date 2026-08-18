@@ -216,12 +216,47 @@ func (h *AlertsHandler) MarkAtendido(c *gin.Context) {
 		return
 	}
 
-	if _, err := h.alertRepo.GetByID(uint(id)); err != nil {
+	alert, err := h.alertRepo.GetByID(uint(id))
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Alerta não encontrado"})
+		return
+	}
+	if !alert.Ciente {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "O alerta precisa ser marcado como ciente antes de ser atendido"})
 		return
 	}
 
 	if err := h.alertRepo.MarkAtendido(uint(id), user.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func (h *AlertsHandler) MarkCiente(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if !staffRole(user.Role) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Não autorizado"})
+		return
+	}
+
+	id, err := strconv.ParseUint(c.Param("alertId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	alert, err := h.alertRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Alerta não encontrado"})
+		return
+	}
+	if alert.Ciente {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		return
+	}
+
+	if err := h.alertRepo.MarkCiente(uint(id), user.ID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

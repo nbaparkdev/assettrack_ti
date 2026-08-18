@@ -37,7 +37,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
 
   // Staff Live Alert Modal
   const [liveAlert, setLiveAlert] = useState<EmergencyPayload | null>(null);
-  const [markingAtendido, setMarkingAtendido] = useState(false);
+  const [acknowledgingAlert, setAcknowledgingAlert] = useState(false);
   
   // Track dismissed alert IDs during current session
   const dismissedAlertIdsRef = useRef<Set<number>>(new Set());
@@ -120,7 +120,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
     const checkPendingAlerts = async () => {
       try {
         const history = await alertsApi.history();
-        const pending = history.filter(a => !a.atendido && !dismissedAlertIdsRef.current.has(a.id));
+        const pending = history.filter(a => !a.atendido && !a.ciente && !dismissedAlertIdsRef.current.has(a.id));
         if (pending.length > 0) {
           const newest = pending[0];
           setLiveAlert(prev => {
@@ -176,18 +176,18 @@ export const EmergencyGlobalHandler: React.FC = () => {
     }
   };
 
-  // Staff Marks Alert as Attended
-  const handleMarkAtendido = async () => {
+  // Staff acknowledges the popup without marking the occurrence as resolved.
+  const handleMarkCiente = async () => {
     if (!liveAlert) return;
     if (liveAlert.id !== 999999) {
-      setMarkingAtendido(true);
+      setAcknowledgingAlert(true);
       try {
-        await alertsApi.markAtendido(liveAlert.id);
+        await alertsApi.markCiente(liveAlert.id);
         dismissedAlertIdsRef.current.add(liveAlert.id);
       } catch (err) {
-        console.error('Erro ao atender alerta:', err);
+        console.error('Erro ao marcar alerta como ciente:', err);
       } finally {
-        setMarkingAtendido(false);
+        setAcknowledgingAlert(false);
         setLiveAlert(null);
       }
     } else {
@@ -358,15 +358,15 @@ export const EmergencyGlobalHandler: React.FC = () => {
                 </span>
               </div>
 
-              {/* Attended Action Button */}
+              {/* Acknowledge Action Button */}
               <div className="pt-2">
                 <button
-                  onClick={handleMarkAtendido}
-                  disabled={markingAtendido}
+                  onClick={handleMarkCiente}
+                  disabled={acknowledgingAlert}
                   className="w-full py-3.5 bg-green-600 hover:bg-green-500 text-brand-dark font-black font-mono text-sm uppercase tracking-wider flex items-center justify-center space-x-2 shadow-xl shadow-green-600/30 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   <CheckCircle size={20} />
-                  <span>{markingAtendido ? 'Salvando...' : '✓ CIENTE / MARCAR ATENDIDO'}</span>
+                  <span>{acknowledgingAlert ? 'Salvando...' : '✓ Ciente'}</span>
                 </button>
               </div>
             </div>

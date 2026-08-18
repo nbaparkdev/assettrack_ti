@@ -193,18 +193,36 @@ export const AlertsPage: React.FC = () => {
                       <p className="text-sm text-brand-text mt-1 m-0">{a.motivo}</p>
                       <span className="text-xs font-mono text-brand-muted">{new Date(a.created_at).toLocaleString('pt-BR')}</span>
                     </div>
-                    {!a.atendido && (
-                      <button
-                        onClick={async () => {
-                          await alertsApi.markAtendido(a.id);
-                          fetchData();
-                        }}
-                        className="text-green-400 border border-green-500/30 px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-green-500/10"
-                      >
-                        Atender
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {!a.ciente && !a.atendido && (
+                        <button
+                          onClick={async () => {
+                            await alertsApi.markCiente(a.id);
+                            fetchData();
+                          }}
+                          className="text-amber-300 border border-amber-400/30 px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-amber-500/10"
+                        >
+                          Ciente
+                        </button>
+                      )}
+                      {a.ciente && !a.atendido && (
+                        <button
+                          onClick={async () => {
+                            await alertsApi.markAtendido(a.id);
+                            fetchData();
+                          }}
+                          className="text-green-400 border border-green-500/30 px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-green-500/10"
+                        >
+                          Marcar Atendido
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  {a.ciente && !a.atendido && (
+                    <div className="text-xs font-mono text-amber-300 mt-1">
+                      Ciente{a.ciente_por ? ` por ${a.ciente_por.nome}` : ''}{a.ciente_em ? ` em ${new Date(a.ciente_em).toLocaleString('pt-BR')}` : ''}
+                    </div>
+                  )}
                   {a.atendido && a.atendido_por && (
                     <div className="text-xs font-mono text-green-400 mt-1">Atendido por {a.atendido_por.nome}</div>
                   )}

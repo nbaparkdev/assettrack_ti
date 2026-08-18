@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/assettrack/backend/internal/middleware"
@@ -18,6 +19,15 @@ type TransactionHandler struct {
 
 func NewTransactionHandler(repo *repository.TransactionRepository, assetRepo *repository.AssetRepository) *TransactionHandler {
 	return &TransactionHandler{repo: repo, assetRepo: assetRepo}
+}
+
+func canProcessBorrowingReturn(role string) bool {
+	switch strings.ToLower(role) {
+	case models.RoleAdmin, models.RoleGerente, models.RoleGerenteInfra, models.RoleTecnico, models.RoleRH:
+		return true
+	default:
+		return false
+	}
 }
 
 func (h *TransactionHandler) ListSolicitacoes(c *gin.Context) {
@@ -181,6 +191,29 @@ func (h *TransactionHandler) RejectSolicitacao(c *gin.Context) {
 }
 
 func (h *TransactionHandler) DevolverAsset(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil || !canProcessBorrowingReturn(user.Role) {
+		c.JSON(http.StatusForbidden, gin.H{"detail": "A devolução só pode ser confirmada por Administradores, Gerentes, Técnicos ou RH"})
+		return
+	}
+
+	var payload struct {
+		CondicaoEquipamento   string `json:"condicao_equipamento" binding:"required"`
+		AcessoriosDevolvidos  string `json:"acessorios_devolvidos" binding:"required"`
+		ObservacoesAdicionais string `json:"observacoes_adicionais"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"detail": err.Error()})
+		return
+	}
+	payload.CondicaoEquipamento = strings.TrimSpace(payload.CondicaoEquipamento)
+	payload.AcessoriosDevolvidos = strings.TrimSpace(payload.AcessoriosDevolvidos)
+	payload.ObservacoesAdicionais = strings.TrimSpace(payload.ObservacoesAdicionais)
+	if payload.CondicaoEquipamento == "" || payload.AcessoriosDevolvidos == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Informe a condição do equipamento e os acessórios devolvidos"})
+		return
+	}
+
 	assetID, err := strconv.ParseUint(c.Param("asset_id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de ativo inválido"})
@@ -198,7 +231,38 @@ func (h *TransactionHandler) DevolverAsset(c *gin.Context) {
 		return
 	}
 
+	sol, err := h.repo.GetActiveSolicitacaoByAssetID(uint(assetID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Não existe empréstimo ativo para este equipamento"})
+		return
+	}
+
 	deUser := asset.CurrentUserID
+	now := time.Now()
+	receiverID := user.ID
+	legacyObservation := []string{
+		"Condição do equipamento: " + payload.CondicaoEquipamento,
+		"Acessórios devolvidos: " + payload.AcessoriosDevolvidos,
+	}
+	if payload.ObservacoesAdicionais != "" {
+		legacyObservation = append(legacyObservation, "Observações adicionais: "+payload.ObservacoesAdicionais)
+	}
+	legacyObservationText := strings.Join(legacyObservation, " | ")
+	sol.Status = models.StatusSolicitacaoDevolvida
+	sol.DataDevolucao = &now
+	sol.RecebidoPorID = &receiverID
+	sol.CondicaoDevolucao = &payload.CondicaoEquipamento
+	sol.AcessoriosDevolvidos = &payload.AcessoriosDevolvidos
+	if payload.ObservacoesAdicionais != "" {
+		sol.ObservacoesDevolucao = &payload.ObservacoesAdicionais
+	} else {
+		sol.ObservacoesDevolucao = nil
+	}
+	sol.ObservacaoDevolucao = &legacyObservationText
+	if err := h.repo.UpdateSolicitacao(sol); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Erro ao encerrar solicitação de empréstimo: " + err.Error()})
+		return
+	}
 
 	// Reset ownership and location back to default storage/available
 	if asset.Bloqueado {
@@ -220,9 +284,10 @@ func (h *TransactionHandler) DevolverAsset(c *gin.Context) {
 		AssetID:    asset.ID,
 		Tipo:       models.TipoMovimentacaoDevolucao,
 		DeUserID:   deUser,
-		Observacao: stringPtr("Devolução de ativo registrada via sistema"),
+		ParaUserID: &receiverID,
+		Observacao: &legacyObservationText,
 	}
 	_ = h.repo.CreateMovement(mov)
 
-	c.JSON(http.StatusOK, gin.H{"message": "Devolução concluída com sucesso"})
+	c.JSON(http.StatusOK, gin.H{"message": "Devolução concluída com sucesso e registrada no histórico"})
 }

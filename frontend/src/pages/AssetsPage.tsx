@@ -37,6 +37,8 @@ export const AssetsPage: React.FC = () => {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [references, setReferences] = useState<AssetReferences | null>(null);
   const [loading, setLoading] = useState(false);
+  const [reportAssets, setReportAssets] = useState<Asset[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
 
   // Search & Filter State
   const [searchEP, setSearchEP] = useState('');
@@ -121,10 +123,50 @@ export const AssetsPage: React.FC = () => {
     }
   };
 
+  const fetchReportAssets = async () => {
+    setReportLoading(true);
+    setGlobalError(null);
+    try {
+      const data = await assetsApi.list(0, 100, {
+        data_inicio: reportStartDate,
+        data_fim: reportEndDate,
+        nome: reportName,
+        categoria_id: reportCategory,
+        localizacao_id: reportLocation,
+        fornecedor_id: reportSupplier,
+        nfe: reportInvoice,
+        e_patrimonio: reportPatrimonio,
+        status: reportStatus,
+      });
+      setReportAssets(data);
+    } catch (_err) {
+      setGlobalError('Falha ao buscar ativos para o painel de relatórios.');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchAssets();
     fetchReferences();
   }, [searchEP, filterCategory, filterStatus]);
+
+  useEffect(() => {
+    if (activeTab === 'reports') {
+      fetchReportAssets();
+    }
+  }, [
+    activeTab,
+    reportStartDate,
+    reportEndDate,
+    reportName,
+    reportCategory,
+    reportLocation,
+    reportSupplier,
+    reportInvoice,
+    reportPatrimonio,
+    reportStatus,
+  ]);
 
   // Asset crud triggers
   const handleOpenCreate = () => {
@@ -806,6 +848,64 @@ export const AssetsPage: React.FC = () => {
                 <span>Exportar CSV</span>
               </button>
             </div>
+          </div>
+
+          <div className="bg-brand-card border border-brand-border p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-brand-border pb-3">
+              <div>
+                <h3 className="font-bold text-sm uppercase tracking-wider text-brand-text font-mono">
+                  Ativos Encontrados
+                </h3>
+                <p className="text-[10px] font-mono uppercase tracking-wider text-brand-muted mt-1">
+                  {reportLoading ? 'Atualizando resultados...' : `${reportAssets.length} registro(s) carregado(s)`}
+                </p>
+              </div>
+            </div>
+
+            {reportLoading ? (
+              <div className="p-10 text-center flex flex-col items-center justify-center space-y-4">
+                <RefreshCw className="animate-spin text-brand-primary" size={24} />
+                <span className="font-mono text-xs text-brand-muted uppercase">Buscando ativos filtrados...</span>
+              </div>
+            ) : reportAssets.length === 0 ? (
+              <div className="p-10 text-center text-brand-muted font-mono text-xs uppercase border border-brand-border/40 bg-brand-dark/20">
+                Nenhum ativo encontrado com os filtros atuais.
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-brand-border/40">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-brand-border/60 font-mono uppercase text-brand-muted text-[10px]">
+                      <th className="py-3 px-3">Ativo</th>
+                      <th className="py-3 px-3">Patrimônio</th>
+                      <th className="py-3 px-3">Categoria</th>
+                      <th className="py-3 px-3">Local</th>
+                      <th className="py-3 px-3">Fornecedor</th>
+                      <th className="py-3 px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-border/30">
+                    {reportAssets.map((asset) => (
+                      <tr key={asset.id} className="hover:bg-brand-dark/20 transition-colors">
+                        <td className="py-3 px-3">
+                          <div className="font-semibold text-brand-text">{asset.nome}</div>
+                          <div className="text-brand-muted text-[10px] mt-1">{asset.modelo || 'Sem modelo'}</div>
+                        </td>
+                        <td className="py-3 px-3 font-mono text-brand-text">{asset.e_patrimonio}</td>
+                        <td className="py-3 px-3 text-brand-muted">{asset.categoria?.nome || 'Sem categoria'}</td>
+                        <td className="py-3 px-3 text-brand-muted">{asset.current_local?.nome || '—'}</td>
+                        <td className="py-3 px-3 text-brand-muted">{asset.fornecedor?.nome || '—'}</td>
+                        <td className="py-3 px-3">
+                          <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-brand-primary/30 bg-brand-primary/5 text-brand-primary">
+                            {asset.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}

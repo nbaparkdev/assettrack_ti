@@ -22,10 +22,23 @@ export interface Solicitacao {
   };
   data_entrega?: string;
   confirmado_por_id?: number;
+  confirmador?: {
+    id: number;
+    nome: string;
+    email: string;
+  };
   confirmado_via_qr?: boolean;
   observacao_entrega?: string;
   data_devolucao?: string;
   recebido_por_id?: number;
+  recebedor?: {
+    id: number;
+    nome: string;
+    email: string;
+  };
+  condicao_devolucao?: string;
+  acessorios_devolvidos?: string;
+  observacoes_devolucao?: string;
   observacao_devolucao?: string;
   data_prevista_devolucao?: string;
 }

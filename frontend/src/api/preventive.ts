@@ -82,7 +82,19 @@ export const preventiveApi = {
     return response.data;
   },
   createOrder: async (
-    data: Partial<MaintenanceOrder> & { descricao?: string }
+    data: Partial<MaintenanceOrder> & {
+      descricao?: string;
+      checklists?: Array<{
+        nome: string;
+        ordem: number;
+        items: Array<{
+          descricao: string;
+          obrigatorio: boolean;
+          requer_foto: boolean;
+          ordem: number;
+        }>;
+      }>;
+    }
   ): Promise<MaintenanceOrder> => {
     const response = await apiClient.post<MaintenanceOrder>('/preventiva/ordens', data);
     return response.data;
@@ -103,8 +115,11 @@ export const preventiveApi = {
     const response = await apiClient.post(`/preventiva/ordens/${id}/pausar`, { motivo });
     return response.data;
   },
-  completeOrder: async (id: number, solucao?: string, custo_total?: string): Promise<MaintenanceOrder> => {
-    const response = await apiClient.post(`/preventiva/ordens/${id}/concluir`, { solucao, custo_total });
+  completeOrder: async (
+    id: number,
+    data: { diagnostico: string; solucao: string; recomendacoes?: string; status_pos_manutencao: string; custo_total?: string }
+  ): Promise<MaintenanceOrder> => {
+    const response = await apiClient.post(`/preventiva/ordens/${id}/concluir`, data);
     return response.data;
   },
   cancelOrder: async (id: number, motivo?: string): Promise<MaintenanceOrder> => {

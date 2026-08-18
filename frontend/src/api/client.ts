@@ -8,6 +8,13 @@ const getApiBaseUrl = () => {
 };
 
 export const API_BASE_URL = getApiBaseUrl();
+export const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1$/, '');
+
+export const toApiFileUrl = (path?: string | null) => {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_ORIGIN}${path.startsWith('/') ? path : `/${path}`}`;
+};
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

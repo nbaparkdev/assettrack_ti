@@ -39,6 +39,7 @@ func (r *TransactionRepository) ListSolicitacoes(skip, limit int) ([]models.Soli
 	err := r.db.Preload("Solicitante").
 		Preload("Aprovador").
 		Preload("Confirmador").
+		Preload("Recebedor").
 		Preload("Asset").
 		Order("data_solicitacao desc").
 		Offset(skip).
@@ -52,6 +53,7 @@ func (r *TransactionRepository) GetSolicitacaoByID(id uint) (*models.Solicitacao
 	err := r.db.Preload("Solicitante").
 		Preload("Aprovador").
 		Preload("Confirmador").
+		Preload("Recebedor").
 		Preload("Asset").
 		First(&sol, id).Error
 	if err != nil {
@@ -67,4 +69,20 @@ func (r *TransactionRepository) CreateSolicitacao(sol *models.Solicitacao) error
 
 func (r *TransactionRepository) UpdateSolicitacao(sol *models.Solicitacao) error {
 	return r.db.Save(sol).Error
+}
+
+func (r *TransactionRepository) GetActiveSolicitacaoByAssetID(assetID uint) (*models.Solicitacao, error) {
+	var sol models.Solicitacao
+	err := r.db.Preload("Solicitante").
+		Preload("Aprovador").
+		Preload("Confirmador").
+		Preload("Recebedor").
+		Preload("Asset").
+		Where("asset_id = ? AND status = ?", assetID, models.StatusSolicitacaoEntregue).
+		Order("data_entrega desc, data_solicitacao desc").
+		First(&sol).Error
+	if err != nil {
+		return nil, err
+	}
+	return &sol, nil
 }

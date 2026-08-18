@@ -104,12 +104,14 @@ type MaintenancePlanAsset struct {
 func (MaintenancePlanAsset) TableName() string { return "maintenance_plan_assets" }
 
 type MaintenanceChecklist struct {
-	ID     uint   `gorm:"primaryKey" json:"id"`
-	PlanID uint   `gorm:"column:plan_id;not null" json:"plan_id"`
-	Nome   string `gorm:"size:200;not null" json:"nome"`
-	Ordem  int    `gorm:"default:0" json:"ordem"`
+	ID      uint  `gorm:"primaryKey" json:"id"`
+	PlanID  *uint `gorm:"column:plan_id;index" json:"plan_id"`
+	OrderID *uint `gorm:"column:order_id;index" json:"order_id"`
+	Nome    string `gorm:"size:200;not null" json:"nome"`
+	Ordem   int    `gorm:"default:0" json:"ordem"`
 
 	Plan  *MaintenancePlan           `gorm:"foreignKey:PlanID" json:"plan,omitempty"`
+	Order *MaintenanceOrder          `gorm:"foreignKey:OrderID" json:"order,omitempty"`
 	Items []MaintenanceChecklistItem `gorm:"foreignKey:ChecklistID" json:"items,omitempty"`
 }
 
@@ -148,22 +150,29 @@ type MaintenanceOrder struct {
 	DataInicio        *time.Time `gorm:"column:data_inicio" json:"data_inicio"`
 	DataPausa         *time.Time `gorm:"column:data_pausa" json:"data_pausa"`
 	DataConclusao     *time.Time `gorm:"column:data_conclusao" json:"data_conclusao"`
+	DataValidacao     *time.Time `gorm:"column:data_validacao" json:"data_validacao"`
 	TempoTotalMinutos *int       `gorm:"column:tempo_total_minutos" json:"tempo_total_minutos"`
 
-	Observacoes *string `gorm:"type:text" json:"observacoes"`
-	Solucao     *string `gorm:"type:text" json:"solucao"`
+	Observacoes         *string `gorm:"type:text" json:"observacoes"`
+	Diagnostico         *string `gorm:"column:diagnostico;type:text" json:"diagnostico"`
+	Solucao             *string `gorm:"type:text" json:"solucao"`
+	Recomendacoes       *string `gorm:"column:recomendacoes;type:text" json:"recomendacoes"`
+	StatusPosManutencao *string `gorm:"column:status_pos_manutencao;size:40" json:"status_pos_manutencao"`
 
 	CustoTotal *float64 `gorm:"column:custo_total;type:numeric(10,2);default:0" json:"custo_total"`
 
 	ServiceTicketID *uint `gorm:"column:service_ticket_id" json:"service_ticket_id"`
+	ValidadoPorID   *uint `gorm:"column:validado_por_id" json:"validado_por_id"`
 
-	Plan       *MaintenancePlan       `gorm:"foreignKey:PlanID" json:"plan,omitempty"`
-	Asset      *Asset                 `gorm:"foreignKey:AssetID" json:"asset,omitempty"`
-	Tecnico    *User                  `gorm:"foreignKey:TecnicoID" json:"tecnico,omitempty"`
-	Executions []MaintenanceExecution `gorm:"foreignKey:OrderID" json:"executions,omitempty"`
-	Materials  []MaintenanceMaterial  `gorm:"foreignKey:OrderID" json:"materials,omitempty"`
-	Photos     []MaintenancePhoto     `gorm:"foreignKey:OrderID" json:"photos,omitempty"`
-	History    []MaintenanceHistory   `gorm:"foreignKey:OrderID" json:"history,omitempty"`
+	Plan        *MaintenancePlan       `gorm:"foreignKey:PlanID" json:"plan,omitempty"`
+	Asset       *Asset                 `gorm:"foreignKey:AssetID" json:"asset,omitempty"`
+	Tecnico     *User                  `gorm:"foreignKey:TecnicoID" json:"tecnico,omitempty"`
+	ValidadoPor *User                  `gorm:"foreignKey:ValidadoPorID" json:"validado_por,omitempty"`
+	Checklists  []MaintenanceChecklist `gorm:"foreignKey:OrderID" json:"order_checklists,omitempty"`
+	Executions  []MaintenanceExecution `gorm:"foreignKey:OrderID" json:"executions,omitempty"`
+	Materials   []MaintenanceMaterial  `gorm:"foreignKey:OrderID" json:"materials,omitempty"`
+	Photos      []MaintenancePhoto     `gorm:"foreignKey:OrderID" json:"photos,omitempty"`
+	History     []MaintenanceHistory   `gorm:"foreignKey:OrderID" json:"history,omitempty"`
 }
 
 func (MaintenanceOrder) TableName() string { return "maintenance_orders" }

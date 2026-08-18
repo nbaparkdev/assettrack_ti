@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/assettrack/backend/internal/dto"
+	"github.com/assettrack/backend/internal/middleware"
 	"github.com/assettrack/backend/internal/models"
 	"github.com/assettrack/backend/internal/repository"
 	"github.com/assettrack/backend/internal/service"
@@ -174,12 +175,11 @@ func (h *UserHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	userObj, exists := c.Get("user")
-	if !exists {
+	activeUser := middleware.GetCurrentUser(c)
+	if activeUser == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	activeUser := userObj.(*models.User)
 
 	if activeUser.ID == uint(id) {
 		c.JSON(http.StatusBadRequest, gin.H{"detail": "Você não pode excluir a si mesmo"})
@@ -206,12 +206,11 @@ func (h *UserHandler) Delete(c *gin.Context) {
 
 // UpdateProfile PUT /api/v1/profile
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
-	userObj, exists := c.Get("user")
-	if !exists {
+	activeUser := middleware.GetCurrentUser(c)
+	if activeUser == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	activeUser := userObj.(*models.User)
 
 	var req dto.UserUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -238,12 +237,11 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 
 // UploadAvatar POST /api/v1/profile/avatar
 func (h *UserHandler) UploadAvatar(c *gin.Context) {
-	userObj, exists := c.Get("user")
-	if !exists {
+	activeUser := middleware.GetCurrentUser(c)
+	if activeUser == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	activeUser := userObj.(*models.User)
 
 	fileHeader, err := c.FormFile("avatar")
 	if err != nil {
@@ -277,12 +275,11 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 
 // ChangePassword PUT /api/v1/profile/password
 func (h *UserHandler) ChangePassword(c *gin.Context) {
-	userObj, exists := c.Get("user")
-	if !exists {
+	activeUser := middleware.GetCurrentUser(c)
+	if activeUser == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	activeUser := userObj.(*models.User)
 
 	var req dto.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

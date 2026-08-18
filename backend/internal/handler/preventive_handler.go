@@ -54,6 +54,19 @@ type PreventiveHandler struct {
 	categoryRepo   *repository.AssetCategoryRepository
 }
 
+type checklistItemPayload struct {
+	Descricao  string `json:"descricao"`
+	Obrigatorio bool  `json:"obrigatorio"`
+	RequerFoto bool   `json:"requer_foto"`
+	Ordem      int    `json:"ordem"`
+}
+
+type checklistPayload struct {
+	Nome  string                 `json:"nome"`
+	Ordem int                    `json:"ordem"`
+	Items []checklistItemPayload `json:"items"`
+}
+
 func NewPreventiveHandler(
 	planRepo *repository.PMPlanRepository,
 	checklistRepo *repository.PMChecklistRepository,
@@ -104,6 +117,120 @@ func normalizeEnumValue(input string, candidates []string, fallback string) stri
 		}
 	}
 	return fallback
+}
+
+func canEditPMStructure(user *models.User) bool {
+	if user == nil {
+		return false
+	}
+	return user.Role == models.RoleAdmin || user.Role == models.RoleGerente || user.Role == models.RoleGerenteInfra
+}
+
+func canOperatePMOrder(user *models.User, order *models.MaintenanceOrder) bool {
+	if user == nil || order == nil {
+		return false
+	}
+	if canEditPMStructure(user) {
+		return true
+	}
+	return user.Role == models.RoleTecnico && order.TecnicoID != nil && *order.TecnicoID == user.ID
+}
+
+func sanitizeChecklistDrafts(drafts []checklistPayload) []checklistPayload {
+	sanitized := make([]checklistPayload, 0, len(drafts))
+	for checklistIndex, draft := range drafts {
+		name := strings.TrimSpace(draft.Nome)
+		if name == "" {
+			continue
+		}
+		items := make([]checklistItemPayload, 0, len(draft.Items))
+		for itemIndex, item := range draft.Items {
+			desc := strings.TrimSpace(item.Descricao)
+			if desc == "" {
+				continue
+			}
+			items = append(items, checklistItemPayload{
+				Descricao:  desc,
+				Obrigatorio: item.Obrigatorio,
+				RequerFoto: item.RequerFoto,
+				Ordem:      itemIndex + 1,
+			})
+		}
+		sanitized = append(sanitized, checklistPayload{
+			Nome:  name,
+			Ordem: checklistIndex + 1,
+			Items: items,
+		})
+	}
+	return sanitized
+}
+
+func cloneChecklistPayloads(checklists []models.MaintenanceChecklist) []checklistPayload {
+	drafts := make([]checklistPayload, 0, len(checklists))
+	for checklistIndex, checklist := range checklists {
+		items := make([]checklistItemPayload, 0, len(checklist.Items))
+		for itemIndex, item := range checklist.Items {
+			items = append(items, checklistItemPayload{
+				Descricao:  item.Descricao,
+				Obrigatorio: item.Obrigatorio,
+				RequerFoto: item.RequerFoto,
+				Ordem:      itemIndex + 1,
+			})
+		}
+		drafts = append(drafts, checklistPayload{
+			Nome:  checklist.Nome,
+			Ordem: checklistIndex + 1,
+			Items: items,
+		})
+	}
+	return drafts
+}
+
+func (h *PreventiveHandler) loadResolvedChecklists(order *models.MaintenanceOrder) ([]models.MaintenanceChecklist, error) {
+	if order == nil {
+		return nil, nil
+	}
+	if len(order.Checklists) > 0 {
+		return order.Checklists, nil
+	}
+	checklists, err := h.checklistRepo.ListByOrder(order.ID)
+	if err == nil && len(checklists) > 0 {
+		return checklists, nil
+	}
+	if order.PlanID != nil {
+		return h.checklistRepo.ListByPlan(*order.PlanID)
+	}
+	return []models.MaintenanceChecklist{}, nil
+}
+
+func (h *PreventiveHandler) persistOrderChecklists(orderID uint, drafts []checklistPayload) error {
+	if err := h.checklistRepo.DeleteByOrder(nil, orderID); err != nil {
+		return err
+	}
+	for checklistIndex, draft := range sanitizeChecklistDrafts(drafts) {
+		orderIDCopy := orderID
+		checklist := &models.MaintenanceChecklist{
+			PlanID:  nil,
+			OrderID: &orderIDCopy,
+			Nome:    draft.Nome,
+			Ordem:   checklistIndex + 1,
+		}
+		if err := h.checklistRepo.Create(checklist); err != nil {
+			return err
+		}
+		for itemIndex, item := range draft.Items {
+			if err := h.itemRepo.Create(&models.MaintenanceChecklistItem{
+				ChecklistID: checklist.ID,
+				Descricao:   item.Descricao,
+				Obrigatorio: item.Obrigatorio,
+				RequerFoto:  item.RequerFoto,
+				Ordem:       itemIndex + 1,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // ---------- Plans ----------
@@ -308,8 +435,9 @@ func (h *PreventiveHandler) AddChecklist(c *gin.Context) {
 	}
 
 	count, _ := h.checklistRepo.CountByPlan(uint(planID))
+	planIDUint := uint(planID)
 	checklist := &models.MaintenanceChecklist{
-		PlanID: uint(planID),
+		PlanID: &planIDUint,
 		Nome:   in.Nome,
 		Ordem:  int(count),
 	}
@@ -469,6 +597,7 @@ type orderInput struct {
 	PlanID              *uint   `json:"plan_id"`
 	TecnicoID           *uint   `json:"tecnico_id"`
 	DataAgendada        *string `json:"data_agendada"`
+	Checklists          []checklistPayload `json:"checklists"`
 }
 
 func (h *PreventiveHandler) CreateOrder(c *gin.Context) {
@@ -534,6 +663,17 @@ func (h *PreventiveHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
+	drafts := sanitizeChecklistDrafts(in.Checklists)
+	if len(drafts) == 0 && in.PlanID != nil {
+		if planChecklists, err := h.checklistRepo.ListByPlan(*in.PlanID); err == nil {
+			drafts = cloneChecklistPayloads(planChecklists)
+		}
+	}
+	if err := h.persistOrderChecklists(order.ID, drafts); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	// Notify assigned technician
 	if order.TecnicoID != nil {
 		h.notifyOrderAssigned(*order)
@@ -581,11 +721,7 @@ func (h *PreventiveHandler) GetOrder(c *gin.Context) {
 		return
 	}
 
-	// Resolve checklists from the order's plan, merged with executions
-	var checklists []models.MaintenanceChecklist
-	if order.PlanID != nil {
-		checklists, _ = h.checklistRepo.ListByPlan(*order.PlanID)
-	}
+	checklists, _ := h.loadResolvedChecklists(order)
 
 	c.JSON(http.StatusOK, gin.H{"order": order, "checklists": checklists})
 }
@@ -612,6 +748,7 @@ func (h *PreventiveHandler) UpdateOrder(c *gin.Context) {
 		Observacoes  string  `json:"observacoes"`
 		TecnicoID    *uint   `json:"tecnico_id"`
 		DataAgendada *string `json:"data_agendada"`
+		Checklists   []checklistPayload `json:"checklists"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -669,6 +806,13 @@ func (h *PreventiveHandler) UpdateOrder(c *gin.Context) {
 	if err := h.orderRepo.Update(order); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	if len(in.Checklists) > 0 && canEditPMStructure(user) && order.Status != models.PMStatusConcluida && order.Status != models.PMStatusCancelada {
+		if err := h.persistOrderChecklists(order.ID, in.Checklists); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	// Notify on technician reassignment
@@ -732,11 +876,16 @@ func (h *PreventiveHandler) StartOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Ordem não pode ser iniciada no status atual"})
 		return
 	}
+	if order.TecnicoID != nil && !canOperatePMOrder(user, order) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Somente o técnico designado, administrador ou gerente pode iniciar esta OS"})
+		return
+	}
 
 	statusAnterior := order.Status
 	now := time.Now()
 	order.Status = models.PMStatusEmAndamento
 	order.DataInicio = &now
+	order.DataPausa = nil
 	if order.TecnicoID == nil {
 		order.TecnicoID = &user.ID
 	}
@@ -773,6 +922,10 @@ func (h *PreventiveHandler) PauseOrder(c *gin.Context) {
 
 	if order.Status != models.PMStatusEmAndamento {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Somente ordens em andamento podem ser pausadas"})
+		return
+	}
+	if !canOperatePMOrder(user, order) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Somente o técnico designado, administrador ou gerente pode pausar esta OS"})
 		return
 	}
 
@@ -835,19 +988,69 @@ func (h *PreventiveHandler) CompleteOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Ordem já finalizada"})
 		return
 	}
+	if !canOperatePMOrder(user, order) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Somente o técnico designado, administrador ou gerente pode concluir esta OS"})
+		return
+	}
 
 	var in struct {
-		Solucao    string  `json:"solucao"`
-		CustoTotal *string `json:"custo_total"`
+		Diagnostico         string  `json:"diagnostico"`
+		Solucao             string  `json:"solucao"`
+		Recomendacoes       string  `json:"recomendacoes"`
+		StatusPosManutencao string  `json:"status_pos_manutencao"`
+		CustoTotal          *string `json:"custo_total"`
 	}
 	_ = c.ShouldBindJSON(&in)
+	in.Diagnostico = strings.TrimSpace(in.Diagnostico)
+	in.Solucao = strings.TrimSpace(in.Solucao)
+	in.Recomendacoes = strings.TrimSpace(in.Recomendacoes)
+	in.StatusPosManutencao = strings.TrimSpace(in.StatusPosManutencao)
+
+	if in.Diagnostico == "" || in.Solucao == "" || in.StatusPosManutencao == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Diagnóstico, solução aplicada e destino final do ativo são obrigatórios para concluir a OS"})
+		return
+	}
+	in.StatusPosManutencao = normalizeEnumValue(in.StatusPosManutencao,
+		[]string{string(models.AssetStatusDisponivel), string(models.AssetStatusArmazenado), string(models.AssetStatusManutencao)},
+		string(models.AssetStatusDisponivel),
+	)
+
+	if len(order.Photos) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Anexe pelo menos uma evidência fotográfica antes de concluir a OS"})
+		return
+	}
+
+	checklists, _ := h.loadResolvedChecklists(order)
+	if len(checklists) > 0 {
+		executedRequired := make(map[uint]bool, len(order.Executions))
+		for _, exec := range order.Executions {
+			if exec.Concluido {
+				executedRequired[exec.ChecklistItemID] = true
+			}
+		}
+		for _, checklist := range checklists {
+			for _, item := range checklist.Items {
+				if item.Obrigatorio && !executedRequired[item.ID] {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Conclua todos os itens obrigatórios do checklist antes de finalizar a OS"})
+					return
+				}
+			}
+		}
+	}
 
 	statusAnterior := order.Status
 	now := time.Now()
 	order.Status = models.PMStatusConcluida
 	order.DataConclusao = &now
-	if in.Solucao != "" {
-		order.Solucao = &in.Solucao
+	order.DataValidacao = &now
+	order.ValidadoPorID = &user.ID
+	order.Diagnostico = &in.Diagnostico
+	order.Solucao = &in.Solucao
+	order.StatusPosManutencao = &in.StatusPosManutencao
+	if in.Recomendacoes != "" {
+		order.Recomendacoes = &in.Recomendacoes
+	} else {
+		order.Recomendacoes = nil
 	}
 
 	// Total time
@@ -877,6 +1080,17 @@ func (h *PreventiveHandler) CompleteOrder(c *gin.Context) {
 	totalCost := totalMaterials + extraCost
 	order.CustoTotal = &totalCost
 
+	if order.AssetID != nil {
+		if asset, err := h.assetRepo.GetByID(*order.AssetID); err == nil && asset != nil {
+			asset.Status = models.AssetStatus(in.StatusPosManutencao)
+			if asset.Status == models.AssetStatusDisponivel || asset.Status == models.AssetStatusArmazenado {
+				asset.CurrentUserID = nil
+				asset.CurrentDepartamentoID = nil
+			}
+			_ = h.assetRepo.Update(asset)
+		}
+	}
+
 	// Update plan dates
 	if order.PlanID != nil {
 		if plan, err := h.planRepo.GetByID(*order.PlanID); err == nil && plan != nil {
@@ -896,6 +1110,13 @@ func (h *PreventiveHandler) CompleteOrder(c *gin.Context) {
 	}
 
 	desc := fmt.Sprintf("Ordem concluída por %s", user.Nome)
+	if in.Diagnostico != "" {
+		diag := in.Diagnostico
+		if len(diag) > 80 {
+			diag = diag[:80]
+		}
+		desc += fmt.Sprintf(". Diagnóstico: %s", diag)
+	}
 	if in.Solucao != "" {
 		sol := in.Solucao
 		if len(sol) > 100 {
@@ -903,6 +1124,7 @@ func (h *PreventiveHandler) CompleteOrder(c *gin.Context) {
 		}
 		desc += fmt.Sprintf(". Solução: %s", sol)
 	}
+	desc += fmt.Sprintf(". Destino do ativo: %s", in.StatusPosManutencao)
 	_ = h.historyRepo.Create(&models.MaintenanceHistory{
 		OrderID:        order.ID,
 		Acao:           "Ordem Concluída",
@@ -1013,8 +1235,13 @@ func (h *PreventiveHandler) ExecuteChecklistItem(c *gin.Context) {
 		return
 	}
 
-	if _, err := h.orderRepo.GetByID(uint(orderID)); err != nil {
+	order, err := h.orderRepo.GetByID(uint(orderID))
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Ordem não encontrada"})
+		return
+	}
+	if !canOperatePMOrder(user, order) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Somente o técnico designado, administrador ou gerente pode executar checklist nesta OS"})
 		return
 	}
 
@@ -1035,6 +1262,19 @@ func (h *PreventiveHandler) ExecuteChecklistItem(c *gin.Context) {
 	item, err := h.itemRepo.GetByID(uint(itemID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Item de checklist não encontrado"})
+		return
+	}
+	if item.Checklist == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Item de checklist sem vínculo válido"})
+		return
+	}
+	if item.Checklist.OrderID != nil {
+		if *item.Checklist.OrderID != order.ID {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Item de checklist não pertence a esta OS"})
+			return
+		}
+	} else if order.PlanID == nil || item.Checklist.PlanID == nil || *item.Checklist.PlanID != *order.PlanID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Item de checklist não pertence a esta OS"})
 		return
 	}
 
@@ -1448,6 +1688,25 @@ func (h *PreventiveHandler) Dashboard(c *gin.Context) {
 	openOrders := 0
 	dueSoon := 0
 	now := time.Now()
+	type technicianPerformance struct {
+		UserID               uint    `json:"user_id"`
+		Nome                 string  `json:"nome"`
+		AssignedOrders       int     `json:"assigned_orders"`
+		InProgressOrders     int     `json:"in_progress_orders"`
+		CompletedOrders      int     `json:"completed_orders"`
+		RequiredCompletion   float64 `json:"required_completion_rate"`
+		AvgResolutionMinutes int     `json:"avg_resolution_minutes"`
+	}
+	type techAccumulator struct {
+		name              string
+		assigned          int
+		inProgress        int
+		completed         int
+		requiredTotal     int
+		requiredCompleted int
+		totalMinutes      int
+	}
+	techStats := map[uint]*techAccumulator{}
 	for _, o := range orders {
 		statusCounts[o.Status]++
 		if o.Status != models.PMStatusConcluida && o.Status != models.PMStatusCancelada {
@@ -1457,6 +1716,53 @@ func (h *PreventiveHandler) Dashboard(c *gin.Context) {
 			days := o.DataAgendada.Sub(now).Hours() / 24
 			if days >= 0 && days <= 7 {
 				dueSoon++
+			}
+		}
+		if o.TecnicoID != nil {
+			acc := techStats[*o.TecnicoID]
+			if acc == nil {
+				acc = &techAccumulator{}
+				techStats[*o.TecnicoID] = acc
+			}
+			acc.name = "Técnico"
+			if o.Tecnico != nil && o.Tecnico.Nome != "" {
+				acc.name = o.Tecnico.Nome
+			}
+			acc.assigned++
+			if o.Status == models.PMStatusEmAndamento {
+				acc.inProgress++
+			}
+			if o.Status == models.PMStatusConcluida {
+				acc.completed++
+			}
+			requiredTotal := 0
+			requiredDone := 0
+			checklists, _ := h.loadResolvedChecklists(&o)
+			for _, checklist := range checklists {
+				for _, item := range checklist.Items {
+					if item.Obrigatorio {
+						requiredTotal++
+						for _, exec := range o.Executions {
+							if exec.ChecklistItemID == item.ID && exec.Concluido {
+								requiredDone++
+								break
+							}
+						}
+					}
+				}
+			}
+			acc.requiredTotal += requiredTotal
+			acc.requiredCompleted += requiredDone
+
+			minutes := 0
+			if o.TempoTotalMinutos != nil {
+				minutes = *o.TempoTotalMinutos
+			}
+			if o.Status == models.PMStatusEmAndamento && o.DataInicio != nil {
+				minutes += int(now.Sub(*o.DataInicio).Minutes())
+			}
+			if o.Status == models.PMStatusConcluida {
+				acc.totalMinutes += minutes
 			}
 		}
 	}
@@ -1469,6 +1775,27 @@ func (h *PreventiveHandler) Dashboard(c *gin.Context) {
 		}
 	}
 
+	techPerformance := make([]technicianPerformance, 0, len(techStats))
+	for userID, acc := range techStats {
+		avgMinutes := 0
+		if acc.completed > 0 {
+			avgMinutes = acc.totalMinutes / acc.completed
+		}
+		requiredRate := 0.0
+		if acc.requiredTotal > 0 {
+			requiredRate = (float64(acc.requiredCompleted) / float64(acc.requiredTotal)) * 100
+		}
+		techPerformance = append(techPerformance, technicianPerformance{
+			UserID:               userID,
+			Nome:                 acc.name,
+			AssignedOrders:       acc.assigned,
+			InProgressOrders:     acc.inProgress,
+			CompletedOrders:      acc.completed,
+			RequiredCompletion:   requiredRate,
+			AvgResolutionMinutes: avgMinutes,
+		})
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"total_plans":      len(plans),
 		"active_plans":     activePlans,
@@ -1477,5 +1804,6 @@ func (h *PreventiveHandler) Dashboard(c *gin.Context) {
 		"open_orders":      openOrders,
 		"due_soon":         dueSoon,
 		"orders_by_status": statusCounts,
+		"technician_performance": techPerformance,
 	})
 }

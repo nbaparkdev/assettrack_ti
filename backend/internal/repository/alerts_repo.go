@@ -21,7 +21,7 @@ func (r *EmergencyAlertRepository) Create(alert *models.EmergencyAlert) error {
 
 func (r *EmergencyAlertRepository) History(limit int) ([]models.EmergencyAlert, error) {
 	var alerts []models.EmergencyAlert
-	err := r.db.Preload("Usuario").Preload("AtendidoPor").
+	err := r.db.Preload("Usuario").Preload("CientePor").Preload("AtendidoPor").
 		Order("created_at desc").Limit(limit).Find(&alerts).Error
 	return alerts, err
 }
@@ -38,6 +38,16 @@ func (r *EmergencyAlertRepository) GetByID(id uint) (*models.EmergencyAlert, err
 func (r *EmergencyAlertRepository) MarkAtendido(id, userID uint) error {
 	return r.db.Model(&models.EmergencyAlert{}).Where("id = ?", id).
 		Updates(map[string]interface{}{"atendido": true, "atendido_por_id": userID}).Error
+}
+
+func (r *EmergencyAlertRepository) MarkCiente(id, userID uint) error {
+	now := time.Now()
+	return r.db.Model(&models.EmergencyAlert{}).Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"ciente":        true,
+			"ciente_por_id": userID,
+			"ciente_em":     &now,
+		}).Error
 }
 
 type AvisoRepository struct {

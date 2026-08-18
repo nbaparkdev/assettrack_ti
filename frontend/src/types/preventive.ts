@@ -31,7 +31,8 @@ export interface MaintenancePlanAsset {
 
 export interface MaintenanceChecklist {
   id: number;
-  plan_id: number;
+  plan_id?: number;
+  order_id?: number;
   nome: string;
   ordem: number;
   items: MaintenanceChecklistItem[];
@@ -63,12 +64,17 @@ export interface MaintenanceOrder {
   data_inicio?: string;
   data_pausa?: string;
   data_conclusao?: string;
+  data_validacao?: string;
   tempo_total_minutos?: number;
   observacoes?: string;
+  diagnostico?: string;
   solucao?: string;
+  recomendacoes?: string;
+  status_pos_manutencao?: string;
   custo_total?: number;
   asset?: { id: number; nome: string; e_patrimonio: string };
   tecnico?: { id: number; nome: string };
+  validado_por?: { id: number; nome: string };
   plan?: { id: number; nome: string; codigo: string };
   executions: MaintenanceExecution[];
   materials: MaintenanceMaterial[];
@@ -147,6 +153,17 @@ export interface PMDashboard {
   open_orders: number;
   due_soon: number;
   orders_by_status: Record<string, number>;
+  technician_performance: PMTechnicianPerformance[];
+}
+
+export interface PMTechnicianPerformance {
+  user_id: number;
+  nome: string;
+  assigned_orders: number;
+  in_progress_orders: number;
+  completed_orders: number;
+  required_completion_rate: number;
+  avg_resolution_minutes: number;
 }
 
 export const PM_STATUSES = ['Aberta', 'Agendada', 'Em andamento', 'Aguardando peça', 'Pausada', 'Concluída', 'Cancelada'];

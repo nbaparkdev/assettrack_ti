@@ -22,6 +22,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	r.Use(middleware.CORSMiddleware())
 	r.Use(middleware.SecurityHeaders())
 	r.Use(middleware.ProcessTime())
+	r.Static("/uploads", "./uploads")
 
 	// Repositories
 	userRepo := repository.NewUserRepository(db)
@@ -306,6 +307,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			alerts.POST("/alertar", alertsHandler.SendAlert)
 			alerts.GET("/stream", alertsHandler.AlertStream)
 			alerts.GET("/historico", alertsHandler.History)
+			alerts.POST("/:alertId/ciente", alertsHandler.MarkCiente)
 			alerts.POST("/:alertId/atender", alertsHandler.MarkAtendido)
 		}
 
@@ -314,6 +316,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			emergencia.POST("/alertar", alertsHandler.SendAlert)
 			emergencia.GET("/stream", alertsHandler.AlertStream)
 			emergencia.GET("/historico", alertsHandler.History)
+			emergencia.POST("/:alertId/ciente", alertsHandler.MarkCiente)
 			emergencia.POST("/:alertId/atender", alertsHandler.MarkAtendido)
 		}
 

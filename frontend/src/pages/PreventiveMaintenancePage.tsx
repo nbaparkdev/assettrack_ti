@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { preventiveApi } from '../api/preventive';
+import { toApiFileUrl } from '../api/client';
 import { usersApi } from '../api/users';
 import { assetsApi } from '../api/assets';
 import type {
@@ -22,7 +23,8 @@ import {
   CheckCircle2, Ban, FileText, Camera,
 } from 'lucide-react';
 
-const canManage = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador'];
+const structureRoles = ['admin', 'gerente_ti', 'gerente_infra'];
+const workRoles = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'];
 
 const statusColor: Record<string, string> = {
   'Aberta': 'text-blue-400 border-blue-500/30',
@@ -34,9 +36,36 @@ const statusColor: Record<string, string> = {
   'Cancelada': 'text-red-400 border-red-500/30',
 };
 
+type OrderChecklistDraft = {
+  nome: string;
+  items: {
+    descricao: string;
+    obrigatorio: boolean;
+    requer_foto: boolean;
+  }[];
+};
+
+const createEmptyChecklistItem = () => ({
+  descricao: '',
+  obrigatorio: true,
+  requer_foto: false,
+});
+
+const createEmptyChecklistDraft = (): OrderChecklistDraft => ({
+  nome: 'Checklist principal',
+  items: [createEmptyChecklistItem()],
+});
+
+const formatMinutes = (totalMinutes: number) => {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${String(minutes).padStart(2, '0')}min`;
+};
+
 export const PreventiveMaintenancePage: React.FC = () => {
   const user = useAuthStore().user;
-  const manage = user ? canManage.includes(user.role) : false;
+  const canEditStructure = user ? structureRoles.includes(user.role) : false;
+  const canWorkOrder = user ? workRoles.includes(user.role) : false;
 
   const [tab, setTab] = useState<'dashboard' | 'planos' | 'ordens' | 'notifs'>('dashboard');
   const [loading, setLoading] = useState(false);
@@ -83,6 +112,74 @@ export const PreventiveMaintenancePage: React.FC = () => {
   const [oTecnico, setOTecnico] = useState<number | null>(null);
   const [oPlan, setOPlan] = useState<number | null>(null);
   const [oAgendada, setOAgendada] = useState('');
+  const [orderChecklistDrafts, setOrderChecklistDrafts] = useState<OrderChecklistDraft[]>([createEmptyChecklistDraft()]);
+  const [mProduto, setMProduto] = useState('');
+  const [mQuantidade, setMQuantidade] = useState('1');
+  const [mValorUnitario, setMValorUnitario] = useState('');
+  const [mObservacao, setMObservacao] = useState('');
+  const [photoTipo, setPhotoTipo] = useState('Durante');
+  const [photoDescricao, setPhotoDescricao] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [completeModal, setCompleteModal] = useState(false);
+  const [completionDiagnosis, setCompletionDiagnosis] = useState('');
+  const [completionSolution, setCompletionSolution] = useState('');
+  const [completionRecommendations, setCompletionRecommendations] = useState('');
+  const [completionAssetDestination, setCompletionAssetDestination] = useState('Disponível');
+  const [completionExtraCost, setCompletionExtraCost] = useState('');
+  const [timerNow, setTimerNow] = useState(Date.now());
+
+  const normalizeOrderDetail = (detail: { order: MaintenanceOrder; checklists: MaintenanceChecklist[] | null }) => ({
+    order: {
+      ...detail.order,
+      executions: detail.order.executions ?? [],
+      materials: detail.order.materials ?? [],
+      photos: detail.order.photos ?? [],
+      history: detail.order.history ?? [],
+    },
+    checklists: detail.checklists ?? [],
+  });
+
+  const calculateElapsedMinutes = (order: MaintenanceOrder) => {
+    let minutes = order.tempo_total_minutos ?? 0;
+    if (order.status === 'Em andamento' && order.data_inicio) {
+      minutes += Math.max(0, Math.floor((timerNow - new Date(order.data_inicio).getTime()) / 60000));
+    }
+    return minutes;
+  };
+
+  const pickChecklistPhoto = () =>
+    new Promise<File | undefined>((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      let settled = false;
+
+      const finish = (file?: File) => {
+        if (settled) return;
+        settled = true;
+        resolve(file);
+      };
+
+      input.addEventListener('change', () => finish(input.files?.[0]), { once: true });
+      window.setTimeout(() => finish(undefined), 30000);
+      input.click();
+    });
+
+  const serializeChecklistDrafts = () =>
+    orderChecklistDrafts
+      .map((checklist, checklistIndex) => ({
+        nome: checklist.nome.trim(),
+        ordem: checklistIndex + 1,
+        items: checklist.items
+          .map((item, itemIndex) => ({
+            descricao: item.descricao.trim(),
+            obrigatorio: item.obrigatorio,
+            requer_foto: item.requer_foto,
+            ordem: itemIndex + 1,
+          }))
+          .filter((item) => item.descricao),
+      }))
+      .filter((checklist) => checklist.nome);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -107,6 +204,11 @@ export const PreventiveMaintenancePage: React.FC = () => {
     preventiveApi.myNotifications().then(setNotifs).catch(() => {});
     usersApi.list(0, 200).then((u) => setTechs(u.map((x) => ({ id: x.id, nome: x.nome })))).catch(() => {});
     assetsApi.list(0, 200).then((a) => setAssets(a.map((x) => ({ id: x.id, nome: x.nome })))).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setTimerNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
   }, []);
 
   const showError = (err: any) => {
@@ -178,7 +280,31 @@ export const PreventiveMaintenancePage: React.FC = () => {
     setOTecnico(null);
     setOPlan(null);
     setOAgendada('');
+    setOrderChecklistDrafts([createEmptyChecklistDraft()]);
     setOrderModal(true);
+  };
+
+  const loadChecklistDraftsFromPlan = async (planId: number | null) => {
+    if (!planId) {
+      setOrderChecklistDrafts([createEmptyChecklistDraft()]);
+      return;
+    }
+    try {
+      const detail = await preventiveApi.getPlan(planId);
+      const drafts = (detail.plan.checklists ?? []).map((checklist) => ({
+        nome: checklist.nome,
+        items: checklist.items.length > 0
+          ? checklist.items.map((item) => ({
+              descricao: item.descricao,
+              obrigatorio: item.obrigatorio,
+              requer_foto: item.requer_foto,
+            }))
+          : [createEmptyChecklistItem()],
+      }));
+      setOrderChecklistDrafts(drafts.length > 0 ? drafts : [createEmptyChecklistDraft()]);
+    } catch (err) {
+      showError(err);
+    }
   };
 
   const submitOrder = async (e: React.FormEvent) => {
@@ -193,6 +319,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
         tecnico_id: oTecnico ?? undefined,
         plan_id: oPlan ?? undefined,
         data_agendada: oAgendada ? new Date(oAgendada).toISOString() : undefined,
+        checklists: serializeChecklistDrafts(),
       });
       setOrderModal(false);
       fetchAll();
@@ -203,7 +330,21 @@ export const PreventiveMaintenancePage: React.FC = () => {
 
   const openOrderDetail = async (orderId: number) => {
     try {
-      setOrderDetail(await preventiveApi.getOrder(orderId));
+      const detail = await preventiveApi.getOrder(orderId);
+      setOrderDetail(normalizeOrderDetail(detail));
+      setMProduto('');
+      setMQuantidade('1');
+      setMValorUnitario('');
+      setMObservacao('');
+      setPhotoTipo('Durante');
+      setPhotoDescricao('');
+      setPhotoFile(null);
+      setCompleteModal(false);
+      setCompletionDiagnosis('');
+      setCompletionSolution('');
+      setCompletionRecommendations('');
+      setCompletionAssetDestination('Disponível');
+      setCompletionExtraCost('');
     } catch (err) {
       showError(err);
     }
@@ -212,12 +353,14 @@ export const PreventiveMaintenancePage: React.FC = () => {
   const orderAction = async (orderId: number, action: 'iniciar' | 'pausar' | 'concluir' | 'cancelar') => {
     try {
       if (action === 'iniciar') await preventiveApi.startOrder(orderId);
-      else if (action === 'pausar') await preventiveApi.pauseOrder(orderId, window.prompt('Motivo da pausa (opcional):') ?? undefined);
-      else if (action === 'cancelar') await preventiveApi.cancelOrder(orderId, window.prompt('Motivo do cancelamento (opcional):') ?? undefined);
+      else if (action === 'pausar') await preventiveApi.pauseOrder(orderId);
+      else if (action === 'cancelar') {
+        if (!window.confirm('Cancelar esta ordem de serviço?')) return;
+        await preventiveApi.cancelOrder(orderId);
+      }
       else {
-        const solucao = window.prompt('Solução aplicada:') ?? '';
-        const custo = window.prompt('Custo adicional (R$):') ?? '';
-        await preventiveApi.completeOrder(orderId, solucao, custo);
+        setCompleteModal(true);
+        return;
       }
       await openOrderDetail(orderId);
       fetchAll();
@@ -228,6 +371,97 @@ export const PreventiveMaintenancePage: React.FC = () => {
 
   const refreshOrderDetail = async () => {
     if (orderDetail) await openOrderDetail(orderDetail.order.id);
+  };
+
+  const submitMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderDetail) return;
+    try {
+      await preventiveApi.addMaterial(orderDetail.order.id, {
+        produto: mProduto,
+        quantidade: Number(mQuantidade),
+        valor_unitario: Number(mValorUnitario),
+        observacao: mObservacao || undefined,
+      });
+      setMProduto('');
+      setMQuantidade('1');
+      setMValorUnitario('');
+      setMObservacao('');
+      await refreshOrderDetail();
+    } catch (err) {
+      showError(err);
+    }
+  };
+
+  const deleteOrder = async (orderId: number) => {
+    if (!window.confirm('Excluir esta ordem de serviço? Essa ação não poderá ser desfeita.')) return;
+    try {
+      await preventiveApi.deleteOrder(orderId);
+      setOrderDetail(null);
+      await fetchAll();
+    } catch (err) {
+      showError(err);
+    }
+  };
+
+  const submitPhoto = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderDetail || !photoFile) {
+      setError('Selecione uma foto para anexar na OS.');
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+    try {
+      await preventiveApi.uploadPhoto(orderDetail.order.id, photoFile, photoTipo, photoDescricao || undefined);
+      setPhotoTipo('Durante');
+      setPhotoDescricao('');
+      setPhotoFile(null);
+      await refreshOrderDetail();
+    } catch (err) {
+      showError(err);
+    }
+  };
+
+  const submitCompletion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderDetail) return;
+
+    const requiredChecklistItems = orderDetail.checklists.flatMap((checklist) => checklist.items).filter((item) => item.obrigatorio);
+    const completedRequired = requiredChecklistItems.filter((item) =>
+      orderDetail.order.executions.some((execution) => execution.checklist_item_id === item.id && execution.concluido)
+    );
+
+    if (requiredChecklistItems.length > 0 && completedRequired.length !== requiredChecklistItems.length) {
+      setError('Finalize todos os itens obrigatórios do checklist antes de concluir a OS.');
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+
+    if (orderDetail.order.photos.length === 0) {
+      setError('Anexe pelo menos uma evidência fotográfica antes de concluir a OS.');
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+
+    try {
+      await preventiveApi.completeOrder(orderDetail.order.id, {
+        diagnostico: completionDiagnosis,
+        solucao: completionSolution,
+        recomendacoes: completionRecommendations || undefined,
+        status_pos_manutencao: completionAssetDestination,
+        custo_total: completionExtraCost || undefined,
+      });
+      setCompleteModal(false);
+      setCompletionDiagnosis('');
+      setCompletionSolution('');
+      setCompletionRecommendations('');
+      setCompletionAssetDestination('Disponível');
+      setCompletionExtraCost('');
+      await openOrderDetail(orderDetail.order.id);
+      fetchAll();
+    } catch (err) {
+      showError(err);
+    }
   };
 
   return (
@@ -317,13 +551,53 @@ export const PreventiveMaintenancePage: React.FC = () => {
               ))}
             </div>
           </div>
+
+          <div className="col-span-2 md:col-span-3 lg:col-span-6 border border-brand-border bg-brand-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-mono uppercase text-brand-muted">Desempenho dos técnicos</div>
+              <div className="text-xs text-brand-muted">Tempo médio e aderência aos itens obrigatórios</div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-brand-border text-[11px] font-mono uppercase tracking-wider text-brand-muted">
+                    <th className="py-2 pr-4">Responsável</th>
+                    <th className="py-2 pr-4">OS atribuídas</th>
+                    <th className="py-2 pr-4">Em andamento</th>
+                    <th className="py-2 pr-4">Concluídas</th>
+                    <th className="py-2 pr-4">Obrigatórias</th>
+                    <th className="py-2">Tempo médio</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-border/50 text-sm">
+                  {dash.technician_performance.map((tech) => (
+                    <tr key={tech.user_id}>
+                      <td className="py-3 pr-4 text-brand-text">{tech.nome}</td>
+                      <td className="py-3 pr-4 font-mono text-brand-text">{tech.assigned_orders}</td>
+                      <td className="py-3 pr-4 font-mono text-brand-text">{tech.in_progress_orders}</td>
+                      <td className="py-3 pr-4 font-mono text-brand-text">{tech.completed_orders}</td>
+                      <td className="py-3 pr-4 font-mono text-brand-text">{tech.required_completion_rate.toFixed(0)}%</td>
+                      <td className="py-3 font-mono text-brand-primary">{formatMinutes(tech.avg_resolution_minutes)}</td>
+                    </tr>
+                  ))}
+                  {dash.technician_performance.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-6 text-center text-brand-muted font-mono text-xs">
+                        Ainda não há indicadores suficientes para exibir desempenho técnico.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
       {/* ---------- PLANOS ---------- */}
       {!loading && tab === 'planos' && (
         <div className="space-y-4">
-          {manage && (
+          {canEditStructure && (
             <div className="flex justify-end">
               <button
                 onClick={() => openPlanModal()}
@@ -370,7 +644,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
                       <button onClick={() => openPlanDetail(p.id)} className="text-brand-primary border border-brand-primary/30 px-2.5 py-1.5 font-mono text-xs uppercase mr-2 hover:bg-brand-primary/10">
                         <ClipboardList size={12} className="inline mr-1" /> Detalhes
                       </button>
-                      {manage && (
+                      {canEditStructure && (
                         <>
                           <button onClick={() => openPlanModal(p)} className="text-brand-primary border border-brand-primary/30 px-2.5 py-1.5 font-mono text-xs uppercase mr-2 hover:bg-brand-primary/10">
                             <Edit2 size={12} className="inline mr-1" /> Editar
@@ -410,7 +684,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
-            {manage && (
+            {canEditStructure && (
               <button
                 onClick={openOrderModal}
                 className="bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center space-x-1.5"
@@ -449,7 +723,12 @@ export const PreventiveMaintenancePage: React.FC = () => {
                       </span>
                     </td>
                     <td className="p-4 text-brand-text">{o.prioridade}</td>
-                    <td className="p-4 font-mono text-xs">{new Date(o.data_abertura).toLocaleDateString('pt-BR')}</td>
+                    <td className="p-4">
+                      <div className="font-mono text-xs">{new Date(o.data_abertura).toLocaleDateString('pt-BR')}</div>
+                      <div className="font-mono text-[11px] text-brand-primary mt-1">
+                        {formatMinutes(calculateElapsedMinutes(o))}
+                      </div>
+                    </td>
                     <td className="p-4 text-right">
                       <button onClick={() => openOrderDetail(o.id)} className="text-brand-primary border border-brand-primary/30 px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-brand-primary/10">
                         <FileText size={12} className="inline mr-1" /> Abrir
@@ -614,7 +893,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
               <div key={cl.id} className="border border-brand-border">
                 <div className="p-3 border-b border-brand-border bg-brand-dark/20 flex justify-between items-center">
                   <span className="text-xs font-mono uppercase tracking-wider text-brand-text">{cl.nome}</span>
-                  {manage && (
+                  {canEditStructure && (
                     <button
                       onClick={async () => {
                         if (!window.confirm('Excluir checklist?')) return;
@@ -726,7 +1005,11 @@ export const PreventiveMaintenancePage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Plano (opcional)</label>
-                  <select value={oPlan ?? ''} onChange={(e) => setOPlan(e.target.value ? Number(e.target.value) : null)}
+                  <select value={oPlan ?? ''} onChange={async (e) => {
+                    const planId = e.target.value ? Number(e.target.value) : null;
+                    setOPlan(planId);
+                    await loadChecklistDraftsFromPlan(planId);
+                  }}
                     className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none">
                     <option value="">—</option>
                     {plans.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
@@ -749,6 +1032,118 @@ export const PreventiveMaintenancePage: React.FC = () => {
                 <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Descrição *</label>
                 <textarea required value={oDesc} onChange={(e) => setODesc(e.target.value)} rows={3}
                   className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none" />
+              </div>
+
+              <div className="border border-brand-border bg-brand-dark/20 p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-mono uppercase tracking-wider text-brand-muted">Checklist da OS</div>
+                    <div className="text-xs text-brand-muted mt-1">
+                      Administradores e gerentes podem ajustar o procedimento desta ordem antes de abrir o atendimento.
+                    </div>
+                  </div>
+                  {canEditStructure && (
+                    <button
+                      type="button"
+                      onClick={() => setOrderChecklistDrafts((current) => [...current, createEmptyChecklistDraft()])}
+                      className="border border-brand-primary/30 text-brand-primary px-3 py-2 font-mono text-xs uppercase hover:bg-brand-primary/10"
+                    >
+                      <Plus size={12} className="inline mr-1" /> Checklist
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {orderChecklistDrafts.map((checklist, checklistIndex) => (
+                    <div key={checklistIndex} className="border border-brand-border bg-brand-card/40 p-3 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="text"
+                          value={checklist.nome}
+                          onChange={(e) => setOrderChecklistDrafts((current) => current.map((item, index) => index === checklistIndex ? { ...item, nome: e.target.value } : item))}
+                          disabled={!canEditStructure}
+                          className="flex-1 bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                          placeholder="Nome do checklist"
+                        />
+                        {canEditStructure && orderChecklistDrafts.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setOrderChecklistDrafts((current) => current.filter((_, index) => index !== checklistIndex))}
+                            className="text-red-400 border border-red-500/30 px-2 py-2"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        {checklist.items.map((item, itemIndex) => (
+                          <div key={itemIndex} className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
+                            <input
+                              type="text"
+                              value={item.descricao}
+                              onChange={(e) => setOrderChecklistDrafts((current) => current.map((currentChecklist, currentChecklistIndex) => currentChecklistIndex === checklistIndex ? {
+                                ...currentChecklist,
+                                items: currentChecklist.items.map((currentItem, currentItemIndex) => currentItemIndex === itemIndex ? { ...currentItem, descricao: e.target.value } : currentItem),
+                              } : currentChecklist))}
+                              disabled={!canEditStructure}
+                              className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                              placeholder="Descreva a atividade obrigatória ou opcional"
+                            />
+                            <label className="flex items-center gap-2 text-xs font-mono text-brand-muted uppercase">
+                              <input
+                                type="checkbox"
+                                checked={item.obrigatorio}
+                                disabled={!canEditStructure}
+                                onChange={(e) => setOrderChecklistDrafts((current) => current.map((currentChecklist, currentChecklistIndex) => currentChecklistIndex === checklistIndex ? {
+                                  ...currentChecklist,
+                                  items: currentChecklist.items.map((currentItem, currentItemIndex) => currentItemIndex === itemIndex ? { ...currentItem, obrigatorio: e.target.checked } : currentItem),
+                                } : currentChecklist))}
+                                className="accent-brand-primary"
+                              />
+                              Obrigatório
+                            </label>
+                            <label className="flex items-center gap-2 text-xs font-mono text-brand-muted uppercase">
+                              <input
+                                type="checkbox"
+                                checked={item.requer_foto}
+                                disabled={!canEditStructure}
+                                onChange={(e) => setOrderChecklistDrafts((current) => current.map((currentChecklist, currentChecklistIndex) => currentChecklistIndex === checklistIndex ? {
+                                  ...currentChecklist,
+                                  items: currentChecklist.items.map((currentItem, currentItemIndex) => currentItemIndex === itemIndex ? { ...currentItem, requer_foto: e.target.checked } : currentItem),
+                                } : currentChecklist))}
+                                className="accent-brand-primary"
+                              />
+                              Foto
+                            </label>
+                            {canEditStructure && (
+                              <button
+                                type="button"
+                                onClick={() => setOrderChecklistDrafts((current) => current.map((currentChecklist, currentChecklistIndex) => currentChecklistIndex === checklistIndex ? {
+                                  ...currentChecklist,
+                                  items: currentChecklist.items.filter((_, currentItemIndex) => currentItemIndex !== itemIndex),
+                                } : currentChecklist))}
+                                className="text-red-400 border border-red-500/30 px-2 py-2"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {canEditStructure && (
+                        <button
+                          type="button"
+                          onClick={() => setOrderChecklistDrafts((current) => current.map((item, index) => index === checklistIndex ? { ...item, items: [...item.items, createEmptyChecklistItem()] } : item))}
+                          className="border border-brand-border px-3 py-2 font-mono text-xs uppercase hover:bg-brand-card"
+                        >
+                          <Plus size={12} className="inline mr-1" /> Item
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3 pt-4 border-t border-brand-border">
@@ -778,6 +1173,9 @@ export const PreventiveMaintenancePage: React.FC = () => {
                   <span className="text-xs font-mono text-brand-muted">
                     {orderDetail.order.asset?.nome ?? orderDetail.order.infra_predial_servico ?? '—'}
                   </span>
+                  <span className="text-xs font-mono text-brand-primary">
+                    {formatMinutes(calculateElapsedMinutes(orderDetail.order))}
+                  </span>
                 </div>
               </div>
               <button onClick={() => setOrderDetail(null)} className="text-brand-muted hover:text-brand-text">
@@ -787,33 +1185,77 @@ export const PreventiveMaintenancePage: React.FC = () => {
 
             {/* Status actions */}
             <div className="flex flex-wrap gap-2">
-              {(orderDetail.order.status === 'Aberta' || orderDetail.order.status === 'Agendada' || orderDetail.order.status === 'Pausada') && (
+              {canWorkOrder && (orderDetail.order.status === 'Aberta' || orderDetail.order.status === 'Agendada' || orderDetail.order.status === 'Pausada') && (
                 <button onClick={() => orderAction(orderDetail.order.id, 'iniciar')}
                   className="bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 px-3 py-2 font-mono text-xs uppercase hover:bg-yellow-500/20">
                   <Play size={12} className="inline mr-1" /> Iniciar
                 </button>
               )}
-              {orderDetail.order.status === 'Em andamento' && (
+              {canWorkOrder && orderDetail.order.status === 'Em andamento' && (
                 <button onClick={() => orderAction(orderDetail.order.id, 'pausar')}
                   className="bg-purple-500/10 text-purple-400 border border-purple-500/30 px-3 py-2 font-mono text-xs uppercase hover:bg-purple-500/20">
                   <Pause size={12} className="inline mr-1" /> Pausar
                 </button>
               )}
-              {!['Concluída', 'Cancelada'].includes(orderDetail.order.status) && (
+              {canWorkOrder && !['Concluída', 'Cancelada'].includes(orderDetail.order.status) && (
                 <>
                   <button onClick={() => orderAction(orderDetail.order.id, 'concluir')}
                     className="bg-green-500/10 text-green-400 border border-green-500/30 px-3 py-2 font-mono text-xs uppercase hover:bg-green-500/20">
                     <CheckCircle2 size={12} className="inline mr-1" /> Concluir
                   </button>
-                  {manage && (
+                  {canEditStructure && (
                     <button onClick={() => orderAction(orderDetail.order.id, 'cancelar')}
                       className="bg-red-500/10 text-red-400 border border-red-500/30 px-3 py-2 font-mono text-xs uppercase hover:bg-red-500/20">
                       <Ban size={12} className="inline mr-1" /> Cancelar
                     </button>
                   )}
+                  {canEditStructure && orderDetail.order.status !== 'Concluída' && (
+                    <button
+                      onClick={() => deleteOrder(orderDetail.order.id)}
+                      className="bg-red-950/40 text-red-300 border border-red-700/40 px-3 py-2 font-mono text-xs uppercase hover:bg-red-950/60"
+                    >
+                      <Trash2 size={12} className="inline mr-1" /> Excluir OS
+                    </button>
+                  )}
                 </>
               )}
             </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="border border-brand-border bg-brand-dark/20 p-3">
+                <div className="text-xs font-mono uppercase text-brand-muted mb-1">Técnico</div>
+                <div className="text-sm text-brand-text">{orderDetail.order.tecnico?.nome ?? 'Não definido'}</div>
+              </div>
+              <div className="border border-brand-border bg-brand-dark/20 p-3">
+                <div className="text-xs font-mono uppercase text-brand-muted mb-1">Materiais</div>
+                <div className="text-sm text-brand-text">{orderDetail.order.materials.length} item(ns)</div>
+              </div>
+              <div className="border border-brand-border bg-brand-dark/20 p-3">
+                <div className="text-xs font-mono uppercase text-brand-muted mb-1">Fotos</div>
+                <div className="text-sm text-brand-text">{orderDetail.order.photos.length} evidência(s)</div>
+              </div>
+              <div className="border border-brand-border bg-brand-dark/20 p-3">
+                <div className="text-xs font-mono uppercase text-brand-muted mb-1">Custo acumulado</div>
+                <div className="text-sm text-brand-text">
+                  R$ {orderDetail.order.materials.reduce((sum, item) => sum + item.valor_total, 0).toFixed(2)}
+                </div>
+              </div>
+              <div className="border border-brand-border bg-brand-dark/20 p-3">
+                <div className="text-xs font-mono uppercase text-brand-muted mb-1">Validador final</div>
+                <div className="text-sm text-brand-text">{orderDetail.order.validado_por?.nome ?? 'Pendente'}</div>
+              </div>
+              <div className="border border-brand-border bg-brand-dark/20 p-3">
+                <div className="text-xs font-mono uppercase text-brand-muted mb-1">Tempo da OS</div>
+                <div className="text-sm text-brand-primary">{formatMinutes(calculateElapsedMinutes(orderDetail.order))}</div>
+              </div>
+            </div>
+
+            {orderDetail.order.observacoes && (
+              <div className="border border-brand-border bg-brand-dark/20 p-4">
+                <div className="text-xs font-mono uppercase text-brand-muted mb-2">Escopo da manutenção</div>
+                <div className="text-sm text-brand-text whitespace-pre-wrap">{orderDetail.order.observacoes}</div>
+              </div>
+            )}
 
             {/* Checklist execution */}
             {orderDetail.checklists.length > 0 && (
@@ -846,16 +1288,17 @@ export const PreventiveMaintenancePage: React.FC = () => {
                                 <input
                                   type="checkbox"
                                   checked={!!exec?.concluido}
+                                  disabled={!canWorkOrder || ['Concluída', 'Cancelada'].includes(orderDetail.order.status)}
                                   onChange={async (e) => {
                                     const checked = e.target.checked;
                                     let foto: File | undefined;
                                     if (checked && item.requer_foto) {
-                                      const input = document.createElement('input');
-                                      input.type = 'file';
-                                      input.accept = 'image/*';
-                                      input.onchange = () => { foto = input.files?.[0]; };
-                                      input.click();
-                                      await new Promise((res) => setTimeout(res, 1500));
+                                      foto = await pickChecklistPhoto();
+                                      if (!foto) {
+                                        setError(`Selecione uma foto para concluir o item obrigatório "${item.descricao}".`);
+                                        setTimeout(() => setError(null), 5000);
+                                        return;
+                                      }
                                     }
                                     try {
                                       await preventiveApi.executeChecklistItem(orderDetail.order.id, item.id, checked, undefined, foto);
@@ -883,16 +1326,64 @@ export const PreventiveMaintenancePage: React.FC = () => {
               <div className="p-3 border-b border-brand-border bg-brand-dark/20 text-xs font-mono uppercase tracking-wider text-brand-muted flex items-center">
                 <Wrench size={14} className="mr-2" /> Materiais aplicados
               </div>
+              {canWorkOrder && !['Concluída', 'Cancelada'].includes(orderDetail.order.status) && (
+                <form onSubmit={submitMaterial} className="p-3 border-b border-brand-border/60 bg-brand-card/40 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <input
+                      type="text"
+                      placeholder="Produto ou peça"
+                      value={mProduto}
+                      onChange={(e) => setMProduto(e.target.value)}
+                      className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                      required
+                    />
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      placeholder="Quantidade"
+                      value={mQuantidade}
+                      onChange={(e) => setMQuantidade(e.target.value)}
+                      className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                      required
+                    />
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      placeholder="Valor unitário"
+                      value={mValorUnitario}
+                      onChange={(e) => setMValorUnitario(e.target.value)}
+                      className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                      required
+                    />
+                    <button
+                      type="submit"
+                      className="bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono px-4 py-2 uppercase tracking-wider text-xs"
+                    >
+                      Adicionar material
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Observação do material aplicado (opcional)"
+                    value={mObservacao}
+                    onChange={(e) => setMObservacao(e.target.value)}
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                  />
+                </form>
+              )}
               <div className="divide-y divide-brand-border/60">
                 {orderDetail.order.materials.map((m) => (
                   <div key={m.id} className="p-3 flex justify-between items-center text-sm">
                     <div>
                       <div className="text-brand-text">{m.produto}</div>
                       <div className="text-xs font-mono text-brand-muted">x{m.quantidade} · R$ {m.valor_unitario.toFixed(2)}</div>
+                      {m.observacao && <div className="text-xs text-brand-muted mt-1">{m.observacao}</div>}
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="font-mono text-xs text-brand-primary">R$ {m.valor_total.toFixed(2)}</span>
-                      {manage && (
+                      {canWorkOrder && (
                         <button
                           onClick={async () => {
                             if (!window.confirm('Remover material?')) return;
@@ -918,12 +1409,49 @@ export const PreventiveMaintenancePage: React.FC = () => {
               <div className="p-3 border-b border-brand-border bg-brand-dark/20 text-xs font-mono uppercase tracking-wider text-brand-muted flex items-center">
                 <Camera size={14} className="mr-2" /> Fotos ({orderDetail.order.photos.length})
               </div>
+              {canWorkOrder && !['Concluída', 'Cancelada'].includes(orderDetail.order.status) && (
+                <form onSubmit={submitPhoto} className="p-3 border-b border-brand-border/60 bg-brand-card/40 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <select
+                      value={photoTipo}
+                      onChange={(e) => setPhotoTipo(e.target.value)}
+                      className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                    >
+                      <option value="Antes">Antes</option>
+                      <option value="Durante">Durante</option>
+                      <option value="Depois">Depois</option>
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Descrição da evidência"
+                      value={photoDescricao}
+                      onChange={(e) => setPhotoDescricao(e.target.value)}
+                      className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none md:col-span-2"
+                    />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+                      className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      className="bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono px-4 py-2 uppercase tracking-wider text-xs"
+                    >
+                      Anexar foto
+                    </button>
+                  </div>
+                </form>
+              )}
               <div className="p-3 grid grid-cols-3 gap-3">
                 {orderDetail.order.photos.map((p) => (
                   <div key={p.id} className="border border-brand-border p-2">
-                    <img src={p.caminho_arquivo} alt={p.descricao ?? 'foto'} className="w-full h-28 object-cover" />
+                    <img src={toApiFileUrl(p.caminho_arquivo)} alt={p.descricao ?? 'foto'} className="w-full h-28 object-cover" />
                     <div className="mt-1 text-xs font-mono text-brand-muted">{p.tipo}</div>
-                    {manage && (
+                    {p.descricao && <div className="text-xs text-brand-text mt-1">{p.descricao}</div>}
+                    {canWorkOrder && (
                       <button
                         onClick={async () => {
                           if (!window.confirm('Excluir foto?')) return;
@@ -937,6 +1465,9 @@ export const PreventiveMaintenancePage: React.FC = () => {
                     )}
                   </div>
                 ))}
+                {orderDetail.order.photos.length === 0 && (
+                  <div className="col-span-3 p-4 text-center text-brand-muted font-mono text-xs">Nenhuma evidência fotográfica anexada.</div>
+                )}
               </div>
             </div>
 
@@ -961,6 +1492,116 @@ export const PreventiveMaintenancePage: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {completeModal && (
+              <div className="border border-green-500/30 bg-green-500/5 p-4 space-y-4">
+                <div>
+                  <div className="text-xs font-mono uppercase tracking-wider text-green-400">Encerramento assistido da OS</div>
+                  <div className="text-sm text-brand-muted mt-1">
+                    Registre o diagnóstico, a solução aplicada e as recomendações finais antes de concluir a ordem.
+                  </div>
+                </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="border border-brand-border bg-brand-dark/20 p-3">
+                    <div className="text-xs font-mono uppercase text-brand-muted mb-1">Checklist obrigatório</div>
+                    <div className="text-sm text-brand-text">
+                      {orderDetail.checklists.flatMap((checklist) => checklist.items).filter((item) => item.obrigatorio).length === 0
+                        ? 'Sem itens obrigatórios'
+                        : `${orderDetail.checklists.flatMap((checklist) => checklist.items).filter((item) => item.obrigatorio && orderDetail.order.executions.some((execution) => execution.checklist_item_id === item.id && execution.concluido)).length}/${orderDetail.checklists.flatMap((checklist) => checklist.items).filter((item) => item.obrigatorio).length} concluídos`}
+                    </div>
+                  </div>
+                  <div className="border border-brand-border bg-brand-dark/20 p-3">
+                    <div className="text-xs font-mono uppercase text-brand-muted mb-1">Evidências fotográficas</div>
+                    <div className="text-sm text-brand-text">{orderDetail.order.photos.length} anexo(s)</div>
+                  </div>
+                  <div className="border border-brand-border bg-brand-dark/20 p-3">
+                    <div className="text-xs font-mono uppercase text-brand-muted mb-1">Custo de materiais</div>
+                    <div className="text-sm text-brand-text">
+                      R$ {orderDetail.order.materials.reduce((sum, item) => sum + item.valor_total, 0).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                <form onSubmit={submitCompletion} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Diagnóstico final *</label>
+                    <textarea
+                      required
+                      value={completionDiagnosis}
+                      onChange={(e) => setCompletionDiagnosis(e.target.value)}
+                      rows={3}
+                      className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                      placeholder="Descreva a causa encontrada e o estado do ativo no momento do atendimento."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Solução aplicada *</label>
+                    <textarea
+                      required
+                      value={completionSolution}
+                      onChange={(e) => setCompletionSolution(e.target.value)}
+                      rows={3}
+                      className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                      placeholder="Informe o procedimento executado, troca de peças, ajustes, limpeza ou atualização realizada."
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Recomendações finais</label>
+                      <textarea
+                        value={completionRecommendations}
+                        onChange={(e) => setCompletionRecommendations(e.target.value)}
+                        rows={3}
+                        className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                        placeholder="Ex.: monitorar temperatura, trocar bateria no próximo ciclo, orientar usuário..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Destino final do ativo *</label>
+                      <select
+                        value={completionAssetDestination}
+                        onChange={(e) => setCompletionAssetDestination(e.target.value)}
+                        className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none mb-3"
+                      >
+                        <option value="Disponível">Liberado para uso / Disponível</option>
+                        <option value="Armazenado">Armazenado após manutenção</option>
+                        <option value="Manutenção">Manter em manutenção / nova intervenção</option>
+                      </select>
+                      <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Custo adicional extra (R$)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={completionExtraCost}
+                        onChange={(e) => setCompletionExtraCost(e.target.value)}
+                        className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                        placeholder="0,00"
+                      />
+                      <p className="text-xs text-brand-muted mt-2">
+                        O sistema soma esse valor ao custo já registrado em materiais e atualiza o status do ativo no encerramento.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setCompleteModal(false)}
+                      className="border border-brand-border hover:bg-brand-card px-4 py-2 font-mono text-xs uppercase"
+                    >
+                      Voltar
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono px-4 py-2 uppercase tracking-wider text-xs"
+                    >
+                      Confirmar encerramento
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}

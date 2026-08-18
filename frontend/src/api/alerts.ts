@@ -10,6 +10,9 @@ export const alertsApi = {
     const response = await apiClient.get<EmergencyAlert[]>('/alertas/historico');
     return response.data;
   },
+  markCiente: async (alertId: number): Promise<void> => {
+    await apiClient.post(`/alertas/${alertId}/ciente`);
+  },
   markAtendido: async (alertId: number): Promise<void> => {
     await apiClient.post(`/alertas/${alertId}/atender`);
   },

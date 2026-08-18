@@ -21,6 +21,7 @@ import {
 export const BorrowingsPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
   const isManagerOrAbove = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'].includes(currentUser?.role?.toLowerCase() || '');
+  const canProcessReturn = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'rh'].includes(currentUser?.role?.toLowerCase() || '');
 
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -38,6 +39,10 @@ export const BorrowingsPage: React.FC = () => {
 
   // QR Handover modal integration
   const [showQRModal, setShowQRModal] = useState(false);
+  const [returningItem, setReturningItem] = useState<Solicitacao | null>(null);
+  const [returnCondition, setReturnCondition] = useState('Integro e funcional');
+  const [returnedAccessories, setReturnedAccessories] = useState('Carregador');
+  const [returnNotes, setReturnNotes] = useState('');
 
   useEffect(() => {
     fetchSolicitacoes();
@@ -119,19 +124,47 @@ export const BorrowingsPage: React.FC = () => {
     }
   };
 
-  const handleDevolve = async (assetId: number) => {
-    const sol = solicitacoes.find(s => s.asset_id === assetId && s.status === 'entregue');
-    const isAssetBlocked = sol?.asset?.bloqueado;
+  const openReturnModal = (item: Solicitacao) => {
+    setReturningItem(item);
+    setReturnCondition('Integro e funcional');
+    setReturnedAccessories('Carregador');
+    setReturnNotes('');
+  };
 
-    let confirmationMessage = 'Confirmar a devolução deste equipamento? Ele retornará ao inventário geral.';
-    if (isAssetBlocked) {
-      confirmationMessage = 'ATENÇÃO: Este equipamento é um Ativo Fixo (Bloqueado/Em uso corporativo). A devolução exige confirmação adicional da auditoria de TI. Confirma que a auditoria física foi concluída e o ativo deve retornar ao estado Bloqueado?';
+  const closeReturnModal = () => {
+    setReturningItem(null);
+    setReturnCondition('Integro e funcional');
+    setReturnedAccessories('Carregador');
+    setReturnNotes('');
+  };
+
+  const handleConfirmReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!returningItem?.asset_id) return;
+
+    const condition = returnCondition.trim();
+    const accessories = returnedAccessories.trim();
+    const notes = returnNotes.trim();
+
+    if (!condition || !accessories) {
+      setError('Preencha a condição do equipamento e os acessórios devolvidos.');
+      return;
     }
 
+    const isAssetBlocked = returningItem.asset?.bloqueado;
+    let confirmationMessage = 'Confirmar a devolução deste equipamento? Ele retornará ao inventário geral.';
+    if (isAssetBlocked) {
+      confirmationMessage = 'ATENÇÃO: Este equipamento é um Ativo Fixo (Bloqueado/Em uso corporativo). Confirme que a conferência física foi concluída e o ativo deve voltar ao estado corporativo controlado.';
+    }
     if (!window.confirm(confirmationMessage)) return;
-    
+
     try {
-      await transactionApi.devolverAsset(assetId);
+      await transactionApi.devolverAsset(returningItem.asset_id, {
+        condicao_equipamento: condition,
+        acessorios_devolvidos: accessories,
+        observacoes_adicionais: notes || undefined,
+      });
+      closeReturnModal();
       fetchSolicitacoes();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erro ao registrar devolução.');
@@ -156,6 +189,8 @@ export const BorrowingsPage: React.FC = () => {
 
   // Filter list
   const filteredSolicitacoes = solicitacoes.filter(s => {
+    const status = s.status?.toLowerCase() || '';
+    if (!statusFilter && status === 'devolvida') return false;
     if (statusFilter && s.status?.toLowerCase() !== statusFilter.toLowerCase()) return false;
     return true;
   });
@@ -271,7 +306,40 @@ export const BorrowingsPage: React.FC = () => {
                         <span>Prev. Retorno: {new Date(item.data_prevista_devolucao).toLocaleDateString('pt-BR')}</span>
                       </div>
                     )}
+                    {st === 'devolvida' && item.data_devolucao && (
+                      <div className="flex items-center space-x-1 text-brand-primary/80">
+                        <Check size={12} />
+                        <span>Recebido em: {new Date(item.data_devolucao).toLocaleDateString('pt-BR')}</span>
+                      </div>
+                    )}
                   </div>
+
+                  {st === 'devolvida' && (
+                    <div className="text-xs text-brand-muted bg-brand-dark/40 p-3 border border-brand-border/40 space-y-1">
+                      <div>
+                        Recebido por: <span className="text-brand-text">{item.recebedor?.nome || 'Registro interno'}</span>
+                      </div>
+                      {item.condicao_devolucao ? (
+                        <div>
+                          Condição do recebimento: <span className="text-brand-text">{item.condicao_devolucao}</span>
+                        </div>
+                      ) : item.observacao_devolucao ? (
+                        <div>
+                          Condição do recebimento: <span className="text-brand-text">{item.observacao_devolucao}</span>
+                        </div>
+                      ) : null}
+                      {item.acessorios_devolvidos && (
+                        <div>
+                          Acessórios devolvidos: <span className="text-brand-text">{item.acessorios_devolvidos}</span>
+                        </div>
+                      )}
+                      {item.observacoes_devolucao && (
+                        <div>
+                          Observações adicionais: <span className="text-brand-text">{item.observacoes_devolucao}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Action buttons */}
@@ -314,9 +382,9 @@ export const BorrowingsPage: React.FC = () => {
                     </>
                   )}
 
-                  {st === 'entregue' && item.asset_id && (
+                  {canProcessReturn && st === 'entregue' && item.asset_id && (
                     <button
-                      onClick={() => handleDevolve(item.asset_id!)}
+                      onClick={() => openReturnModal(item)}
                       className="w-full py-1.5 bg-brand-muted/10 border border-brand-border hover:bg-brand-primary hover:text-brand-dark text-brand-text text-xs font-semibold flex items-center justify-center space-x-1 transition-all"
                     >
                       <Undo2 size={14} />
@@ -403,6 +471,85 @@ export const BorrowingsPage: React.FC = () => {
                   className="flex-1 py-2 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark font-semibold text-sm transition-all"
                 >
                   Enviar Solicitação
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {returningItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-dark/80 backdrop-blur-md">
+          <div className="w-full max-w-lg bg-brand-card border border-brand-border shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border bg-brand-dark/50">
+              <div>
+                <h3 className="font-semibold text-lg text-brand-text">Registrar Devolução</h3>
+                <p className="text-xs text-brand-muted mt-1">
+                  {returningItem.asset?.nome || 'Equipamento'}{returningItem.asset?.e_patrimonio ? ` · EP ${returningItem.asset.e_patrimonio}` : ''}
+                </p>
+              </div>
+              <button onClick={closeReturnModal} className="text-brand-muted hover:text-brand-text">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmReturn} className="p-6 space-y-4">
+              <div className="p-4 border border-brand-primary/20 bg-brand-primary/5 text-xs text-brand-muted space-y-1">
+                <div>Solicitante: <span className="text-brand-text">{returningItem.solicitante?.nome || 'Usuário'}</span></div>
+                <div>Motivo do empréstimo: <span className="text-brand-text">{returningItem.motivo}</span></div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-brand-muted">Condição do Equipamento no Recebimento</label>
+                <select
+                  value={returnCondition}
+                  onChange={(e) => setReturnCondition(e.target.value)}
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                >
+                  <option>Integro e funcional</option>
+                  <option>Com desgaste de uso, mas funcional</option>
+                  <option>Com avarias leves</option>
+                  <option>Com defeito funcional</option>
+                  <option>Incompleto / faltando acessorios</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-brand-muted">Acessórios Devolvidos</label>
+                <input
+                  type="text"
+                  required
+                  value={returnedAccessories}
+                  onChange={(e) => setReturnedAccessories(e.target.value)}
+                  placeholder="Ex.: carregador, mouse, mochila"
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm focus:outline-none focus:border-brand-primary text-brand-text placeholder-brand-muted/30"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-brand-muted">Observações Adicionais</label>
+                <textarea
+                  value={returnNotes}
+                  onChange={(e) => setReturnNotes(e.target.value)}
+                  rows={4}
+                  placeholder="Ex.: carcaça com risco lateral, recebido por RH sem caixa, encaminhar para limpeza..."
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm focus:outline-none focus:border-brand-primary text-brand-text placeholder-brand-muted/30 resize-none"
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeReturnModal}
+                  className="w-1/3 py-2 bg-brand-dark border border-brand-border hover:bg-brand-card text-brand-muted text-sm transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark font-semibold text-sm transition-all"
+                >
+                  Confirmar Devolução
                 </button>
               </div>
             </form>

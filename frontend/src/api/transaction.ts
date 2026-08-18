@@ -21,8 +21,15 @@ export const transactionApi = {
   },
 
   // Devolution
-  devolverAsset: async (assetId: number): Promise<{ message: string }> => {
-    const response = await apiClient.post<{ message: string }>(`/movimentacoes/devolver/${assetId}`);
+  devolverAsset: async (
+    assetId: number,
+    data: {
+      condicao_equipamento: string;
+      acessorios_devolvidos: string;
+      observacoes_adicionais?: string;
+    }
+  ): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>(`/movimentacoes/devolver/${assetId}`, data);
     return response.data;
   },
 };

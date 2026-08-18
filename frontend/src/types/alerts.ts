@@ -5,9 +5,13 @@ export interface EmergencyAlert {
   setor_nome?: string;
   ativo_nome?: string;
   motivo: string;
+  ciente: boolean;
+  ciente_por_id?: number;
+  ciente_em?: string;
   atendido: boolean;
   atendido_por_id?: number;
   created_at: string;
+  ciente_por?: { id: number; nome: string };
   atendido_por?: { id: number; nome: string };
 }
 

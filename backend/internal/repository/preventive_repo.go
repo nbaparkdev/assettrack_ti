@@ -84,7 +84,14 @@ func NewPMChecklistRepository(db *gorm.DB) *PMChecklistRepository {
 func (r *PMChecklistRepository) ListByPlan(planID uint) ([]models.MaintenanceChecklist, error) {
 	var checklists []models.MaintenanceChecklist
 	err := r.db.Preload("Items", func(db *gorm.DB) *gorm.DB { return db.Order("ordem asc") }).
-		Where("plan_id = ?", planID).Order("ordem asc").Find(&checklists).Error
+		Where("plan_id = ? AND order_id IS NULL", planID).Order("ordem asc").Find(&checklists).Error
+	return checklists, err
+}
+
+func (r *PMChecklistRepository) ListByOrder(orderID uint) ([]models.MaintenanceChecklist, error) {
+	var checklists []models.MaintenanceChecklist
+	err := r.db.Preload("Items", func(db *gorm.DB) *gorm.DB { return db.Order("ordem asc") }).
+		Where("order_id = ?", orderID).Order("ordem asc").Find(&checklists).Error
 	return checklists, err
 }
 
@@ -109,6 +116,18 @@ func (r *PMChecklistRepository) Create(c *models.MaintenanceChecklist) error {
 
 func (r *PMChecklistRepository) Delete(id uint) error {
 	return r.db.Delete(&models.MaintenanceChecklist{}, id).Error
+}
+
+func (r *PMChecklistRepository) DeleteByOrder(tx *gorm.DB, orderID uint) error {
+	db := r.db
+	if tx != nil {
+		db = tx
+	}
+	subQuery := db.Model(&models.MaintenanceChecklist{}).Select("id").Where("order_id = ?", orderID)
+	if err := db.Where("checklist_id IN (?)", subQuery).Delete(&models.MaintenanceChecklistItem{}).Error; err != nil {
+		return err
+	}
+	return db.Where("order_id = ?", orderID).Delete(&models.MaintenanceChecklist{}).Error
 }
 
 // ---------- Checklist Items ----------
@@ -137,7 +156,7 @@ func (r *PMChecklistItemRepository) Delete(id uint) error {
 
 func (r *PMChecklistItemRepository) GetByID(id uint) (*models.MaintenanceChecklistItem, error) {
 	var item models.MaintenanceChecklistItem
-	err := r.db.First(&item, id).Error
+	err := r.db.Preload("Checklist").First(&item, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +202,10 @@ func NewPMOrderRepository(db *gorm.DB) *PMOrderRepository {
 
 func (r *PMOrderRepository) List(status string, skip, limit int) ([]models.MaintenanceOrder, error) {
 	var orders []models.MaintenanceOrder
-	q := r.db.Preload("Asset").Preload("Tecnico").Preload("Plan")
+	q := r.db.Preload("Asset").Preload("Tecnico").Preload("Plan").
+		Preload("Checklists", func(db *gorm.DB) *gorm.DB { return db.Order("ordem asc") }).
+		Preload("Checklists.Items", func(db *gorm.DB) *gorm.DB { return db.Order("ordem asc") }).
+		Preload("Executions")
 	if status != "" {
 		q = q.Where("status = ?", status)
 	}
@@ -194,6 +216,8 @@ func (r *PMOrderRepository) List(status string, skip, limit int) ([]models.Maint
 func (r *PMOrderRepository) GetByID(id uint) (*models.MaintenanceOrder, error) {
 	var order models.MaintenanceOrder
 	err := r.db.Preload("Asset").Preload("Tecnico").Preload("Plan").
+		Preload("Checklists", func(db *gorm.DB) *gorm.DB { return db.Order("ordem asc") }).
+		Preload("Checklists.Items", func(db *gorm.DB) *gorm.DB { return db.Order("ordem asc") }).
 		Preload("Executions.ChecklistItem").
 		Preload("Materials").
 		Preload("Photos").

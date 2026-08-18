@@ -21,6 +21,7 @@ const (
 	StatusSolicitacaoPendente  StatusSolicitacao = "Pendente"
 	StatusSolicitacaoAprovada  StatusSolicitacao = "Aprovada"
 	StatusSolicitacaoEntregue  StatusSolicitacao = "Entregue"
+	StatusSolicitacaoDevolvida StatusSolicitacao = "Devolvida"
 	StatusSolicitacaoRejeitada StatusSolicitacao = "Rejeitada"
 	StatusSolicitacaoCancelada StatusSolicitacao = "Cancelada"
 )
@@ -57,10 +58,17 @@ type Solicitacao struct {
 	ConfirmadoPorID       *uint             `gorm:"column:confirmado_por_id" json:"confirmado_por_id"`
 	ConfirmadoViaQR       *bool             `gorm:"column:confirmado_via_qr;default:false" json:"confirmado_via_qr"`
 	ObservacaoEntrega     *string           `gorm:"column:observacao_entrega;type:text" json:"observacao_entrega"`
+	DataDevolucao         *time.Time        `gorm:"column:data_devolucao" json:"data_devolucao"`
+	RecebidoPorID         *uint             `gorm:"column:recebido_por_id" json:"recebido_por_id"`
+	CondicaoDevolucao     *string           `gorm:"column:condicao_devolucao;type:text" json:"condicao_devolucao"`
+	AcessoriosDevolvidos  *string           `gorm:"column:acessorios_devolvidos;type:text" json:"acessorios_devolvidos"`
+	ObservacoesDevolucao  *string           `gorm:"column:observacoes_devolucao;type:text" json:"observacoes_devolucao"`
+	ObservacaoDevolucao   *string           `gorm:"column:observacao_devolucao;type:text" json:"observacao_devolucao"`
 
 	Solicitante *User  `gorm:"foreignKey:SolicitanteID" json:"solicitante,omitempty"`
 	Aprovador   *User  `gorm:"foreignKey:AprovadorID" json:"aprovador,omitempty"`
 	Confirmador *User  `gorm:"foreignKey:ConfirmadoPorID" json:"confirmador,omitempty"`
+	Recebedor   *User  `gorm:"foreignKey:RecebidoPorID" json:"recebedor,omitempty"`
 	Asset       *Asset `gorm:"foreignKey:AssetID" json:"asset,omitempty"`
 }
 
