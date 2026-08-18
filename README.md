@@ -1,6 +1,8 @@
 
 # README - AssetTrack TI
 
+![AssetTrack TI Banner](./docs/images/readme-hero-v2.0.1.png)
+
 Sistema de Controle de Ativos de TI com backend em Go (Gin + GORM), frontend em React + Vite, PostgreSQL e Redis.
 
 [Consulte os Requisitos do Sistema aqui](./REQUIREMENTS.md) | [Política de Segurança](./SECURITY.md) | [Licença](./LICENSE)
