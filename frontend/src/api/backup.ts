@@ -35,6 +35,7 @@ export const backupApi = {
   restore: async (file: File): Promise<{ message: string }> => {
     const formData = new FormData();
     formData.append('backup_file', file);
+    formData.append('restore_confirmation', 'RESTAURAR');
 
     const res = await api.post<{ message: string }>('/backups/restore', formData, {
       headers: {

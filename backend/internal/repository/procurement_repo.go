@@ -361,6 +361,12 @@ func (r *ProcurementOrderRepository) Create(item *models.PurchaseOrder) error {
 	return r.db.Create(item).Error
 }
 
+func (r *ProcurementOrderRepository) ExistsForQuotation(quotationID uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.PurchaseOrder{}).Where("quotation_id = ?", quotationID).Count(&count).Error
+	return count > 0, err
+}
+
 func (r *ProcurementOrderRepository) Update(item *models.PurchaseOrder) error {
 	return r.db.Save(item).Error
 }
@@ -407,6 +413,15 @@ func (r *ProcurementReceivingRepository) GetByID(id uint) (*models.PurchaseRecei
 		return nil, err
 	}
 	return &item, nil
+}
+
+func (r *ProcurementReceivingRepository) ReceivedQuantity(orderID, productID uint) (float64, error) {
+	var total float64
+	err := r.db.Model(&models.PurchaseReceivingItem{}).
+		Joins("JOIN purchase_receivings ON purchase_receivings.id = purchase_receiving_items.receiving_id").
+		Where("purchase_receivings.order_id = ? AND purchase_receiving_items.product_id = ?", orderID, productID).
+		Select("COALESCE(SUM(purchase_receiving_items.quantidade_recebida), 0)").Scan(&total).Error
+	return total, err
 }
 
 // ---------- Stock ----------

@@ -1557,7 +1557,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
               {canWorkOrder && !['Concluída', 'Cancelada'].includes(orderDetail.order.status) && (
                 <>
                   <button onClick={() => orderAction(orderDetail.order.id, 'concluir')}
-                    className="bg-green-500/10 text-green-400 border border-green-500/30 px-3 py-2 font-mono text-xs uppercase hover:bg-green-500/20">
+                    className="bg-[#3d7eff] text-[#fafafa] border border-[#3d7eff]/70 px-3 py-2 font-mono text-xs uppercase opacity-[0.86] hover:bg-[#2f6ee8]">
                     <CheckCircle2 size={12} className="inline mr-1" /> Concluir
                   </button>
                   {canEditStructure && (

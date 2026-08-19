@@ -228,8 +228,8 @@ export const ProcurementPage: React.FC = () => {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`px-4 py-2.5 font-mono text-xs uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${
-              tab === key ? 'border-brand-primary text-brand-primary' : 'border-transparent text-brand-muted hover:text-brand-text'
+            className={`px-4 py-2.5 font-mono text-xs uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap bg-white text-[#000205] opacity-[0.38] hover:opacity-60 ${
+              tab === key ? 'border-brand-primary' : 'border-transparent'
             }`}
           >
             {label}

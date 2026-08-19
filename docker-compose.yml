@@ -55,6 +55,7 @@ services:
         condition: service_healthy
     volumes:
       - uploads_data:/app/uploads
+      - backups_data:/app/backups
 
   web:
     build:
@@ -74,3 +75,4 @@ volumes:
   postgres_data:
   redis_data:
   uploads_data:
+  backups_data:

@@ -662,6 +662,10 @@ func (h *ProcurementHandler) CreateQuotation(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Solicitação não encontrada"})
 		return
 	}
+	if req.Status != models.PRStatusAprovada || len(in.Suppliers) < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A cotação exige uma solicitação aprovada e ao menos um fornecedor"})
+		return
+	}
 	num, err := h.quotationRepo.GenerateQuotationNumber(time.Now())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -767,6 +771,13 @@ func (h *ProcurementHandler) SelectWinner(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if exists, err := h.orderRepo.ExistsForQuotation(uint(quotationID)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	} else if exists {
+		c.JSON(http.StatusConflict, gin.H{"error": "Esta cotação já possui um pedido de compra emitido"})
+		return
+	}
 	winner, err := h.quotationRepo.GetSupplierByID(in.WinnerSupplierID)
 	if err != nil || winner.QuotationID != uint(quotationID) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Fornecedor cotado não encontrado"})
@@ -778,6 +789,10 @@ func (h *ProcurementHandler) SelectWinner(c *gin.Context) {
 	quotation, err := h.quotationRepo.GetByID(uint(quotationID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Cotação não encontrada"})
+		return
+	}
+	if quotation.Status != models.QuotationEmCotacao {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A cotação não está disponível para seleção"})
 		return
 	}
 	quotation.Status = models.QuotationFinalizada
@@ -862,6 +877,15 @@ func (h *ProcurementHandler) CreateOrder(c *gin.Context) {
 	if in.FornecedorID == 0 || in.CentroCustoID == 0 || len(in.Itens) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Fornecedor, centro de custo e ao menos um item são obrigatórios"})
 		return
+	}
+	if in.QuotationID != nil {
+		if exists, err := h.orderRepo.ExistsForQuotation(*in.QuotationID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		} else if exists {
+			c.JSON(http.StatusConflict, gin.H{"error": "Esta cotação já possui um pedido de compra emitido"})
+			return
+		}
 	}
 	var total float64
 	for _, it := range in.Itens {
@@ -955,6 +979,19 @@ func (h *ProcurementHandler) ReceiveOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Informe ao menos um item recebido"})
 		return
 	}
+	ordered := make(map[uint]float64)
+	for _, item := range order.Itens { ordered[item.ProductID] += item.Quantidade }
+	for _, item := range in.Itens {
+		if item.ProductID == 0 || item.QuantidadeRecebida <= 0 || ordered[item.ProductID] == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Item de recebimento não pertence ao pedido ou possui quantidade inválida"})
+			return
+		}
+		received, err := h.receivingRepo.ReceivedQuantity(order.ID, item.ProductID)
+		if err != nil || received+item.QuantidadeRecebida > ordered[item.ProductID] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Quantidade recebida excede o saldo pendente do pedido"})
+			return
+		}
+	}
 
 	receiving := &models.PurchaseReceiving{
 		OrderID:         order.ID,
@@ -983,8 +1020,13 @@ func (h *ProcurementHandler) ReceiveOrder(c *gin.Context) {
 	// Trigger asset creation & stock addition
 	createdAssets := h.convertReceivingToAssets(receiving, order, user.ID, in.CurrentLocalID, in.CurrentArmazenamentoID)
 
-	// Update order status to fully received
-	order.Status = models.POStatusRecebidoTotal
+	fullyReceived := true
+	for productID, quantity := range ordered {
+		received, _ := h.receivingRepo.ReceivedQuantity(order.ID, productID)
+		for _, item := range in.Itens { if item.ProductID == productID { received += item.QuantidadeRecebida } }
+		if received < quantity { fullyReceived = false; break }
+	}
+	if fullyReceived { order.Status = models.POStatusRecebidoTotal } else { order.Status = models.POStatusRecebidoParcial }
 	_ = h.orderRepo.Update(order)
 	h.logHistory("purchase_receivings", receiving.ID, user.ID, "Recebimento Registrado")
 

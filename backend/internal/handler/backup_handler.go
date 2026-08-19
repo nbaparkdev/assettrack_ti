@@ -170,7 +170,7 @@ func (h *BackupHandler) List(c *gin.Context) {
 	}
 
 	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".zip") {
+		if !e.IsDir() && (strings.HasSuffix(e.Name(), ".zip") || strings.HasSuffix(e.Name(), ".sql")) {
 			info, err := e.Info()
 			if err == nil {
 				files = append(files, BackupFile{
@@ -205,7 +205,11 @@ func (h *BackupHandler) Download(c *gin.Context) {
 	}
 
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	c.Header("Content-Type", "application/zip")
+	if strings.HasSuffix(filename, ".sql") {
+		c.Header("Content-Type", "application/sql")
+	} else {
+		c.Header("Content-Type", "application/zip")
+	}
 	c.File(path)
 }
 
@@ -228,6 +232,11 @@ func (h *BackupHandler) Delete(c *gin.Context) {
 
 // Restore receives a .zip and restores DB and uploads
 func (h *BackupHandler) Restore(c *gin.Context) {
+	if c.PostForm("restore_confirmation") != "RESTAURAR" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Confirmação de restauração inválida"})
+		return
+	}
+
 	fileHeader, err := c.FormFile("backup_file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Arquivo não fornecido"})
@@ -236,6 +245,10 @@ func (h *BackupHandler) Restore(c *gin.Context) {
 
 	if !strings.HasSuffix(fileHeader.Filename, ".zip") {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Envie um arquivo .zip válido"})
+		return
+	}
+	if fileHeader.Size > 1024*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "O backup excede o limite de 1 GB"})
 		return
 	}
 
@@ -255,12 +268,74 @@ func (h *BackupHandler) Restore(c *gin.Context) {
 	}
 	defer zipReader.Close()
 
-	// Locate database.sql and run psql
+	// Validate the archive before changing the database or filesystem.
 	hasDB := false
 	for _, f := range zipReader.File {
-		if f.Name == "database.sql" {
+		cleanName := filepath.Clean(f.Name)
+		if cleanName == "database.sql" {
 			hasDB = true
-			
+			continue
+		}
+		if !strings.HasPrefix(cleanName, "uploads"+string(os.PathSeparator)) || strings.HasPrefix(cleanName, "..") || filepath.IsAbs(cleanName) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "O ZIP contém um caminho inválido"})
+			return
+		}
+	}
+	if !hasDB {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "O arquivo ZIP não contém database.sql"})
+		return
+	}
+
+	// Preserve the current database before any destructive operation.
+	timestamp := time.Now().Format("20060102_150405")
+	safetyPath := filepath.Join("backups", "pre_restore_database_"+timestamp+".sql")
+	backupCmd := exec.Command("pg_dump", "--clean", "--if-exists", "--no-owner", "--no-privileges", "--inserts", h.cfg.DatabaseURL)
+	safetyFile, err := os.Create(safetyPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Não foi possível criar o backup de segurança"})
+		return
+	}
+	backupCmd.Stdout = safetyFile
+	var backupErr bytes.Buffer
+	backupCmd.Stderr = &backupErr
+	if err := backupCmd.Run(); err != nil {
+		safetyFile.Close()
+		os.Remove(safetyPath)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Não foi possível gerar o backup de segurança: " + backupErr.String()})
+		return
+	}
+	safetyFile.Close()
+	// Package the safety dump in the standard restore format so it can be
+	// downloaded and restored later from the same Backup & Restore screen.
+	safetyArchivePath := strings.TrimSuffix(safetyPath, ".sql") + ".zip"
+	safetyArchive, err := os.Create(safetyArchivePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Não foi possível empacotar o backup de segurança"})
+		return
+	}
+	zipWriter := zip.NewWriter(safetyArchive)
+	entry, err := zipWriter.Create("database.sql")
+	if err == nil {
+		var safetySource *os.File
+		safetySource, err = os.Open(safetyPath)
+		if err == nil {
+			_, err = io.Copy(entry, safetySource)
+			safetySource.Close()
+		}
+	}
+	zipWriter.Close()
+	safetyArchive.Close()
+	if err != nil {
+		os.Remove(safetyArchivePath)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Não foi possível empacotar o backup de segurança"})
+		return
+	}
+	os.Remove(safetyPath)
+	safetyPath = safetyArchivePath
+
+	// Restore database first. Media is only extracted after the SQL succeeds.
+	for _, f := range zipReader.File {
+		if f.Name == "database.sql" {
 			// Extract to temp file
 			tmpSqlPath := filepath.Join("backups", "restore_db.sql")
 			dst, err := os.Create(tmpSqlPath)
@@ -269,13 +344,46 @@ func (h *BackupHandler) Restore(c *gin.Context) {
 				return
 			}
 			src, _ := f.Open()
-			io.Copy(dst, src)
+			sqlBytes, readErr := io.ReadAll(src)
 			src.Close()
+			if readErr != nil {
+				dst.Close()
+				os.Remove(tmpSqlPath)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao ler database.sql"})
+				return
+			}
+			// Legacy releases used this relation name. The current Kanban model
+			// stores the same card/user mapping in kanban_card_participantes.
+			sqlBytes = []byte(strings.ReplaceAll(string(sqlBytes), "kanban_card_assignees", "kanban_card_participantes"))
+			sqlBytes = []byte(strings.ReplaceAll(string(sqlBytes), "kanban_project_participants", "kanban_project_participantes"))
+			sqlBytes = []byte(strings.ReplaceAll(string(sqlBytes), `INSERT INTO "kanban_project_participantes" ("project_id", "user_id")`, `INSERT INTO "kanban_project_participantes" ("kanban_project_id", "user_id")`))
+			sqlBytes = []byte(strings.ReplaceAll(string(sqlBytes), `INSERT INTO "kanban_card_participantes" ("card_id", "user_id")`, `INSERT INTO "kanban_card_participantes" ("kanban_card_id", "user_id")`))
+			// The responsibility-term timestamp was renamed in the current schema.
+			sqlBytes = []byte(strings.ReplaceAll(string(sqlBytes), `"conteudo_termo", "data_criacao", "data_assinatura"`, `"conteudo_termo", "data_geracao", "data_assinatura"`))
+			// Legacy role values were stored in upper case; normalize them to the
+			// role constants used by the current authorization middleware.
+			sqlBytes = []byte(strings.NewReplacer(
+				"'ADMIN'", "'admin'",
+				"'GERENTE'", "'gerente_ti'",
+				"'USUARIO'", "'usuario_comum'",
+				"'COMPRADOR'", "'comprador'",
+				"'RH'", "'rh'",
+			).Replace(string(sqlBytes)))
+			dst.Write(sqlBytes)
 			dst.Close()
 
-			// Run psql to restore
-			// Note: Requires psql client installed
-			cmd := exec.Command("psql", h.cfg.DatabaseURL, "-f", tmpSqlPath)
+			// Legacy backups contain INSERT statements only. Clear the current schema first
+			// so a restore is deterministic rather than a partial merge with key conflicts.
+			truncateCmd := exec.Command("psql", h.cfg.DatabaseURL, "-v", "ON_ERROR_STOP=1", "-c", "DO $$ DECLARE tables text; BEGIN SELECT string_agg(format('%I.%I', schemaname, tablename), ', ') INTO tables FROM pg_tables WHERE schemaname = 'public'; IF tables IS NOT NULL THEN EXECUTE 'TRUNCATE TABLE ' || tables || ' RESTART IDENTITY CASCADE'; END IF; END $$;")
+			var truncateErr bytes.Buffer
+			truncateCmd.Stderr = &truncateErr
+			if err := truncateCmd.Run(); err != nil {
+				os.Remove(tmpSqlPath)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao preparar banco para restauração: " + truncateErr.String()})
+				return
+			}
+
+			cmd := exec.Command("psql", h.cfg.DatabaseURL, "-v", "ON_ERROR_STOP=1", "-f", tmpSqlPath)
 			var stderr bytes.Buffer
 			cmd.Stderr = &stderr
 			if err := cmd.Run(); err != nil {
@@ -284,31 +392,20 @@ func (h *BackupHandler) Restore(c *gin.Context) {
 				return
 			}
 			os.Remove(tmpSqlPath)
-		} else if strings.HasPrefix(f.Name, "uploads/") {
-			// Extract uploads files
-			targetPath := filepath.Join(".", f.Name) // already contains "uploads/" prefix
-			if strings.Contains(targetPath, "..") { continue } // Prevent traversal
-			
-			if f.FileInfo().IsDir() {
-				os.MkdirAll(targetPath, os.ModePerm)
-				continue
-			}
-			
-			os.MkdirAll(filepath.Dir(targetPath), os.ModePerm)
-			dst, err := os.Create(targetPath)
-			if err == nil {
-				src, _ := f.Open()
-				io.Copy(dst, src)
-				src.Close()
-				dst.Close()
-			}
 		}
 	}
 
-	if !hasDB {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "O arquivo ZIP não contém database.sql"})
-		return
+	for _, f := range zipReader.File {
+		if !strings.HasPrefix(f.Name, "uploads/") { continue }
+		targetPath := filepath.Join(".", filepath.Clean(f.Name))
+		if f.FileInfo().IsDir() { os.MkdirAll(targetPath, os.ModePerm); continue }
+		os.MkdirAll(filepath.Dir(targetPath), os.ModePerm)
+		dst, err := os.Create(targetPath)
+		if err != nil { continue }
+		src, err := f.Open()
+		if err == nil { io.Copy(dst, src); src.Close() }
+		dst.Close()
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Sistema restaurado com sucesso! Recomendamos reiniciar os serviços."})
+	c.JSON(http.StatusOK, gin.H{"message": "Sistema restaurado com sucesso. Backup de segurança do banco: " + filepath.Base(safetyPath) + ". Recomendamos reiniciar os serviços."})
 }

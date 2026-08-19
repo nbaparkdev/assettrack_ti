@@ -10,6 +10,9 @@ export const BackupPage: React.FC = () => {
   const [status, setStatus] = useState<BackupStatus>({ is_running: false, progress: '' });
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreText, setRestoreText] = useState('');
+  const [restoreError, setRestoreError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -72,22 +75,31 @@ export const BackupPage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!window.confirm('ATENÇÃO: A restauração substituirá todos os dados atuais do sistema! O banco de dados será sobreescrito com as informações do backup. Deseja prosseguir?')) {
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
+    setRestoreFile(file);
+    setRestoreText('');
+    setRestoreError(null);
+  };
 
+  const closeRestoreDialog = () => {
+    if (uploading) return;
+    setRestoreFile(null);
+    setRestoreText('');
+    setRestoreError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleRestore = async () => {
+    if (!restoreFile || restoreText !== 'RESTAURAR') return;
     setUploading(true);
     try {
-      const res = await backupApi.restore(file);
+      const res = await backupApi.restore(restoreFile);
       alert(res.message);
       // Force reload page to clear state and re-authenticate
       window.location.reload();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Erro fatal ao restaurar backup');
+      setRestoreError(err.response?.data?.error || 'Não foi possível restaurar o backup.');
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -219,6 +231,28 @@ export const BackupPage: React.FC = () => {
           Recomenda-se realizar o download dos arquivos de backup e guardá-los em um local seguro (ex: Google Drive, S3).
         </p>
       </div>
+
+      {restoreFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 text-brand-text shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-red-500/10 p-3 text-red-500"><AlertTriangle size={24} /></div>
+              <div>
+                <h2 className="text-lg font-bold">Confirmar restauração</h2>
+                <p className="mt-1 text-sm text-brand-muted">Arquivo selecionado: <strong className="text-brand-text break-all">{restoreFile.name}</strong></p>
+              </div>
+            </div>
+            <p className="mt-5 text-sm text-brand-muted">Todos os dados atuais serão substituídos. Um backup de segurança será criado antes da operação.</p>
+            <label className="mt-5 block text-xs font-semibold uppercase tracking-wide text-brand-muted" htmlFor="restore-confirmation">Digite RESTAURAR para confirmar</label>
+            <input id="restore-confirmation" value={restoreText} onChange={(e) => setRestoreText(e.target.value)} className="mt-2 w-full rounded-xl border border-brand-border px-3 py-2 text-sm text-brand-text" autoComplete="off" />
+            {restoreError && <p className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm text-red-600">{restoreError}</p>}
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={closeRestoreDialog} disabled={uploading} className="border border-brand-border px-4 py-2 text-sm text-brand-muted">Cancelar</button>
+              <button onClick={handleRestore} disabled={restoreText !== 'RESTAURAR' || uploading} className="bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{uploading ? 'Restaurando...' : 'Restaurar agora'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
