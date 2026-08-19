@@ -457,6 +457,69 @@ func (h *KanbanHandler) AddColumn(c *gin.Context) {
 	c.JSON(http.StatusCreated, col)
 }
 
+func (h *KanbanHandler) UpdateColumn(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	columnID, err := strconv.ParseUint(c.Param("columnId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	col, err := h.columnRepo.GetByID(uint(columnID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Coluna não encontrada"})
+		return
+	}
+
+	project, err := h.projectRepo.GetByID(col.ProjectID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Projeto não encontrado"})
+		return
+	}
+	if !h.userCanAccessProject(user, project) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado"})
+		return
+	}
+
+	var in struct {
+		Nome  *string `json:"nome"`
+		Cor   *string `json:"cor"`
+		Ordem *int    `json:"ordem"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if in.Nome != nil {
+		nome := strings.TrimSpace(*in.Nome)
+		if nome == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Nome é obrigatório"})
+			return
+		}
+		col.Nome = nome
+	}
+
+	if in.Cor != nil {
+		cor := strings.TrimSpace(*in.Cor)
+		if cor == "" {
+			cor = "#6B7280"
+		}
+		col.Cor = cor
+	}
+
+	if in.Ordem != nil {
+		col.Ordem = *in.Ordem
+	}
+
+	if err := h.columnRepo.Update(col); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, col)
+}
+
 // ---------- Cards ----------
 
 func (h *KanbanHandler) CreateCard(c *gin.Context) {

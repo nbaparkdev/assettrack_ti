@@ -33,6 +33,10 @@ export const kanbanApi = {
     const response = await apiClient.post(`/kanban/projetos/${projectId}/colunas`, { nome, cor });
     return response.data;
   },
+  updateColumn: async (columnId: number, data: Partial<KanbanColumn>): Promise<KanbanColumn> => {
+    const response = await apiClient.put(`/kanban/colunas/${columnId}`, data);
+    return response.data;
+  },
   createCard: async (data: Partial<KanbanCard> & { participante_ids?: number[]; ativo_ids?: number[] }): Promise<KanbanCard> => {
     const response = await apiClient.post<KanbanCard>('/kanban/cards', data);
     return response.data;

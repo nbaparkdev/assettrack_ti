@@ -20,7 +20,7 @@ import {
 import { useAuthStore } from '../stores/authStore';
 import {
   Plus, Edit2, Trash2, X, ShieldAlert, Wrench, ClipboardList, Bell, Play, Pause,
-  CheckCircle2, Ban, FileText, Camera,
+  CheckCircle2, Ban, FileText, Camera, CalendarDays, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
 const structureRoles = ['admin', 'gerente_ti', 'gerente_infra'];
@@ -34,6 +34,13 @@ const statusColor: Record<string, string> = {
   'Pausada': 'text-purple-400 border-purple-500/30',
   'Concluída': 'text-green-400 border-green-500/30',
   'Cancelada': 'text-red-400 border-red-500/30',
+};
+
+const criticalityColor: Record<string, string> = {
+  'Baixa': 'border-sky-500/30 bg-sky-500/8 text-sky-300',
+  'Média': 'border-yellow-500/30 bg-yellow-500/8 text-yellow-300',
+  'Alta': 'border-orange-500/30 bg-orange-500/8 text-orange-300',
+  'Crítica': 'border-red-500/30 bg-red-500/8 text-red-300',
 };
 
 type OrderChecklistDraft = {
@@ -62,12 +69,52 @@ const formatMinutes = (totalMinutes: number) => {
   return `${hours}h ${String(minutes).padStart(2, '0')}min`;
 };
 
+const weekdayLabels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
+
+const startOfDay = (date: Date) => {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+};
+
+const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
+
+const endOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+const addMonths = (date: Date, amount: number) => new Date(date.getFullYear(), date.getMonth() + amount, 1);
+
+const addDays = (date: Date, amount: number) => {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + amount);
+  return copy;
+};
+
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+const startOfWeek = (date: Date) => {
+  const copy = startOfDay(date);
+  return addDays(copy, -copy.getDay());
+};
+
+const getCalendarEventDate = (order: MaintenanceOrder) => {
+  if (order.data_agendada) {
+    return new Date(order.data_agendada);
+  }
+  if (order.data_abertura) {
+    return new Date(order.data_abertura);
+  }
+  return null;
+};
+
 export const PreventiveMaintenancePage: React.FC = () => {
   const user = useAuthStore().user;
   const canEditStructure = user ? structureRoles.includes(user.role) : false;
   const canWorkOrder = user ? workRoles.includes(user.role) : false;
 
-  const [tab, setTab] = useState<'dashboard' | 'planos' | 'ordens' | 'notifs'>('dashboard');
+  const [tab, setTab] = useState<'dashboard' | 'planos' | 'ordens' | 'calendario' | 'notifs'>('dashboard');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,6 +132,10 @@ export const PreventiveMaintenancePage: React.FC = () => {
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [orderModal, setOrderModal] = useState(false);
   const [orderDetail, setOrderDetail] = useState<{ order: MaintenanceOrder; checklists: MaintenanceChecklist[] } | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
+  const [calendarView, setCalendarView] = useState<'mensal' | 'semanal'>('mensal');
+  const [calendarStatusFilter, setCalendarStatusFilter] = useState('');
+  const [calendarTechFilter, setCalendarTechFilter] = useState<number | 'all'>('all');
 
   // Notifications
   const [notifs, setNotifs] = useState<PMNotification[]>([]);
@@ -136,7 +187,10 @@ export const PreventiveMaintenancePage: React.FC = () => {
       photos: detail.order.photos ?? [],
       history: detail.order.history ?? [],
     },
-    checklists: detail.checklists ?? [],
+    checklists: (detail.checklists ?? []).map((checklist) => ({
+      ...checklist,
+      items: checklist.items ?? [],
+    })),
   });
 
   const calculateElapsedMinutes = (order: MaintenanceOrder) => {
@@ -215,6 +269,62 @@ export const PreventiveMaintenancePage: React.FC = () => {
     setError(err.response?.data?.error || 'Erro na operação');
     setTimeout(() => setError(null), 5000);
   };
+
+  const today = startOfDay(new Date());
+  const upcomingOrders = orders
+    .map((order) => ({ order, eventDate: getCalendarEventDate(order) }))
+    .filter(({ order, eventDate }) =>
+      eventDate &&
+      !['Concluída', 'Cancelada'].includes(order.status) &&
+      startOfDay(eventDate) >= today
+    )
+    .sort((a, b) => a.eventDate!.getTime() - b.eventDate!.getTime());
+
+  const filteredUpcomingOrders = upcomingOrders.filter(({ order }) => {
+    const statusMatches = !calendarStatusFilter || order.status === calendarStatusFilter;
+    const techMatches = calendarTechFilter === 'all' || order.tecnico?.id === calendarTechFilter || order.tecnico_id === calendarTechFilter;
+    return statusMatches && techMatches;
+  });
+
+  const calendarStart = startOfMonth(calendarMonth);
+  const calendarEnd = endOfMonth(calendarMonth);
+  const leadingDays = calendarStart.getDay();
+  const monthDays = calendarEnd.getDate();
+  const calendarCells: Array<{ date: Date; inMonth: boolean }> = [];
+
+  for (let index = 0; index < leadingDays; index += 1) {
+    calendarCells.push({
+      date: new Date(calendarStart.getFullYear(), calendarStart.getMonth(), index - leadingDays + 1),
+      inMonth: false,
+    });
+  }
+  for (let day = 1; day <= monthDays; day += 1) {
+    calendarCells.push({
+      date: new Date(calendarStart.getFullYear(), calendarStart.getMonth(), day),
+      inMonth: true,
+    });
+  }
+  while (calendarCells.length % 7 !== 0) {
+    const last = calendarCells[calendarCells.length - 1].date;
+    calendarCells.push({
+      date: new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1),
+      inMonth: false,
+    });
+  }
+
+  const monthOrders = filteredUpcomingOrders.filter(({ eventDate }) =>
+    eventDate &&
+    eventDate.getFullYear() === calendarMonth.getFullYear() &&
+    eventDate.getMonth() === calendarMonth.getMonth()
+  );
+
+  const weekStart = startOfWeek(calendarMonth);
+  const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  const weekOrders = filteredUpcomingOrders.filter(({ eventDate }) =>
+    eventDate &&
+    startOfDay(eventDate).getTime() >= weekStart.getTime() &&
+    startOfDay(eventDate).getTime() <= addDays(weekStart, 6).getTime()
+  );
 
   // ---- Plans ----
   const openPlanModal = (plan?: MaintenancePlan) => {
@@ -490,6 +600,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
           ['dashboard', 'Dashboard'],
           ['planos', 'Planos'],
           ['ordens', 'Ordens de Serviço'],
+          ['calendario', 'Calendário'],
           ['notifs', 'Notificações'],
         ] as const).map(([key, label]) => (
           <button
@@ -745,6 +856,252 @@ export const PreventiveMaintenancePage: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- CALENDÁRIO ---------- */}
+      {!loading && tab === 'calendario' && (
+        <div className="space-y-4">
+          <div className="border border-brand-border bg-brand-card p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-brand-text">
+                <CalendarDays size={16} className="text-brand-primary" />
+                <span className="font-mono text-xs uppercase tracking-wider text-brand-muted">Calendário de OS</span>
+              </div>
+              <h3 className="mt-2 text-xl font-bold font-mono uppercase tracking-wider text-brand-text">
+                {calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              </h3>
+              <p className="text-sm text-brand-muted mt-1">
+                Visualização das ordens programadas e futuras com foco em agenda operacional.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center border border-brand-border">
+                <button
+                  onClick={() => setCalendarView('mensal')}
+                  className={`px-3 py-2 font-mono text-xs uppercase ${calendarView === 'mensal' ? 'bg-brand-primary text-brand-dark' : 'text-brand-text hover:bg-brand-dark/20'}`}
+                >
+                  Mensal
+                </button>
+                <button
+                  onClick={() => setCalendarView('semanal')}
+                  className={`px-3 py-2 font-mono text-xs uppercase ${calendarView === 'semanal' ? 'bg-brand-primary text-brand-dark' : 'text-brand-text hover:bg-brand-dark/20'}`}
+                >
+                  Semanal
+                </button>
+              </div>
+              <button
+                onClick={() => setCalendarMonth(calendarView === 'mensal' ? addMonths(calendarMonth, -1) : addDays(calendarMonth, -7))}
+                className="border border-brand-border px-3 py-2 text-brand-text hover:bg-brand-dark/20"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => setCalendarMonth(startOfMonth(new Date()))}
+                className="border border-brand-border px-3 py-2 font-mono text-xs uppercase text-brand-text hover:bg-brand-dark/20"
+              >
+                Hoje
+              </button>
+              <button
+                onClick={() => setCalendarMonth(calendarView === 'mensal' ? addMonths(calendarMonth, 1) : addDays(calendarMonth, 7))}
+                className="border border-brand-border px-3 py-2 text-brand-text hover:bg-brand-dark/20"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className="border border-brand-border bg-brand-card p-4 grid grid-cols-1 lg:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">Filtrar por status</label>
+              <select
+                value={calendarStatusFilter}
+                onChange={(e) => setCalendarStatusFilter(e.target.value)}
+                className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm font-mono text-brand-text focus:outline-none focus:border-brand-primary"
+              >
+                <option value="">Todos</option>
+                {PM_STATUSES.filter((status) => !['Concluída', 'Cancelada'].includes(status)).map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">Filtrar por técnico</label>
+              <select
+                value={calendarTechFilter}
+                onChange={(e) => setCalendarTechFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm font-mono text-brand-text focus:outline-none focus:border-brand-primary"
+              >
+                <option value="all">Todos</option>
+                {techs.map((tech) => (
+                  <option key={tech.id} value={tech.id}>{tech.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <div className="w-full border border-brand-border bg-brand-dark/20 px-3 py-2">
+                <div className="text-[11px] font-mono uppercase tracking-wider text-brand-muted">Ordens visíveis</div>
+                <div className="mt-1 text-lg font-mono text-brand-primary">{filteredUpcomingOrders.length}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4">
+            <div className="border border-brand-border bg-brand-card overflow-hidden">
+              {calendarView === 'mensal' ? (
+                <>
+                  <div className="grid grid-cols-7 border-b border-brand-border bg-brand-dark/20">
+                    {weekdayLabels.map((label) => (
+                      <div key={label} className="p-3 text-center text-[11px] font-mono uppercase tracking-wider text-brand-muted">
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7">
+                    {calendarCells.map(({ date, inMonth }) => {
+                      const dayOrders = filteredUpcomingOrders.filter(({ eventDate }) => eventDate && isSameDay(eventDate, date));
+                      const isToday = isSameDay(date, today);
+                      return (
+                        <div
+                          key={date.toISOString()}
+                          className={`min-h-36 border-r border-b border-brand-border p-2 align-top ${
+                            inMonth ? 'bg-brand-card' : 'bg-brand-dark/10'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span
+                              className={`text-xs font-mono px-1.5 py-0.5 ${
+                                isToday
+                                  ? 'bg-brand-primary text-brand-dark font-bold'
+                                  : inMonth
+                                    ? 'text-brand-text'
+                                    : 'text-brand-muted'
+                              }`}
+                            >
+                              {date.getDate()}
+                            </span>
+                            {dayOrders.length > 0 && (
+                              <span className="text-[10px] font-mono uppercase text-brand-primary">
+                                {dayOrders.length} OS
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            {dayOrders.slice(0, 3).map(({ order }) => (
+                              <button
+                                key={order.id}
+                                onClick={() => openOrderDetail(order.id)}
+                                className={`w-full text-left border p-2 hover:bg-brand-primary/10 ${criticalityColor[order.criticidade] ?? 'border-brand-primary/20 bg-brand-dark/20 text-brand-text'}`}
+                              >
+                                <div className="text-[10px] font-mono uppercase text-brand-primary truncate">{order.numero}</div>
+                                <div className="text-xs text-brand-text truncate">{order.asset?.nome ?? order.infra_predial_servico ?? 'Serviço'}</div>
+                                <div className="mt-1 flex items-center justify-between gap-2">
+                                  <span className={`text-[10px] font-mono uppercase px-1 py-0.5 border ${statusColor[order.status] ?? 'border-brand-border'}`}>
+                                    {order.status}
+                                  </span>
+                                  <span className="text-[10px] font-mono">{order.criticidade}</span>
+                                </div>
+                              </button>
+                            ))}
+                            {dayOrders.length > 3 && (
+                              <div className="text-[10px] font-mono uppercase text-brand-muted px-1">
+                                +{dayOrders.length - 3} adicional(is)
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-7">
+                  {weekDays.map((date) => {
+                    const dayOrders = weekOrders.filter(({ eventDate }) => eventDate && isSameDay(eventDate, date));
+                    const isToday = isSameDay(date, today);
+                    return (
+                      <div key={date.toISOString()} className="min-h-80 border-r border-b border-brand-border p-3">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <div className="text-[11px] font-mono uppercase tracking-wider text-brand-muted">
+                              {weekdayLabels[date.getDay()]}
+                            </div>
+                            <div className={`mt-1 inline-flex px-2 py-1 text-xs font-mono ${isToday ? 'bg-brand-primary text-brand-dark' : 'text-brand-text border border-brand-border'}`}>
+                              {date.toLocaleDateString('pt-BR')}
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-mono uppercase text-brand-primary">{dayOrders.length} OS</span>
+                        </div>
+                        <div className="space-y-2">
+                          {dayOrders.map(({ order }) => (
+                            <button
+                              key={order.id}
+                              onClick={() => openOrderDetail(order.id)}
+                              className={`w-full text-left border p-2 hover:bg-brand-primary/10 ${criticalityColor[order.criticidade] ?? 'border-brand-primary/20 bg-brand-dark/20 text-brand-text'}`}
+                            >
+                              <div className="text-[10px] font-mono uppercase text-brand-primary">{order.numero}</div>
+                              <div className="text-xs text-brand-text mt-1">{order.asset?.nome ?? order.infra_predial_servico ?? 'Serviço'}</div>
+                              <div className="text-[10px] text-brand-muted mt-1">{order.tecnico?.nome ?? 'Sem técnico'}</div>
+                              <div className="mt-2 flex items-center justify-between gap-2">
+                                <span className={`text-[10px] font-mono uppercase px-1 py-0.5 border ${statusColor[order.status] ?? 'border-brand-border'}`}>
+                                  {order.status}
+                                </span>
+                                <span className="text-[10px] font-mono">{order.criticidade}</span>
+                              </div>
+                            </button>
+                          ))}
+                          {dayOrders.length === 0 && (
+                            <div className="text-[10px] font-mono uppercase text-brand-muted border border-dashed border-brand-border p-3 text-center">
+                              Sem programação
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="border border-brand-border bg-brand-card p-4 space-y-3">
+              <div className="text-xs font-mono uppercase tracking-wider text-brand-muted">
+                {calendarView === 'mensal' ? 'Programadas e futuras do mês' : 'Programadas e futuras da semana'}
+              </div>
+              <div className="space-y-2 max-h-[720px] overflow-y-auto pr-1">
+                {(calendarView === 'mensal' ? monthOrders : weekOrders).map(({ order, eventDate }) => (
+                  <button
+                    key={order.id}
+                    onClick={() => openOrderDetail(order.id)}
+                    className="w-full text-left border border-brand-border hover:border-brand-primary/40 hover:bg-brand-dark/20 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-mono uppercase text-brand-primary">{order.numero}</div>
+                        <div className="text-sm text-brand-text mt-1">{order.asset?.nome ?? order.infra_predial_servico ?? 'Serviço'}</div>
+                        <div className="text-xs text-brand-muted mt-1">
+                          {order.tecnico?.nome ?? 'Sem técnico definido'} · {order.tipo} · {order.criticidade}
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 border ${statusColor[order.status] ?? 'border-brand-border'}`}>
+                        {order.status}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-[11px] font-mono text-brand-muted">
+                      <span>{eventDate?.toLocaleDateString('pt-BR')}</span>
+                      <span>{order.prioridade}</span>
+                    </div>
+                  </button>
+                ))}
+                {(calendarView === 'mensal' ? monthOrders.length === 0 : weekOrders.length === 0) && (
+                  <div className="p-8 text-center text-brand-muted font-mono text-xs border border-dashed border-brand-border">
+                    {calendarView === 'mensal'
+                      ? 'Nenhuma OS programada ou futura neste mês.'
+                      : 'Nenhuma OS programada ou futura nesta semana.'}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

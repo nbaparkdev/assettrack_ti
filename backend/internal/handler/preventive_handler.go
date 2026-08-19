@@ -849,10 +849,24 @@ func (h *PreventiveHandler) DeleteOrder(c *gin.Context) {
 
 	_ = h.notifRepo.DeleteByOrder(uint(id))
 
-	if err := h.orderRepo.Delete(uint(id)); err != nil {
+	photoPaths := make([]string, 0, len(order.Photos))
+	for _, photo := range order.Photos {
+		if strings.TrimSpace(photo.CaminhoArquivo) != "" {
+			photoPaths = append(photoPaths, photo.CaminhoArquivo)
+		}
+	}
+
+	if err := h.orderRepo.DeleteCascade(uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	for _, photoPath := range photoPaths {
+		if err := os.Remove(photoPath); err != nil && !os.IsNotExist(err) {
+			fmt.Printf("warn: failed to remove maintenance photo %s: %v\n", photoPath, err)
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Ordem excluída"})
 }
 

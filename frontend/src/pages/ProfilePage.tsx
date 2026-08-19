@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User, Key, Camera, Loader2, Save } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { profileApi } from '../api/profile';
-import { apiClient as api } from '../api/client';
+import { toApiFileUrl } from '../api/client';
 
 export const ProfilePage: React.FC = () => {
   const { user, logout, checkAuth } = useAuthStore();
@@ -119,7 +119,7 @@ export const ProfilePage: React.FC = () => {
 
   if (!user) return null;
 
-  const avatarUrl = user.avatar_url ? `${api.defaults.baseURL}${user.avatar_url}` : null;
+  const avatarUrl = toApiFileUrl(user.avatar_url);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">

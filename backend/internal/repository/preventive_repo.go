@@ -242,6 +242,37 @@ func (r *PMOrderRepository) Delete(id uint) error {
 	return r.db.Delete(&models.MaintenanceOrder{}, id).Error
 }
 
+func (r *PMOrderRepository) DeleteCascade(orderID uint) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("order_id = ?", orderID).Delete(&models.MaintenancePhoto{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Where("order_id = ?", orderID).Delete(&models.MaintenanceMaterial{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Where("order_id = ?", orderID).Delete(&models.MaintenanceExecution{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Where("order_id = ?", orderID).Delete(&models.MaintenanceHistory{}).Error; err != nil {
+			return err
+		}
+
+		subQuery := tx.Model(&models.MaintenanceChecklist{}).Select("id").Where("order_id = ?", orderID)
+		if err := tx.Where("checklist_id IN (?)", subQuery).Delete(&models.MaintenanceChecklistItem{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Where("order_id = ?", orderID).Delete(&models.MaintenanceChecklist{}).Error; err != nil {
+			return err
+		}
+
+		return tx.Delete(&models.MaintenanceOrder{}, orderID).Error
+	})
+}
+
 var osNumberRegex = regexp.MustCompile(`OS-\d{4}-(\d+)`)
 
 // GenerateOrderNumber creates OS-YYYY-NNNNN (sequential per year, gap-aware).

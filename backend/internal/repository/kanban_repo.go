@@ -71,6 +71,10 @@ func (r *KanbanColumnRepository) Create(col *models.KanbanColumn) error {
 	return r.db.Create(col).Error
 }
 
+func (r *KanbanColumnRepository) Update(col *models.KanbanColumn) error {
+	return r.db.Save(col).Error
+}
+
 func (r *KanbanColumnRepository) CountByProject(projectID uint) (int64, error) {
 	var count int64
 	err := r.db.Model(&models.KanbanColumn{}).Where("project_id = ?", projectID).Count(&count).Error

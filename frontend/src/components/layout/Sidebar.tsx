@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import { apiClient as api } from '../../api/client';
+import { toApiFileUrl } from '../../api/client';
 import {
   LayoutDashboard,
   Users,
@@ -67,9 +67,9 @@ export const Sidebar: React.FC = () => {
         {/* User Info Card */}
         <NavLink to="/profile" className="p-4 border-b border-brand-border bg-brand-card/30 hover:bg-brand-card/70 transition-colors block cursor-pointer">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 border border-brand-primary flex items-center justify-center font-mono text-brand-primary text-lg bg-brand-primary/5 overflow-hidden">
+            <div className="w-10 h-10 rounded-[20px] border border-brand-primary flex items-center justify-center font-mono text-brand-primary text-lg bg-brand-primary/5 overflow-hidden">
               {user?.avatar_url ? (
-                <img src={`${api.defaults.baseURL}${user.avatar_url}`} alt="Avatar" className="w-full h-full object-cover" />
+                <img src={toApiFileUrl(user.avatar_url)} alt="Avatar" className="w-full h-full rounded-[20px] object-cover" />
               ) : (
                 user?.nome.substring(0, 2).toUpperCase()
               )}
