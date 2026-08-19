@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { toApiFileUrl } from '../../api/client';
@@ -19,12 +19,31 @@ import {
   BellRing,
   FileSignature,
   Webhook,
-  Database
+  Database,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuthStore();
   const userRole = user?.role?.toLowerCase() || '';
+  const [collapsed, setCollapsed] = useState(() => {
+    const saved = localStorage.getItem('assettrack-sidebar-collapsed');
+    return saved ? saved === 'true' : window.matchMedia('(max-width: 1279px)').matches;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('assettrack-sidebar-collapsed', String(collapsed));
+  }, [collapsed]);
+
+  useEffect(() => {
+    const desktopBreakpoint = window.matchMedia('(max-width: 1024px)');
+    const collapseForSmallScreens = () => {
+      if (desktopBreakpoint.matches) setCollapsed(true);
+    };
+    desktopBreakpoint.addEventListener('change', collapseForSmallScreens);
+    return () => desktopBreakpoint.removeEventListener('change', collapseForSmallScreens);
+  }, []);
 
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -55,36 +74,45 @@ export const Sidebar: React.FC = () => {
   );
 
   return (
-    <aside className="w-64 bg-brand-dark border-r border-brand-border h-screen flex flex-col justify-between select-none">
+    <aside
+      className={`app-sidebar shrink-0 bg-[#edf5fa]/88 border-r border-white/45 h-auto min-h-screen max-md:min-h-0 lg:min-h-[1057px] flex flex-col justify-between select-none backdrop-blur-md text-[#172b4d] transition-[width] duration-200 ease-out ${collapsed ? 'w-16' : 'w-60'}`}
+    >
       <div className="flex flex-col">
         {/* Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-brand-border">
-          <span className="font-bold text-brand-primary tracking-wider text-xl uppercase font-mono">
-            AssetTrack<span className="text-white font-sans font-light lowercase">.ti</span>
-          </span>
+        <div className={`h-14 flex items-center border-b border-brand-border ${collapsed ? 'justify-center px-2' : 'justify-between px-5'}`}>
+          {!collapsed && <span className="font-bold text-[#172b4d] tracking-tight text-lg">AssetTrack<span className="text-brand-primary font-light lowercase">.ti</span></span>}
+          <button
+            type="button"
+            onClick={() => setCollapsed((current) => !current)}
+            className="grid h-8 w-8 place-items-center rounded-lg text-brand-muted hover:bg-white hover:text-brand-primary"
+            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          >
+            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
         </div>
 
         {/* User Info Card */}
-        <NavLink to="/profile" className="p-4 border-b border-brand-border bg-brand-card/30 hover:bg-brand-card/70 transition-colors block cursor-pointer">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-[20px] border border-brand-primary flex items-center justify-center font-mono text-brand-primary text-lg bg-brand-primary/5 overflow-hidden">
+        <NavLink to="/profile" title={collapsed ? user?.nome : undefined} className={`border-b border-brand-border bg-white/35 hover:bg-white/70 transition-colors block cursor-pointer ${collapsed ? 'p-3' : 'p-4'}`}>
+          <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
+            <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center font-semibold text-white text-sm bg-brand-primary overflow-hidden shadow-sm">
               {user?.avatar_url ? (
                 <img src={toApiFileUrl(user.avatar_url)} alt="Avatar" className="w-full h-full rounded-[20px] object-cover" />
               ) : (
                 user?.nome.substring(0, 2).toUpperCase()
               )}
             </div>
-            <div className="overflow-hidden">
+            {!collapsed && <div className="overflow-hidden">
               <h4 className="text-sm font-semibold truncate text-brand-text group-hover:text-brand-primary">{user?.nome}</h4>
-              <span className="text-xs text-brand-primary font-mono uppercase bg-brand-primary/10 px-1.5 py-0.5 border border-brand-primary/20 mt-1 inline-block">
+              <span className="text-[10px] text-brand-primary uppercase bg-brand-primary/10 px-2 py-0.5 rounded-full mt-1 inline-block">
                 {user?.role.replace('_', ' ')}
               </span>
-            </div>
+            </div>}
           </div>
         </NavLink>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1">
+        <nav className={`p-3 space-y-0.5 overflow-y-auto ${collapsed ? 'px-2' : ''}`}>
           {menuItems.map((item) => {
             if (item.roleLimit && !item.roleLimit.includes(userRole)) {
               return null;
@@ -93,40 +121,40 @@ export const Sidebar: React.FC = () => {
               <NavLink
                 key={item.name}
                 to={item.path}
+                title={collapsed ? item.name : undefined}
                 className={({ isActive }) =>
-                  `flex items-center space-x-3 px-4 py-3 border text-sm transition-all duration-150 ${
+                  `flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-lg border border-transparent text-sm transition-all duration-150 ${
                     isActive
-                      ? 'border-brand-primary bg-brand-primary/5 text-brand-primary font-medium font-mono'
-                      : 'border-transparent text-brand-muted hover:text-brand-text hover:bg-brand-card/50'
+                      ? 'bg-[#dbeafe] text-[#0055cc] font-semibold shadow-sm'
+                      : 'text-brand-muted hover:text-brand-text hover:bg-white/65'
                   }`
                 }
               >
                 <item.icon size={18} />
-                <span>{item.name}</span>
+                {!collapsed && <span>{item.name}</span>}
               </NavLink>
             );
           })}
 
           {visibleAdminModules.length > 0 && (
             <>
-              <div className="pt-4 pb-2 px-4 text-xs font-mono font-semibold text-brand-muted/70 tracking-widest uppercase">
-                Administração
-              </div>
+              {!collapsed && <div className="pt-4 pb-2 px-3 text-[10px] font-semibold text-brand-muted/80 tracking-widest uppercase">Administração</div>}
 
               {visibleAdminModules.map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.path}
+                  title={collapsed ? item.name : undefined}
                   className={({ isActive }) =>
-                    `flex items-center space-x-3 px-4 py-3 text-sm transition-all duration-150 ${
+                    `flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-lg text-sm transition-all duration-150 ${
                       isActive
-                        ? 'bg-brand-primary/10 text-brand-primary border-r-2 border-brand-primary font-medium'
-                        : 'text-brand-muted/70 hover:bg-brand-card/50 hover:text-brand-text'
+                        ? 'bg-[#dbeafe] text-[#0055cc] font-semibold'
+                        : 'text-brand-muted/80 hover:bg-white/65 hover:text-brand-text'
                     }`
                   }
                 >
                   <item.icon size={18} />
-                  <span>{item.name}</span>
+                  {!collapsed && <span>{item.name}</span>}
                 </NavLink>
               ))}
             </>
@@ -135,13 +163,14 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Logout */}
-      <div className="p-4 border-t border-brand-border">
+      <div className={`p-3 border-t border-brand-border ${collapsed ? 'px-2' : ''}`}>
         <button
           onClick={logout}
-          className="w-full flex items-center space-x-3 px-4 py-3 border border-red-500/20 text-red-400 hover:bg-red-500/10 text-sm font-mono transition-all duration-150"
+          title={collapsed ? 'Encerrar sessão' : undefined}
+          className={`w-full flex items-center py-2.5 rounded-lg border border-red-500/20 text-red-500 hover:bg-red-500/10 text-sm transition-all duration-150 ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'}`}
         >
           <LogOut size={18} />
-          <span>Encerrar Sessão</span>
+          {!collapsed && <span>Encerrar Sessão</span>}
         </button>
       </div>
     </aside>

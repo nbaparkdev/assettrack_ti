@@ -395,7 +395,7 @@ export const AssetsPage: React.FC = () => {
       )}
 
       {globalSuccess && (
-        <div className="p-4 border border-brand-primary/30 bg-brand-primary/5 text-brand-primary text-sm font-mono flex items-center justify-between">
+        <div className="app-notice--success p-4 border border-brand-primary/30 bg-brand-primary/5 text-brand-primary text-sm font-mono flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Check size={18} />
             <span>{globalSuccess}</span>

@@ -31,12 +31,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen bg-brand-dark flex text-brand-text">
+    <div className="app-shell min-h-screen flex text-brand-text">
       <Sidebar />
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 flex min-w-0 flex-col h-screen overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-8 bg-brand-dark/30">
+        <main className="app-content flex-1 overflow-y-auto p-6 lg:p-8">
           {children}
+          <footer className="mt-10 border-t border-white/25 pt-4 pb-1 text-center text-xs text-[#172b4d]/60">
+            © {new Date().getFullYear()} AssetTrack TI. Todos os direitos reservados.
+          </footer>
         </main>
         <ChatbotWidget />
         <EmergencyGlobalHandler />

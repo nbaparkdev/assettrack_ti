@@ -219,7 +219,7 @@ export const QRHandoverModal: React.FC<QRHandoverModalProps> = ({ isOpen, onClos
           )}
 
           {successMsg && (
-            <div className="flex items-center space-x-3 p-6 border border-brand-primary/20 bg-brand-primary/5 text-brand-primary text-center justify-center flex-col space-y-2">
+            <div className="app-notice--success flex items-center space-x-3 p-6 border border-brand-primary/20 bg-brand-primary/5 text-brand-primary text-center justify-center flex-col space-y-2">
               <CheckCircle size={44} className="animate-bounce" />
               <h4 className="font-bold text-lg">Sucesso!</h4>
               <p className="text-sm text-brand-text">{successMsg}</p>

@@ -44,26 +44,26 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-brand-dark flex flex-col justify-center items-center p-4">
-      <div className="w-full max-w-md border border-brand-border bg-brand-card p-8">
+    <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-[radial-gradient(circle_at_80%_15%,rgba(255,255,255,.30),transparent_25rem),linear-gradient(135deg,#a9d4ee,#68acd3)]">
+      <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/90 p-8 shadow-[0_18px_60px_rgba(9,30,66,.22)] backdrop-blur">
         {/* Header */}
         <div className="text-center mb-8">
-          <span className="font-mono text-xs text-brand-primary uppercase tracking-widest block mb-2">
-            AssetTrack TI ERP
+          <span className="text-xs text-brand-primary uppercase tracking-widest block mb-2 font-semibold">
+            ▥ AssetTrack TI
           </span>
-          <h2 className="text-2xl font-bold uppercase tracking-wider text-brand-text font-mono">
+          <h2 className="text-2xl font-bold tracking-tight text-brand-text">
             Painel de Acesso
           </h2>
         </div>
 
         {/* Mode Toggle */}
-        <div className="flex border border-brand-border mb-6">
+        <div className="flex rounded-xl border border-brand-border bg-slate-50 p-1 mb-6">
           <button
             type="button"
             onClick={() => { setMode('standard'); setError(null); }}
             className={`flex-1 py-3 text-xs font-mono uppercase tracking-wider flex items-center justify-center space-x-2 transition-all duration-150 ${
               mode === 'standard'
-                ? 'bg-brand-primary/10 text-brand-primary border-b-2 border-brand-primary'
+                ? 'bg-white text-brand-primary rounded-lg shadow-sm'
                 : 'text-brand-muted hover:text-brand-text'
             }`}
           >
@@ -75,7 +75,7 @@ export const LoginPage: React.FC = () => {
             onClick={() => { setMode('qr'); setError(null); }}
             className={`flex-1 py-3 text-xs font-mono uppercase tracking-wider flex items-center justify-center space-x-2 transition-all duration-150 ${
               mode === 'qr'
-                ? 'bg-brand-primary/10 text-brand-primary border-b-2 border-brand-primary'
+                ? 'bg-white text-brand-primary rounded-lg shadow-sm'
                 : 'text-brand-muted hover:text-brand-text'
             }`}
           >
@@ -105,7 +105,7 @@ export const LoginPage: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-brand-dark border border-brand-border px-4 py-3 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors font-mono"
+                className="w-full rounded-lg bg-white border border-brand-border px-4 py-3 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors"
                 placeholder="usuario@example.com"
               />
             </div>
@@ -119,14 +119,14 @@ export const LoginPage: React.FC = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-brand-dark border border-brand-border px-4 py-3 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors font-mono"
+                className="w-full rounded-lg bg-white border border-brand-border px-4 py-3 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors"
                 placeholder="••••••••"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono py-3 uppercase tracking-wider text-xs transition-colors mt-6 disabled:opacity-50"
+              className="w-full rounded-lg bg-brand-primary hover:bg-brand-primary/90 text-white font-bold py-3 tracking-wide text-xs transition-colors mt-6 disabled:opacity-50 shadow-sm"
             >
               {loading ? 'Processando...' : 'Autenticar'}
             </button>
@@ -143,7 +143,7 @@ export const LoginPage: React.FC = () => {
                 required
                 value={qrToken}
                 onChange={(e) => setQrToken(e.target.value)}
-                className="w-full bg-brand-dark border border-brand-border px-4 py-3 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors font-mono"
+                className="w-full rounded-lg bg-white border border-brand-border px-4 py-3 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors"
                 placeholder="Insira o token do seu crachá"
               />
             </div>
@@ -158,14 +158,14 @@ export const LoginPage: React.FC = () => {
                 maxLength={6}
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                className="w-full bg-brand-dark border border-brand-border px-4 py-3 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors font-mono text-center tracking-widest"
+                className="w-full rounded-lg bg-white border border-brand-border px-4 py-3 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors text-center tracking-widest"
                 placeholder="••••"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono py-3 uppercase tracking-wider text-xs transition-colors mt-6 disabled:opacity-50"
+              className="w-full rounded-lg bg-brand-primary hover:bg-brand-primary/90 text-white font-bold py-3 tracking-wide text-xs transition-colors mt-6 disabled:opacity-50 shadow-sm"
             >
               {loading ? 'Processando...' : 'Autenticar via QR'}
             </button>

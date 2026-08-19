@@ -188,7 +188,7 @@ export const DashboardPage: React.FC = () => {
           <button
             onClick={exportPDF}
             disabled={exporting}
-            className="bg-brand-primary text-brand-dark font-bold font-mono px-4 py-2 uppercase tracking-wider text-sm flex items-center hover:bg-brand-primary/90 transition-colors shadow-lg shadow-brand-primary/20 disabled:opacity-50"
+            className="rounded-[10px] bg-brand-primary text-brand-dark font-bold font-mono px-4 py-2 uppercase tracking-wider text-sm flex items-center hover:bg-brand-primary/90 transition-colors shadow-lg shadow-brand-primary/20 disabled:opacity-50"
           >
             <FileDown size={18} className="mr-2" />
             {exporting ? 'Gerando...' : 'Exportar Relatório PDF'}
@@ -356,7 +356,7 @@ export const DashboardPage: React.FC = () => {
         
         {/* Charts */}
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-brand-card border border-brand-border p-4">
+          <div className="bg-brand-card border border-brand-border p-4 opacity-80">
             <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text mb-4 text-center">Volume de Chamados</h3>
             <div className="h-64 flex items-center justify-center">
               <Doughnut 
@@ -366,7 +366,7 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-brand-card border border-brand-border p-4">
+          <div className="bg-brand-card border border-brand-border p-4 opacity-80">
             <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text mb-4 text-center">Saúde dos Equipamentos</h3>
             <div className="h-64 flex items-center justify-center">
               <Bar 
@@ -382,7 +382,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Alerts Center */}
-        <div className="lg:col-span-1 bg-brand-card border border-brand-border flex flex-col h-full">
+        <div className="lg:col-span-1 bg-brand-card border border-brand-border flex flex-col h-full opacity-80">
           <div className="p-4 border-b border-brand-border flex items-center justify-between">
             <div className="flex items-center text-red-400">
               <BellRing size={18} className="mr-2" />

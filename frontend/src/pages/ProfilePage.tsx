@@ -75,8 +75,8 @@ export const ProfilePage: React.FC = () => {
       img.onload = async () => {
         const canvas = document.createElement('canvas');
         const maxSize = 256;
-        let width = img.width;
-        let height = img.height;
+        const width = img.width;
+        const height = img.height;
 
         // Crop square center
         const size = Math.min(width, height);

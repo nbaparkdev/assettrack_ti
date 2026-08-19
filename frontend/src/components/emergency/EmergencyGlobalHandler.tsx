@@ -229,7 +229,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
               </div>
 
               {triggerSuccess && (
-                <div className="p-3 bg-green-500/10 border border-green-500/30 text-green-400 font-mono text-xs flex items-center space-x-2">
+                <div className="app-notice--success p-3 bg-green-500/10 border border-green-500/30 text-green-400 font-mono text-xs flex items-center space-x-2">
                   <CheckCircle size={16} />
                   <span>{triggerSuccess}</span>
                 </div>

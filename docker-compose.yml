@@ -45,6 +45,9 @@ services:
       TZ: ${TZ:-America/Sao_Paulo}
       PORT: "8080"
       GIN_MODE: release
+    # Lets webhook URLs reach services running on the Docker host (for example n8n).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

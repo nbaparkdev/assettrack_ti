@@ -1,38 +1,91 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-primary: #10b981;
-  --color-brand-dark: #090d16;
-  --color-brand-card: #111827;
-  --color-brand-border: #1f2937;
-  --color-brand-text: #f3f4f6;
-  --color-brand-muted: #9ca3af;
+  --color-brand-primary: #0c66e4;
+  --color-brand-dark: #172b4d;
+  --color-brand-card: #ffffff;
+  --color-brand-border: #d6e1ea;
+  --color-brand-text: #172b4d;
+  --color-brand-muted: #5e6c84;
 }
 
 :root {
-  background-color: var(--color-brand-dark);
-  color: var(--color-brand-text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #172b4d;
+  background: #7bb7df;
+  color-scheme: light;
 }
+
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
   min-height: 100vh;
+  background:
+    radial-gradient(circle at 86% 8%, rgba(255,255,255,.30), transparent 26rem),
+    radial-gradient(circle at 20% 100%, rgba(76, 154, 210, .34), transparent 36rem),
+    linear-gradient(135deg, #a9d4ee 0%, #79b5d9 47%, #68acd3 100%);
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+/* Default control shape. Explicit rounded utilities keep their intentional shape. */
+button:not([class*="rounded"]) { border-radius: 14px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid rgba(12, 102, 228, .35);
+  outline-offset: 2px;
 }
-::-webkit-scrollbar-track {
-  background: var(--color-brand-dark);
+
+/* Shared AssetTrack Board surface: keeps legacy markup consistent while pages migrate. */
+.app-shell { min-height: 100vh; color: var(--color-brand-text); }
+.app-content { background: transparent; }
+.app-content [class*="bg-brand-card"] {
+  background-color: rgba(255, 255, 255, .88) !important;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(9, 30, 66, .10);
 }
-::-webkit-scrollbar-thumb {
-  background: var(--color-brand-border);
-  border-radius: 0px;
+.app-content [class*="bg-brand-dark"] { background-color: #f7f9fc !important; }
+.app-content input[class*="bg-brand-dark"],
+.app-content select[class*="bg-brand-dark"],
+.app-content textarea[class*="bg-brand-dark"] {
+  background-color: rgba(255, 255, 255, .95) !important;
+  border-radius: 9px;
+  color: #172b4d !important;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-brand-primary);
+.app-content [class*="border-brand-border"] { border-color: rgba(9, 30, 66, .14) !important; }
+.app-content [class*="font-mono"] { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.app-content [class*="uppercase"] { letter-spacing: .035em; }
+.app-content table { overflow: hidden; border-radius: 12px; }
+.app-content tr { transition: background-color .18s ease; }
+.app-content [class*="hover:bg-brand-dark"]:hover { background-color: rgba(9, 30, 66, .045) !important; }
+.app-content button, .app-content a { transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease, border-color .18s ease; }
+.app-content button:hover:not(:disabled) { transform: translateY(-1px); }
+.app-content [class*="bg-brand-primary"] { box-shadow: 0 3px 8px rgba(12, 102, 228, .17); }
+.app-content [class*="bg-brand-primary"]:not([class*="/10"]):not([class*="/5"]) { color: white; }
+
+/* Unified modal veil. The selector is limited to page content so fixed widgets
+   and critical emergency overlays retain their own visual priority. */
+.app-content [class~="fixed"][class~="inset-0"][class*="justify-center"] {
+  background-color: rgba(9, 30, 66, .46) !important;
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+/* Reusable confirmation notice for successful actions across modules. */
+.app-notice--success {
+  border-color: rgba(255, 255, 255, .55) !important;
+  border-radius: 14px;
+  background-color: #1039e0 !important;
+  color: #ffffff !important;
+  opacity: .48;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,.16); }
+::-webkit-scrollbar-thumb { background: rgba(23, 43, 77, .28); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(23, 43, 77, .45); }
+
+@media (max-width: 768px) {
+  .app-content { padding: 1rem !important; }
+  .app-sidebar { height: auto; }
 }

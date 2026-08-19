@@ -82,7 +82,7 @@ export const SettingsPage: React.FC = () => {
       )}
 
       {successMsg && (
-        <div className="bg-green-500/10 border border-green-500/50 text-green-500 p-4 flex items-center gap-2">
+        <div className="app-notice--success bg-green-500/10 border border-green-500/50 text-green-500 p-4 flex items-center gap-2">
           <CheckCircleIcon size={20} />
           <span className="font-mono text-sm">{successMsg}</span>
         </div>

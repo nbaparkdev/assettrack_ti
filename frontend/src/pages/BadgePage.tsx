@@ -177,7 +177,7 @@ export const BadgePage: React.FC = () => {
             </p>
 
             {pinSuccess && (
-              <div className="p-3 border border-brand-primary/30 bg-brand-primary/5 text-brand-primary text-xs font-mono flex items-center space-x-2">
+              <div className="app-notice--success p-3 border border-brand-primary/30 bg-brand-primary/5 text-brand-primary text-xs font-mono flex items-center space-x-2">
                 <CheckCircle size={14} />
                 <span>PIN configurado com sucesso!</span>
               </div>
