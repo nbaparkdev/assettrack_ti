@@ -123,3 +123,18 @@ export interface BulkDuplicateResponse {
   failed_count: number;
   results: BulkCopyResult[];
 }
+
+export interface AssetImportRowResult {
+  linha: number;
+  e_patrimonio: string;
+  nome: string;
+  acao?: string;
+  erro?: string;
+}
+
+export interface AssetImportResponse {
+  criados: number;
+  atualizados: number;
+  falhas: number;
+  resultados: AssetImportRowResult[];
+}

@@ -1,5 +1,5 @@
 import { API_BASE_URL, apiClient } from './client';
-import type { Asset, AssetReferences, BulkDuplicateRequest, BulkDuplicateResponse, AssetCategory, Localizacao, Armazenamento, Departamento } from '../types';
+import type { Asset, AssetReferences, BulkDuplicateRequest, BulkDuplicateResponse, AssetCategory, Localizacao, Armazenamento, Departamento, AssetImportResponse } from '../types';
 
 export interface AssetListFilters {
   e_patrimonio?: string;
@@ -59,6 +59,71 @@ export const assetsApi = {
     link.click();
     link.remove();
     URL.revokeObjectURL(blobUrl);
+  },
+
+  downloadImportTemplate: (): void => {
+    const rows = [
+      [
+        'ID',
+        'E-Patrimonio',
+        'Nome',
+        'Modelo',
+        'Numero de Serie',
+        'Status',
+        'Categoria',
+        'Localizacao',
+        'Armazenamento',
+        'Fornecedor',
+        'Nota Fiscal',
+        'Data Aquisicao',
+        'Valor',
+        'Ativo Fixo',
+        'Em Posse De',
+        'Setor',
+        'Requer Termo RH',
+      ],
+      [
+        '',
+        'EP-0001',
+        'Notebook Dell Latitude 5440',
+        'Latitude 5440',
+        'SN-EXEMPLO-001',
+        'Disponível',
+        'Notebook',
+        'Matriz',
+        'Estoque TI',
+        'Fornecedor Exemplo',
+        '',
+        '19/08/2026',
+        '4599,90',
+        'Nao',
+        '',
+        'TI',
+        'Nao',
+      ],
+    ];
+
+    const content = `\uFEFF${rows.map((row) => row.join(';')).join('\n')}`;
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = 'modelo_importacao_ativos.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(blobUrl);
+  },
+
+  importCsv: async (file: File): Promise<AssetImportResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<AssetImportResponse>('/assets/import.csv', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
   },
 
   getById: async (id: number): Promise<Asset> => {

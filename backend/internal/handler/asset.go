@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	_ "image/gif"
 	_ "image/jpeg"
@@ -18,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	qrcode "github.com/skip2/go-qrcode"
 	qrdecoder "github.com/tuotoo/qrcode"
+	"gorm.io/gorm"
 )
 
 type AssetHandler struct {
@@ -73,6 +75,8 @@ func (h *AssetHandler) ExportCSV(c *gin.Context) {
 		"Valor",
 		"Ativo Fixo",
 		"Em Posse De",
+		"Setor",
+		"Requer Termo RH",
 	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao gerar CSV"})
 		return
@@ -95,6 +99,8 @@ func (h *AssetHandler) ExportCSV(c *gin.Context) {
 			formatFloat(asset.Valor),
 			formatBool(asset.Bloqueado),
 			safeCSV(stringValue(asset.EmPosseDe)),
+			safeCSV(assetDepartamentoName(asset)),
+			formatBool(asset.RequerTermoRH),
 		}
 		if err := writer.Write(row); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao gerar CSV"})
@@ -198,6 +204,13 @@ func assetStorageName(asset models.Asset) string {
 	return asset.CurrentArmazenamento.Nome
 }
 
+func assetDepartamentoName(asset models.Asset) string {
+	if asset.CurrentDepartamento == nil {
+		return ""
+	}
+	return asset.CurrentDepartamento.Nome
+}
+
 func assetSupplierName(asset models.Asset) string {
 	if asset.Fornecedor == nil {
 		return ""
@@ -253,6 +266,414 @@ func (h *AssetHandler) Create(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, asset)
+}
+
+type AssetImportRowResult struct {
+	Linha        int    `json:"linha"`
+	EPatrimonio  string `json:"e_patrimonio"`
+	Nome         string `json:"nome"`
+	Acao         string `json:"acao,omitempty"`
+	Erro         string `json:"erro,omitempty"`
+}
+
+type AssetImportResponse struct {
+	Criados     int                    `json:"criados"`
+	Atualizados int                    `json:"atualizados"`
+	Falhas      int                    `json:"falhas"`
+	Resultados  []AssetImportRowResult `json:"resultados"`
+}
+
+type assetCSVHeaderIndex struct {
+	ePatrimonio int
+	nome         int
+	modelo       int
+	numeroSerie  int
+	status       int
+	categoria    int
+	localizacao  int
+	armazenamento int
+	fornecedor   int
+	dataAquisicao int
+	valor        int
+	ativoFixo    int
+	emPosseDe    int
+	setor        int
+	requerTermoRH int
+}
+
+func (h *AssetHandler) ImportCSV(c *gin.Context) {
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Arquivo CSV não enviado"})
+		return
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Falha ao abrir o arquivo CSV"})
+		return
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	reader.Comma = ';'
+	reader.FieldsPerRecord = -1
+	reader.LazyQuotes = true
+
+	rows, err := reader.ReadAll()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Não foi possível ler o CSV. Verifique se o arquivo usa ';' como separador."})
+		return
+	}
+	if len(rows) < 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "O CSV precisa ter cabeçalho e pelo menos uma linha de dados"})
+		return
+	}
+
+	headers := normalizeCSVHeaderRow(rows[0])
+	headerIndex, err := parseAssetCSVHeaders(headers)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := AssetImportResponse{
+		Resultados: make([]AssetImportRowResult, 0, len(rows)-1),
+	}
+
+	for rowIndex, row := range rows[1:] {
+		lineNumber := rowIndex + 2
+		if isCSVRowEmpty(row) {
+			continue
+		}
+
+		result := AssetImportRowResult{
+			Linha:       lineNumber,
+			EPatrimonio: csvValue(row, headerIndex.ePatrimonio),
+			Nome:        csvValue(row, headerIndex.nome),
+		}
+
+		if result.EPatrimonio == "" || result.Nome == "" {
+			result.Erro = "E-Patrimônio e Nome são obrigatórios"
+			response.Falhas++
+			response.Resultados = append(response.Resultados, result)
+			continue
+		}
+
+		err := h.repo.DB().Transaction(func(tx *gorm.DB) error {
+			asset, action, buildErr := h.buildAssetFromCSVRow(tx, row, headerIndex, c)
+			if buildErr != nil {
+				return buildErr
+			}
+
+			result.Acao = action
+			if action == "criado" {
+				return tx.Create(asset).Error
+			}
+			return tx.Save(asset).Error
+		})
+		if err != nil {
+			result.Erro = err.Error()
+			response.Falhas++
+		} else if result.Acao == "criado" {
+			response.Criados++
+		} else {
+			response.Atualizados++
+		}
+		response.Resultados = append(response.Resultados, result)
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+func normalizeCSVHeaderRow(row []string) []string {
+	headers := make([]string, len(row))
+	for i, value := range row {
+		headers[i] = normalizeCSVHeader(value)
+	}
+	return headers
+}
+
+func normalizeCSVHeader(value string) string {
+	value = strings.TrimSpace(strings.TrimPrefix(value, "\uFEFF"))
+	value = strings.ToLower(value)
+	replacer := strings.NewReplacer(
+		"á", "a",
+		"à", "a",
+		"ã", "a",
+		"â", "a",
+		"é", "e",
+		"ê", "e",
+		"í", "i",
+		"ó", "o",
+		"ô", "o",
+		"õ", "o",
+		"ú", "u",
+		"ç", "c",
+		"-", "",
+		"_", "",
+		" ", "",
+	)
+	return replacer.Replace(value)
+}
+
+func parseAssetCSVHeaders(headers []string) (assetCSVHeaderIndex, error) {
+	index := assetCSVHeaderIndex{
+		ePatrimonio:  -1,
+		nome:         -1,
+		modelo:       -1,
+		numeroSerie:  -1,
+		status:       -1,
+		categoria:    -1,
+		localizacao:  -1,
+		armazenamento: -1,
+		fornecedor:   -1,
+		dataAquisicao: -1,
+		valor:        -1,
+		ativoFixo:    -1,
+		emPosseDe:    -1,
+		setor:        -1,
+		requerTermoRH: -1,
+	}
+
+	for i, header := range headers {
+		switch header {
+		case "epatrimonio":
+			index.ePatrimonio = i
+		case "nome":
+			index.nome = i
+		case "modelo":
+			index.modelo = i
+		case "numerodeserie":
+			index.numeroSerie = i
+		case "status":
+			index.status = i
+		case "categoria":
+			index.categoria = i
+		case "localizacao":
+			index.localizacao = i
+		case "armazenamento":
+			index.armazenamento = i
+		case "fornecedor":
+			index.fornecedor = i
+		case "dataaquisicao":
+			index.dataAquisicao = i
+		case "valor":
+			index.valor = i
+		case "ativofixo":
+			index.ativoFixo = i
+		case "empossede":
+			index.emPosseDe = i
+		case "setor":
+			index.setor = i
+		case "requertermorh":
+			index.requerTermoRH = i
+		}
+	}
+
+	if index.ePatrimonio == -1 || index.nome == -1 {
+		return index, errors.New("Cabeçalho inválido. O CSV precisa conter ao menos as colunas 'E-Patrimonio' e 'Nome'")
+	}
+	return index, nil
+}
+
+func isCSVRowEmpty(row []string) bool {
+	for _, value := range row {
+		if strings.TrimSpace(value) != "" {
+			return false
+		}
+	}
+	return true
+}
+
+func csvValue(row []string, index int) string {
+	if index < 0 || index >= len(row) {
+		return ""
+	}
+	value := strings.TrimSpace(strings.TrimPrefix(row[index], "\uFEFF"))
+	return strings.TrimPrefix(value, "'")
+}
+
+func (h *AssetHandler) buildAssetFromCSVRow(tx *gorm.DB, row []string, headers assetCSVHeaderIndex, c *gin.Context) (*models.Asset, string, error) {
+	ePatrimonio := csvValue(row, headers.ePatrimonio)
+	nome := csvValue(row, headers.nome)
+
+	var asset models.Asset
+	action := "criado"
+	err := tx.Where("e_patrimonio = ?", ePatrimonio).First(&asset).Error
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, "", err
+		}
+		asset = models.Asset{EPatrimonio: ePatrimonio}
+		asset.Status = models.AssetStatusDisponivel
+		if val, exists := c.Get("user_id"); exists {
+			userID := val.(uint)
+			asset.CreatedByID = &userID
+		}
+	} else {
+		action = "atualizado"
+	}
+
+	asset.Nome = nome
+	asset.Modelo = stringPointerOrNil(csvValue(row, headers.modelo))
+	asset.NumeroSerie = stringPointerOrNil(csvValue(row, headers.numeroSerie))
+	asset.EmPosseDe = stringPointerOrNil(csvValue(row, headers.emPosseDe))
+
+	if headers.status >= 0 {
+		status, err := parseAssetStatus(csvValue(row, headers.status))
+		if err != nil {
+			return nil, "", err
+		}
+		asset.Status = status
+	}
+
+	if headers.dataAquisicao >= 0 {
+		dateValue, err := parseCSVDate(csvValue(row, headers.dataAquisicao))
+		if err != nil {
+			return nil, "", err
+		}
+		asset.DataAquisicao = dateValue
+	}
+
+	if headers.valor >= 0 {
+		floatValue, err := parseCSVFloat(csvValue(row, headers.valor))
+		if err != nil {
+			return nil, "", err
+		}
+		asset.Valor = floatValue
+	}
+
+	if headers.ativoFixo >= 0 {
+		asset.Bloqueado = parseCSVBool(csvValue(row, headers.ativoFixo))
+	}
+	if headers.requerTermoRH >= 0 {
+		asset.RequerTermoRH = parseCSVBool(csvValue(row, headers.requerTermoRH))
+	}
+
+	categoriaID, err := lookupReferenceID[models.AssetCategory](tx, csvValue(row, headers.categoria))
+	if err != nil {
+		return nil, "", fmt.Errorf("categoria: %w", err)
+	}
+	localID, err := lookupReferenceID[models.Localizacao](tx, csvValue(row, headers.localizacao))
+	if err != nil {
+		return nil, "", fmt.Errorf("localização: %w", err)
+	}
+	armazenamentoID, err := lookupReferenceID[models.Armazenamento](tx, csvValue(row, headers.armazenamento))
+	if err != nil {
+		return nil, "", fmt.Errorf("armazenamento: %w", err)
+	}
+	fornecedorID, err := lookupReferenceID[models.Fornecedor](tx, csvValue(row, headers.fornecedor))
+	if err != nil {
+		return nil, "", fmt.Errorf("fornecedor: %w", err)
+	}
+	setorID, err := lookupReferenceID[models.Departamento](tx, csvValue(row, headers.setor))
+	if err != nil {
+		return nil, "", fmt.Errorf("setor: %w", err)
+	}
+
+	asset.CategoriaID = categoriaID
+	asset.CurrentLocalID = localID
+	asset.CurrentArmazenamentoID = armazenamentoID
+	asset.FornecedorID = fornecedorID
+	asset.CurrentDepartamentoID = setorID
+
+	return &asset, action, nil
+}
+
+func stringPointerOrNil(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func parseAssetStatus(value string) (models.AssetStatus, error) {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	switch normalized {
+	case "", "disponivel", "disponível":
+		return models.AssetStatusDisponivel, nil
+	case "em uso", "emuso":
+		return models.AssetStatusEmUso, nil
+	case "manutencao", "manutenção":
+		return models.AssetStatusManutencao, nil
+	case "armazenado":
+		return models.AssetStatusArmazenado, nil
+	case "baixado":
+		return models.AssetStatusBaixado, nil
+	default:
+		return "", fmt.Errorf("status inválido: %s", value)
+	}
+}
+
+func parseCSVDate(value string) (*time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+
+	layouts := []string{"02/01/2006", "2006-01-02", time.RFC3339}
+	for _, layout := range layouts {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return &parsed, nil
+		}
+	}
+	return nil, fmt.Errorf("data inválida: %s", value)
+}
+
+func parseCSVFloat(value string) (*float64, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	lastComma := strings.LastIndex(value, ",")
+	lastDot := strings.LastIndex(value, ".")
+	switch {
+	case lastComma >= 0 && lastDot >= 0:
+		if lastComma > lastDot {
+			value = strings.ReplaceAll(value, ".", "")
+			value = strings.ReplaceAll(value, ",", ".")
+		} else {
+			value = strings.ReplaceAll(value, ",", "")
+		}
+	case lastComma >= 0:
+		value = strings.ReplaceAll(value, ".", "")
+		value = strings.ReplaceAll(value, ",", ".")
+	default:
+		value = strings.ReplaceAll(value, ",", "")
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return nil, fmt.Errorf("valor inválido: %s", value)
+	}
+	return &parsed, nil
+}
+
+func parseCSVBool(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "sim", "s", "yes", "y":
+		return true
+	default:
+		return false
+	}
+}
+
+func lookupReferenceID[T any](tx *gorm.DB, name string) (*uint, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, nil
+	}
+
+	var item struct {
+		ID uint
+	}
+	if err := tx.Model(new(T)).Select("id").Where("nome = ?", name).First(&item).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("'%s' não encontrado", name)
+		}
+		return nil, err
+	}
+	return &item.ID, nil
 }
 
 func (h *AssetHandler) Update(c *gin.Context) {

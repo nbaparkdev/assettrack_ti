@@ -161,6 +161,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			assets.DELETE("/departamentos/:id", rManager, assetHandler.DeleteDepartamento)
 			assets.GET("", assetHandler.List)
 			assets.GET("/export.csv", assetHandler.ExportCSV)
+			assets.POST("/import.csv", rManager, assetHandler.ImportCSV)
 			assets.POST("", rManager, assetHandler.Create)
 			assets.POST("/bulk", rManager, assetHandler.BulkDuplicate)
 			assets.GET("/:id", assetHandler.GetByID)

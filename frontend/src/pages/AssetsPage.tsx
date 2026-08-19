@@ -4,7 +4,8 @@ import type {
   Asset, 
   AssetStatus, 
   AssetReferences,
-  BulkCopySpec
+  BulkCopySpec,
+  AssetImportResponse
 } from '../types';
 import { useAuthStore } from '../stores/authStore';
 import { 
@@ -91,6 +92,14 @@ export const AssetsPage: React.FC = () => {
   const [scannerError, setScannerError] = useState<string | null>(null);
   const [scannedAsset, setScannedAsset] = useState<Asset | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  // CSV Import State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importingCsv, setImportingCsv] = useState(false);
+  const [selectedImportFile, setSelectedImportFile] = useState<File | null>(null);
+  const [importSummary, setImportSummary] = useState<AssetImportResponse | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   // Global UI states
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -362,6 +371,40 @@ export const AssetsPage: React.FC = () => {
     }
   };
 
+  const handleOpenImportModal = () => {
+    setShowImportModal(true);
+    setSelectedImportFile(null);
+    setImportSummary(null);
+    setImportError(null);
+    if (importInputRef.current) {
+      importInputRef.current.value = '';
+    }
+  };
+
+  const handleImportCsv = async () => {
+    if (!selectedImportFile) {
+      setImportError('Selecione um arquivo CSV para importar.');
+      return;
+    }
+
+    setImportingCsv(true);
+    setImportError(null);
+    try {
+      const summary = await assetsApi.importCsv(selectedImportFile);
+      setImportSummary(summary);
+      setGlobalSuccess(`Importação concluída: ${summary.criados} criado(s), ${summary.atualizados} atualizado(s) e ${summary.falhas} falha(s).`);
+      fetchAssets();
+      fetchReferences();
+      if (activeTab === 'reports') {
+        fetchReportAssets();
+      }
+    } catch (err: any) {
+      setImportError(err.response?.data?.error || 'Não foi possível importar o CSV.');
+    } finally {
+      setImportingCsv(false);
+    }
+  };
+
   // Group assets by category name for list view
   const groupedAssets: Record<string, Asset[]> = {};
   assets.forEach(a => {
@@ -416,6 +459,32 @@ export const AssetsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-3">
+          <button
+            onClick={() => {
+              assetsApi.exportCsv({
+                e_patrimonio: searchEP,
+                categoria_id: filterCategory,
+                status: filterStatus,
+              }).catch(() => {
+                setGlobalError('Falha ao exportar os ativos.');
+              });
+            }}
+            className="border border-brand-border hover:bg-brand-card text-brand-text font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center space-x-1.5 transition-colors"
+          >
+            <FileText size={16} />
+            <span>Exportar CSV</span>
+          </button>
+
+          {isManagerOrAbove && (
+            <button
+              onClick={handleOpenImportModal}
+              className="border border-brand-border hover:bg-brand-card text-brand-text font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center space-x-1.5 transition-colors"
+            >
+              <Upload size={16} />
+              <span>Importar CSV</span>
+            </button>
+          )}
+
           <button
             onClick={() => setShowScannerModal(true)}
             className="border border-brand-border hover:bg-brand-card text-brand-text font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center space-x-1.5 transition-colors"
@@ -1462,6 +1531,159 @@ export const AssetsPage: React.FC = () => {
                 className="border border-brand-border hover:bg-brand-card text-brand-muted px-4 py-2 font-mono text-xs uppercase"
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DIALOG: CSV IMPORT */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-brand-dark/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-3xl border border-brand-border bg-brand-card p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-brand-border pb-4">
+              <div>
+                <h3 className="text-lg font-bold font-mono uppercase tracking-wider text-brand-text">Importar Ativos por CSV</h3>
+                <p className="text-[11px] text-brand-muted mt-1">
+                  Use o mesmo padrão do arquivo exportado pelo inventário. O sistema cria novos ativos e atualiza os já existentes pelo E-Patrimônio.
+                </p>
+              </div>
+              <button onClick={() => setShowImportModal(false)} className="text-brand-muted hover:text-brand-text">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_.9fr] gap-6">
+              <div className="space-y-4">
+                <div
+                  onClick={() => importInputRef.current?.click()}
+                  className="border-2 border-dashed border-brand-border hover:border-brand-primary/50 bg-brand-dark/20 p-8 text-center cursor-pointer space-y-3 transition-colors"
+                >
+                  <Upload className="mx-auto text-brand-muted hover:text-brand-primary transition-colors" size={34} />
+                  <div>
+                    <span className="text-xs font-mono text-brand-text uppercase block font-semibold">Selecionar arquivo CSV</span>
+                    <span className="text-[10px] text-brand-muted block mt-1">Separador `;` e colunas do inventário exportado</span>
+                  </div>
+                  <input
+                    type="file"
+                    ref={importInputRef}
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setSelectedImportFile(file);
+                      setImportSummary(null);
+                      setImportError(null);
+                    }}
+                  />
+                </div>
+
+                <div className="border border-brand-border/50 bg-brand-dark/20 p-4 text-xs space-y-2">
+                  <div className="font-mono uppercase tracking-wider text-brand-primary">Como funciona</div>
+                  <div className="text-brand-muted">Se o E-Patrimônio já existir, o ativo é atualizado.</div>
+                  <div className="text-brand-muted">Se não existir, um novo ativo é criado.</div>
+                  <div className="text-brand-muted">Categoria, localização, armazenamento, fornecedor e setor precisam já existir no sistema quando vierem preenchidos no CSV.</div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => assetsApi.downloadImportTemplate()}
+                  className="border border-brand-border hover:bg-brand-card text-brand-text font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center justify-center space-x-2 transition-colors w-full"
+                >
+                  <FileText size={14} />
+                  <span>Baixar Modelo CSV</span>
+                </button>
+
+                {selectedImportFile && (
+                  <div className="border border-brand-primary/30 bg-brand-primary/5 p-3 text-xs">
+                    <div className="font-semibold text-brand-text">{selectedImportFile.name}</div>
+                    <div className="text-brand-muted mt-1">{Math.max(1, Math.round(selectedImportFile.size / 1024))} KB</div>
+                  </div>
+                )}
+
+                {importError && (
+                  <div className="p-3 border border-red-500/30 bg-red-500/5 text-red-400 text-xs font-mono flex items-center space-x-2">
+                    <ShieldAlert size={16} />
+                    <span>{importError}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <div className="border border-brand-border/50 bg-brand-dark/20 p-4 space-y-3">
+                  <div className="font-mono uppercase tracking-wider text-brand-text text-xs">Colunas aceitas</div>
+                  <div className="text-[11px] text-brand-muted leading-5">
+                    E-Patrimônio, Nome, Modelo, Número de Série, Status, Categoria, Localização, Armazenamento, Fornecedor, Data de Aquisição, Valor, Ativo Fixo, Em Posse De, Setor e Requer Termo RH.
+                  </div>
+                </div>
+
+                {importSummary && (
+                  <div className="border border-brand-border bg-brand-dark/20 p-4 space-y-4">
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="border border-brand-border/50 p-3">
+                        <div className="text-xl font-black font-mono text-brand-text">{importSummary.criados}</div>
+                        <div className="text-[10px] uppercase font-mono text-brand-muted">Criados</div>
+                      </div>
+                      <div className="border border-brand-border/50 p-3">
+                        <div className="text-xl font-black font-mono text-brand-text">{importSummary.atualizados}</div>
+                        <div className="text-[10px] uppercase font-mono text-brand-muted">Atualizados</div>
+                      </div>
+                      <div className="border border-brand-border/50 p-3">
+                        <div className="text-xl font-black font-mono text-red-400">{importSummary.falhas}</div>
+                        <div className="text-[10px] uppercase font-mono text-brand-muted">Falhas</div>
+                      </div>
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto border border-brand-border/50">
+                      <table className="w-full text-left text-[11px]">
+                        <thead className="border-b border-brand-border/50 font-mono uppercase text-[10px] text-brand-muted">
+                          <tr>
+                            <th className="px-3 py-2">Linha</th>
+                            <th className="px-3 py-2">Ativo</th>
+                            <th className="px-3 py-2">Resultado</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-brand-border/30">
+                          {importSummary.resultados.map((item) => (
+                            <tr key={`${item.linha}-${item.e_patrimonio}`}>
+                              <td className="px-3 py-2 font-mono text-brand-muted">{item.linha}</td>
+                              <td className="px-3 py-2">
+                                <div className="text-brand-text">{item.nome || 'Sem nome'}</div>
+                                <div className="text-brand-muted font-mono text-[10px]">{item.e_patrimonio || 'Sem patrimônio'}</div>
+                              </td>
+                              <td className="px-3 py-2">
+                                {item.erro ? (
+                                  <span className="text-red-400">{item.erro}</span>
+                                ) : (
+                                  <span className="text-brand-primary font-mono uppercase text-[10px]">{item.acao}</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-brand-border">
+              <button
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="border border-brand-border hover:bg-brand-card px-4 py-2 font-mono text-xs uppercase"
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                onClick={handleImportCsv}
+                disabled={importingCsv}
+                className="bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-60 text-brand-dark font-bold font-mono px-4 py-2 uppercase tracking-wider text-xs flex items-center gap-2"
+              >
+                {importingCsv && <RefreshCw size={14} className="animate-spin" />}
+                <span>{importingCsv ? 'Importando...' : 'Importar Agora'}</span>
               </button>
             </div>
           </div>
