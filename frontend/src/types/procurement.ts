@@ -76,6 +76,9 @@ export interface PurchaseRequest {
   centro_custo?: CostCenter;
   itens: PurchaseRequestItem[];
   approvals: PurchaseApproval[];
+  valor_estimado_total: number;
+  nivel_aprovacao_sugerido: string;
+  situacao_orcamento_centro: string;
 }
 
 export interface PurchaseQuotationItem {
@@ -139,6 +142,12 @@ export interface PurchaseOrder {
   fornecedor?: { id: number; nome: string };
   centro_custo?: CostCenter;
   itens: PurchaseOrderItem[];
+  request_valor_estimado_total: number;
+  economia_estimada: number;
+  prazo_entrega_dias: number;
+  sla_status: string;
+  data_prevista_entrega?: string;
+  ultima_data_recebimento?: string;
 }
 
 export interface PurchaseReceivingItem {
@@ -169,6 +178,20 @@ export interface MaterialStock {
   quantidade_saldo: number;
   localizacao_almoxarifado?: string;
   product?: PurchaseProduct;
+}
+
+export interface MaterialStockTransaction {
+  id: number;
+  product_id: number;
+  quantidade: number;
+  tipo_movimentacao: string;
+  origem_tabela?: string;
+  origem_id?: number;
+  data_transacao: string;
+  user_id: number;
+  justificativa?: string;
+  product?: PurchaseProduct;
+  user?: { id: number; nome: string };
 }
 
 export interface PurchaseContract {
@@ -232,6 +255,52 @@ export interface ProcurementDashboard {
   low_stock_count: number;
   requests_recent: PurchaseRequest[];
   orders_recent: PurchaseOrder[];
+  requested_total: number;
+  quoted_total: number;
+  ordered_total: number;
+  estimated_savings_total: number;
+  top_suppliers: Array<{
+    id: number;
+    nome: string;
+    total_pedidos: number;
+    valor_total: number;
+  }>;
+  cost_center_reports: Array<{
+    id: number;
+    codigo: string;
+    nome: string;
+    orcamento_mensal: number;
+    orcamento_usado: number;
+    solicitado_pendente: number;
+    solicitado_aprovado: number;
+    comprado_total: number;
+    economia_total: number;
+  }>;
+  supplier_performance: Array<{
+    id: number;
+    nome: string;
+    total_pedidos: number;
+    valor_total: number;
+    pedidos_recebidos: number;
+    pedidos_ativos: number;
+    pedidos_no_prazo: number;
+    pedidos_em_atraso: number;
+    ticket_medio: number;
+    sla_percentual: number;
+  }>;
+  monthly_budget_total: number;
+  monthly_budget_used: number;
+  cost_centers_alert: number;
+  cost_centers_over_limit: number;
+  cost_centers_summary: Array<{
+    id: number;
+    codigo: string;
+    nome: string;
+    orcamento_mensal: number;
+    orcamento_mensal_usado: number;
+    uso_percentual: number;
+    status: 'ok' | 'alert' | 'over_limit' | 'no_budget';
+  }>;
 }
 
 export const PRODUCT_TYPES = ['Produto', 'Serviço', 'Licença', 'Assinatura', 'Equipamento', 'Material de Consumo'];

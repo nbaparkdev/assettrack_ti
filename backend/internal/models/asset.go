@@ -50,6 +50,8 @@ type Asset struct {
 	CurrentDepartamento  *Departamento  `gorm:"foreignKey:CurrentDepartamentoID" json:"current_departamento,omitempty"`
 	CurrentLocal         *Localizacao   `gorm:"foreignKey:CurrentLocalID" json:"current_local,omitempty"`
 	CurrentArmazenamento *Armazenamento `gorm:"foreignKey:CurrentArmazenamentoID" json:"current_armazenamento,omitempty"`
+	PrevLocal            *Localizacao   `gorm:"foreignKey:PrevLocalID" json:"prev_local,omitempty"`
+	PrevArmazenamento    *Armazenamento `gorm:"foreignKey:PrevArmazenamentoID" json:"prev_armazenamento,omitempty"`
 	CreatedBy            *User          `gorm:"foreignKey:CreatedByID" json:"created_by,omitempty"`
 	Fornecedor           *Fornecedor    `gorm:"foreignKey:FornecedorID" json:"fornecedor,omitempty"`
 	NotaFiscal           *NotaFiscal    `gorm:"foreignKey:NotaFiscalID" json:"nota_fiscal,omitempty"`

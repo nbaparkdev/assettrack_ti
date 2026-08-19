@@ -155,8 +155,28 @@ export const assetsApi = {
     return response.data;
   },
 
+  updateCategoria: async (id: number, nome: string): Promise<AssetCategory> => {
+    const response = await apiClient.put<AssetCategory>(`/assets/categorias/${id}`, { nome });
+    return response.data;
+  },
+
+  deleteCategoria: async (id: number): Promise<{ detail: string }> => {
+    const response = await apiClient.delete<{ detail: string }>(`/assets/categorias/${id}`);
+    return response.data;
+  },
+
   createLocalizacao: async (nome: string): Promise<Localizacao> => {
     const response = await apiClient.post<Localizacao>('/assets/localizacoes', { nome });
+    return response.data;
+  },
+
+  updateLocalizacao: async (id: number, nome: string): Promise<Localizacao> => {
+    const response = await apiClient.put<Localizacao>(`/assets/localizacoes/${id}`, { nome });
+    return response.data;
+  },
+
+  deleteLocalizacao: async (id: number): Promise<{ detail: string }> => {
+    const response = await apiClient.delete<{ detail: string }>(`/assets/localizacoes/${id}`);
     return response.data;
   },
 

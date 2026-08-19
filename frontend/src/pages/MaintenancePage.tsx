@@ -154,6 +154,20 @@ export const MaintenancePage: React.FC = () => {
     }
   };
 
+  const getMaintenanceAssetLocation = (asset?: Asset) => {
+    if (!asset) return '—';
+    if (asset.current_local?.nome) return asset.current_local.nome;
+    if (asset.status === 'Manutenção' && asset.prev_local?.nome) return `${asset.prev_local.nome} (origem)`;
+    return '—';
+  };
+
+  const getMaintenanceAssetStorage = (asset?: Asset) => {
+    if (!asset) return '';
+    if (asset.current_armazenamento?.nome) return asset.current_armazenamento.nome;
+    if (asset.status === 'Manutenção' && asset.prev_armazenamento?.nome) return `${asset.prev_armazenamento.nome} (origem)`;
+    return '';
+  };
+
   // Filter requests based on tab and filters
   const filteredRequests = requests.filter(r => {
     if (activeTab === 'requests') {
@@ -304,6 +318,14 @@ export const MaintenancePage: React.FC = () => {
                     <User size={12} />
                     <span>Solicitante: {request.solicitante?.nome || 'Usuário'}</span>
                   </div>
+                  <div className="flex items-center space-x-1">
+                    <span>Local: {getMaintenanceAssetLocation(request.asset)}</span>
+                  </div>
+                  {getMaintenanceAssetStorage(request.asset) && (
+                    <div className="flex items-center space-x-1">
+                      <span>Armaz.: {getMaintenanceAssetStorage(request.asset)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center space-x-1">
                     <Clock size={12} />
                     <span>Abertura: {new Date(request.data_solicitacao).toLocaleDateString('pt-BR')}</span>

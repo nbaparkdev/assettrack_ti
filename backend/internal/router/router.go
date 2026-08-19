@@ -107,7 +107,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		procCategoryRepo, procProductRepo, procCCRepo, procRequestRepo, procApprovalRepo,
 		procQuotationRepo, procOrderRepo, procReceivingRepo, procStockRepo,
 		procContractRepo, procContractTypeRepo, procHistoryRepo, procNotifRepo,
-		procResearchRepo, assetRepo, userRepo, kanbanCardRepo, kanbanInteractionRepo,
+		procResearchRepo, assetRepo, userRepo, kanbanCardRepo, kanbanInteractionRepo, systemSettingsRepo,
 	)
 	rhHandler := handler.NewRHHandler(rhRepo, userRepo, assetRepo)
 	webhookHandler := handler.NewWebhookHandler(webhookRepo, webhookDispatcher)
@@ -155,7 +155,11 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		{
 			assets.GET("/referencias", assetHandler.GetReferences)
 			assets.POST("/categorias", rManager, assetHandler.CreateCategoria)
+			assets.PUT("/categorias/:id", rManager, assetHandler.UpdateCategoria)
+			assets.DELETE("/categorias/:id", rManager, assetHandler.DeleteCategoria)
 			assets.POST("/localizacoes", rManager, assetHandler.CreateLocalizacao)
+			assets.PUT("/localizacoes/:id", rManager, assetHandler.UpdateLocalizacao)
+			assets.DELETE("/localizacoes/:id", rManager, assetHandler.DeleteLocalizacao)
 			assets.POST("/armazenamentos", rManager, assetHandler.CreateArmazenamento)
 			assets.POST("/departamentos", rManager, assetHandler.CreateDepartamento)
 			assets.DELETE("/departamentos/:id", rManager, assetHandler.DeleteDepartamento)
@@ -336,14 +340,19 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		compras := v1.Group("/compras", authMW, rActive)
 		{
 			compras.GET("/dashboard", procurementHandler.Dashboard)
+			compras.GET("/export.csv", procurementHandler.ExportCSV)
 			compras.GET("/notificacoes", procurementHandler.MyNotifications)
 			compras.POST("/notificacoes/lidas", procurementHandler.MarkNotificationsRead)
 
 			compras.GET("/categorias", procurementHandler.ListCategories)
 			compras.POST("/categorias", rManager, procurementHandler.CreateCategory)
+			compras.PUT("/categorias/:id", rManager, procurementHandler.UpdateCategory)
+			compras.DELETE("/categorias/:id", rManager, procurementHandler.DeleteCategory)
 
 			compras.GET("/produtos", procurementHandler.ListProducts)
 			compras.POST("/produtos", rManager, procurementHandler.CreateProduct)
+			compras.PUT("/produtos/:id", rManager, procurementHandler.UpdateProduct)
+			compras.DELETE("/produtos/:id", rManager, procurementHandler.DeleteProduct)
 
 			compras.GET("/centro-custos", procurementHandler.ListCostCenters)
 			compras.POST("/centro-custos", rManager, procurementHandler.CreateCostCenter)
@@ -364,9 +373,12 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			compras.GET("/pedidos", procurementHandler.ListOrders)
 			compras.POST("/pedidos", rManager, procurementHandler.CreateOrder)
 			compras.GET("/pedidos/:id", procurementHandler.GetOrder)
+			compras.PUT("/pedidos/:id/status", rManager, procurementHandler.UpdateOrderStatus)
 			compras.POST("/pedidos/:id/receber", procurementHandler.ReceiveOrder)
 
 			compras.GET("/estoque", procurementHandler.ListStock)
+			compras.GET("/estoque/transacoes", procurementHandler.ListStockTransactions)
+			compras.POST("/estoque/consumir", procurementHandler.ConsumeStock)
 
 			compras.GET("/contratos", procurementHandler.ListContracts)
 			compras.POST("/contratos", rManager, procurementHandler.CreateContract)

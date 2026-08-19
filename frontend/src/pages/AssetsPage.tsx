@@ -24,7 +24,9 @@ import {
   Table as TableIcon,
   Upload,
   RefreshCw,
-  Lock
+  Lock,
+  MapPin,
+  Layers3
 } from 'lucide-react';
 
 export const AssetsPage: React.FC = () => {
@@ -34,7 +36,7 @@ export const AssetsPage: React.FC = () => {
                            currentAuthUser?.role === 'gerente_infra' || 
                            currentAuthUser?.role === 'tecnico';
 
-  const [activeTab, setActiveTab] = useState<'table' | 'kanban' | 'reports'>('table');
+  const [activeTab, setActiveTab] = useState<'table' | 'kanban' | 'reports' | 'references'>('table');
   const [assets, setAssets] = useState<Asset[]>([]);
   const [references, setReferences] = useState<AssetReferences | null>(null);
   const [loading, setLoading] = useState(false);
@@ -100,6 +102,20 @@ export const AssetsPage: React.FC = () => {
   const [selectedImportFile, setSelectedImportFile] = useState<File | null>(null);
   const [importSummary, setImportSummary] = useState<AssetImportResponse | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+
+  // Reference management state
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newLocationName, setNewLocationName] = useState('');
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [creatingLocation, setCreatingLocation] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [editingLocationId, setEditingLocationId] = useState<number | null>(null);
+  const [editingLocationName, setEditingLocationName] = useState('');
+  const [savingCategoryId, setSavingCategoryId] = useState<number | null>(null);
+  const [savingLocationId, setSavingLocationId] = useState<number | null>(null);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
+  const [deletingLocationId, setDeletingLocationId] = useState<number | null>(null);
 
   // Global UI states
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -405,6 +421,130 @@ export const AssetsPage: React.FC = () => {
     }
   };
 
+  const getAssetLocationLabel = (asset: Asset) => {
+    if (asset.current_local?.nome) return asset.current_local.nome;
+    if (asset.status === 'Manutenção' && asset.prev_local?.nome) return `${asset.prev_local.nome} (origem)`;
+    return '—';
+  };
+
+  const getAssetStorageLabel = (asset: Asset) => {
+    if (asset.current_armazenamento?.nome) return asset.current_armazenamento.nome;
+    if (asset.status === 'Manutenção' && asset.prev_armazenamento?.nome) return `${asset.prev_armazenamento.nome} (origem)`;
+    return '';
+  };
+
+  const handleCreateCategoryInline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+
+    setCreatingCategory(true);
+    try {
+      await assetsApi.createCategoria(newCategoryName.trim());
+      setNewCategoryName('');
+      setGlobalSuccess('Categoria criada com sucesso.');
+      fetchReferences();
+    } catch (err: any) {
+      setGlobalError(err.response?.data?.error || 'Não foi possível criar a categoria.');
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  const handleCreateLocationInline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLocationName.trim()) return;
+
+    setCreatingLocation(true);
+    try {
+      await assetsApi.createLocalizacao(newLocationName.trim());
+      setNewLocationName('');
+      setGlobalSuccess('Localização criada com sucesso.');
+      fetchReferences();
+    } catch (err: any) {
+      setGlobalError(err.response?.data?.error || 'Não foi possível criar a localização.');
+    } finally {
+      setCreatingLocation(false);
+    }
+  };
+
+  const handleStartEditCategory = (id: number, nome: string) => {
+    setEditingCategoryId(id);
+    setEditingCategoryName(nome);
+  };
+
+  const handleSaveCategory = async (id: number) => {
+    if (!editingCategoryName.trim()) return;
+    setSavingCategoryId(id);
+    try {
+      await assetsApi.updateCategoria(id, editingCategoryName.trim());
+      setEditingCategoryId(null);
+      setEditingCategoryName('');
+      setGlobalSuccess('Categoria atualizada com sucesso.');
+      fetchReferences();
+    } catch (err: any) {
+      setGlobalError(err.response?.data?.error || 'Não foi possível atualizar a categoria.');
+    } finally {
+      setSavingCategoryId(null);
+    }
+  };
+
+  const handleDeleteCategory = async (id: number, nome: string) => {
+    if (!window.confirm(`Deseja excluir a categoria "${nome}"?`)) return;
+    setDeletingCategoryId(id);
+    try {
+      await assetsApi.deleteCategoria(id);
+      if (editingCategoryId === id) {
+        setEditingCategoryId(null);
+        setEditingCategoryName('');
+      }
+      setGlobalSuccess('Categoria excluída com sucesso.');
+      fetchReferences();
+    } catch (err: any) {
+      setGlobalError(err.response?.data?.error || 'Não foi possível excluir a categoria.');
+    } finally {
+      setDeletingCategoryId(null);
+    }
+  };
+
+  const handleStartEditLocation = (id: number, nome: string) => {
+    setEditingLocationId(id);
+    setEditingLocationName(nome);
+  };
+
+  const handleSaveLocation = async (id: number) => {
+    if (!editingLocationName.trim()) return;
+    setSavingLocationId(id);
+    try {
+      await assetsApi.updateLocalizacao(id, editingLocationName.trim());
+      setEditingLocationId(null);
+      setEditingLocationName('');
+      setGlobalSuccess('Localização atualizada com sucesso.');
+      fetchReferences();
+    } catch (err: any) {
+      setGlobalError(err.response?.data?.error || 'Não foi possível atualizar a localização.');
+    } finally {
+      setSavingLocationId(null);
+    }
+  };
+
+  const handleDeleteLocation = async (id: number, nome: string) => {
+    if (!window.confirm(`Deseja excluir a localização "${nome}"?`)) return;
+    setDeletingLocationId(id);
+    try {
+      await assetsApi.deleteLocalizacao(id);
+      if (editingLocationId === id) {
+        setEditingLocationId(null);
+        setEditingLocationName('');
+      }
+      setGlobalSuccess('Localização excluída com sucesso.');
+      fetchReferences();
+    } catch (err: any) {
+      setGlobalError(err.response?.data?.error || 'Não foi possível excluir a localização.');
+    } finally {
+      setDeletingLocationId(null);
+    }
+  };
+
   // Group assets by category name for list view
   const groupedAssets: Record<string, Asset[]> = {};
   assets.forEach(a => {
@@ -542,10 +682,24 @@ export const AssetsPage: React.FC = () => {
           <FileText size={16} />
           <span>Filtros & Relatórios</span>
         </button>
+
+        {isManagerOrAbove && (
+          <button
+            onClick={() => setActiveTab('references')}
+            className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
+              activeTab === 'references'
+                ? 'border-brand-primary text-brand-primary bg-brand-primary/5'
+                : 'border-transparent text-brand-muted hover:text-brand-text'
+            }`}
+          >
+            <Layers3 size={16} />
+            <span>Cadastros Base</span>
+          </button>
+        )}
       </div>
 
       {/* SEARCH AND QUICK FILTERS FOR TABLE & KANBAN */}
-      {activeTab !== 'reports' && (
+      {(activeTab === 'table' || activeTab === 'kanban') && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-brand-card/25 border border-brand-border p-4">
           <div className="relative">
             <Search className="absolute left-3 top-3 text-brand-muted" size={16} />
@@ -637,8 +791,8 @@ export const AssetsPage: React.FC = () => {
                               <div className="text-[10px] text-brand-muted font-mono">{a.numero_serie ? `S/N: ${a.numero_serie}` : 'S/N: —'}</div>
                             </td>
                             <td className="p-4 text-xs">
-                              <div className="text-brand-text">{a.current_local?.nome || '—'}</div>
-                              <div className="text-brand-muted font-mono">{a.current_armazenamento?.nome}</div>
+                              <div className="text-brand-text">{getAssetLocationLabel(a)}</div>
+                              <div className="text-brand-muted font-mono">{getAssetStorageLabel(a)}</div>
                             </td>
                             <td className="p-4">
                               {a.status === 'Manutenção' ? (
@@ -743,7 +897,7 @@ export const AssetsPage: React.FC = () => {
 
                       <div className="flex justify-between items-center text-[9px] text-brand-muted border-t border-brand-border/30 pt-2 font-mono">
                         <span>{a.categoria?.nome || 'Sem Categoria'}</span>
-                        <span className="truncate max-w-[80px]">{a.current_local?.nome || '—'}</span>
+                        <span className="truncate max-w-[100px]">{getAssetLocationLabel(a)}</span>
                       </div>
                     </div>
                   ))}
@@ -962,7 +1116,7 @@ export const AssetsPage: React.FC = () => {
                         </td>
                         <td className="py-3 px-3 font-mono text-brand-text">{asset.e_patrimonio}</td>
                         <td className="py-3 px-3 text-brand-muted">{asset.categoria?.nome || 'Sem categoria'}</td>
-                        <td className="py-3 px-3 text-brand-muted">{asset.current_local?.nome || '—'}</td>
+                        <td className="py-3 px-3 text-brand-muted">{getAssetLocationLabel(asset)}</td>
                         <td className="py-3 px-3 text-brand-muted">{asset.fornecedor?.nome || '—'}</td>
                         <td className="py-3 px-3">
                           <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-brand-primary/30 bg-brand-primary/5 text-brand-primary">
@@ -975,6 +1129,221 @@ export const AssetsPage: React.FC = () => {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT: REFERENCE MANAGEMENT */}
+      {activeTab === 'references' && isManagerOrAbove && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="bg-brand-card border border-brand-border p-6 space-y-5">
+            <div className="flex items-center space-x-2 border-b border-brand-border pb-3">
+              <Layers3 className="text-brand-primary" size={18} />
+              <div>
+                <h3 className="font-bold text-sm uppercase tracking-wider text-brand-text font-mono m-0">Categorias de Ativos</h3>
+                <p className="text-[11px] text-brand-muted mt-1">Crie e organize os tipos de equipamentos do inventário.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateCategoryInline} className="space-y-3">
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted">Nova Categoria</label>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Ex.: Notebook, Monitor, Impressora"
+                  className="flex-1 bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                />
+                <button
+                  type="submit"
+                  disabled={creatingCategory}
+                  className="bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-60 text-brand-dark font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center justify-center gap-2"
+                >
+                  {creatingCategory && <RefreshCw size={14} className="animate-spin" />}
+                  <span>{creatingCategory ? 'Criando...' : 'Criar Categoria'}</span>
+                </button>
+              </div>
+            </form>
+
+            <div className="border border-brand-border/50">
+              <div className="px-4 py-3 border-b border-brand-border bg-brand-dark/20 flex items-center justify-between">
+                <span className="font-mono text-xs uppercase tracking-wider text-brand-text">Categorias cadastradas</span>
+                <span className="font-mono text-[10px] text-brand-muted">{references?.categorias.length ?? 0} itens</span>
+              </div>
+              <div className="max-h-[420px] overflow-y-auto divide-y divide-brand-border/30">
+                {references?.categorias.length ? references.categorias.map((categoria) => (
+                  <div key={categoria.id} className="px-4 py-3 flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      {editingCategoryId === categoria.id ? (
+                        <input
+                          type="text"
+                          value={editingCategoryName}
+                          onChange={(e) => setEditingCategoryName(e.target.value)}
+                          className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                        />
+                      ) : (
+                        <div className="text-sm text-brand-text font-medium">{categoria.nome}</div>
+                      )}
+                      <div className="text-[10px] font-mono text-brand-muted mt-1">ID #{categoria.id}</div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {editingCategoryId === categoria.id ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveCategory(categoria.id)}
+                            disabled={savingCategoryId === categoria.id}
+                            className="border border-brand-primary text-brand-primary hover:bg-brand-primary/5 px-3 py-1.5 font-mono text-[10px] uppercase"
+                          >
+                            {savingCategoryId === categoria.id ? 'Salvando...' : 'Salvar'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCategoryId(null);
+                              setEditingCategoryName('');
+                            }}
+                            className="border border-brand-border text-brand-muted hover:bg-brand-card px-3 py-1.5 font-mono text-[10px] uppercase"
+                          >
+                            Cancelar
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditCategory(categoria.id, categoria.nome)}
+                            className="border border-brand-border hover:border-brand-primary text-brand-text p-2 transition-colors"
+                            title="Editar categoria"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCategory(categoria.id, categoria.nome)}
+                            disabled={deletingCategoryId === categoria.id}
+                            className="border border-brand-border hover:border-red-500 text-red-400 p-2 transition-colors disabled:opacity-60"
+                            title="Excluir categoria"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )) : (
+                  <div className="px-4 py-8 text-center text-brand-muted font-mono text-xs uppercase">
+                    Nenhuma categoria cadastrada.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-brand-card border border-brand-border p-6 space-y-5">
+            <div className="flex items-center space-x-2 border-b border-brand-border pb-3">
+              <MapPin className="text-brand-primary" size={18} />
+              <div>
+                <h3 className="font-bold text-sm uppercase tracking-wider text-brand-text font-mono m-0">Localizações</h3>
+                <p className="text-[11px] text-brand-muted mt-1">Cadastre os locais físicos usados pelo estoque e pelos ativos em operação.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateLocationInline} className="space-y-3">
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted">Nova Localização</label>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={newLocationName}
+                  onChange={(e) => setNewLocationName(e.target.value)}
+                  placeholder="Ex.: Matriz, Filial Goiânia, Sala CPD"
+                  className="flex-1 bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                />
+                <button
+                  type="submit"
+                  disabled={creatingLocation}
+                  className="bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-60 text-brand-dark font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center justify-center gap-2"
+                >
+                  {creatingLocation && <RefreshCw size={14} className="animate-spin" />}
+                  <span>{creatingLocation ? 'Criando...' : 'Criar Localização'}</span>
+                </button>
+              </div>
+            </form>
+
+            <div className="border border-brand-border/50">
+              <div className="px-4 py-3 border-b border-brand-border bg-brand-dark/20 flex items-center justify-between">
+                <span className="font-mono text-xs uppercase tracking-wider text-brand-text">Localizações cadastradas</span>
+                <span className="font-mono text-[10px] text-brand-muted">{references?.localizacoes.length ?? 0} itens</span>
+              </div>
+              <div className="max-h-[420px] overflow-y-auto divide-y divide-brand-border/30">
+                {references?.localizacoes.length ? references.localizacoes.map((localizacao) => (
+                  <div key={localizacao.id} className="px-4 py-3 flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      {editingLocationId === localizacao.id ? (
+                        <input
+                          type="text"
+                          value={editingLocationName}
+                          onChange={(e) => setEditingLocationName(e.target.value)}
+                          className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                        />
+                      ) : (
+                        <div className="text-sm text-brand-text font-medium">{localizacao.nome}</div>
+                      )}
+                      <div className="text-[10px] font-mono text-brand-muted mt-1">ID #{localizacao.id}</div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {editingLocationId === localizacao.id ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveLocation(localizacao.id)}
+                            disabled={savingLocationId === localizacao.id}
+                            className="border border-brand-primary text-brand-primary hover:bg-brand-primary/5 px-3 py-1.5 font-mono text-[10px] uppercase"
+                          >
+                            {savingLocationId === localizacao.id ? 'Salvando...' : 'Salvar'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingLocationId(null);
+                              setEditingLocationName('');
+                            }}
+                            className="border border-brand-border text-brand-muted hover:bg-brand-card px-3 py-1.5 font-mono text-[10px] uppercase"
+                          >
+                            Cancelar
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditLocation(localizacao.id, localizacao.nome)}
+                            className="border border-brand-border hover:border-brand-primary text-brand-text p-2 transition-colors"
+                            title="Editar localização"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLocation(localizacao.id, localizacao.nome)}
+                            disabled={deletingLocationId === localizacao.id}
+                            className="border border-brand-border hover:border-red-500 text-red-400 p-2 transition-colors disabled:opacity-60"
+                            title="Excluir localização"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )) : (
+                  <div className="px-4 py-8 text-center text-brand-muted font-mono text-xs uppercase">
+                    Nenhuma localização cadastrada.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1276,7 +1645,7 @@ export const AssetsPage: React.FC = () => {
                     {duplicateTemplate.valor && (
                       <div><span className="text-brand-muted">Valor:</span> <span className="text-brand-text font-mono font-bold">R$ {duplicateTemplate.valor.toFixed(2)}</span></div>
                     )}
-                    <div><span className="text-brand-muted">Original Local:</span> <span className="text-brand-text">{duplicateTemplate.current_local?.nome || '—'}</span></div>
+                    <div><span className="text-brand-muted">Original Local:</span> <span className="text-brand-text">{getAssetLocationLabel(duplicateTemplate)}</span></div>
                   </div>
                 </div>
 
@@ -1508,7 +1877,7 @@ export const AssetsPage: React.FC = () => {
                   <div className="text-xs space-y-1">
                     <div className="font-bold text-brand-text">{scannedAsset.nome}</div>
                     <div className="font-mono text-brand-muted text-[10px]">{scannedAsset.e_patrimonio}</div>
-                    <div className="text-brand-muted">Local: {scannedAsset.current_local?.nome || '—'}</div>
+                    <div className="text-brand-muted">Local: {getAssetLocationLabel(scannedAsset)}</div>
                     <div className="text-brand-muted">Status: {scannedAsset.status}</div>
                   </div>
 

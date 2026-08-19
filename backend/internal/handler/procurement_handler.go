@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/csv"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -62,6 +65,7 @@ type ProcurementHandler struct {
 	userRepo         *repository.UserRepository
 	cardRepo         *repository.KanbanCardRepository
 	interactionRepo  *repository.KanbanInteractionRepository
+	settingsRepo     repository.SystemSettingsRepository
 }
 
 func NewProcurementHandler(
@@ -83,6 +87,7 @@ func NewProcurementHandler(
 	userRepo *repository.UserRepository,
 	cardRepo *repository.KanbanCardRepository,
 	interactionRepo *repository.KanbanInteractionRepository,
+	settingsRepo repository.SystemSettingsRepository,
 ) *ProcurementHandler {
 	return &ProcurementHandler{
 		categoryRepo:     categoryRepo,
@@ -103,6 +108,7 @@ func NewProcurementHandler(
 		userRepo:         userRepo,
 		cardRepo:         cardRepo,
 		interactionRepo:  interactionRepo,
+		settingsRepo:     settingsRepo,
 	}
 }
 
@@ -144,17 +150,261 @@ func parseProcDate(s string) *time.Time {
 	return nil
 }
 
+func calcRequestEstimatedTotal(req *models.PurchaseRequest) float64 {
+	if req == nil {
+		return 0
+	}
+	total := 0.0
+	for _, it := range req.Itens {
+		total += it.Quantidade * it.ValorEstimado
+	}
+	return total
+}
+
+type procurementApprovalLimits struct {
+	GestorMax     float64
+	GerenteMax    float64
+	FinanceiroMax float64
+}
+
+func defaultProcurementApprovalLimits() procurementApprovalLimits {
+	return procurementApprovalLimits{
+		GestorMax:     5000,
+		GerenteMax:    15000,
+		FinanceiroMax: 50000,
+	}
+}
+
+func parseFloatSetting(value string, fallback float64) float64 {
+	v, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	if err != nil || v <= 0 {
+		return fallback
+	}
+	return v
+}
+
+func (h *ProcurementHandler) loadApprovalLimits(c *gin.Context) procurementApprovalLimits {
+	limits := defaultProcurementApprovalLimits()
+	if h.settingsRepo == nil || c == nil {
+		return limits
+	}
+	if s, err := h.settingsRepo.GetSetting(c.Request.Context(), "procurement_approval_limit_gestor"); err == nil && s != nil {
+		limits.GestorMax = parseFloatSetting(s.SettingValue, limits.GestorMax)
+	}
+	if s, err := h.settingsRepo.GetSetting(c.Request.Context(), "procurement_approval_limit_gerente"); err == nil && s != nil {
+		limits.GerenteMax = parseFloatSetting(s.SettingValue, limits.GerenteMax)
+	}
+	if s, err := h.settingsRepo.GetSetting(c.Request.Context(), "procurement_approval_limit_financeiro"); err == nil && s != nil {
+		limits.FinanceiroMax = parseFloatSetting(s.SettingValue, limits.FinanceiroMax)
+	}
+	if limits.GerenteMax < limits.GestorMax {
+		limits.GerenteMax = limits.GestorMax
+	}
+	if limits.FinanceiroMax < limits.GerenteMax {
+		limits.FinanceiroMax = limits.GerenteMax
+	}
+	return limits
+}
+
+func suggestedApprovalLevel(total float64, urgency string, limits procurementApprovalLimits) string {
+	switch {
+	case total >= limits.FinanceiroMax:
+		return "Diretoria"
+	case total >= limits.GerenteMax:
+		return "Financeiro"
+	case total >= limits.GestorMax:
+		return "Gerente"
+	case urgency == models.UrgencyUrgente || urgency == models.UrgencyAlta:
+		return "Gerente"
+	default:
+		return "Gestor"
+	}
+}
+
+func approvalLevelRank(level string) int {
+	switch level {
+	case "Gestor":
+		return 1
+	case "Gerente":
+		return 2
+	case "Financeiro":
+		return 3
+	case "Diretoria":
+		return 4
+	case "Compras":
+		return 5
+	default:
+		return 0
+	}
+}
+
+func nextRequestApprovalLevel(current string) string {
+	switch current {
+	case "Gestor":
+		return "Gerente"
+	case "Gerente":
+		return "Financeiro"
+	case "Financeiro":
+		return "Diretoria"
+	case "Diretoria":
+		return "Compras"
+	default:
+		return "Compras"
+	}
+}
+
+func normalizeOrderStatus(value string) string {
+	value = strings.TrimSpace(value)
+	switch value {
+	case models.POStatusAberto, models.POStatusEnviado, models.POStatusAceito, models.POStatusEmTransporte,
+		models.POStatusRecebidoParcial, models.POStatusRecebidoTotal, models.POStatusCancelado:
+		return value
+	default:
+		return ""
+	}
+}
+
+func canTransitionOrderStatus(current, next string) bool {
+	if current == next {
+		return true
+	}
+	allowed := map[string][]string{
+		models.POStatusAberto:          {models.POStatusEnviado, models.POStatusCancelado},
+		models.POStatusEnviado:         {models.POStatusAceito, models.POStatusCancelado},
+		models.POStatusAceito:          {models.POStatusEmTransporte, models.POStatusCancelado},
+		models.POStatusEmTransporte:    {models.POStatusRecebidoParcial, models.POStatusRecebidoTotal, models.POStatusCancelado},
+		models.POStatusRecebidoParcial: {models.POStatusEmTransporte, models.POStatusRecebidoTotal},
+	}
+	for _, candidate := range allowed[current] {
+		if candidate == next {
+			return true
+		}
+	}
+	return false
+}
+
+func budgetSituation(cc *models.CostCenter, additional float64) string {
+	if cc == nil {
+		return "Sem centro de custo"
+	}
+	if cc.OrcamentoMensal <= 0 {
+		return "Sem orçamento mensal definido"
+	}
+	projected := cc.OrcamentoMensalUsado + additional
+	limit := (projected / cc.OrcamentoMensal) * 100
+	switch {
+	case projected > cc.OrcamentoMensal && cc.BloquearLimite:
+		return "Bloqueio por orçamento"
+	case projected > cc.OrcamentoMensal:
+		return "Acima do orçamento"
+	case limit >= 90 && cc.AlertaLimite:
+		return "Em alerta"
+	default:
+		return "Dentro do orçamento"
+	}
+}
+
+func enrichRequest(req *models.PurchaseRequest, limits procurementApprovalLimits) {
+	if req == nil {
+		return
+	}
+	total := calcRequestEstimatedTotal(req)
+	req.ValorEstimadoTotal = total
+	req.NivelAprovacaoSugerido = suggestedApprovalLevel(total, req.Urgencia, limits)
+	req.SituacaoOrcamentoCentro = budgetSituation(req.CentroCusto, total)
+}
+
+func enrichRequests(items []models.PurchaseRequest, limits procurementApprovalLimits) {
+	for i := range items {
+		enrichRequest(&items[i], limits)
+	}
+}
+
+func enrichOrder(order *models.PurchaseOrder) {
+	if order == nil {
+		return
+	}
+	if order.Request != nil {
+		total := calcRequestEstimatedTotal(order.Request)
+		order.RequestValorEstimadoTotal = total
+		order.EconomiaEstimada = total - order.ValorTotal
+	}
+	if order.Quotation != nil {
+		for _, supplier := range order.Quotation.Suppliers {
+			if supplier.FornecedorID == order.FornecedorID {
+				order.PrazoEntregaDias = supplier.PrazoEntregaDias
+				if supplier.PrazoEntregaDias > 0 {
+					due := order.DataEmissao.AddDate(0, 0, supplier.PrazoEntregaDias)
+					order.DataPrevistaEntrega = &due
+				}
+				break
+			}
+		}
+	}
+	if len(order.Receivings) > 0 {
+		latest := order.Receivings[0].DataRecebimento
+		for _, receiving := range order.Receivings[1:] {
+			if receiving.DataRecebimento.After(latest) {
+				latest = receiving.DataRecebimento
+			}
+		}
+		order.UltimaDataRecebimento = &latest
+	}
+	if order.PrazoEntregaDias <= 0 || order.DataPrevistaEntrega == nil {
+		order.SLAStatus = "Sem SLA"
+		return
+	}
+	today := time.Now()
+	switch order.Status {
+	case models.POStatusRecebidoParcial, models.POStatusRecebidoTotal:
+		if order.UltimaDataRecebimento != nil && !order.UltimaDataRecebimento.After(*order.DataPrevistaEntrega) {
+			order.SLAStatus = "Entregue no prazo"
+		} else {
+			order.SLAStatus = "Entregue em atraso"
+		}
+	default:
+		if today.After(*order.DataPrevistaEntrega) {
+			order.SLAStatus = "Em atraso"
+		} else {
+			order.SLAStatus = "Dentro do prazo"
+		}
+	}
+}
+
+func enrichOrders(items []models.PurchaseOrder) {
+	for i := range items {
+		enrichOrder(&items[i])
+	}
+}
+
+func procurementSafeCSV(value string) string {
+	if value == "" {
+		return ""
+	}
+	if strings.ContainsAny(value[:1], "=+-@") {
+		return "'" + value
+	}
+	return value
+}
+
+func procurementFloat(value float64) string {
+	return fmt.Sprintf("%.2f", value)
+}
+
 // ---------- Dashboard ----------
 
 func (h *ProcurementHandler) Dashboard(c *gin.Context) {
 	var reqPending, ordersActive, lowStock int64
 	reqs, _ := h.requestRepo.List("", 0, 1000)
+	limits := h.loadApprovalLimits(c)
+	enrichRequests(reqs, limits)
 	for _, r := range reqs {
 		if r.Status == models.PRStatusPendente {
 			reqPending++
 		}
 	}
 	orders, _ := h.orderRepo.List("", 0, 1000)
+	enrichOrders(orders)
 	for _, o := range orders {
 		if o.Status == models.POStatusAberto {
 			ordersActive++
@@ -174,13 +424,358 @@ func (h *ProcurementHandler) Dashboard(c *gin.Context) {
 	if len(recentOrders) > 5 {
 		recentOrders = recentOrders[:5]
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"req_pending_count":   reqPending,
-		"orders_active_count": ordersActive,
-		"low_stock_count":     lowStock,
-		"requests_recent":     recentReq,
-		"orders_recent":       recentOrders,
+	requestedTotal := 0.0
+	for _, r := range reqs {
+		requestedTotal += r.ValorEstimadoTotal
+	}
+	orderedTotal := 0.0
+	estimatedSavingsTotal := 0.0
+	supplierAgg := map[uint]gin.H{}
+	for _, o := range orders {
+		orderedTotal += o.ValorTotal
+		if o.EconomiaEstimada > 0 {
+			estimatedSavingsTotal += o.EconomiaEstimada
+		}
+		if o.Fornecedor == nil {
+			continue
+		}
+		row, ok := supplierAgg[o.FornecedorID]
+		if !ok {
+			row = gin.H{"id": o.FornecedorID, "nome": o.Fornecedor.Nome, "total_pedidos": 0, "valor_total": 0.0}
+		}
+		row["total_pedidos"] = row["total_pedidos"].(int) + 1
+		row["valor_total"] = row["valor_total"].(float64) + o.ValorTotal
+		supplierAgg[o.FornecedorID] = row
+	}
+	topSuppliers := make([]gin.H, 0, len(supplierAgg))
+	for _, row := range supplierAgg {
+		topSuppliers = append(topSuppliers, row)
+	}
+	sort.Slice(topSuppliers, func(i, j int) bool {
+		return topSuppliers[i]["valor_total"].(float64) > topSuppliers[j]["valor_total"].(float64)
 	})
+	if len(topSuppliers) > 5 {
+		topSuppliers = topSuppliers[:5]
+	}
+	quotedTotal := 0.0
+	quotations, _ := h.quotationRepo.List()
+	for _, quotation := range quotations {
+		best := 0.0
+		for idx, supplier := range quotation.Suppliers {
+			if idx == 0 || supplier.ValorTotal < best {
+				best = supplier.ValorTotal
+			}
+		}
+		quotedTotal += best
+	}
+	costCenters, _ := h.ccRepo.List()
+	monthlyBudgetTotal := 0.0
+	monthlyBudgetUsed := 0.0
+	costCentersAlert := 0
+	costCentersOverLimit := 0
+	ccSummary := make([]gin.H, 0, len(costCenters))
+	ccReports := map[uint]gin.H{}
+	for _, cc := range costCenters {
+		monthlyBudgetTotal += cc.OrcamentoMensal
+		monthlyBudgetUsed += cc.OrcamentoMensalUsado
+		usagePct := 0.0
+		status := "ok"
+		if cc.OrcamentoMensal > 0 {
+			usagePct = (cc.OrcamentoMensalUsado / cc.OrcamentoMensal) * 100
+		}
+		switch {
+		case cc.OrcamentoMensal > 0 && cc.OrcamentoMensalUsado > cc.OrcamentoMensal:
+			status = "over_limit"
+			costCentersOverLimit++
+		case cc.AlertaLimite && usagePct >= 90:
+			status = "alert"
+			costCentersAlert++
+		case cc.OrcamentoMensal <= 0:
+			status = "no_budget"
+		}
+		ccSummary = append(ccSummary, gin.H{
+			"id":                   cc.ID,
+			"codigo":               cc.Codigo,
+			"nome":                 cc.Nome,
+			"orcamento_mensal":     cc.OrcamentoMensal,
+			"orcamento_mensal_usado": cc.OrcamentoMensalUsado,
+			"uso_percentual":       usagePct,
+			"status":               status,
+		})
+		ccReports[cc.ID] = gin.H{
+			"id":                 cc.ID,
+			"codigo":             cc.Codigo,
+			"nome":               cc.Nome,
+			"orcamento_mensal":   cc.OrcamentoMensal,
+			"orcamento_usado":    cc.OrcamentoMensalUsado,
+			"solicitado_pendente": 0.0,
+			"solicitado_aprovado": 0.0,
+			"comprado_total":     0.0,
+			"economia_total":     0.0,
+		}
+	}
+	for _, r := range reqs {
+		row, ok := ccReports[r.CentroCustoID]
+		if !ok {
+			continue
+		}
+		switch r.Status {
+		case models.PRStatusPendente, models.PRStatusEmAprovacao, models.PRStatusAguardandoOrcamento:
+			row["solicitado_pendente"] = row["solicitado_pendente"].(float64) + r.ValorEstimadoTotal
+		case models.PRStatusAprovada, models.PRStatusConvertidaCotacao:
+			row["solicitado_aprovado"] = row["solicitado_aprovado"].(float64) + r.ValorEstimadoTotal
+		}
+		ccReports[r.CentroCustoID] = row
+	}
+	supplierPerformance := make([]gin.H, 0, len(supplierAgg))
+	for _, o := range orders {
+		if o.Fornecedor == nil {
+			continue
+		}
+		found := false
+		for i := range supplierPerformance {
+			if supplierPerformance[i]["id"].(uint) == o.FornecedorID {
+				supplierPerformance[i]["total_pedidos"] = supplierPerformance[i]["total_pedidos"].(int) + 1
+				supplierPerformance[i]["valor_total"] = supplierPerformance[i]["valor_total"].(float64) + o.ValorTotal
+				if o.Status == models.POStatusRecebidoParcial || o.Status == models.POStatusRecebidoTotal {
+					supplierPerformance[i]["pedidos_recebidos"] = supplierPerformance[i]["pedidos_recebidos"].(int) + 1
+				}
+				if o.Status == models.POStatusAberto || o.Status == models.POStatusEnviado || o.Status == models.POStatusAceito || o.Status == models.POStatusEmTransporte {
+					supplierPerformance[i]["pedidos_ativos"] = supplierPerformance[i]["pedidos_ativos"].(int) + 1
+				}
+				if o.SLAStatus == "Entregue no prazo" || o.SLAStatus == "Dentro do prazo" {
+					supplierPerformance[i]["pedidos_no_prazo"] = supplierPerformance[i]["pedidos_no_prazo"].(int) + 1
+				}
+				if o.SLAStatus == "Entregue em atraso" || o.SLAStatus == "Em atraso" {
+					supplierPerformance[i]["pedidos_em_atraso"] = supplierPerformance[i]["pedidos_em_atraso"].(int) + 1
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			row := gin.H{
+				"id":                o.FornecedorID,
+				"nome":              o.Fornecedor.Nome,
+				"total_pedidos":     1,
+				"valor_total":       o.ValorTotal,
+				"pedidos_recebidos": 0,
+				"pedidos_ativos":    0,
+				"pedidos_no_prazo":  0,
+				"pedidos_em_atraso": 0,
+				"ticket_medio":      0.0,
+				"sla_percentual":    0.0,
+			}
+			if o.Status == models.POStatusRecebidoParcial || o.Status == models.POStatusRecebidoTotal {
+				row["pedidos_recebidos"] = 1
+			}
+			if o.Status == models.POStatusAberto || o.Status == models.POStatusEnviado || o.Status == models.POStatusAceito || o.Status == models.POStatusEmTransporte {
+				row["pedidos_ativos"] = 1
+			}
+			if o.SLAStatus == "Entregue no prazo" || o.SLAStatus == "Dentro do prazo" {
+				row["pedidos_no_prazo"] = 1
+			}
+			if o.SLAStatus == "Entregue em atraso" || o.SLAStatus == "Em atraso" {
+				row["pedidos_em_atraso"] = 1
+			}
+			supplierPerformance = append(supplierPerformance, row)
+		}
+	}
+	for _, o := range orders {
+		row, ok := ccReports[o.CentroCustoID]
+		if !ok {
+			continue
+		}
+		row["comprado_total"] = row["comprado_total"].(float64) + o.ValorTotal
+		if o.EconomiaEstimada > 0 {
+			row["economia_total"] = row["economia_total"].(float64) + o.EconomiaEstimada
+		}
+		ccReports[o.CentroCustoID] = row
+	}
+	costCenterReports := make([]gin.H, 0, len(ccReports))
+	for _, row := range ccReports {
+		costCenterReports = append(costCenterReports, row)
+	}
+	sort.Slice(costCenterReports, func(i, j int) bool {
+		return costCenterReports[i]["comprado_total"].(float64) > costCenterReports[j]["comprado_total"].(float64)
+	})
+	for i := range supplierPerformance {
+		totalPedidos := supplierPerformance[i]["total_pedidos"].(int)
+		valorTotal := supplierPerformance[i]["valor_total"].(float64)
+		if totalPedidos > 0 {
+			supplierPerformance[i]["ticket_medio"] = valorTotal / float64(totalPedidos)
+			supplierPerformance[i]["sla_percentual"] = float64(supplierPerformance[i]["pedidos_no_prazo"].(int)) / float64(totalPedidos) * 100
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"req_pending_count":      reqPending,
+		"orders_active_count":    ordersActive,
+		"low_stock_count":        lowStock,
+		"requests_recent":        recentReq,
+		"orders_recent":          recentOrders,
+		"requested_total":        requestedTotal,
+		"quoted_total":           quotedTotal,
+		"ordered_total":          orderedTotal,
+		"estimated_savings_total": estimatedSavingsTotal,
+		"top_suppliers":          topSuppliers,
+		"cost_center_reports":    costCenterReports,
+		"supplier_performance":   supplierPerformance,
+		"monthly_budget_total":   monthlyBudgetTotal,
+		"monthly_budget_used":    monthlyBudgetUsed,
+		"cost_centers_alert":     costCentersAlert,
+		"cost_centers_over_limit": costCentersOverLimit,
+		"cost_centers_summary":   ccSummary,
+	})
+}
+
+func (h *ProcurementHandler) ExportCSV(c *gin.Context) {
+	reportType := strings.TrimSpace(c.DefaultQuery("tipo", "dashboard"))
+	reqs, _ := h.requestRepo.List("", 0, 10000)
+	enrichRequests(reqs, h.loadApprovalLimits(c))
+	orders, _ := h.orderRepo.List("", 0, 10000)
+	enrichOrders(orders)
+	stocks, _ := h.stockRepo.List()
+	dashCtx, _ := h.ccRepo.List()
+
+	var buf bytes.Buffer
+	buf.WriteString("\xEF\xBB\xBF")
+	writer := csv.NewWriter(&buf)
+	writer.Comma = ';'
+
+	write := func(row []string) bool {
+		if err := writer.Write(row); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao gerar CSV"})
+			return false
+		}
+		return true
+	}
+
+	switch reportType {
+	case "solicitacoes":
+		if !write([]string{"Numero", "Centro de Custo", "Justificativa", "Urgencia", "Status", "Valor Estimado", "Alcada Sugerida", "Situacao Orcamento", "Data Criacao"}) {
+			return
+		}
+		for _, r := range reqs {
+			ccName := ""
+			if r.CentroCusto != nil {
+				ccName = r.CentroCusto.Codigo + " - " + r.CentroCusto.Nome
+			}
+			if !write([]string{
+				procurementSafeCSV(r.Numero),
+				procurementSafeCSV(ccName),
+				procurementSafeCSV(r.Justificativa),
+				procurementSafeCSV(r.Urgencia),
+				procurementSafeCSV(r.Status),
+				procurementFloat(r.ValorEstimadoTotal),
+				procurementSafeCSV(r.NivelAprovacaoSugerido),
+				procurementSafeCSV(r.SituacaoOrcamentoCentro),
+				r.DataCriacao.Format("02/01/2006 15:04"),
+			}) {
+				return
+			}
+		}
+	case "pedidos":
+		if !write([]string{"Numero", "Fornecedor", "Centro de Custo", "Valor Total", "Valor Solicitado", "Economia Estimada", "Status", "Data Emissao"}) {
+			return
+		}
+		for _, o := range orders {
+			supplier := ""
+			if o.Fornecedor != nil {
+				supplier = o.Fornecedor.Nome
+			}
+			ccName := ""
+			if o.CentroCusto != nil {
+				ccName = o.CentroCusto.Codigo + " - " + o.CentroCusto.Nome
+			}
+			if !write([]string{
+				procurementSafeCSV(o.Numero),
+				procurementSafeCSV(supplier),
+				procurementSafeCSV(ccName),
+				procurementFloat(o.ValorTotal),
+				procurementFloat(o.RequestValorEstimadoTotal),
+				procurementFloat(o.EconomiaEstimada),
+				procurementSafeCSV(o.Status),
+				o.DataEmissao.Format("02/01/2006"),
+			}) {
+				return
+			}
+		}
+	case "estoque":
+		if !write([]string{"Material", "Categoria", "Saldo", "Localizacao"}) {
+			return
+		}
+		for _, s := range stocks {
+			productName := ""
+			categoryName := ""
+			if s.Product != nil {
+				productName = s.Product.Nome
+				if s.Product.Categoria != nil {
+					categoryName = s.Product.Categoria.Nome
+				}
+			}
+			if !write([]string{
+				procurementSafeCSV(productName),
+				procurementSafeCSV(categoryName),
+				procurementFloat(s.QuantidadeSaldo),
+				procurementSafeCSV(func() string {
+					if s.LocalizacaoAlmoxarifado == nil {
+						return ""
+					}
+					return *s.LocalizacaoAlmoxarifado
+				}()),
+			}) {
+				return
+			}
+		}
+	default:
+		if !write([]string{"Relatorio", "Valor"}) {
+			return
+		}
+		requestedTotal := 0.0
+		orderedTotal := 0.0
+		for _, r := range reqs {
+			requestedTotal += r.ValorEstimadoTotal
+		}
+		for _, o := range orders {
+			orderedTotal += o.ValorTotal
+		}
+		monthlyBudgetTotal := 0.0
+		monthlyBudgetUsed := 0.0
+		for _, cc := range dashCtx {
+			monthlyBudgetTotal += cc.OrcamentoMensal
+			monthlyBudgetUsed += cc.OrcamentoMensalUsado
+		}
+		rows := [][]string{
+			{"Total Solicitado", procurementFloat(requestedTotal)},
+			{"Total Comprado", procurementFloat(orderedTotal)},
+			{"Orcamento Mensal", procurementFloat(monthlyBudgetTotal)},
+			{"Uso Orcamento Mensal", procurementFloat(monthlyBudgetUsed)},
+			{"Itens em Estoque Baixo", strconv.Itoa(func() int {
+				count := 0
+				for _, s := range stocks {
+					if s.QuantidadeSaldo < 5 {
+						count++
+					}
+				}
+				return count
+			}())},
+		}
+		for _, row := range rows {
+			if !write(row) {
+				return
+			}
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao finalizar CSV"})
+		return
+	}
+
+	filename := fmt.Sprintf("compras_%s_%s.csv", reportType, time.Now().Format("20060102_150405"))
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", buf.Bytes())
 }
 
 // ---------- Categories ----------
@@ -220,6 +815,68 @@ func (h *ProcurementHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, cat)
+}
+
+func (h *ProcurementHandler) UpdateCategory(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	cat, err := h.categoryRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Categoria não encontrada"})
+		return
+	}
+	var in struct {
+		Nome      string `json:"nome"`
+		Descricao string `json:"descricao"`
+		Ativo     *bool  `json:"ativo"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(in.Nome) != "" {
+		cat.Nome = strings.TrimSpace(in.Nome)
+	}
+	if in.Descricao != "" {
+		cat.Descricao = &in.Descricao
+	}
+	if in.Ativo != nil {
+		cat.Ativo = *in.Ativo
+	}
+	if err := h.categoryRepo.Update(cat); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Não foi possível atualizar a categoria"})
+		return
+	}
+	c.JSON(http.StatusOK, cat)
+}
+
+func (h *ProcurementHandler) DeleteCategory(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	if _, err := h.categoryRepo.GetByID(uint(id)); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Categoria não encontrada"})
+		return
+	}
+	hasProducts, err := h.categoryRepo.HasProducts(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if hasProducts {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Não é possível excluir esta categoria porque já existem produtos vinculados a ela."})
+		return
+	}
+	if err := h.categoryRepo.Delete(uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Categoria excluída"})
 }
 
 // ---------- Products ----------
@@ -293,6 +950,90 @@ func (h *ProcurementHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, prod)
+}
+
+func (h *ProcurementHandler) UpdateProduct(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	prod, err := h.productRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Produto não encontrado"})
+		return
+	}
+	var in productInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(in.Codigo) != "" && strings.TrimSpace(in.Codigo) != prod.Codigo {
+		if existing, err := h.productRepo.GetByCodigo(strings.TrimSpace(in.Codigo)); err == nil && existing.ID != prod.ID {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Código de produto já cadastrado"})
+			return
+		}
+		prod.Codigo = strings.TrimSpace(in.Codigo)
+	}
+	if strings.TrimSpace(in.Nome) != "" {
+		prod.Nome = strings.TrimSpace(in.Nome)
+	}
+	if in.CategoriaID != 0 {
+		prod.CategoriaID = in.CategoriaID
+	}
+	if strings.TrimSpace(in.Unidade) != "" {
+		prod.Unidade = strings.TrimSpace(in.Unidade)
+	}
+	if strings.TrimSpace(in.Tipo) != "" {
+		prod.Tipo = normalizeEnumValue(in.Tipo, []string{models.ProductTypeProduto, models.ProductTypeServico, models.ProductTypeLicenca, models.ProductTypeAssinatura, models.ProductTypeEquipamento, models.ProductTypeMaterialConsumo}, prod.Tipo)
+	}
+	if in.Marca != "" {
+		prod.Marca = &in.Marca
+	}
+	if in.Modelo != "" {
+		prod.Modelo = &in.Modelo
+	}
+	if in.Fabricante != "" {
+		prod.Fabricante = &in.Fabricante
+	}
+	if in.Descricao != "" {
+		prod.Descricao = &in.Descricao
+	}
+	if in.Ativo != nil {
+		prod.Ativo = *in.Ativo
+	}
+	if err := h.productRepo.Update(prod); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Não foi possível atualizar o produto"})
+		return
+	}
+	updated, _ := h.productRepo.GetByID(prod.ID)
+	c.JSON(http.StatusOK, updated)
+}
+
+func (h *ProcurementHandler) DeleteProduct(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	if _, err := h.productRepo.GetByID(uint(id)); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Produto não encontrado"})
+		return
+	}
+	hasLinks, err := h.productRepo.HasLinkedRecords(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if hasLinks {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Não é possível excluir este produto porque ele já está vinculado a solicitações, pedidos, cotações ou estoque."})
+		return
+	}
+	if err := h.productRepo.Delete(uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Produto excluído"})
 }
 
 // ---------- Cost Centers ----------
@@ -421,6 +1162,7 @@ func (h *ProcurementHandler) ListRequests(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	enrichRequests(items, h.loadApprovalLimits(c))
 	c.JSON(http.StatusOK, items)
 }
 
@@ -523,6 +1265,7 @@ func (h *ProcurementHandler) GetRequest(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Solicitação não encontrada"})
 		return
 	}
+	enrichRequest(req, h.loadApprovalLimits(c))
 	c.JSON(http.StatusOK, req)
 }
 
@@ -547,6 +1290,11 @@ func (h *ProcurementHandler) DecideRequest(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	total := calcRequestEstimatedTotal(req)
+	requiredLevel := suggestedApprovalLevel(total, req.Urgencia, h.loadApprovalLimits(c))
+	if strings.TrimSpace(in.Nivel) == "" {
+		in.Nivel = requiredLevel
+	}
 	if !canApproveLevel(user.Role, in.Nivel) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Não autorizado a decidir este nível de solicitação"})
 		return
@@ -567,14 +1315,10 @@ func (h *ProcurementHandler) DecideRequest(c *gin.Context) {
 
 	if in.Decisao == models.ApprovalReprovado {
 		req.Status = models.PRStatusReprovada
-	} else if in.Nivel == "Compras" {
+	} else if approvalLevelRank(in.Nivel) >= approvalLevelRank(requiredLevel) {
 		req.Status = models.PRStatusAprovada
 		// Auto update cost center budget used
 		if cc, err := h.ccRepo.GetByID(req.CentroCustoID); err == nil && cc != nil {
-			var total float64
-			for _, it := range req.Itens {
-				total += it.Quantidade * it.ValorEstimado
-			}
 			cc.OrcamentoMensalUsado += total
 			cc.OrcamentoAnualUsado += total
 			_ = h.ccRepo.Update(cc)
@@ -846,6 +1590,7 @@ func (h *ProcurementHandler) ListOrders(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	enrichOrders(items)
 	c.JSON(http.StatusOK, items)
 }
 
@@ -939,6 +1684,44 @@ func (h *ProcurementHandler) GetOrder(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Pedido não encontrado"})
 		return
 	}
+	enrichOrder(order)
+	c.JSON(http.StatusOK, order)
+}
+
+func (h *ProcurementHandler) UpdateOrderStatus(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	orderID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	order, err := h.orderRepo.GetByID(uint(orderID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Pedido não encontrado"})
+		return
+	}
+	var in struct {
+		Status string `json:"status"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	next := normalizeOrderStatus(in.Status)
+	if next == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Status do pedido inválido"})
+		return
+	}
+	if !canTransitionOrderStatus(order.Status, next) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Transição de status não permitida para este pedido"})
+		return
+	}
+	order.Status = next
+	if err := h.orderRepo.Update(order); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	h.logHistory("purchase_orders", order.ID, user.ID, fmt.Sprintf("Status do pedido alterado para %s", next))
 	c.JSON(http.StatusOK, order)
 }
 
@@ -1107,6 +1890,70 @@ func (h *ProcurementHandler) ListStock(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, items)
+}
+
+func (h *ProcurementHandler) ListStockTransactions(c *gin.Context) {
+	productID, _ := strconv.ParseUint(c.DefaultQuery("product_id", "0"), 10, 32)
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	items, err := h.stockRepo.ListTransactions(uint(productID), limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, items)
+}
+
+func (h *ProcurementHandler) ConsumeStock(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	var in struct {
+		StockID         uint    `json:"stock_id"`
+		QuantidadeUsar  float64 `json:"quantidade_usar"`
+		Justificativa   string  `json:"justificativa"`
+		CentroCustoID   *uint   `json:"centro_custo_id"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if in.StockID == 0 || in.QuantidadeUsar <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Informe o item de estoque e uma quantidade válida"})
+		return
+	}
+	stock, err := h.stockRepo.GetByID(in.StockID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Item de estoque não encontrado"})
+		return
+	}
+	if stock.QuantidadeSaldo < in.QuantidadeUsar {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Quantidade solicitada maior que o saldo disponível"})
+		return
+	}
+	justificativa := strings.TrimSpace(in.Justificativa)
+	if justificativa == "" {
+		justificativa = "Consumo manual de estoque"
+	}
+	if in.CentroCustoID != nil && *in.CentroCustoID > 0 {
+		if cc, err := h.ccRepo.GetByID(*in.CentroCustoID); err == nil && cc != nil {
+			justificativa = fmt.Sprintf("%s | Centro de Custo: %s - %s", justificativa, cc.Codigo, cc.Nome)
+		}
+	}
+	updated, err := h.stockRepo.CreateOrUpdate(
+		stock.ProductID, in.QuantidadeUsar, models.StockSaida, user.ID,
+		justificativa, "manual_stock_consumption", nil,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	prodName := "Material"
+	if stock.Product != nil {
+		prodName = stock.Product.Nome
+	}
+	h.logHistory("material_stock_transactions", stock.ID, user.ID, fmt.Sprintf("Baixa manual de estoque: %.2f UN de %s", in.QuantidadeUsar, prodName))
+	c.JSON(http.StatusOK, gin.H{"stock": updated, "message": "Consumo de estoque registrado com sucesso"})
 }
 
 // ---------- Contracts ----------

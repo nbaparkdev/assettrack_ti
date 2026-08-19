@@ -21,6 +21,10 @@ func (r *MaintenanceRepository) ListRequests(skip, limit int) ([]models.Solicita
 	err := r.db.Preload("Solicitante").
 		Preload("Responsavel").
 		Preload("Asset").
+		Preload("Asset.CurrentLocal").
+		Preload("Asset.CurrentArmazenamento").
+		Preload("Asset.PrevLocal").
+		Preload("Asset.PrevArmazenamento").
 		Preload("Manutencao").
 		Order("data_solicitacao desc").
 		Offset(skip).
@@ -34,6 +38,10 @@ func (r *MaintenanceRepository) GetRequestByID(id uint) (*models.SolicitacaoManu
 	err := r.db.Preload("Solicitante").
 		Preload("Responsavel").
 		Preload("Asset").
+		Preload("Asset.CurrentLocal").
+		Preload("Asset.CurrentArmazenamento").
+		Preload("Asset.PrevLocal").
+		Preload("Asset.PrevArmazenamento").
 		Preload("Manutencao").
 		First(&req, id).Error
 	if err != nil {
@@ -55,6 +63,10 @@ func (r *MaintenanceRepository) UpdateRequest(req *models.SolicitacaoManutencao)
 func (r *MaintenanceRepository) GetMaintenanceByID(id uint) (*models.Manutencao, error) {
 	var maint models.Manutencao
 	err := r.db.Preload("Asset").
+		Preload("Asset.CurrentLocal").
+		Preload("Asset.CurrentArmazenamento").
+		Preload("Asset.PrevLocal").
+		Preload("Asset.PrevArmazenamento").
 		Preload("Responsavel").
 		Preload("DestinoUser").
 		First(&maint, id).Error

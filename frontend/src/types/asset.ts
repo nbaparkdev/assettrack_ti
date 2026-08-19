@@ -85,6 +85,8 @@ export interface Asset {
   current_departamento: Departamento | null;
   current_local: Localizacao | null;
   current_armazenamento: Armazenamento | null;
+  prev_local: Localizacao | null;
+  prev_armazenamento: Armazenamento | null;
   created_by: User | null;
   fornecedor: Fornecedor | null;
   nota_fiscal: NotaFiscal | null;

@@ -42,6 +42,8 @@ func (r *AssetRepository) ListWithFilters(skip, limit int, filters AssetListFilt
 		Preload("CurrentDepartamento").
 		Preload("CurrentLocal").
 		Preload("CurrentArmazenamento").
+		Preload("PrevLocal").
+		Preload("PrevArmazenamento").
 		Preload("Fornecedor").
 		Preload("NotaFiscal").
 		Preload("Categoria")
@@ -88,6 +90,8 @@ func (r *AssetRepository) GetByID(id uint) (*models.Asset, error) {
 		Preload("CurrentDepartamento").
 		Preload("CurrentLocal").
 		Preload("CurrentArmazenamento").
+		Preload("PrevLocal").
+		Preload("PrevArmazenamento").
 		Preload("Fornecedor").
 		Preload("NotaFiscal").
 		Preload("Categoria").
@@ -105,6 +109,8 @@ func (r *AssetRepository) GetByEPatrimonio(ePatrimonio string) (*models.Asset, e
 		Preload("CurrentDepartamento").
 		Preload("CurrentLocal").
 		Preload("CurrentArmazenamento").
+		Preload("PrevLocal").
+		Preload("PrevArmazenamento").
 		Preload("Fornecedor").
 		Preload("NotaFiscal").
 		Preload("Categoria").

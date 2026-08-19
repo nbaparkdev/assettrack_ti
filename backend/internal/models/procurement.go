@@ -159,6 +159,10 @@ type PurchaseRequest struct {
 	CentroCusto  *CostCenter           `gorm:"foreignKey:CentroCustoID" json:"centro_custo,omitempty"`
 	Itens        []PurchaseRequestItem `gorm:"foreignKey:RequestID" json:"itens,omitempty"`
 	Approvals    []PurchaseApproval    `gorm:"foreignKey:RequestID" json:"approvals,omitempty"`
+
+	ValorEstimadoTotal      float64 `gorm:"-" json:"valor_estimado_total"`
+	NivelAprovacaoSugerido  string  `gorm:"-" json:"nivel_aprovacao_sugerido"`
+	SituacaoOrcamentoCentro string  `gorm:"-" json:"situacao_orcamento_centro"`
 }
 
 func (PurchaseRequest) TableName() string { return "purchase_requests" }
@@ -263,6 +267,13 @@ type PurchaseOrder struct {
 	Quotation   *PurchaseQuotation  `gorm:"foreignKey:QuotationID" json:"quotation,omitempty"`
 	Itens       []PurchaseOrderItem `gorm:"foreignKey:OrderID" json:"itens,omitempty"`
 	Receivings  []PurchaseReceiving `gorm:"foreignKey:OrderID" json:"receivings,omitempty"`
+
+	RequestValorEstimadoTotal float64 `gorm:"-" json:"request_valor_estimado_total"`
+	EconomiaEstimada          float64 `gorm:"-" json:"economia_estimada"`
+	PrazoEntregaDias          int     `gorm:"-" json:"prazo_entrega_dias"`
+	SLAStatus                 string  `gorm:"-" json:"sla_status"`
+	DataPrevistaEntrega       *time.Time `gorm:"-" json:"data_prevista_entrega"`
+	UltimaDataRecebimento     *time.Time `gorm:"-" json:"ultima_data_recebimento"`
 }
 
 func (PurchaseOrder) TableName() string { return "purchase_orders" }

@@ -784,6 +784,64 @@ func (h *AssetHandler) CreateCategoria(c *gin.Context) {
 	c.JSON(http.StatusCreated, item)
 }
 
+func (h *AssetHandler) UpdateCategoria(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	var payload struct {
+		Nome string `json:"nome" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nome da categoria é obrigatório"})
+		return
+	}
+
+	var item models.AssetCategory
+	if err := h.repo.DB().First(&item, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Categoria não encontrada"})
+		return
+	}
+
+	item.Nome = strings.TrimSpace(payload.Nome)
+	if item.Nome == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nome da categoria é obrigatório"})
+		return
+	}
+
+	if err := h.repo.DB().Save(&item).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique constraint") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Já existe uma categoria com esse nome"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar categoria"})
+		return
+	}
+
+	c.JSON(http.StatusOK, item)
+}
+
+func (h *AssetHandler) DeleteCategoria(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.repo.DB().Delete(&models.AssetCategory{}, id).Error; err != nil {
+		if strings.Contains(err.Error(), "foreign key constraint") || strings.Contains(err.Error(), "violates foreign key") || strings.Contains(err.Error(), "a foreign key constraint fails") || strings.Contains(err.Error(), "SQLSTATE 23503") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Não é possível excluir esta categoria pois existem ativos vinculados a ela."})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir categoria"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"detail": "Categoria excluída com sucesso"})
+}
+
 func (h *AssetHandler) CreateLocalizacao(c *gin.Context) {
 	var item models.Localizacao
 	if err := c.ShouldBindJSON(&item); err != nil {
@@ -795,6 +853,64 @@ func (h *AssetHandler) CreateLocalizacao(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, item)
+}
+
+func (h *AssetHandler) UpdateLocalizacao(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	var payload struct {
+		Nome string `json:"nome" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nome da localização é obrigatório"})
+		return
+	}
+
+	var item models.Localizacao
+	if err := h.repo.DB().First(&item, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Localização não encontrada"})
+		return
+	}
+
+	item.Nome = strings.TrimSpace(payload.Nome)
+	if item.Nome == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nome da localização é obrigatório"})
+		return
+	}
+
+	if err := h.repo.DB().Save(&item).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique constraint") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Já existe uma localização com esse nome"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar localização"})
+		return
+	}
+
+	c.JSON(http.StatusOK, item)
+}
+
+func (h *AssetHandler) DeleteLocalizacao(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	if err := h.repo.DB().Delete(&models.Localizacao{}, id).Error; err != nil {
+		if strings.Contains(err.Error(), "foreign key constraint") || strings.Contains(err.Error(), "violates foreign key") || strings.Contains(err.Error(), "a foreign key constraint fails") || strings.Contains(err.Error(), "SQLSTATE 23503") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Não é possível excluir esta localização pois existem ativos vinculados a ela."})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao excluir localização"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"detail": "Localização excluída com sucesso"})
 }
 
 func (h *AssetHandler) CreateArmazenamento(c *gin.Context) {

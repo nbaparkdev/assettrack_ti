@@ -55,6 +55,20 @@ func (r *ProcurementCategoryRepository) Create(item *models.PurchaseCategory) er
 	return r.db.Create(item).Error
 }
 
+func (r *ProcurementCategoryRepository) Update(item *models.PurchaseCategory) error {
+	return r.db.Save(item).Error
+}
+
+func (r *ProcurementCategoryRepository) Delete(id uint) error {
+	return r.db.Delete(&models.PurchaseCategory{}, id).Error
+}
+
+func (r *ProcurementCategoryRepository) HasProducts(id uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.PurchaseProduct{}).Where("categoria_id = ?", id).Count(&count).Error
+	return count > 0, err
+}
+
 // ---------- Units ----------
 
 type ProcurementUnitRepository struct {
@@ -121,6 +135,30 @@ func (r *ProcurementProductRepository) Create(item *models.PurchaseProduct) erro
 
 func (r *ProcurementProductRepository) Update(item *models.PurchaseProduct) error {
 	return r.db.Save(item).Error
+}
+
+func (r *ProcurementProductRepository) Delete(id uint) error {
+	return r.db.Delete(&models.PurchaseProduct{}, id).Error
+}
+
+func (r *ProcurementProductRepository) HasLinkedRecords(id uint) (bool, error) {
+	var count int64
+	for _, model := range []any{
+		&models.PurchaseRequestItem{},
+		&models.PurchaseQuotationItem{},
+		&models.PurchaseOrderItem{},
+		&models.PurchaseReceivingItem{},
+		&models.MaterialStock{},
+		&models.MaterialStockTransaction{},
+	} {
+		if err := r.db.Model(model).Where("product_id = ?", id).Count(&count).Error; err != nil {
+			return false, err
+		}
+		if count > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // ---------- Cost Centers ----------
@@ -338,7 +376,7 @@ func NewProcurementOrderRepository(db *gorm.DB) *ProcurementOrderRepository {
 
 func (r *ProcurementOrderRepository) List(status string, skip, limit int) ([]models.PurchaseOrder, error) {
 	var items []models.PurchaseOrder
-	q := r.db.Preload("Fornecedor").Preload("CentroCusto").Preload("Request").Preload("Itens.Product")
+	q := r.db.Preload("Fornecedor").Preload("CentroCusto").Preload("Request").Preload("Request.Itens").Preload("Quotation.Suppliers").Preload("Itens.Product").Preload("Receivings")
 	if status != "" {
 		q = q.Where("status = ?", status)
 	}
@@ -348,8 +386,8 @@ func (r *ProcurementOrderRepository) List(status string, skip, limit int) ([]mod
 
 func (r *ProcurementOrderRepository) GetByID(id uint) (*models.PurchaseOrder, error) {
 	var item models.PurchaseOrder
-	err := r.db.Preload("Fornecedor").Preload("CentroCusto").Preload("Request").
-		Preload("Itens.Product").Preload("Receivings.Responsavel").
+	err := r.db.Preload("Fornecedor").Preload("CentroCusto").Preload("Request").Preload("Request.Itens").
+		Preload("Quotation.Suppliers").Preload("Itens.Product").Preload("Receivings.Responsavel").
 		First(&item, id).Error
 	if err != nil {
 		return nil, err

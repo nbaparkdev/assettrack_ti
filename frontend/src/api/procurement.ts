@@ -8,6 +8,7 @@ import type {
   PurchaseOrder,
   PurchaseReceiving,
   MaterialStock,
+  MaterialStockTransaction,
   PurchaseContract,
   ContractType,
   PurchaseResearch,
@@ -39,6 +40,19 @@ export const procurementApi = {
     const response = await apiClient.get<ProcurementDashboard>('/compras/dashboard');
     return response.data;
   },
+  exportCsv: async (tipo: 'dashboard' | 'solicitacoes' | 'pedidos' | 'estoque'): Promise<void> => {
+    const response = await apiClient.get<Blob>(`/compras/export.csv?tipo=${encodeURIComponent(tipo)}`, {
+      responseType: 'blob',
+    });
+    const blobUrl = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `compras_${tipo}_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(blobUrl);
+  },
 
   // Categories
   listCategories: async (): Promise<PurchaseCategory[]> => {
@@ -49,6 +63,14 @@ export const procurementApi = {
     const response = await apiClient.post<PurchaseCategory>('/compras/categorias', data);
     return response.data;
   },
+  updateCategory: async (id: number, data: Partial<PurchaseCategory>): Promise<PurchaseCategory> => {
+    const response = await apiClient.put<PurchaseCategory>(`/compras/categorias/${id}`, data);
+    return response.data;
+  },
+  deleteCategory: async (id: number): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(`/compras/categorias/${id}`);
+    return response.data;
+  },
 
   // Products
   listProducts: async (): Promise<PurchaseProduct[]> => {
@@ -57,6 +79,14 @@ export const procurementApi = {
   },
   createProduct: async (data: Partial<PurchaseProduct>): Promise<PurchaseProduct> => {
     const response = await apiClient.post<PurchaseProduct>('/compras/produtos', data);
+    return response.data;
+  },
+  updateProduct: async (id: number, data: Partial<PurchaseProduct>): Promise<PurchaseProduct> => {
+    const response = await apiClient.put<PurchaseProduct>(`/compras/produtos/${id}`, data);
+    return response.data;
+  },
+  deleteProduct: async (id: number): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(`/compras/produtos/${id}`);
     return response.data;
   },
 
@@ -93,6 +123,10 @@ export const procurementApi = {
   },
   decideRequest: async (id: number, nivel: string, decisao: string, observacao?: string): Promise<PurchaseRequest> => {
     const response = await apiClient.post<PurchaseRequest>(`/compras/solicitacoes/${id}/decidir`, { nivel, decisao, observacao });
+    return response.data;
+  },
+  decideRequestAuto: async (id: number, decisao: string, observacao?: string): Promise<PurchaseRequest> => {
+    const response = await apiClient.post<PurchaseRequest>(`/compras/solicitacoes/${id}/decidir`, { decisao, observacao });
     return response.data;
   },
   releaseBudget: async (id: number): Promise<PurchaseRequest> => {
@@ -137,6 +171,10 @@ export const procurementApi = {
     const response = await apiClient.post<PurchaseOrder>('/compras/pedidos', data);
     return response.data;
   },
+  updateOrderStatus: async (id: number, status: string): Promise<PurchaseOrder> => {
+    const response = await apiClient.put<PurchaseOrder>(`/compras/pedidos/${id}/status`, { status });
+    return response.data;
+  },
   receiveOrder: async (
     orderId: number,
     data: { nota_fiscal_id?: number; observacoes?: string; itens: { product_id: number; quantidade_recebida: number; divergencias?: string }[] },
@@ -148,6 +186,17 @@ export const procurementApi = {
   // Stock
   listStock: async (): Promise<MaterialStock[]> => {
     const response = await apiClient.get<MaterialStock[]>('/compras/estoque');
+    return response.data;
+  },
+  listStockTransactions: async (productId?: number, limit = 50): Promise<MaterialStockTransaction[]> => {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    if (productId) params.set('product_id', String(productId));
+    const response = await apiClient.get<MaterialStockTransaction[]>(`/compras/estoque/transacoes?${params.toString()}`);
+    return response.data;
+  },
+  consumeStock: async (data: { stock_id: number; quantidade_usar: number; justificativa?: string; centro_custo_id?: number }): Promise<{ stock: MaterialStock; message: string }> => {
+    const response = await apiClient.post<{ stock: MaterialStock; message: string }>('/compras/estoque/consumir', data);
     return response.data;
   },
 
