@@ -375,8 +375,8 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			compras.GET("/pedidos", procurementHandler.ListOrders)
 			compras.POST("/pedidos", rManager, procurementHandler.CreateOrder)
 			compras.GET("/pedidos/:id", procurementHandler.GetOrder)
-			compras.PUT("/pedidos/:id/status", rManager, procurementHandler.UpdateOrderStatus)
 			compras.POST("/pedidos/:id/receber", procurementHandler.ReceiveOrder)
+			compras.POST("/pedidos/:id/reconciliar", rManager, procurementHandler.ReconcileOrderInventory)
 
 			compras.GET("/estoque", procurementHandler.ListStock)
 			compras.GET("/estoque/transacoes", procurementHandler.ListStockTransactions)

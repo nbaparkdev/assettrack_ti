@@ -26,8 +26,8 @@ export const MaintenancePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Tabs: 'requests' | 'active'
-  const [activeTab, setActiveTab] = useState<'requests' | 'active'>('requests');
+  // Tabs: 'requests' | 'active' | 'history'
+  const [activeTab, setActiveTab] = useState<'requests' | 'active' | 'history'>('requests');
 
   // Filter state
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -173,21 +173,35 @@ export const MaintenancePage: React.FC = () => {
     if (activeTab === 'requests') {
       // Show pending requests
       if (r.status !== 'pendente' && r.status !== 'rejeitada') return false;
+    } else if (activeTab === 'active') {
+      // Show active maintenance entries (accepted/awaiting handover)
+      if (r.status === 'pendente' || r.status === 'rejeitada' || r.status === 'concluida' || r.status === 'entregue') return false;
     } else {
-      // Show active maintenance entries
-      if (r.status === 'pendente' || r.status === 'rejeitada') return false;
+      // Show finished maintenance history
+      if (r.status !== 'concluida' && r.status !== 'entregue') return false;
     }
 
     if (statusFilter && r.status !== statusFilter) return false;
     return true;
   });
 
+
+  // Workshop Metrics calculations
+  const totalInWorkshop = requests.filter(r => r.status === 'aceita' || r.status === 'aguardando_entrega' || r.status === 'em_andamento').length;
+  const totalConcluded = requests.filter(r => r.status === 'concluida' || r.status === 'entregue').length;
+  const totalPending = requests.filter(r => r.status === 'pendente').length;
+  const totalSpent = requests.reduce((sum, r) => sum + (r.manutencao?.custo || 0), 0);
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-brand-text">Gestão de Manutenção</h1>
-          <p className="text-sm text-brand-muted">Acompanhe solicitações corretivas e preventivas de hardware</p>
+          <h1 className="text-2xl font-bold text-brand-text">Gestão de Oficina & Manutenção</h1>
+          <p className="text-sm text-brand-muted">Acompanhe solicitações corretivas, preventivas e relatórios técnicos</p>
         </div>
         <div className="flex space-x-3">
           {isTechnicianOrAbove && (
@@ -209,6 +223,30 @@ export const MaintenancePage: React.FC = () => {
         </div>
       </div>
 
+      {/* Workshop Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="p-4 bg-brand-card border border-brand-border flex flex-col justify-between">
+          <span className="text-[10px] uppercase font-bold text-brand-muted tracking-wider">Fila de Espera</span>
+          <span className="text-2xl font-bold text-blue-400 mt-2">{totalPending}</span>
+          <span className="text-[10px] text-brand-muted mt-1">Solicitações aguardando triagem</span>
+        </div>
+        <div className="p-4 bg-brand-card border border-brand-border flex flex-col justify-between">
+          <span className="text-[10px] uppercase font-bold text-brand-muted tracking-wider">Na Bancada (Oficina)</span>
+          <span className="text-2xl font-bold text-amber-500 mt-2">{totalInWorkshop}</span>
+          <span className="text-[10px] text-brand-muted mt-1">Equipamentos sendo consertados</span>
+        </div>
+        <div className="p-4 bg-brand-card border border-brand-border flex flex-col justify-between">
+          <span className="text-[10px] uppercase font-bold text-brand-muted tracking-wider">Total Concluído</span>
+          <span className="text-2xl font-bold text-brand-primary mt-2">{totalConcluded}</span>
+          <span className="text-[10px] text-brand-muted mt-1">Reparos finalizados com sucesso</span>
+        </div>
+        <div className="p-4 bg-brand-card border border-brand-border flex flex-col justify-between">
+          <span className="text-[10px] uppercase font-bold text-brand-muted tracking-wider">Custo de Oficina</span>
+          <span className="text-2xl font-bold text-emerald-400 mt-2">{formatCurrency(totalSpent)}</span>
+          <span className="text-[10px] text-brand-muted mt-1">Investimento total em reparação</span>
+        </div>
+      </div>
+
       {error && (
         <div className="flex items-start space-x-3 p-4 border border-red-500/20 bg-red-500/5 text-red-400 text-sm">
           <AlertCircle size={18} className="shrink-0 mt-0.5" />
@@ -227,7 +265,7 @@ export const MaintenancePage: React.FC = () => {
               : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
           }`}
         >
-          Solicitações Pendentes
+          Triagem e Solicitações ({totalPending})
         </button>
         <button
           onClick={() => { setActiveTab('active'); setStatusFilter(''); }}
@@ -237,7 +275,17 @@ export const MaintenancePage: React.FC = () => {
               : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
           }`}
         >
-          Histórico e Manutenções Ativas
+          Oficina Ativa ({totalInWorkshop})
+        </button>
+        <button
+          onClick={() => { setActiveTab('history'); setStatusFilter(''); }}
+          className={`py-3 text-sm font-semibold border-b-2 transition-all ${
+            activeTab === 'history'
+              ? 'border-brand-primary text-brand-primary opacity-100'
+              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
+          }`}
+        >
+          Histórico de Reparos ({totalConcluded})
         </button>
       </div>
 
@@ -258,15 +306,20 @@ export const MaintenancePage: React.FC = () => {
               <option value="pendente">Pendente</option>
               <option value="rejeitada">Rejeitada</option>
             </>
-          ) : (
+          ) : activeTab === 'active' ? (
             <>
               <option value="aceita">Aceita / Iniciada</option>
               <option value="aguardando_entrega">Aguardando Entrega</option>
+            </>
+          ) : (
+            <>
               <option value="concluida">Concluída</option>
+              <option value="entregue">Entregue ao Solicitante</option>
             </>
           )}
         </select>
       </div>
+
 
       {/* Grid List */}
       {loading ? (
@@ -331,6 +384,43 @@ export const MaintenancePage: React.FC = () => {
                     <span>Abertura: {new Date(request.data_solicitacao).toLocaleDateString('pt-BR')}</span>
                   </div>
                 </div>
+
+                {/* If the request status is concluded/delivered, or has associated maintenance information */}
+                {(request.status === 'concluida' || request.status === 'entregue' || request.manutencao) && (
+                  <div className="mt-3 p-3 bg-brand-dark/30 border border-emerald-500/10 rounded space-y-2">
+                    <div className="flex justify-between items-center text-xs font-semibold text-emerald-400">
+                      <span>Relatório de Conclusão Técnica</span>
+                      {request.manutencao?.custo !== undefined && (
+                        <span className="font-mono">{formatCurrency(request.manutencao.custo)}</span>
+                      )}
+                    </div>
+                    
+                    {request.manutencao?.observacao_conclusao && (
+                      <p className="text-xs text-brand-text bg-brand-dark/50 p-2 border border-brand-border/40 font-mono whitespace-pre-wrap">
+                        Resolução: "{request.manutencao.observacao_conclusao}"
+                      </p>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 text-[10px] text-brand-muted font-mono pt-1">
+                      <div>
+                        <span className="font-bold text-brand-muted">Responsável:</span> {request.manutencao?.responsavel?.nome || request.responsavel?.nome || 'Técnico'}
+                      </div>
+                      <div>
+                        <span className="font-bold text-brand-muted">Tipo:</span> <span className="uppercase">{request.manutencao?.tipo || 'corretiva'}</span>
+                      </div>
+                      {request.data_conclusao_tecnico && (
+                        <div>
+                          <span className="font-bold text-brand-muted">Conserto:</span> {new Date(request.data_conclusao_tecnico).toLocaleDateString('pt-BR')}
+                        </div>
+                      )}
+                      {request.data_entrega && (
+                        <div>
+                          <span className="font-bold text-brand-muted">Entregue em:</span> {new Date(request.data_entrega).toLocaleDateString('pt-BR')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons for Technicians */}

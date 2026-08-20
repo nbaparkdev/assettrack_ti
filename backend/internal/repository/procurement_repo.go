@@ -554,6 +554,59 @@ func (r *ProcurementStockRepository) ListTransactions(productID uint, limit int)
 	return items, err
 }
 
+func (r *ProcurementStockRepository) VerifyAndSyncOrderInventory(
+	orderID uint,
+	orderNumero string,
+	receivings []models.PurchaseReceiving,
+	userID uint,
+) error {
+	for _, recv := range receivings {
+		var items []models.PurchaseReceivingItem
+		if err := r.db.Preload("Product").Where("receiving_id = ?", recv.ID).Find(&items).Error; err != nil {
+			continue
+		}
+		
+		for i := range items {
+			item := &items[i]
+			if item.Product.Tipo == models.ProductTypeMaterialConsumo || item.Product.Tipo == models.ProductTypeProduto {
+				var tx models.MaterialStockTransaction
+				err := r.db.Where("origem_tabela = ? AND origem_id = ? AND product_id = ?", 
+					"purchase_receivings", recv.ID, item.ProductID).First(&tx).Error
+				
+				if err != nil {
+					// Create stock transaction and adjust balance
+					_, _ = r.CreateOrUpdate(
+						item.ProductID, item.QuantidadeRecebida, models.StockEntrada, userID,
+						fmt.Sprintf("[Reconciliação] Entrada por Recebimento %d do Pedido %s", recv.ID, orderNumero),
+						"purchase_receivings", &recv.ID,
+					)
+					item.EstoqueAtualizado = true
+					_ = r.db.Save(item).Error
+				} else {
+					// Update transaction quantity if mismatch
+					if tx.Quantidade != item.QuantidadeRecebida {
+						diff := item.QuantidadeRecebida - tx.Quantidade
+						tx.Quantidade = item.QuantidadeRecebida
+						r.db.Save(&tx)
+						
+						// Adjust stock balance
+						stock, err := r.GetByProductID(item.ProductID)
+						if err == nil && stock != nil {
+							stock.QuantidadeSaldo += diff
+							r.db.Save(stock)
+						}
+					}
+					if !item.EstoqueAtualizado {
+						item.EstoqueAtualizado = true
+						_ = r.db.Save(item).Error
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // ---------- Contracts ----------
 
 type ProcurementContractRepository struct {

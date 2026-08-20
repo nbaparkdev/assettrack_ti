@@ -22,7 +22,7 @@ import { useAuthStore } from '../stores/authStore';
 import {
   Plus, X, ShieldAlert, Package, Gavel, CheckCircle2, Ban,
   ClipboardList, ArrowRightCircle,
-  Building2, Pencil, Trash2, Save, Boxes,
+  Building2, Pencil, Trash2, Save, Boxes, RefreshCw,
 } from 'lucide-react';
 
 const canManage = ['admin', 'gerente_ti', 'gerente_infra', 'comprador'];
@@ -680,6 +680,16 @@ export const ProcurementPage: React.FC = () => {
     }
   };
 
+  const handleReconcileOrder = async (orderId: number) => {
+    try {
+      const res = await procurementApi.reconcileOrder(orderId);
+      setGlobalMessage(res.message || 'Sincronização de estoque concluída.');
+      fetchAll();
+    } catch (err) {
+      showError(err);
+    }
+  };
+
   const submitStockConsume = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!consumeStockId || consumeQty <= 0) {
@@ -1321,6 +1331,11 @@ export const ProcurementPage: React.FC = () => {
                       {manage && ['Aberto', 'Enviado', 'Aceito', 'Em transporte'].includes(o.status) && (
                         <button onClick={() => receiveOrder(o)} className="text-green-400 border border-green-500/30 px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-green-500/10">
                           <Package size={12} className="inline mr-1" /> Receber
+                        </button>
+                      )}
+                      {manage && ['Recebido parcialmente', 'Recebido totalmente'].includes(o.status) && (
+                        <button onClick={() => handleReconcileOrder(o.id)} className="text-blue-400 border border-blue-500/30 px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-blue-500/10 ml-2" title="Reconciliar saldo de estoque">
+                          <RefreshCw size={12} className="inline mr-1" /> Reconciliar
                         </button>
                       )}
                     </td>

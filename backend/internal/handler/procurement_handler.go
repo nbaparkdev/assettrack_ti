@@ -1738,6 +1738,28 @@ func (h *ProcurementHandler) UpdateOrderStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, order)
 }
 
+func (h *ProcurementHandler) ReconcileOrderInventory(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	orderID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	order, err := h.orderRepo.GetByID(uint(orderID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Pedido não encontrado"})
+		return
+	}
+
+	err = h.stockRepo.VerifyAndSyncOrderInventory(order.ID, order.Numero, order.Receivings, user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Reconciliação concluída com sucesso"})
+}
+
 // ---------- Receiving ----------
 
 type receivingItemInput struct {
@@ -1819,11 +1841,25 @@ func (h *ProcurementHandler) ReceiveOrder(c *gin.Context) {
 	fullyReceived := true
 	for productID, quantity := range ordered {
 		received, _ := h.receivingRepo.ReceivedQuantity(order.ID, productID)
-		for _, item := range in.Itens { if item.ProductID == productID { received += item.QuantidadeRecebida } }
-		if received < quantity { fullyReceived = false; break }
+		if received < quantity {
+			fullyReceived = false
+			break
+		}
 	}
-	if fullyReceived { order.Status = models.POStatusRecebidoTotal } else { order.Status = models.POStatusRecebidoParcial }
+	if fullyReceived {
+		order.Status = models.POStatusRecebidoTotal
+	} else {
+		order.Status = models.POStatusRecebidoParcial
+	}
 	_ = h.orderRepo.Update(order)
+
+	// Perform verification step to ensure inventory consistency
+	if order.Status == models.POStatusRecebidoTotal {
+		if updatedOrder, err := h.orderRepo.GetByID(order.ID); err == nil && updatedOrder != nil {
+			_ = h.stockRepo.VerifyAndSyncOrderInventory(updatedOrder.ID, updatedOrder.Numero, updatedOrder.Receivings, user.ID)
+		}
+	}
+
 	h.logHistory("purchase_receivings", receiving.ID, user.ID, "Recebimento Registrado")
 
 	c.JSON(http.StatusCreated, gin.H{"receiving": receiving, "created_assets": createdAssets})
@@ -1851,36 +1887,53 @@ func (h *ProcurementHandler) convertReceivingToAssets(
 			continue
 		}
 		if product.Tipo == models.ProductTypeEquipamento {
-			currentCount++
-			patrimonio := fmt.Sprintf("PAT-%d-%04d", year, currentCount)
-			valor := 0.0
-			if len(order.Itens) > 0 {
-				valor = order.ValorTotal / float64(len(order.Itens))
+			qty := int(item.QuantidadeRecebida)
+			if qty <= 0 {
+				qty = 1
 			}
-			asset := models.Asset{
-				Nome:                   product.Nome,
-				EPatrimonio:            patrimonio,
-				Modelo:                 product.Modelo,
-				DataAquisicao:          timePtr(time.Now()),
-				Valor:                  &valor,
-				Status:                 models.AssetStatusArmazenado,
-				NumeroSerie:            &product.Codigo,
-				FornecedorID:           &order.FornecedorID,
-				NotaFiscalID:           receiving.NotaFiscalID,
-				CreatedByID:            &userID,
-				CurrentLocalID:         localID,
-				CurrentArmazenamentoID: armazenamentoID,
+			var lastAssetID uint
+			for q := 0; q < qty; q++ {
+				currentCount++
+				patrimonio := fmt.Sprintf("PAT-%d-%04d", year, currentCount)
+				valor := 0.0
+				if len(order.Itens) > 0 {
+					valor = order.ValorTotal / float64(len(order.Itens))
+				}
+				
+				// Unique serial number by appending index if multiple items
+				numeroSerie := product.Codigo
+				if qty > 1 {
+					numeroSerie = fmt.Sprintf("%s-%d", product.Codigo, q+1)
+				}
+				
+				asset := models.Asset{
+					Nome:                   product.Nome,
+					EPatrimonio:            patrimonio,
+					Modelo:                 product.Modelo,
+					DataAquisicao:          timePtr(time.Now()),
+					Valor:                  &valor,
+					Status:                 models.AssetStatusArmazenado,
+					NumeroSerie:            &numeroSerie,
+					FornecedorID:           &order.FornecedorID,
+					NotaFiscalID:           receiving.NotaFiscalID,
+					CreatedByID:            &userID,
+					CurrentLocalID:         localID,
+					CurrentArmazenamentoID: armazenamentoID,
+				}
+				desc := fmt.Sprintf("Criado automaticamente pelo recebimento do Pedido %s", order.Numero)
+				asset.Descricao = &desc
+				if cc, err := h.ccRepo.GetByID(order.CentroCustoID); err == nil && cc != nil {
+					asset.CurrentDepartamentoID = cc.DepartamentoID
+				}
+				if err := h.assetRepo.Create(&asset); err == nil {
+					lastAssetID = asset.ID
+					created = append(created, asset)
+				}
 			}
-			desc := fmt.Sprintf("Criado automaticamente pelo recebimento do Pedido %s", order.Numero)
-			asset.Descricao = &desc
-			if cc, err := h.ccRepo.GetByID(order.CentroCustoID); err == nil && cc != nil {
-				asset.CurrentDepartamentoID = cc.DepartamentoID
+			if lastAssetID != 0 {
+				item.AtivoCriadoID = &lastAssetID
 			}
-			if err := h.assetRepo.Create(&asset); err == nil {
-				item.AtivoCriadoID = &asset.ID
-				created = append(created, asset)
-			}
-		} else if product.Tipo == models.ProductTypeMaterialConsumo {
+		} else if product.Tipo == models.ProductTypeMaterialConsumo || product.Tipo == models.ProductTypeProduto {
 			_, _ = h.stockRepo.CreateOrUpdate(
 				item.ProductID, item.QuantidadeRecebida, models.StockEntrada, userID,
 				fmt.Sprintf("Entrada por Recebimento %d do Pedido %s", receiving.ID, order.Numero),

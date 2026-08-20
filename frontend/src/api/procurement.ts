@@ -182,6 +182,10 @@ export const procurementApi = {
     const response = await apiClient.post(`/compras/pedidos/${orderId}/receber`, data);
     return response.data;
   },
+  reconcileOrder: async (id: number): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>(`/compras/pedidos/${id}/reconciliar`, {});
+    return response.data;
+  },
 
   // Stock
   listStock: async (): Promise<MaterialStock[]> => {

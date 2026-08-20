@@ -20,6 +20,7 @@ export interface SolicitacaoManutencao {
     email: string;
   };
   manutencao_id?: number;
+  manutencao?: Manutencao;
   data_resposta?: string;
   observacao_resposta?: string;
   data_conclusao_tecnico?: string;

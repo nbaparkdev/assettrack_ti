@@ -88,6 +88,18 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const handleConfirmReceipt = async (id: number) => {
+    if (!window.confirm('Confirma que recebeu o equipamento consertado e que ele está funcionando corretamente?')) return;
+    try {
+      setExtraLoading(true);
+      await maintenanceApi.confirmReceipt(id);
+      await fetchUserDashboardData();
+    } catch (err) {
+      console.error('Erro ao confirmar recebimento:', err);
+      alert('Não foi possível confirmar o recebimento. Tente novamente.');
+      setExtraLoading(false);
+    }
+  };
 
   const exportPDF = () => {
     if (!stats) return;
@@ -350,7 +362,13 @@ export const DashboardPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {myActiveLoans.map(loan => (
+                  {myActiveLoans.map(loan => {
+                    const hasActiveMaint = myMaintenanceRequests.some(
+                      req => req.asset_id === loan.asset_id && 
+                      !['concluida', 'rejeitada'].includes(req.status?.toLowerCase() || '')
+                    );
+                    
+                    return (
                     <div key={loan.id} className="p-4 bg-brand-dark/40 border border-brand-border/60 flex items-center justify-between">
                       <div>
                         <h4 className="font-semibold text-brand-text text-sm">{loan.asset?.nome || 'Equipamento'}</h4>
@@ -362,15 +380,22 @@ export const DashboardPage: React.FC = () => {
                           <span>Entregue em: {loan.data_entrega ? new Date(loan.data_entrega).toLocaleDateString('pt-BR') : '-'}</span>
                         </p>
                       </div>
-                      <Link 
-                        to="/emprestimos"
-                        className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-brand-dark font-bold text-xs uppercase tracking-wider font-mono flex items-center space-x-1 transition-all"
-                      >
-                        <Wrench size={12} />
-                        <span>Manutenção</span>
-                      </Link>
+                      {!hasActiveMaint ? (
+                        <Link 
+                          to="/emprestimos"
+                          className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-brand-dark font-bold text-xs uppercase tracking-wider font-mono flex items-center space-x-1 transition-all"
+                        >
+                          <Wrench size={12} />
+                          <span>Manutenção</span>
+                        </Link>
+                      ) : (
+                        <div className="px-3 py-1 border border-amber-500/30 text-amber-500 font-bold text-xs uppercase tracking-wider font-mono flex items-center space-x-1 opacity-60">
+                          <Wrench size={12} />
+                          <span>Em Andamento</span>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>
@@ -426,12 +451,25 @@ export const DashboardPage: React.FC = () => {
                         <div className="text-[11px] text-brand-muted bg-brand-dark/60 p-2 border border-brand-border/30 rounded font-mono truncate">
                           Defeito: "{req.descricao}"
                         </div>
-                        {req.data_resposta && (
-                          <div className="text-[9px] text-brand-muted font-mono flex items-center space-x-1">
-                            <Clock size={10} />
-                            <span>Respondido em: {new Date(req.data_resposta).toLocaleDateString('pt-BR')}</span>
-                          </div>
-                        )}
+                        <div className="flex justify-between items-center mt-2">
+                          {req.data_resposta ? (
+                            <div className="text-[9px] text-brand-muted font-mono flex items-center space-x-1">
+                              <Clock size={10} />
+                              <span>Respondido em: {new Date(req.data_resposta).toLocaleDateString('pt-BR')}</span>
+                            </div>
+                          ) : (
+                            <div />
+                          )}
+                          
+                          {statusLower === 'aguardando_entrega' && (
+                            <button
+                              onClick={() => handleConfirmReceipt(req.id)}
+                              className="px-2 py-1 bg-brand-primary text-brand-dark font-bold text-[9px] uppercase tracking-wider font-mono hover:bg-brand-primary/90 transition-all ml-2 shrink-0 shadow shadow-brand-primary/20"
+                            >
+                              Confirmar Recebimento
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
