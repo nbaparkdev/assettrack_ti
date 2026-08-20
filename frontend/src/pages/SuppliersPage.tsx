@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { suppliersApi } from '../api/suppliers';
-import type { Fornecedor, NotaFiscal } from '../types/supplier';
+import type { Fornecedor, NotaFiscal, XMLParsedSupplier } from '../types/supplier';
 import { useAuthStore } from '../stores/authStore';
 import { Plus, Edit2, Trash2, FileText, ShieldAlert, X } from 'lucide-react';
 
 const canManage = ['admin', 'gerente_ti', 'gerente_infra', 'comprador'];
+
+const normalizeXMLImportError = (message?: string) => {
+  if (!message) return 'Erro ao processar XML';
+  if (message.includes('malformado') || message.includes('incompleto')) {
+    return `${message} Dica: valide o XML antes de importar e confirme se não há tags abertas/fechadas incorretamente.`;
+  }
+  if (message.includes('estrutura de NF-e reconhecida') || message.includes('infNFe')) {
+    return `${message} Dica: use um XML de NF-e processada ou autorizado, contendo os dados do emitente.`;
+  }
+  return message;
+};
 
 export const SuppliersPage: React.FC = () => {
   const currentAuthUser = useAuthStore().user;
@@ -26,12 +37,19 @@ export const SuppliersPage: React.FC = () => {
   const [estado, setEstado] = useState('');
   const [tipoFornecedor, setTipoFornecedor] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [xmlPreview, setXmlPreview] = useState<XMLParsedSupplier | null>(null);
 
   // Invoice state
   const [invoiceSupplier, setInvoiceSupplier] = useState<Fornecedor | null>(null);
   const [invoices, setInvoices] = useState<{ id: number; numero_nota: string }[]>([]);
   const [invoiceDetail, setInvoiceDetail] = useState<NotaFiscal | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
+
+  const formatCurrency = (value?: number | null) =>
+    value == null ? 'N/A' : value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const formatDateTime = (value?: string | null) =>
+    value ? new Date(value).toLocaleString('pt-BR') : 'N/A';
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -61,6 +79,7 @@ export const SuppliersPage: React.FC = () => {
     setEstado('');
     setTipoFornecedor('');
     setFormError(null);
+    setXmlPreview(null);
     setShowModal(true);
   };
 
@@ -76,6 +95,7 @@ export const SuppliersPage: React.FC = () => {
     setEstado(s.estado || '');
     setTipoFornecedor(s.tipo_fornecedor || '');
     setFormError(null);
+    setXmlPreview(null);
     setShowModal(true);
   };
 
@@ -102,6 +122,7 @@ export const SuppliersPage: React.FC = () => {
         await suppliersApi.create(payload);
       }
       setShowModal(false);
+      setXmlPreview(null);
       fetchSuppliers();
     } catch (err: any) {
       setFormError(err.response?.data?.error || 'Erro ao salvar fornecedor');
@@ -123,6 +144,7 @@ export const SuppliersPage: React.FC = () => {
     setFormError(null);
     try {
       const data = await suppliersApi.parseXML(file);
+      setXmlPreview(data);
       if (!data.nome && !data.cnpj) {
         setFormError('Não foi possível extrair os dados do emitente do XML.');
         return;
@@ -135,7 +157,8 @@ export const SuppliersPage: React.FC = () => {
       if (data.cidade) setCidade(data.cidade);
       if (data.estado) setEstado(data.estado);
     } catch (err: any) {
-      setFormError(err.response?.data?.error || 'Erro ao processar XML');
+      setXmlPreview(null);
+      setFormError(normalizeXMLImportError(err.response?.data?.error));
     }
   };
 
@@ -171,7 +194,7 @@ export const SuppliersPage: React.FC = () => {
       const data = await suppliersApi.listInvoices(invoiceSupplier.id);
       setInvoices(data);
     } catch (err: any) {
-      setInvoiceError(err.response?.data?.error || 'Erro ao processar XML da nota');
+      setInvoiceError(normalizeXMLImportError(err.response?.data?.error || 'Erro ao processar XML da nota'));
     }
   };
 
@@ -450,10 +473,62 @@ export const SuppliersPage: React.FC = () => {
                 />
               </div>
 
+              {xmlPreview && (
+                <div className="border border-brand-border bg-brand-dark/20 p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-3 border-b border-brand-border pb-3">
+                    <div>
+                      <div className="text-xs font-mono uppercase tracking-wider text-brand-muted">Pré-visualização da NF-e</div>
+                      <div className="text-sm text-brand-text mt-1">{xmlPreview.emitente_nome || xmlPreview.nome || 'Emitente não identificado'}</div>
+                    </div>
+                    <span className="text-[10px] font-mono uppercase px-2 py-1 border border-brand-primary/30 text-brand-primary">
+                      Nota {xmlPreview.numero_nota || 'N/A'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-[11px] font-mono uppercase tracking-wider text-brand-muted">Emissão</div>
+                      <div className="text-brand-text">{formatDateTime(xmlPreview.data_emissao)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-mono uppercase tracking-wider text-brand-muted">Valor total</div>
+                      <div className="text-brand-text font-mono">{formatCurrency(xmlPreview.valor_total)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-mono uppercase tracking-wider text-brand-muted">Natureza da operação</div>
+                      <div className="text-brand-text">{xmlPreview.natureza_operacao || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-mono uppercase tracking-wider text-brand-muted">Destinatário</div>
+                      <div className="text-brand-text">{xmlPreview.destinatario_nome || 'N/A'}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] font-mono uppercase tracking-wider text-brand-muted mb-2">
+                      Itens da nota ({xmlPreview.itens?.length ?? 0})
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {xmlPreview.itens?.map((item, index) => (
+                        <div key={`${item.codigo || item.descricao || 'item'}-${index}`} className="border border-brand-border bg-brand-card/60 p-3 text-xs">
+                          <div className="text-brand-text">{item.descricao || item.codigo || 'Item sem descrição'}</div>
+                          <div className="text-brand-muted font-mono mt-1">
+                            cod: {item.codigo || '—'} · ncm: {item.ncm || '—'} · qtd: {item.quantidade ?? '—'} · unit: {formatCurrency(item.valor_unitario)} · total: {formatCurrency(item.valor_total)}
+                          </div>
+                        </div>
+                      ))}
+                      {(!xmlPreview.itens || xmlPreview.itens.length === 0) && (
+                        <div className="text-brand-muted text-xs">Nenhum item foi extraído desta NF-e.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end space-x-3 pt-4 border-t border-brand-border">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => { setShowModal(false); setXmlPreview(null); }}
                   className="border border-brand-border hover:bg-brand-card px-4 py-2 font-mono text-xs uppercase"
                 >
                   Cancelar

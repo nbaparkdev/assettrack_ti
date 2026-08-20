@@ -17,12 +17,16 @@ export const kanbanApi = {
     const response = await apiClient.get(`/kanban/projetos/${id}`);
     return response.data;
   },
-  createProject: async (data: { titulo: string; descricao?: string; participante_ids?: number[] }): Promise<KanbanProject> => {
+  createProject: async (data: { titulo: string; descricao?: string; board_background_color?: string; board_pattern?: string; related_to_maintenance?: boolean; related_to_preventive?: boolean; preventive_plan_id?: number; participante_ids?: number[] }): Promise<KanbanProject> => {
     const response = await apiClient.post<KanbanProject>('/kanban/projetos', data);
     return response.data;
   },
   updateProject: async (id: number, data: Partial<KanbanProject> & { participante_ids?: number[] }): Promise<KanbanProject> => {
     const response = await apiClient.put(`/kanban/projetos/${id}`, data);
+    return response.data;
+  },
+  duplicateProject: async (id: number, incluir_cartoes = false): Promise<KanbanProject> => {
+    const response = await apiClient.post<KanbanProject>(`/kanban/projetos/${id}/duplicar`, { incluir_cartoes });
     return response.data;
   },
   toggleProject: async (id: number, acao: string): Promise<KanbanProject> => {
@@ -81,6 +85,9 @@ export const kanbanApi = {
   listNotifications: async (): Promise<KanbanNotification[]> => {
     const response = await apiClient.get<KanbanNotification[]>('/kanban/notificacoes');
     return response.data;
+  },
+  markNotificationRead: async (notifId: number): Promise<void> => {
+    await apiClient.post(`/kanban/notificacoes/${notifId}/lida`);
   },
   markAllNotificationsRead: async (): Promise<void> => {
     await apiClient.post('/kanban/notificacoes/lidas');

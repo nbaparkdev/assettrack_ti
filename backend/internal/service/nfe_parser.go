@@ -40,6 +40,10 @@ type nfeXML struct {
 	InfNFe nfeInfNFeXML `xml:"infNFe"`
 }
 
+type nfeProcXML struct {
+	NFe nfeXML `xml:"NFe"`
+}
+
 type nfeInfNFeXML struct {
 	Ide   nfeIdeXML   `xml:"ide"`
 	Emit  nfeEmitXML  `xml:"emit"`
@@ -61,8 +65,8 @@ type nfeEmitXML struct {
 }
 
 type nfeEnderXML struct {
-	XLgr    string `xml:"xLgr"`
-	Nro     string `xml:"nro"`
+	XLgr    string `xml:"xlgr"`
+	Nro     string `xml:"n"`
 	XBairro string `xml:"xBairro"`
 	XMun    string `xml:"xMun"`
 	UF      string `xml:"UF"`
@@ -109,12 +113,20 @@ func parseFloatOrNil(s string) *float64 {
 
 // ParseNFEXML extracts basic invoice and supplier info from an NFe XML document.
 func ParseNFEXML(data []byte) (*NFEData, error) {
-	var doc nfeXML
-	if err := xml.Unmarshal(data, &doc); err != nil {
+	var direct nfeXML
+	if err := xml.Unmarshal(data, &direct); err != nil {
 		return nil, fmt.Errorf("XML inválido: %w", err)
 	}
 
-	inf := doc.InfNFe
+	inf := direct.InfNFe
+	if inf.Ide.NNF == "" && inf.Emit.XNome == "" {
+		var proc nfeProcXML
+		if err := xml.Unmarshal(data, &proc); err != nil {
+			return nil, fmt.Errorf("XML inválido: %w", err)
+		}
+		inf = proc.NFe.InfNFe
+	}
+
 	if inf.Ide.NNF == "" && inf.Emit.XNome == "" {
 		return nil, fmt.Errorf("XML não parece ser uma NF-e válida (infNFe não encontrado)")
 	}

@@ -803,13 +803,13 @@ export const ServiceDeskPage: React.FC = () => {
             <div className="flex border-b border-brand-border bg-brand-dark/30">
               <button
                 onClick={() => setActiveConfigTab('categorias')}
-                className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeConfigTab === 'categorias' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-brand-muted hover:text-brand-text'}`}
+                className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeConfigTab === 'categorias' ? 'text-brand-primary border-b-2 border-brand-primary opacity-100' : 'text-brand-text opacity-[0.55] hover:opacity-75'}`}
               >
                 1. Categorias de Serviço
               </button>
               <button
                 onClick={() => setActiveConfigTab('servicos')}
-                className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeConfigTab === 'servicos' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-brand-muted hover:text-brand-text'}`}
+                className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeConfigTab === 'servicos' ? 'text-brand-primary border-b-2 border-brand-primary opacity-100' : 'text-brand-text opacity-[0.55] hover:opacity-75'}`}
               >
                 2. Serviços Específicos
               </button>

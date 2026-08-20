@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -19,6 +20,8 @@ import (
 )
 
 const kanbanUploadDir = "uploads/kanban"
+const defaultKanbanBoardBackgroundColor = "#212121"
+const defaultKanbanBoardPattern = "glow"
 
 // KanbanEvent is a server-sent event payload.
 type KanbanEvent struct {
@@ -152,9 +155,6 @@ func (h *KanbanHandler) projectParticipantIDs(project *models.KanbanProject) []u
 
 func (h *KanbanHandler) notify(userIDs []uint, autorID uint, tipo, titulo, mensagem string, projectID, cardID *uint) {
 	for _, uid := range userIDs {
-		if uid == autorID {
-			continue
-		}
 		link := fmt.Sprintf("/kanban")
 		_ = h.notifRepo.Create(&models.KanbanNotification{
 			UserID:    uid,
@@ -165,6 +165,7 @@ func (h *KanbanHandler) notify(userIDs []uint, autorID uint, tipo, titulo, mensa
 			Titulo:    titulo,
 			Mensagem:  mensagem,
 			Link:      &link,
+			Lida:      uid == autorID,
 		})
 	}
 	h.broker.BroadcastToUsers(userIDs, KanbanEvent{Type: "kanban_update", Payload: gin.H{"tipo": tipo, "mensagem": mensagem}})
@@ -194,9 +195,14 @@ func (h *KanbanHandler) CreateProject(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 
 	var in struct {
-		Titulo          string `json:"titulo"`
-		Descricao       string `json:"descricao"`
-		ParticipanteIDs []uint `json:"participante_ids"`
+		Titulo               string `json:"titulo"`
+		Descricao            string `json:"descricao"`
+		BoardBackgroundColor string `json:"board_background_color"`
+		BoardPattern         string `json:"board_pattern"`
+		RelatedToMaintenance bool   `json:"related_to_maintenance"`
+		RelatedToPreventive  bool   `json:"related_to_preventive"`
+		PreventivePlanID     *uint  `json:"preventive_plan_id"`
+		ParticipanteIDs      []uint `json:"participante_ids"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -217,11 +223,26 @@ func (h *KanbanHandler) CreateProject(c *gin.Context) {
 		}
 	}
 
+	var preventivePlanID *uint
+	if in.RelatedToPreventive && in.PreventivePlanID != nil {
+		var plan models.MaintenancePlan
+		if err := h.userRepo.DB().First(&plan, *in.PreventivePlanID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Plano preventivo não encontrado"})
+			return
+		}
+		preventivePlanID = in.PreventivePlanID
+	}
+
 	project := &models.KanbanProject{
-		Titulo:        strings.TrimSpace(in.Titulo),
-		CriadorID:     user.ID,
-		IsActive:      true,
-		Participantes: participants,
+		Titulo:               strings.TrimSpace(in.Titulo),
+		BoardBackgroundColor: normalizeHexColor(in.BoardBackgroundColor, defaultKanbanBoardBackgroundColor),
+		BoardPattern:         normalizeBoardPattern(in.BoardPattern),
+		RelatedToMaintenance: in.RelatedToMaintenance,
+		RelatedToPreventive:  in.RelatedToPreventive,
+		PreventivePlanID:     preventivePlanID,
+		CriadorID:            user.ID,
+		IsActive:             true,
+		Participantes:        participants,
 	}
 	if strings.TrimSpace(in.Descricao) != "" {
 		d := strings.TrimSpace(in.Descricao)
@@ -317,11 +338,16 @@ func (h *KanbanHandler) UpdateProject(c *gin.Context) {
 	}
 
 	var in struct {
-		Titulo          string `json:"titulo"`
-		Descricao       string `json:"descricao"`
-		ParticipanteIDs []uint `json:"participante_ids"`
-		IsActive        *bool  `json:"is_active"`
-		IsArchived      *bool  `json:"is_archived"`
+		Titulo               string  `json:"titulo"`
+		Descricao            string  `json:"descricao"`
+		BoardBackgroundColor *string `json:"board_background_color"`
+		BoardPattern         *string `json:"board_pattern"`
+		RelatedToMaintenance *bool   `json:"related_to_maintenance"`
+		RelatedToPreventive  *bool   `json:"related_to_preventive"`
+		PreventivePlanID     *uint   `json:"preventive_plan_id"`
+		ParticipanteIDs      []uint  `json:"participante_ids"`
+		IsActive             *bool   `json:"is_active"`
+		IsArchived           *bool   `json:"is_archived"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -332,6 +358,30 @@ func (h *KanbanHandler) UpdateProject(c *gin.Context) {
 	if strings.TrimSpace(in.Descricao) != "" {
 		d := strings.TrimSpace(in.Descricao)
 		project.Descricao = &d
+	} else {
+		project.Descricao = nil
+	}
+	if in.BoardBackgroundColor != nil {
+		project.BoardBackgroundColor = normalizeHexColor(*in.BoardBackgroundColor, defaultKanbanBoardBackgroundColor)
+	}
+	if in.BoardPattern != nil {
+		project.BoardPattern = normalizeBoardPattern(*in.BoardPattern)
+	}
+	if in.RelatedToMaintenance != nil {
+		project.RelatedToMaintenance = *in.RelatedToMaintenance
+	}
+	if in.RelatedToPreventive != nil {
+		project.RelatedToPreventive = *in.RelatedToPreventive
+	}
+	if in.RelatedToPreventive != nil && !project.RelatedToPreventive {
+		project.PreventivePlanID = nil
+	} else if in.PreventivePlanID != nil {
+		var plan models.MaintenancePlan
+		if err := h.userRepo.DB().First(&plan, *in.PreventivePlanID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Plano preventivo não encontrado"})
+			return
+		}
+		project.PreventivePlanID = in.PreventivePlanID
 	}
 	if in.IsActive != nil {
 		project.IsActive = *in.IsActive
@@ -357,6 +407,138 @@ func (h *KanbanHandler) UpdateProject(c *gin.Context) {
 		&project.ID, nil)
 
 	c.JSON(http.StatusOK, project)
+}
+
+func (h *KanbanHandler) DuplicateProject(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	project, err := h.projectRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Projeto não encontrado"})
+		return
+	}
+	if !h.userCanAccessProject(user, project) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado"})
+		return
+	}
+
+	var in struct {
+		IncluirCartoes bool `json:"incluir_cartoes"`
+	}
+	_ = c.ShouldBindJSON(&in)
+
+	participantIDs := make([]uint, 0, len(project.Participantes)+1)
+	participantIDs = append(participantIDs, user.ID)
+	for _, participant := range project.Participantes {
+		participantIDs = append(participantIDs, participant.ID)
+	}
+
+	var participants []models.User
+	if err := h.userRepo.DB().Where("id IN ?", uniqueUints(participantIDs)).Find(&participants).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	duplicate := &models.KanbanProject{
+		Titulo:               strings.TrimSpace(project.Titulo) + " (Cópia)",
+		Descricao:            project.Descricao,
+		BoardBackgroundColor: normalizeHexColor(project.BoardBackgroundColor, defaultKanbanBoardBackgroundColor),
+		BoardPattern:         normalizeBoardPattern(project.BoardPattern),
+		RelatedToMaintenance: project.RelatedToMaintenance,
+		RelatedToPreventive:  project.RelatedToPreventive,
+		PreventivePlanID:     project.PreventivePlanID,
+		CriadorID:            user.ID,
+		IsActive:             true,
+		IsArchived:           false,
+		Participantes:        participants,
+	}
+
+	if err := h.projectRepo.Create(duplicate); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	columnMap := make(map[uint]uint, len(project.Colunas))
+	for idx, col := range project.Colunas {
+		newCol := &models.KanbanColumn{
+			ProjectID: duplicate.ID,
+			Nome:      col.Nome,
+			Cor:       col.Cor,
+			Ordem:     idx,
+			IsDefault: col.IsDefault,
+		}
+		if err := h.columnRepo.Create(newCol); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		columnMap[col.ID] = newCol.ID
+	}
+
+	if in.IncluirCartoes {
+		for _, col := range project.Colunas {
+			for _, card := range col.Cards {
+				newColumnID, ok := columnMap[col.ID]
+				if !ok {
+					continue
+				}
+
+				duplicateCard := &models.KanbanCard{
+					ProjectID:     duplicate.ID,
+					ColumnID:      newColumnID,
+					Titulo:        card.Titulo,
+					Descricao:     card.Descricao,
+					ChecklistJSON: card.ChecklistJSON,
+					CriadorID:     user.ID,
+					ResponsavelID: card.ResponsavelID,
+					Prioridade:    card.Prioridade,
+					DataEntrega:   card.DataEntrega,
+					Ordem:         card.Ordem,
+				}
+				if err := h.cardRepo.Create(duplicateCard); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+
+				if len(card.Participantes) > 0 {
+					cardParticipantIDs := make([]uint, 0, len(card.Participantes))
+					for _, participant := range card.Participantes {
+						cardParticipantIDs = append(cardParticipantIDs, participant.ID)
+					}
+					if err := h.cardRepo.ReplaceParticipantes(duplicateCard, uniqueUints(cardParticipantIDs)); err != nil {
+						c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+						return
+					}
+				}
+
+				if len(card.Ativos) > 0 {
+					assetIDs := make([]uint, 0, len(card.Ativos))
+					for _, asset := range card.Ativos {
+						assetIDs = append(assetIDs, asset.ID)
+					}
+					if err := h.cardRepo.ReplaceAssets(duplicateCard, uniqueUints(assetIDs)); err != nil {
+						c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+						return
+					}
+				}
+			}
+		}
+	}
+
+	h.notify(h.projectParticipantIDs(duplicate), user.ID, models.NotifProjetoAdicionado,
+		"Projeto duplicado",
+		fmt.Sprintf("%s duplicou o projeto '%s'.", user.Nome, project.Titulo),
+		&duplicate.ID, nil)
+
+	loaded, _ := h.projectRepo.GetByID(duplicate.ID)
+	if loaded == nil {
+		loaded = duplicate
+	}
+	c.JSON(http.StatusCreated, loaded)
 }
 
 func (h *KanbanHandler) ToggleProjectStatus(c *gin.Context) {
@@ -526,15 +708,16 @@ func (h *KanbanHandler) CreateCard(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 
 	var in struct {
-		ProjectID       uint    `json:"project_id"`
-		ColumnID        uint    `json:"column_id"`
-		Titulo          string  `json:"titulo"`
-		Descricao       string  `json:"descricao"`
-		ResponsavelID   *uint   `json:"responsavel_id"`
-		Prioridade      string  `json:"prioridade"`
-		DataEntrega     *string `json:"data_entrega"`
-		ParticipanteIDs []uint  `json:"participante_ids"`
-		AtivoIDs        []uint  `json:"ativo_ids"`
+		ProjectID       uint                         `json:"project_id"`
+		ColumnID        uint                         `json:"column_id"`
+		Titulo          string                       `json:"titulo"`
+		Descricao       string                       `json:"descricao"`
+		ChecklistItems  []kanbanChecklistItemPayload `json:"checklist_items"`
+		ResponsavelID   *uint                        `json:"responsavel_id"`
+		Prioridade      string                       `json:"prioridade"`
+		DataEntrega     *string                      `json:"data_entrega"`
+		ParticipanteIDs []uint                       `json:"participante_ids"`
+		AtivoIDs        []uint                       `json:"ativo_ids"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -571,6 +754,12 @@ func (h *KanbanHandler) CreateCard(c *gin.Context) {
 		d := strings.TrimSpace(in.Descricao)
 		card.Descricao = &d
 	}
+	checklistJSON, err := marshalKanbanChecklist(in.ChecklistItems)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Checklist inválido"})
+		return
+	}
+	card.ChecklistJSON = checklistJSON
 	if in.DataEntrega != nil && *in.DataEntrega != "" {
 		if t, err := time.Parse("2006-01-02", *in.DataEntrega); err == nil {
 			card.DataEntrega = &t
@@ -654,14 +843,15 @@ func (h *KanbanHandler) UpdateCard(c *gin.Context) {
 	}
 
 	var in struct {
-		Titulo          string  `json:"titulo"`
-		Descricao       string  `json:"descricao"`
-		ColumnID        uint    `json:"column_id"`
-		ResponsavelID   *uint   `json:"responsavel_id"`
-		Prioridade      string  `json:"prioridade"`
-		DataEntrega     *string `json:"data_entrega"`
-		ParticipanteIDs []uint  `json:"participante_ids"`
-		AtivoIDs        []uint  `json:"ativo_ids"`
+		Titulo          string                       `json:"titulo"`
+		Descricao       string                       `json:"descricao"`
+		ChecklistItems  []kanbanChecklistItemPayload `json:"checklist_items"`
+		ColumnID        uint                         `json:"column_id"`
+		ResponsavelID   *uint                        `json:"responsavel_id"`
+		Prioridade      string                       `json:"prioridade"`
+		DataEntrega     *string                      `json:"data_entrega"`
+		ParticipanteIDs []uint                       `json:"participante_ids"`
+		AtivoIDs        []uint                       `json:"ativo_ids"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -672,7 +862,15 @@ func (h *KanbanHandler) UpdateCard(c *gin.Context) {
 	if strings.TrimSpace(in.Descricao) != "" {
 		d := strings.TrimSpace(in.Descricao)
 		card.Descricao = &d
+	} else {
+		card.Descricao = nil
 	}
+	checklistJSON, err := marshalKanbanChecklist(in.ChecklistItems)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Checklist inválido"})
+		return
+	}
+	card.ChecklistJSON = checklistJSON
 	card.ColumnID = in.ColumnID
 	card.ResponsavelID = in.ResponsavelID
 	card.Prioridade = normalizeEnumValue(in.Prioridade, []string{models.CardPriorityBaixa, models.CardPriorityMedia, models.CardPriorityAlta, models.CardPriorityUrgente}, models.CardPriorityMedia)
@@ -1085,6 +1283,67 @@ func uniqueUints(ids []uint) []uint {
 	return result
 }
 
+func normalizeHexColor(input string, fallback string) string {
+	color := strings.ToUpper(strings.TrimSpace(input))
+	if len(color) != 7 || !strings.HasPrefix(color, "#") {
+		return fallback
+	}
+	for _, ch := range color[1:] {
+		if !strings.ContainsRune("0123456789ABCDEF", ch) {
+			return fallback
+		}
+	}
+	return color
+}
+
+func normalizeBoardPattern(input string) string {
+	switch strings.ToLower(strings.TrimSpace(input)) {
+	case "glow", "grid", "dots", "clean":
+		return strings.ToLower(strings.TrimSpace(input))
+	default:
+		return defaultKanbanBoardPattern
+	}
+}
+
+type kanbanChecklistItemPayload struct {
+	ID        string `json:"id"`
+	Titulo    string `json:"titulo"`
+	Concluido bool   `json:"concluido"`
+}
+
+func sanitizeKanbanChecklist(items []kanbanChecklistItemPayload) []kanbanChecklistItemPayload {
+	sanitized := make([]kanbanChecklistItemPayload, 0, len(items))
+	for index, item := range items {
+		titulo := strings.TrimSpace(item.Titulo)
+		if titulo == "" {
+			continue
+		}
+		itemID := strings.TrimSpace(item.ID)
+		if itemID == "" {
+			itemID = fmt.Sprintf("item-%d", index+1)
+		}
+		sanitized = append(sanitized, kanbanChecklistItemPayload{
+			ID:        itemID,
+			Titulo:    titulo,
+			Concluido: item.Concluido,
+		})
+	}
+	return sanitized
+}
+
+func marshalKanbanChecklist(items []kanbanChecklistItemPayload) (*string, error) {
+	sanitized := sanitizeKanbanChecklist(items)
+	if len(sanitized) == 0 {
+		return nil, nil
+	}
+	payload, err := json.Marshal(sanitized)
+	if err != nil {
+		return nil, err
+	}
+	value := string(payload)
+	return &value, nil
+}
+
 func (h *KanbanHandler) syncKanbanAssetsMaintenance(card *models.KanbanCard, assetIDs []uint, userID uint, motivo string) {
 	if len(assetIDs) == 0 {
 		return
@@ -1100,7 +1359,8 @@ func (h *KanbanHandler) syncKanbanAssetsMaintenance(card *models.KanbanCard, ass
 	colName := strings.ToLower(col.Nome)
 	projName := strings.ToLower(proj.Titulo)
 
-	isOficinaOrMaintenance := strings.Contains(colName, "oficina") ||
+	isOficinaOrMaintenance := proj.RelatedToMaintenance ||
+		strings.Contains(colName, "oficina") ||
 		strings.Contains(colName, "manuten") ||
 		strings.Contains(colName, "reparo") ||
 		strings.Contains(projName, "oficina") ||
@@ -1131,7 +1391,7 @@ func (h *KanbanHandler) syncKanbanAssetsMaintenance(card *models.KanbanCard, ass
 					string(models.StatusMaintEmAndamento),
 				}).
 				Updates(map[string]interface{}{
-					"status":               models.StatusMaintAguardandoEntrega,
+					"status":                 models.StatusMaintAguardandoEntrega,
 					"data_conclusao_tecnico": &now,
 				})
 		} else if isOficinaOrMaintenance {

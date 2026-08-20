@@ -10,7 +10,6 @@ import { AssetsPage } from './pages/AssetsPage';
 import { ServiceDeskPage } from './pages/ServiceDeskPage';
 import { MaintenancePage } from './pages/MaintenancePage';
 import { BorrowingsPage } from './pages/BorrowingsPage';
-import { SuppliersPage } from './pages/SuppliersPage';
 import { PreventiveMaintenancePage } from './pages/PreventiveMaintenancePage';
 import { KanbanPage } from './pages/KanbanPage';
 import { AlertsPage } from './pages/AlertsPage';
@@ -28,6 +27,8 @@ const queryClient = new QueryClient();
 
 const App: React.FC = () => {
   const checkAuth = useAuthStore((state) => state.checkAuth);
+  const user = useAuthStore((state) => state.user);
+  const canAccessSettings = ['admin', 'gerente_ti', 'gerente_infra'].includes(user?.role?.toLowerCase() || '');
 
   useEffect(() => {
     checkAuth();
@@ -98,14 +99,6 @@ const App: React.FC = () => {
             }
           />
           <Route
-            path="/fornecedores"
-            element={
-              <MainLayout>
-                <SuppliersPage />
-              </MainLayout>
-            }
-          />
-          <Route
             path="/setores"
             element={
               <MainLayout>
@@ -146,6 +139,15 @@ const App: React.FC = () => {
             }
           />
           <Route
+            path="/compras/fornecedores"
+            element={
+              <MainLayout>
+                <ProcurementPage />
+              </MainLayout>
+            }
+          />
+          <Route path="/fornecedores" element={<Navigate to="/compras/fornecedores" replace />} />
+          <Route
             path="/rh"
             element={
               <MainLayout>
@@ -180,9 +182,13 @@ const App: React.FC = () => {
           <Route
             path="/configuracoes"
             element={
-              <MainLayout>
-                <SettingsPage />
-              </MainLayout>
+              canAccessSettings ? (
+                <MainLayout>
+                  <SettingsPage />
+                </MainLayout>
+              ) : (
+                <Navigate to="/" replace />
+              )
             }
           />
           <Route

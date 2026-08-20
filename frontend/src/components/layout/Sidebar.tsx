@@ -13,7 +13,6 @@ import {
   Wrench,
   ArrowLeftRight,
   MessageSquare,
-  Truck,
   ClipboardList,
   Columns3,
   BellRing,
@@ -51,10 +50,9 @@ export const Sidebar: React.FC = () => {
     { name: 'Central de Suporte', path: '/servicos', icon: MessageSquare },
     { name: 'Manutenções', path: '/manutencoes', icon: Wrench, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
     { name: 'Prev. Programada', path: '/manutencao-preventiva', icon: ClipboardList, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
-    { name: 'Kanban', path: '/kanban', icon: Columns3, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
+    { name: 'Kanban', path: '/kanban', icon: Columns3, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'rh'] },
     { name: 'Alertas', path: '/alertas', icon: BellRing, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
     { name: 'Empréstimos', path: '/emprestimos', icon: ArrowLeftRight },
-    { name: 'Fornecedores', path: '/fornecedores', icon: Truck, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'comprador'] },
     { name: 'Compras', path: '/compras', icon: Briefcase, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'comprador'] },
     { name: 'Portal RH', path: '/rh', icon: FileSignature, roleLimit: ['admin', 'rh', 'gerente_ti', 'gerente_infra'] },
     { name: 'Usuários', path: '/users', icon: Users, roleLimit: ['admin', 'gerente_ti', 'gerente_infra'] },
@@ -65,7 +63,7 @@ export const Sidebar: React.FC = () => {
 
   const adminModules = [
     { name: 'Setores', path: '/setores', icon: ClipboardList, roleLimit: ['admin', 'gerente_ti', 'gerente_infra'] },
-    { name: 'Configurações', path: '/configuracoes', icon: Wrench, roleLimit: ['admin'] },
+    { name: 'Configurações', path: '/configuracoes', icon: Wrench, roleLimit: ['admin', 'gerente_ti', 'gerente_infra'] },
     { name: 'Logs de E-mail', path: '/logs-email', icon: FileSpreadsheet, roleLimit: ['admin'] },
   ];
 

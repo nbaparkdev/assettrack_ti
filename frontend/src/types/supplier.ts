@@ -40,4 +40,11 @@ export interface XMLParsedSupplier {
   estado?: string;
   telefone?: string;
   razao_social?: string;
+  numero_nota?: string;
+  data_emissao?: string | null;
+  natureza_operacao?: string;
+  valor_total?: number | null;
+  emitente_nome?: string;
+  destinatario_nome?: string;
+  itens?: NotaFiscalItem[];
 }

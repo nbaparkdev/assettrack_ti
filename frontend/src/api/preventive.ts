@@ -84,6 +84,7 @@ export const preventiveApi = {
   createOrder: async (
     data: Partial<MaintenanceOrder> & {
       descricao?: string;
+      source_card_id?: number;
       checklists?: Array<{
         nome: string;
         ordem: number;

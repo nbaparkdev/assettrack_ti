@@ -2,12 +2,18 @@ export interface KanbanProject {
   id: number;
   titulo: string;
   descricao?: string;
+  board_background_color?: string;
+  board_pattern?: 'glow' | 'grid' | 'dots' | 'clean';
+  related_to_maintenance?: boolean;
+  related_to_preventive?: boolean;
+  preventive_plan_id?: number;
   criador_id: number;
   is_active: boolean;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
   criador?: { id: number; nome: string };
+  preventive_plan?: { id: number; nome: string; codigo: string };
   participantes?: { id: number; nome: string }[];
   colunas?: KanbanColumn[];
   cards?: KanbanCard[];
@@ -23,12 +29,21 @@ export interface KanbanColumn {
   cards?: KanbanCard[];
 }
 
+export interface KanbanChecklistItem {
+  id: string;
+  titulo: string;
+  concluido: boolean;
+}
+
 export interface KanbanCard {
   id: number;
   project_id: number;
   column_id: number;
   titulo: string;
   descricao?: string;
+  checklist_json?: string;
+  checklist_items?: KanbanChecklistItem[];
+  preventive_order_id?: number;
   criador_id: number;
   responsavel_id?: number;
   prioridade: string;
@@ -42,6 +57,17 @@ export interface KanbanCard {
   column?: KanbanColumn;
   criador?: { id: number; nome: string };
   responsavel?: { id: number; nome: string };
+  preventive_order?: {
+    id: number;
+    numero: string;
+    status: string;
+    prioridade: string;
+    tipo: string;
+    data_agendada?: string;
+    asset?: { id: number; nome: string; e_patrimonio: string };
+    tecnico?: { id: number; nome: string };
+    plan?: { id: number; nome: string; codigo: string };
+  };
   participantes?: { id: number; nome: string }[];
   ativos?: { id: number; nome: string }[];
   anexos?: KanbanAttachment[];

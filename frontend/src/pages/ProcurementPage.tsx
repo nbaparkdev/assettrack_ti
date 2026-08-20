@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { procurementApi } from '../api/procurement';
 import { suppliersApi } from '../api/suppliers';
 import { assetsApi } from '../api/assets';
 import { usersApi } from '../api/users';
 import { getSettings, updateSettings } from '../api/settings';
+import { SuppliersPage } from './SuppliersPage';
 import type {
   PurchaseRequest,
   PurchaseOrder,
@@ -26,10 +28,14 @@ import {
 const canManage = ['admin', 'gerente_ti', 'gerente_infra', 'comprador'];
 
 export const ProcurementPage: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const user = useAuthStore().user;
   const manage = user ? canManage.includes(user.role) : false;
 
-  const [tab, setTab] = useState<'dashboard' | 'solicitacoes' | 'ordens' | 'estoque' | 'cotacoes' | 'cadastros'>('dashboard');
+  const [tab, setTab] = useState<'dashboard' | 'solicitacoes' | 'ordens' | 'estoque' | 'cotacoes' | 'cadastros' | 'fornecedores'>(
+    location.pathname === '/compras/fornecedores' ? 'fornecedores' : 'dashboard',
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -143,6 +149,22 @@ export const ProcurementPage: React.FC = () => {
       setApprovalLimitFinanceiro(Number(settings.procurement_approval_limit_financeiro || 50000));
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (location.pathname === '/compras/fornecedores') {
+      setTab('fornecedores');
+      return;
+    }
+
+    if (tab === 'fornecedores') {
+      setTab('dashboard');
+    }
+  }, [location.pathname]);
+
+  const handleTabChange = (nextTab: 'dashboard' | 'solicitacoes' | 'ordens' | 'estoque' | 'cotacoes' | 'cadastros' | 'fornecedores') => {
+    setTab(nextTab);
+    navigate(nextTab === 'fornecedores' ? '/compras/fornecedores' : '/compras');
+  };
 
   const showError = (err: any) => {
     setError(err.response?.data?.error || 'Erro na operação');
@@ -575,12 +597,15 @@ export const ProcurementPage: React.FC = () => {
           ['ordens', 'Ordens de Compra'],
           ['estoque', 'Estoque'],
           ['cadastros', 'Cadastros'],
+          ['fornecedores', 'Fornecedores'],
         ] as const).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setTab(key)}
-            className={`px-4 py-2.5 font-mono text-xs uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap bg-white text-[#000205] opacity-[0.38] hover:opacity-60 ${
-              tab === key ? 'border-brand-primary' : 'border-transparent'
+            onClick={() => handleTabChange(key)}
+            className={`px-4 py-2.5 font-mono text-xs uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap bg-white text-[#000205] ${
+              tab === key
+                ? 'border-brand-primary opacity-100'
+                : 'border-transparent opacity-[0.55] hover:opacity-75'
             }`}
           >
             {label}
@@ -1413,6 +1438,8 @@ export const ProcurementPage: React.FC = () => {
         </div>
       )}
 
+      {!loading && tab === 'fornecedores' && <SuppliersPage />}
+
       {/* ---------- REQUEST MODAL ---------- */}
       {reqModal && (
         <div className="fixed inset-0 bg-brand-dark/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1447,13 +1474,30 @@ export const ProcurementPage: React.FC = () => {
                   <button type="button" onClick={() => setRItens([...rItens, { product_id: 0, quantidade: 1, valor_estimado: 0 }])} className="text-brand-primary border border-brand-primary/30 px-2 py-1 font-mono text-xs uppercase">+ Item</button>
                 </div>
                 {rItens.map((it, idx) => (
-                  <div key={idx} className="grid grid-cols-4 gap-2">
-                    <select value={it.product_id} onChange={(e) => { const n = [...rItens]; n[idx].product_id = Number(e.target.value); setRItens(n); }} className="col-span-2 bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none">
-                      <option value={0}>Produto...</option>
-                      {products.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                    </select>
-                    <input type="number" step="0.01" placeholder="Qtd" value={it.quantidade} onChange={(e) => { const n = [...rItens]; n[idx].quantidade = Number(e.target.value); setRItens(n); }} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
-                    <input type="number" step="0.01" placeholder="Valor est." value={it.valor_estimado} onChange={(e) => { const n = [...rItens]; n[idx].valor_estimado = Number(e.target.value); setRItens(n); }} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                  <div key={idx} className="rounded-xl border border-brand-border/70 bg-brand-card/40 p-3">
+                    <div className="grid gap-2 md:grid-cols-4">
+                      <div className="md:col-span-2">
+                        <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                          Produto
+                        </label>
+                        <select value={it.product_id} onChange={(e) => { const n = [...rItens]; n[idx].product_id = Number(e.target.value); setRItens(n); }} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none">
+                          <option value={0}>Produto...</option>
+                          {products.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                          Quantidade
+                        </label>
+                        <input type="number" step="0.01" placeholder="0,00" value={it.quantidade} onChange={(e) => { const n = [...rItens]; n[idx].quantidade = Number(e.target.value); setRItens(n); }} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                          Valor estimado
+                        </label>
+                        <input type="number" step="0.01" placeholder="R$ 0,00" value={it.valor_estimado} onChange={(e) => { const n = [...rItens]; n[idx].valor_estimado = Number(e.target.value); setRItens(n); }} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1492,13 +1536,30 @@ export const ProcurementPage: React.FC = () => {
                     </div>
                     <button type="button" onClick={() => { const n = [...qSuppliers]; n[idx].itens.push({ product_id: 0, quantidade: 1, valor_unitario: 0 }); setQSuppliers(n); }} className="text-brand-primary border border-brand-primary/30 px-2 py-1 font-mono text-xs uppercase">+ Item</button>
                     {s.itens.map((it, iIdx) => (
-                      <div key={iIdx} className="grid grid-cols-3 gap-2">
-                        <select value={it.product_id} onChange={(e) => { const n = [...qSuppliers]; n[idx].itens[iIdx].product_id = Number(e.target.value); setQSuppliers(n); }} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none">
-                          <option value={0}>Produto...</option>
-                          {products.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                        </select>
-                        <input type="number" step="0.01" placeholder="Qtd" value={it.quantidade} onChange={(e) => { const n = [...qSuppliers]; n[idx].itens[iIdx].quantidade = Number(e.target.value); setQSuppliers(n); }} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
-                        <input type="number" step="0.01" placeholder="Valor unit." value={it.valor_unitario} onChange={(e) => { const n = [...qSuppliers]; n[idx].itens[iIdx].valor_unitario = Number(e.target.value); setQSuppliers(n); }} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                      <div key={iIdx} className="rounded-xl border border-brand-border/70 bg-brand-card/40 p-3">
+                        <div className="grid gap-2 md:grid-cols-3">
+                          <div>
+                            <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                              Produto
+                            </label>
+                            <select value={it.product_id} onChange={(e) => { const n = [...qSuppliers]; n[idx].itens[iIdx].product_id = Number(e.target.value); setQSuppliers(n); }} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none">
+                              <option value={0}>Produto...</option>
+                              {products.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                              Quantidade
+                            </label>
+                            <input type="number" step="0.01" placeholder="0,00" value={it.quantidade} onChange={(e) => { const n = [...qSuppliers]; n[idx].itens[iIdx].quantidade = Number(e.target.value); setQSuppliers(n); }} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                              Valor unitário
+                            </label>
+                            <input type="number" step="0.01" placeholder="R$ 0,00" value={it.valor_unitario} onChange={(e) => { const n = [...qSuppliers]; n[idx].itens[iIdx].valor_unitario = Number(e.target.value); setQSuppliers(n); }} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1544,13 +1605,30 @@ export const ProcurementPage: React.FC = () => {
                   <button type="button" onClick={() => setOItens([...oItens, { product_id: 0, quantidade: 1, valor_unitario: 0 }])} className="text-brand-primary border border-brand-primary/30 px-2 py-1 font-mono text-xs uppercase">+ Item</button>
                 </div>
                 {oItens.map((it, idx) => (
-                  <div key={idx} className="grid grid-cols-3 gap-2">
-                    <select value={it.product_id} onChange={(e) => { const n = [...oItens]; n[idx].product_id = Number(e.target.value); setOItens(n); }} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none">
-                      <option value={0}>Produto...</option>
-                      {products.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                    </select>
-                    <input type="number" step="0.01" placeholder="Qtd" value={it.quantidade} onChange={(e) => { const n = [...oItens]; n[idx].quantidade = Number(e.target.value); setOItens(n); }} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
-                    <input type="number" step="0.01" placeholder="Valor unit." value={it.valor_unitario} onChange={(e) => { const n = [...oItens]; n[idx].valor_unitario = Number(e.target.value); setOItens(n); }} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                  <div key={idx} className="rounded-xl border border-brand-border/70 bg-brand-card/40 p-3">
+                    <div className="grid gap-2 md:grid-cols-3">
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                          Produto
+                        </label>
+                        <select value={it.product_id} onChange={(e) => { const n = [...oItens]; n[idx].product_id = Number(e.target.value); setOItens(n); }} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none">
+                          <option value={0}>Produto...</option>
+                          {products.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                          Quantidade
+                        </label>
+                        <input type="number" step="0.01" placeholder="0,00" value={it.quantidade} onChange={(e) => { const n = [...oItens]; n[idx].quantidade = Number(e.target.value); setOItens(n); }} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                          Valor unitário
+                        </label>
+                        <input type="number" step="0.01" placeholder="R$ 0,00" value={it.valor_unitario} onChange={(e) => { const n = [...oItens]; n[idx].valor_unitario = Number(e.target.value); setOItens(n); }} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

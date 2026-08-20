@@ -18,6 +18,9 @@ export const SettingsPage: React.FC = () => {
     try {
       const data = await getSettings();
       setSettings(data);
+      const aiEnabled = data.ai_enabled !== 'false';
+      localStorage.setItem('assettrack-ai-enabled', String(aiEnabled));
+      window.dispatchEvent(new CustomEvent('assettrack-ai-visibility-change', { detail: { enabled: aiEnabled } }));
     } catch (err) {
       setError('Falha ao carregar configurações.');
     } finally {
@@ -32,6 +35,12 @@ export const SettingsPage: React.FC = () => {
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       finalValue = checked ? 'true' : 'false';
+    }
+
+    if (name === 'ai_enabled') {
+      const enabled = finalValue === 'true';
+      localStorage.setItem('assettrack-ai-enabled', String(enabled));
+      window.dispatchEvent(new CustomEvent('assettrack-ai-visibility-change', { detail: { enabled } }));
     }
 
     setSettings(prev => ({
@@ -145,52 +154,56 @@ export const SettingsPage: React.FC = () => {
               <span className="text-brand-text font-medium group-hover:text-brand-primary transition-colors">Ativar Assistente IA</span>
             </label>
 
-            <div>
-              <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Provedor de IA</label>
-              <select
-                name="ai_provider"
-                value={settings.ai_provider || 'openai'}
-                onChange={handleInputChange}
-                className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors appearance-none"
-              >
-                <option value="openai" className="bg-brand-dark text-brand-text">OpenAI</option>
-                <option value="gemini" className="bg-brand-dark text-brand-text">Google Gemini</option>
-                <option value="ollama" className="bg-brand-dark text-brand-text">Ollama (Local)</option>
-              </select>
-            </div>
+            {settings.ai_enabled === 'true' && (
+              <>
+                <div>
+                  <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Provedor de IA</label>
+                  <select
+                    name="ai_provider"
+                    value={settings.ai_provider || 'openai'}
+                    onChange={handleInputChange}
+                    className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors appearance-none"
+                  >
+                    <option value="openai" className="bg-brand-dark text-brand-text">OpenAI</option>
+                    <option value="gemini" className="bg-brand-dark text-brand-text">Google Gemini</option>
+                    <option value="ollama" className="bg-brand-dark text-brand-text">Ollama (Local)</option>
+                  </select>
+                </div>
 
-            <div>
-              <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Chave de API (OpenAI)</label>
-              <input
-                type="password"
-                name="openai_api_key"
-                value={settings.openai_api_key || ''}
-                onChange={handleInputChange}
-                className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors placeholder-brand-muted/30"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Chave de API (OpenAI)</label>
+                  <input
+                    type="password"
+                    name="openai_api_key"
+                    value={settings.openai_api_key || ''}
+                    onChange={handleInputChange}
+                    className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors placeholder-brand-muted/30"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Modelo (OpenAI)</label>
-              <input
-                type="text"
-                name="openai_model"
-                value={settings.openai_model || 'gpt-4o-mini'}
-                onChange={handleInputChange}
-                className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors placeholder-brand-muted/30"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Chave de API (Gemini)</label>
-              <input
-                type="password"
-                name="gemini_api_key"
-                value={settings.gemini_api_key || ''}
-                onChange={handleInputChange}
-                className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors placeholder-brand-muted/30"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Modelo (OpenAI)</label>
+                  <input
+                    type="text"
+                    name="openai_model"
+                    value={settings.openai_model || 'gpt-4o-mini'}
+                    onChange={handleInputChange}
+                    className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors placeholder-brand-muted/30"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Chave de API (Gemini)</label>
+                  <input
+                    type="password"
+                    name="gemini_api_key"
+                    value={settings.gemini_api_key || ''}
+                    onChange={handleInputChange}
+                    className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors placeholder-brand-muted/30"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 

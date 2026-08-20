@@ -223,8 +223,8 @@ export const MaintenancePage: React.FC = () => {
           onClick={() => { setActiveTab('requests'); setStatusFilter(''); }}
           className={`py-3 text-sm font-semibold border-b-2 transition-all ${
             activeTab === 'requests'
-              ? 'border-brand-primary text-brand-primary'
-              : 'border-transparent text-brand-muted hover:text-brand-text'
+              ? 'border-brand-primary text-brand-primary opacity-100'
+              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
           }`}
         >
           Solicitações Pendentes
@@ -233,8 +233,8 @@ export const MaintenancePage: React.FC = () => {
           onClick={() => { setActiveTab('active'); setStatusFilter(''); }}
           className={`py-3 text-sm font-semibold border-b-2 transition-all ${
             activeTab === 'active'
-              ? 'border-brand-primary text-brand-primary'
-              : 'border-transparent text-brand-muted hover:text-brand-text'
+              ? 'border-brand-primary text-brand-primary opacity-100'
+              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
           }`}
         >
           Histórico e Manutenções Ativas

@@ -15,7 +15,7 @@ func NewKanbanProjectRepository(db *gorm.DB) *KanbanProjectRepository {
 
 func (r *KanbanProjectRepository) List(includeArchived bool) ([]models.KanbanProject, error) {
 	var projects []models.KanbanProject
-	q := r.db.Preload("Criador").Preload("Participantes")
+	q := r.db.Preload("Criador").Preload("Participantes").Preload("PreventivePlan")
 	if !includeArchived {
 		q = q.Where("is_archived = false")
 	}
@@ -26,8 +26,13 @@ func (r *KanbanProjectRepository) List(includeArchived bool) ([]models.KanbanPro
 func (r *KanbanProjectRepository) GetByID(id uint) (*models.KanbanProject, error) {
 	var project models.KanbanProject
 	err := r.db.Preload("Criador").Preload("Participantes").
+		Preload("PreventivePlan").
 		Preload("Colunas", func(db *gorm.DB) *gorm.DB { return db.Order("ordem asc") }).
 		Preload("Colunas.Cards", func(db *gorm.DB) *gorm.DB { return db.Order("ordem asc") }).
+		Preload("Colunas.Cards.PreventiveOrder").
+		Preload("Colunas.Cards.PreventiveOrder.Asset").
+		Preload("Colunas.Cards.PreventiveOrder.Plan").
+		Preload("Colunas.Cards.PreventiveOrder.Tecnico").
 		Preload("Colunas.Cards.Criador").
 		Preload("Colunas.Cards.Responsavel").
 		Preload("Colunas.Cards.Participantes").
@@ -101,6 +106,10 @@ func NewKanbanCardRepository(db *gorm.DB) *KanbanCardRepository {
 func (r *KanbanCardRepository) GetByID(id uint) (*models.KanbanCard, error) {
 	var card models.KanbanCard
 	err := r.db.Preload("Criador").Preload("Responsavel").
+		Preload("PreventiveOrder").
+		Preload("PreventiveOrder.Asset").
+		Preload("PreventiveOrder.Plan").
+		Preload("PreventiveOrder.Tecnico").
 		Preload("Participantes").Preload("Ativos").
 		Preload("Anexos").
 		Preload("Interacoes", func(db *gorm.DB) *gorm.DB { return db.Order("created_at asc") }).
@@ -128,7 +137,15 @@ func (r *KanbanCardRepository) Update(card *models.KanbanCard) error {
 }
 
 func (r *KanbanCardRepository) Delete(card *models.KanbanCard) error {
-	return r.db.Select("Interacoes", "Anexos").Delete(card).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(card).Association("Participantes").Clear(); err != nil {
+			return err
+		}
+		if err := tx.Model(card).Association("Ativos").Clear(); err != nil {
+			return err
+		}
+		return tx.Select("Interacoes", "Anexos").Delete(card).Error
+	})
 }
 
 // MoveCard updates column and order.

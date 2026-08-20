@@ -55,10 +55,10 @@ type PreventiveHandler struct {
 }
 
 type checklistItemPayload struct {
-	Descricao  string `json:"descricao"`
-	Obrigatorio bool  `json:"obrigatorio"`
-	RequerFoto bool   `json:"requer_foto"`
-	Ordem      int    `json:"ordem"`
+	Descricao   string `json:"descricao"`
+	Obrigatorio bool   `json:"obrigatorio"`
+	RequerFoto  bool   `json:"requer_foto"`
+	Ordem       int    `json:"ordem"`
 }
 
 type checklistPayload struct {
@@ -150,10 +150,10 @@ func sanitizeChecklistDrafts(drafts []checklistPayload) []checklistPayload {
 				continue
 			}
 			items = append(items, checklistItemPayload{
-				Descricao:  desc,
+				Descricao:   desc,
 				Obrigatorio: item.Obrigatorio,
-				RequerFoto: item.RequerFoto,
-				Ordem:      itemIndex + 1,
+				RequerFoto:  item.RequerFoto,
+				Ordem:       itemIndex + 1,
 			})
 		}
 		sanitized = append(sanitized, checklistPayload{
@@ -171,10 +171,10 @@ func cloneChecklistPayloads(checklists []models.MaintenanceChecklist) []checklis
 		items := make([]checklistItemPayload, 0, len(checklist.Items))
 		for itemIndex, item := range checklist.Items {
 			items = append(items, checklistItemPayload{
-				Descricao:  item.Descricao,
+				Descricao:   item.Descricao,
 				Obrigatorio: item.Obrigatorio,
-				RequerFoto: item.RequerFoto,
-				Ordem:      itemIndex + 1,
+				RequerFoto:  item.RequerFoto,
+				Ordem:       itemIndex + 1,
 			})
 		}
 		drafts = append(drafts, checklistPayload{
@@ -589,14 +589,15 @@ func (h *PreventiveHandler) ListOrders(c *gin.Context) {
 }
 
 type orderInput struct {
-	Tipo                string  `json:"tipo"`
-	Prioridade          string  `json:"prioridade"`
-	Descricao           string  `json:"descricao"`
-	AssetID             *uint   `json:"asset_id"`
-	InfraPredialServico *string `json:"infra_predial_servico"`
-	PlanID              *uint   `json:"plan_id"`
-	TecnicoID           *uint   `json:"tecnico_id"`
-	DataAgendada        *string `json:"data_agendada"`
+	Tipo                string             `json:"tipo"`
+	Prioridade          string             `json:"prioridade"`
+	Descricao           string             `json:"descricao"`
+	AssetID             *uint              `json:"asset_id"`
+	InfraPredialServico *string            `json:"infra_predial_servico"`
+	PlanID              *uint              `json:"plan_id"`
+	TecnicoID           *uint              `json:"tecnico_id"`
+	DataAgendada        *string            `json:"data_agendada"`
+	SourceCardID        *uint              `json:"source_card_id"`
 	Checklists          []checklistPayload `json:"checklists"`
 }
 
@@ -674,6 +675,29 @@ func (h *PreventiveHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
+	if in.SourceCardID != nil {
+		db := h.userRepo.DB()
+		if err := db.Model(&models.KanbanCard{}).
+			Where("id = ?", *in.SourceCardID).
+			Updates(map[string]interface{}{
+				"preventive_order_id": order.ID,
+				"updated_at":          time.Now(),
+			}).Error; err == nil {
+			assetLabel := "sem ativo vinculado"
+			if order.AssetID != nil {
+				if asset, assetErr := h.assetRepo.GetByID(*order.AssetID); assetErr == nil && asset != nil {
+					assetLabel = asset.Nome
+				}
+			}
+			_ = db.Create(&models.KanbanCardInteraction{
+				CardID:    *in.SourceCardID,
+				UsuarioID: user.ID,
+				Tipo:      models.InteractionSistemaMove,
+				Mensagem:  fmt.Sprintf("OS preventiva %s criada e vinculada a este cartão (%s).", order.Numero, assetLabel),
+			}).Error
+		}
+	}
+
 	// Notify assigned technician
 	if order.TecnicoID != nil {
 		h.notifyOrderAssigned(*order)
@@ -741,13 +765,13 @@ func (h *PreventiveHandler) UpdateOrder(c *gin.Context) {
 	}
 
 	var in struct {
-		Tipo         string  `json:"tipo"`
-		Status       string  `json:"status"`
-		Prioridade   string  `json:"prioridade"`
-		Criticidade  string  `json:"criticidade"`
-		Observacoes  string  `json:"observacoes"`
-		TecnicoID    *uint   `json:"tecnico_id"`
-		DataAgendada *string `json:"data_agendada"`
+		Tipo         string             `json:"tipo"`
+		Status       string             `json:"status"`
+		Prioridade   string             `json:"prioridade"`
+		Criticidade  string             `json:"criticidade"`
+		Observacoes  string             `json:"observacoes"`
+		TecnicoID    *uint              `json:"tecnico_id"`
+		DataAgendada *string            `json:"data_agendada"`
 		Checklists   []checklistPayload `json:"checklists"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -1811,13 +1835,13 @@ func (h *PreventiveHandler) Dashboard(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"total_plans":      len(plans),
-		"active_plans":     activePlans,
-		"plans_due":        plansDue,
-		"total_orders":     len(orders),
-		"open_orders":      openOrders,
-		"due_soon":         dueSoon,
-		"orders_by_status": statusCounts,
+		"total_plans":            len(plans),
+		"active_plans":           activePlans,
+		"plans_due":              plansDue,
+		"total_orders":           len(orders),
+		"open_orders":            openOrders,
+		"due_soon":               dueSoon,
+		"orders_by_status":       statusCounts,
 		"technician_performance": techPerformance,
 	})
 }

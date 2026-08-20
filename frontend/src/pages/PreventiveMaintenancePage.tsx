@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { preventiveApi } from '../api/preventive';
 import { toApiFileUrl } from '../api/client';
 import { usersApi } from '../api/users';
@@ -25,6 +25,16 @@ import {
 
 const structureRoles = ['admin', 'gerente_ti', 'gerente_infra'];
 const workRoles = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'];
+const preventiveOrderIntentStorageKey = 'assettrack:preventive-order-intent';
+const preventiveOrderDetailIntentStorageKey = 'assettrack:preventive-order-detail-intent';
+const kanbanReturnIntentStorageKey = 'assettrack:kanban-return-intent';
+
+type KanbanOriginContext = {
+  sourceProjectId?: number | null;
+  sourceProjectTitle?: string | null;
+  sourceCardId?: number | null;
+  sourceCardTitle?: string | null;
+};
 
 const statusColor: Record<string, string> = {
   'Aberta': 'text-blue-400 border-blue-500/30',
@@ -132,6 +142,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [orderModal, setOrderModal] = useState(false);
   const [orderDetail, setOrderDetail] = useState<{ order: MaintenanceOrder; checklists: MaintenanceChecklist[] } | null>(null);
+  const [orderOriginContext, setOrderOriginContext] = useState<KanbanOriginContext | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [calendarView, setCalendarView] = useState<'mensal' | 'semanal'>('mensal');
   const [calendarStatusFilter, setCalendarStatusFilter] = useState('');
@@ -162,6 +173,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
   const [oInfra, setOInfra] = useState('');
   const [oTecnico, setOTecnico] = useState<number | null>(null);
   const [oPlan, setOPlan] = useState<number | null>(null);
+  const [oSourceCardId, setOSourceCardId] = useState<number | null>(null);
   const [oAgendada, setOAgendada] = useState('');
   const [orderChecklistDrafts, setOrderChecklistDrafts] = useState<OrderChecklistDraft[]>([createEmptyChecklistDraft()]);
   const [mProduto, setMProduto] = useState('');
@@ -256,7 +268,11 @@ export const PreventiveMaintenancePage: React.FC = () => {
   useEffect(() => {
     fetchAll();
     preventiveApi.myNotifications().then(setNotifs).catch(() => {});
-    usersApi.list(0, 200).then((u) => setTechs(u.map((x) => ({ id: x.id, nome: x.nome })))).catch(() => {});
+    usersApi.list(0, 200).then((u) => setTechs(
+      u
+        .filter((x) => workRoles.includes(x.role))
+        .map((x) => ({ id: x.id, nome: x.nome })),
+    )).catch(() => {});
     assetsApi.list(0, 200).then((a) => setAssets(a.map((x) => ({ id: x.id, nome: x.nome })))).catch(() => {});
   }, []);
 
@@ -381,18 +397,121 @@ export const PreventiveMaintenancePage: React.FC = () => {
   };
 
   // ---- Orders ----
-  const openOrderModal = () => {
+  const openOrderModal = async (defaults?: { planId?: number | null; assetId?: number | null; sourceCardId?: number | null }) => {
     setOTipo('Preventiva');
     setOPrio('Média');
     setODesc('');
-    setOAsset(null);
+    setOAsset(defaults?.assetId ?? null);
     setOInfra('');
     setOTecnico(null);
-    setOPlan(null);
+    setOPlan(defaults?.planId ?? null);
+    setOSourceCardId(defaults?.sourceCardId ?? null);
     setOAgendada('');
     setOrderChecklistDrafts([createEmptyChecklistDraft()]);
     setOrderModal(true);
+    if (defaults?.planId) {
+      try {
+        await loadChecklistDraftsFromPlan(defaults.planId);
+      } catch {
+        setOrderChecklistDrafts([createEmptyChecklistDraft()]);
+      }
+    }
   };
+
+  useEffect(() => {
+    let detailIntentFromStorage: ({ orderId?: number | null; createdAt?: number } & KanbanOriginContext) | null = null;
+    let payloadFromStorage: ({ planId?: number | null; assetId?: number | null; createdAt?: number } & KanbanOriginContext) | null = null;
+    try {
+      const detailRaw = sessionStorage.getItem(preventiveOrderDetailIntentStorageKey);
+      if (detailRaw) {
+        detailIntentFromStorage = JSON.parse(detailRaw) as ({ orderId?: number | null; createdAt?: number } & KanbanOriginContext);
+        if (detailIntentFromStorage.createdAt && Date.now() - detailIntentFromStorage.createdAt > 120000) {
+          detailIntentFromStorage = null;
+          sessionStorage.removeItem(preventiveOrderDetailIntentStorageKey);
+        }
+      }
+      const raw = sessionStorage.getItem(preventiveOrderIntentStorageKey);
+      if (raw) {
+        payloadFromStorage = JSON.parse(raw) as ({ planId?: number | null; assetId?: number | null; createdAt?: number } & KanbanOriginContext);
+        if (payloadFromStorage.createdAt && Date.now() - payloadFromStorage.createdAt > 120000) {
+          payloadFromStorage = null;
+          sessionStorage.removeItem(preventiveOrderIntentStorageKey);
+        }
+      }
+    } catch {
+      sessionStorage.removeItem(preventiveOrderIntentStorageKey);
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const shouldOpenOrder = params.get('openOrder') === '1';
+    const shouldOpenDetail = params.get('openDetail') === '1';
+    const planIdParam = params.get('planId');
+    const assetIdParam = params.get('assetId');
+    const sourceCardIdParam = params.get('sourceCardId');
+    const sourceProjectIdParam = params.get('sourceProjectId');
+    const orderIdParam = params.get('orderId');
+    const planId = payloadFromStorage?.planId ?? (planIdParam ? Number(planIdParam) : null);
+    const assetId = payloadFromStorage?.assetId ?? (assetIdParam ? Number(assetIdParam) : null);
+    const sourceCardId = payloadFromStorage?.sourceCardId ?? (sourceCardIdParam ? Number(sourceCardIdParam) : null);
+    const sourceProjectId = payloadFromStorage?.sourceProjectId ?? (sourceProjectIdParam ? Number(sourceProjectIdParam) : null);
+    const orderId = detailIntentFromStorage?.orderId ?? (orderIdParam ? Number(orderIdParam) : null);
+
+    if ((shouldOpenDetail || detailIntentFromStorage) && orderId && !Number.isNaN(orderId)) {
+      setTab('ordens');
+      setOrderOriginContext({
+        sourceProjectId: detailIntentFromStorage?.sourceProjectId ?? (sourceProjectId && !Number.isNaN(sourceProjectId) ? sourceProjectId : null),
+        sourceProjectTitle: detailIntentFromStorage?.sourceProjectTitle ?? 'Kanban',
+        sourceCardId: detailIntentFromStorage?.sourceCardId ?? (sourceCardId && !Number.isNaN(sourceCardId) ? sourceCardId : null),
+        sourceCardTitle: detailIntentFromStorage?.sourceCardTitle ?? null,
+      });
+      void openOrderDetail(orderId);
+
+      if (detailIntentFromStorage) {
+        window.setTimeout(() => {
+          sessionStorage.removeItem(preventiveOrderDetailIntentStorageKey);
+        }, 2000);
+      }
+
+      params.delete('openDetail');
+      params.delete('orderId');
+      params.delete('sourceProjectId');
+      params.delete('sourceCardId');
+      const nextDetailQuery = params.toString();
+      const nextDetailUrl = `${window.location.pathname}${nextDetailQuery ? `?${nextDetailQuery}` : ''}`;
+      window.history.replaceState({}, '', nextDetailUrl);
+      return;
+    }
+
+    if (!shouldOpenOrder && !payloadFromStorage) return;
+
+    setTab('ordens');
+    setOrderOriginContext({
+      sourceProjectId: payloadFromStorage?.sourceProjectId ?? (sourceProjectId && !Number.isNaN(sourceProjectId) ? sourceProjectId : null),
+      sourceProjectTitle: payloadFromStorage?.sourceProjectTitle ?? 'Kanban',
+      sourceCardId: payloadFromStorage?.sourceCardId ?? (sourceCardId && !Number.isNaN(sourceCardId) ? sourceCardId : null),
+      sourceCardTitle: payloadFromStorage?.sourceCardTitle ?? null,
+    });
+    void openOrderModal({
+      planId: planId && !Number.isNaN(planId) ? planId : null,
+      assetId: assetId && !Number.isNaN(assetId) ? assetId : null,
+      sourceCardId: sourceCardId && !Number.isNaN(sourceCardId) ? sourceCardId : null,
+    });
+
+    if (payloadFromStorage) {
+      window.setTimeout(() => {
+        sessionStorage.removeItem(preventiveOrderIntentStorageKey);
+      }, 2000);
+    }
+
+    params.delete('openOrder');
+    params.delete('planId');
+    params.delete('assetId');
+    params.delete('sourceProjectId');
+    params.delete('sourceCardId');
+    const nextQuery = params.toString();
+    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+    window.history.replaceState({}, '', nextUrl);
+  }, []);
 
   const loadChecklistDraftsFromPlan = async (planId: number | null) => {
     if (!planId) {
@@ -428,6 +547,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
         infra_predial_servico: oInfra || undefined,
         tecnico_id: oTecnico ?? undefined,
         plan_id: oPlan ?? undefined,
+        source_card_id: oSourceCardId ?? undefined,
         data_agendada: oAgendada ? new Date(oAgendada).toISOString() : undefined,
         checklists: serializeChecklistDrafts(),
       });
@@ -608,8 +728,8 @@ export const PreventiveMaintenancePage: React.FC = () => {
             onClick={() => setTab(key)}
             className={`px-4 py-2.5 font-mono text-xs uppercase tracking-wider border-b-2 transition-colors ${
               tab === key
-                ? 'border-brand-primary text-brand-primary'
-                : 'border-transparent text-brand-muted hover:text-brand-text'
+                ? 'border-brand-primary bg-white text-brand-primary opacity-100'
+                : 'border-transparent bg-[#d9d9d9] text-brand-text opacity-[0.58] hover:opacity-75'
             }`}
           >
             {label}
@@ -797,7 +917,9 @@ export const PreventiveMaintenancePage: React.FC = () => {
             </select>
             {canEditStructure && (
               <button
-                onClick={openOrderModal}
+                onClick={() => {
+                  void openOrderModal();
+                }}
                 className="bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center space-x-1.5"
               >
                 <Plus size={16} />
@@ -1535,10 +1657,53 @@ export const PreventiveMaintenancePage: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <button onClick={() => setOrderDetail(null)} className="text-brand-muted hover:text-brand-text">
+              <button onClick={() => {
+                setOrderDetail(null);
+                setOrderOriginContext(null);
+              }} className="text-brand-muted hover:text-brand-text">
                 <X size={20} />
               </button>
             </div>
+
+            {orderOriginContext && (
+              <div className="border border-cyan-500/30 bg-cyan-500/10 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[15px] font-mono uppercase tracking-wider text-[#222020]">Origem do Kanban</div>
+                    <div className="mt-1 text-sm text-brand-text">
+                      {orderOriginContext.sourceCardTitle
+                        ? `Esta OS foi aberta a partir do cartão "${orderOriginContext.sourceCardTitle}".`
+                        : 'Esta OS foi aberta a partir de um cartão do Kanban.'}
+                    </div>
+                    <div className="mt-1 text-xs font-mono text-brand-muted">
+                      {orderOriginContext.sourceProjectTitle ?? 'Kanban'}
+                      {orderOriginContext.sourceCardId ? ` · Card #${orderOriginContext.sourceCardId}` : ''}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const payload = {
+                        projectId: orderOriginContext.sourceProjectId ?? null,
+                        cardId: orderOriginContext.sourceCardId ?? null,
+                        createdAt: Date.now(),
+                      };
+
+                      sessionStorage.setItem(kanbanReturnIntentStorageKey, JSON.stringify(payload));
+
+                      const params = new URLSearchParams();
+                      if (payload.projectId) params.set('projectId', String(payload.projectId));
+                      if (payload.cardId) params.set('cardId', String(payload.cardId));
+
+                      window.location.assign(`/kanban${params.toString() ? `?${params.toString()}` : ''}`);
+                    }}
+                    className="border border-[#273fb4] px-3 py-2 font-mono text-xs uppercase text-[#000b9e] hover:bg-[#273fb4]/10"
+                  >
+                    Voltar ao Kanban
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Status actions */}
             <div className="flex flex-wrap gap-2">

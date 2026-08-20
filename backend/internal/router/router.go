@@ -286,6 +286,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			kanban.POST("/projetos", kanbanHandler.CreateProject)
 			kanban.GET("/projetos/:id", kanbanHandler.GetProjectBoard)
 			kanban.PUT("/projetos/:id", kanbanHandler.UpdateProject)
+			kanban.POST("/projetos/:id/duplicar", kanbanHandler.DuplicateProject)
 			kanban.POST("/projetos/:id/status", kanbanHandler.ToggleProjectStatus)
 			kanban.POST("/projetos/:id/colunas", kanbanHandler.AddColumn)
 			kanban.PUT("/colunas/:columnId", kanbanHandler.UpdateColumn)

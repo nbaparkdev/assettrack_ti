@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+	"strings"
 
 	"github.com/assettrack/backend/internal/models"
 	"github.com/assettrack/backend/internal/repository"
@@ -22,6 +23,22 @@ const xmlUploadDir = "uploads/xml"
 type SupplierHandler struct {
 	repo        *repository.SupplierRepository
 	invoiceRepo *repository.InvoiceRepository
+}
+
+func xmlImportErrorMessage(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	msg := err.Error()
+	if strings.Contains(msg, "XML syntax error") || strings.Contains(msg, "XML inválido:") {
+		return "O XML da NF-e está malformado ou incompleto. Revise a estrutura do arquivo e confirme se todas as tags estão corretamente fechadas."
+	}
+	if strings.Contains(msg, "infNFe não encontrado") {
+		return "O arquivo XML não contém uma estrutura de NF-e reconhecida. Verifique se ele possui o bloco infNFe esperado."
+	}
+
+	return msg
 }
 
 func NewSupplierHandler(repo *repository.SupplierRepository, invoiceRepo *repository.InvoiceRepository) *SupplierHandler {
@@ -222,18 +239,25 @@ func (h *SupplierHandler) ParseXML(c *gin.Context) {
 
 	parsed, err := service.ParseNFEXML(data)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": xmlImportErrorMessage(err)})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"nome":         parsed.EmitenteNome,
-		"cnpj":         parsed.EmitenteCNPJ,
-		"endereco":     parsed.EmitenteEndereco,
-		"cidade":       parsed.EmitenteCidade,
-		"estado":       parsed.EmitenteEstado,
-		"telefone":     parsed.EmitenteTelefone,
-		"razao_social": parsed.EmitenteNome,
+		"nome":              parsed.EmitenteNome,
+		"cnpj":              parsed.EmitenteCNPJ,
+		"endereco":          parsed.EmitenteEndereco,
+		"cidade":            parsed.EmitenteCidade,
+		"estado":            parsed.EmitenteEstado,
+		"telefone":          parsed.EmitenteTelefone,
+		"razao_social":      parsed.EmitenteNome,
+		"numero_nota":       parsed.NumeroNota,
+		"data_emissao":      parsed.DataEmissao,
+		"natureza_operacao": parsed.NaturezaOperacao,
+		"valor_total":       parsed.ValorTotal,
+		"emitente_nome":     parsed.EmitenteNome,
+		"destinatario_nome": parsed.DestinatarioNome,
+		"itens":             parsed.Itens,
 	})
 }
 
@@ -259,7 +283,7 @@ func (h *SupplierHandler) UploadInvoice(c *gin.Context) {
 
 	parsed, xmlPath, err := h.saveAndParseXML(file, fmt.Sprintf("%d_", supplierID))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": xmlImportErrorMessage(err)})
 		return
 	}
 	if parsed.NumeroNota == "" {

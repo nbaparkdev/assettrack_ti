@@ -281,7 +281,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
       {/* 2. STAFF LIVE EMERGENCY POPUP MODAL (ADMINS, MANAGERS & TECHNICIANS) */}
       {isStaff && liveAlert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-red-950/80 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-xl bg-brand-card border-4 border-red-600 shadow-2xl overflow-hidden">
+          <div className="w-full max-w-xl rounded-[14px] bg-brand-card border-4 border-red-600 shadow-2xl overflow-hidden">
             {/* Header with animated warning */}
             <div className="bg-red-600 px-6 py-4 flex items-center justify-between text-white">
               <div className="flex items-center space-x-3">
@@ -289,7 +289,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
                   <ShieldAlert size={28} />
                 </div>
                 <div>
-                  <h3 className="font-black font-mono text-lg uppercase tracking-wider m-0">
+                  <h3 className="font-light font-mono text-[17px] uppercase tracking-wider m-0">
                     🚨 ALERTA EMERGENCIAL TRANSMITIDO!
                   </h3>
                   <p className="text-xs text-red-100 font-mono mt-0.5">
@@ -310,26 +310,26 @@ export const EmergencyGlobalHandler: React.FC = () => {
             {/* Alert Content Details */}
             <div className="p-6 space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-brand-dark p-3 border border-brand-border space-y-1">
+                <div className="bg-brand-dark p-3 border border-brand-border rounded-[14px] space-y-1">
                   <span className="text-[10px] font-mono text-brand-muted uppercase flex items-center">
                     <User size={12} className="mr-1 text-brand-primary" /> Colaborador (Nome)
                   </span>
-                  <div className="text-sm font-bold font-mono text-brand-text truncate">
+                  <div className="text-sm font-light font-mono text-white truncate">
                     {liveAlert.usuario_nome}
                   </div>
                 </div>
 
-                <div className="bg-brand-dark p-3 border border-brand-border space-y-1">
+                <div className="bg-brand-dark p-3 border border-brand-border rounded-[14px] space-y-1">
                   <span className="text-[10px] font-mono text-brand-muted uppercase flex items-center">
                     <Building size={12} className="mr-1 text-brand-primary" /> Setor / Departamento
                   </span>
-                  <div className="text-sm font-bold font-mono text-brand-text truncate">
+                  <div className="text-sm font-light font-mono text-[#f8f9fc] truncate">
                     {liveAlert.setor_nome || 'Não informado'}
                   </div>
                 </div>
               </div>
 
-              <div className="bg-brand-dark p-3 border border-brand-border space-y-1">
+              <div className="bg-brand-dark min-h-[70px] p-3 border border-brand-border rounded-[14px] space-y-1">
                 <span className="text-[10px] font-mono text-brand-muted uppercase flex items-center">
                   <Cpu size={12} className="mr-1 text-brand-primary" /> Equipamento(s) Atribuído(s)
                 </span>
@@ -338,7 +338,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-red-500/10 border-l-4 border-red-500 p-4 space-y-1">
+              <div className="bg-red-500/10 border-l-4 border-red-500 rounded-[14px] p-4 space-y-1">
                 <span className="text-[10px] font-mono text-red-400 uppercase font-bold">
                   Motivo da Emergência:
                 </span>

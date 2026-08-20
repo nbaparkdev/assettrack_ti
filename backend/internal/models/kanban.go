@@ -20,19 +20,25 @@ const (
 )
 
 type KanbanProject struct {
-	ID         uint      `gorm:"primaryKey" json:"id"`
-	Titulo     string    `gorm:"size:255;not null" json:"titulo"`
-	Descricao  *string   `gorm:"type:text" json:"descricao"`
-	CriadorID  uint      `gorm:"column:criador_id;not null" json:"criador_id"`
-	IsActive   bool      `gorm:"column:is_active;default:true" json:"is_active"`
-	IsArchived bool      `gorm:"column:is_archived;default:false" json:"is_archived"`
-	CreatedAt  time.Time `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt  time.Time `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
+	ID                   uint      `gorm:"primaryKey" json:"id"`
+	Titulo               string    `gorm:"size:255;not null" json:"titulo"`
+	Descricao            *string   `gorm:"type:text" json:"descricao"`
+	BoardBackgroundColor string    `gorm:"column:board_background_color;size:20;default:'#212121'" json:"board_background_color"`
+	BoardPattern         string    `gorm:"column:board_pattern;size:30;default:'glow'" json:"board_pattern"`
+	RelatedToMaintenance bool      `gorm:"column:related_to_maintenance;default:false" json:"related_to_maintenance"`
+	RelatedToPreventive  bool      `gorm:"column:related_to_preventive;default:false" json:"related_to_preventive"`
+	PreventivePlanID     *uint     `gorm:"column:preventive_plan_id" json:"preventive_plan_id"`
+	CriadorID            uint      `gorm:"column:criador_id;not null" json:"criador_id"`
+	IsActive             bool      `gorm:"column:is_active;default:true" json:"is_active"`
+	IsArchived           bool      `gorm:"column:is_archived;default:false" json:"is_archived"`
+	CreatedAt            time.Time `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt            time.Time `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
 
-	Criador       *User          `gorm:"foreignKey:CriadorID" json:"criador,omitempty"`
-	Participantes []User         `gorm:"many2many:kanban_project_participantes;" json:"participantes,omitempty"`
-	Colunas       []KanbanColumn `gorm:"foreignKey:ProjectID" json:"colunas,omitempty"`
-	Cards         []KanbanCard   `gorm:"foreignKey:ProjectID" json:"cards,omitempty"`
+	Criador        *User            `gorm:"foreignKey:CriadorID" json:"criador,omitempty"`
+	PreventivePlan *MaintenancePlan `gorm:"foreignKey:PreventivePlanID" json:"preventive_plan,omitempty"`
+	Participantes  []User           `gorm:"many2many:kanban_project_participantes;" json:"participantes,omitempty"`
+	Colunas        []KanbanColumn   `gorm:"foreignKey:ProjectID" json:"colunas,omitempty"`
+	Cards          []KanbanCard     `gorm:"foreignKey:ProjectID" json:"cards,omitempty"`
 }
 
 func (KanbanProject) TableName() string { return "kanban_projects" }
@@ -52,32 +58,35 @@ type KanbanColumn struct {
 func (KanbanColumn) TableName() string { return "kanban_columns" }
 
 type KanbanCard struct {
-	ID            uint       `gorm:"primaryKey" json:"id"`
-	ProjectID     uint       `gorm:"column:project_id;not null" json:"project_id"`
-	ColumnID      uint       `gorm:"column:column_id;not null" json:"column_id"`
-	Titulo        string     `gorm:"size:255;not null" json:"titulo"`
-	Descricao     *string    `gorm:"type:text" json:"descricao"`
-	CriadorID     uint       `gorm:"column:criador_id;not null" json:"criador_id"`
-	ResponsavelID *uint      `gorm:"column:responsavel_id" json:"responsavel_id"`
-	Prioridade    string     `gorm:"size:20;default:'media'" json:"prioridade"`
-	DataEntrega   *time.Time `gorm:"column:data_entrega" json:"data_entrega"`
-	Ordem         int        `gorm:"default:0" json:"ordem"`
-	CreatedAt     time.Time  `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt     time.Time  `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
+	ID                uint       `gorm:"primaryKey" json:"id"`
+	ProjectID         uint       `gorm:"column:project_id;not null" json:"project_id"`
+	ColumnID          uint       `gorm:"column:column_id;not null" json:"column_id"`
+	Titulo            string     `gorm:"size:255;not null" json:"titulo"`
+	Descricao         *string    `gorm:"type:text" json:"descricao"`
+	ChecklistJSON     *string    `gorm:"column:checklist_json;type:text" json:"checklist_json"`
+	PreventiveOrderID *uint      `gorm:"column:preventive_order_id" json:"preventive_order_id"`
+	CriadorID         uint       `gorm:"column:criador_id;not null" json:"criador_id"`
+	ResponsavelID     *uint      `gorm:"column:responsavel_id" json:"responsavel_id"`
+	Prioridade        string     `gorm:"size:20;default:'media'" json:"prioridade"`
+	DataEntrega       *time.Time `gorm:"column:data_entrega" json:"data_entrega"`
+	Ordem             int        `gorm:"default:0" json:"ordem"`
+	CreatedAt         time.Time  `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt         time.Time  `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
 
 	// Procurement links (plain columns; FK constraints are managed by the procurement module)
 	PurchaseRequestID  *uint   `gorm:"column:purchase_request_id" json:"purchase_request_id"`
 	MaterialStockID    *uint   `gorm:"column:material_stock_id" json:"material_stock_id"`
 	TipoItemNecessario *string `gorm:"column:tipo_item_necessario;size:50" json:"tipo_item_necessario"`
 
-	Project       *KanbanProject          `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
-	Column        *KanbanColumn           `gorm:"foreignKey:ColumnID" json:"column,omitempty"`
-	Criador       *User                   `gorm:"foreignKey:CriadorID" json:"criador,omitempty"`
-	Responsavel   *User                   `gorm:"foreignKey:ResponsavelID" json:"responsavel,omitempty"`
-	Participantes []User                  `gorm:"many2many:kanban_card_participantes;" json:"participantes,omitempty"`
-	Ativos        []Asset                 `gorm:"many2many:kanban_card_assets;" json:"ativos,omitempty"`
-	Anexos        []KanbanAttachment      `gorm:"foreignKey:CardID" json:"anexos,omitempty"`
-	Interacoes    []KanbanCardInteraction `gorm:"foreignKey:CardID" json:"interacoes,omitempty"`
+	Project         *KanbanProject          `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
+	Column          *KanbanColumn           `gorm:"foreignKey:ColumnID" json:"column,omitempty"`
+	PreventiveOrder *MaintenanceOrder       `gorm:"foreignKey:PreventiveOrderID" json:"preventive_order,omitempty"`
+	Criador         *User                   `gorm:"foreignKey:CriadorID" json:"criador,omitempty"`
+	Responsavel     *User                   `gorm:"foreignKey:ResponsavelID" json:"responsavel,omitempty"`
+	Participantes   []User                  `gorm:"many2many:kanban_card_participantes;" json:"participantes,omitempty"`
+	Ativos          []Asset                 `gorm:"many2many:kanban_card_assets;" json:"ativos,omitempty"`
+	Anexos          []KanbanAttachment      `gorm:"foreignKey:CardID" json:"anexos,omitempty"`
+	Interacoes      []KanbanCardInteraction `gorm:"foreignKey:CardID" json:"interacoes,omitempty"`
 }
 
 func (KanbanCard) TableName() string { return "kanban_cards" }

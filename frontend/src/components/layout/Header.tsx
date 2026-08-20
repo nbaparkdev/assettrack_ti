@@ -6,6 +6,7 @@ import { triggerEmergencyAlertModal } from '../emergency/EmergencyGlobalHandler'
 
 export const Header: React.FC = () => {
   const { user } = useAuthStore();
+  const canAccessSettings = ['admin', 'gerente_ti', 'gerente_infra'].includes(user?.role?.toLowerCase() || '');
 
   return (
     <header className="h-14 shrink-0 border-b border-white/20 flex items-center justify-between px-3 md:px-5 bg-[#345b7d]/78 text-white backdrop-blur-md sticky top-0 z-50 shadow-[0_2px_12px_rgba(9,30,66,.16)]">
@@ -46,7 +47,9 @@ export const Header: React.FC = () => {
           <Bell size={16} />
         </Link>
         <button className="hidden sm:grid h-8 w-8 place-items-center rounded bg-white/16 hover:bg-white/28" title="Ajuda" aria-label="Ajuda"><CircleHelp size={16} /></button>
-        <Link to="/configuracoes" className="hidden sm:grid h-8 w-8 place-items-center rounded bg-white/16 hover:bg-white/28" title="Configurações" aria-label="Configurações"><Settings size={16} /></Link>
+        {canAccessSettings && (
+          <Link to="/configuracoes" className="hidden sm:grid h-8 w-8 place-items-center rounded bg-white/16 hover:bg-white/28" title="Configurações" aria-label="Configurações"><Settings size={16} /></Link>
+        )}
         <Link to="/profile" className="flex items-center gap-2 rounded bg-white/10 py-1 pl-1 pr-2 text-sm hover:bg-white/20">
           <span className="grid h-7 w-7 place-items-center rounded-full bg-[#0c66e4] text-xs font-bold"><UserIcon size={15} /></span>
           <span className="hidden font-medium md:block max-w-28 truncate">{user?.nome}</span>

@@ -651,8 +651,8 @@ export const AssetsPage: React.FC = () => {
           onClick={() => setActiveTab('table')}
           className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
             activeTab === 'table'
-              ? 'border-brand-primary text-brand-primary bg-brand-primary/5'
-              : 'border-transparent text-brand-muted hover:text-brand-text'
+              ? 'border-brand-primary text-brand-primary bg-brand-primary/5 opacity-100'
+              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
           }`}
         >
           <TableIcon size={16} />
@@ -663,8 +663,8 @@ export const AssetsPage: React.FC = () => {
           onClick={() => setActiveTab('kanban')}
           className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
             activeTab === 'kanban'
-              ? 'border-brand-primary text-brand-primary bg-brand-primary/5'
-              : 'border-transparent text-brand-muted hover:text-brand-text'
+              ? 'border-brand-primary text-brand-primary bg-brand-primary/5 opacity-100'
+              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
           }`}
         >
           <KanbanIcon size={16} />
@@ -675,8 +675,8 @@ export const AssetsPage: React.FC = () => {
           onClick={() => setActiveTab('reports')}
           className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
             activeTab === 'reports'
-              ? 'border-brand-primary text-brand-primary bg-brand-primary/5'
-              : 'border-transparent text-brand-muted hover:text-brand-text'
+              ? 'border-brand-primary text-brand-primary bg-brand-primary/5 opacity-100'
+              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
           }`}
         >
           <FileText size={16} />
@@ -688,8 +688,8 @@ export const AssetsPage: React.FC = () => {
             onClick={() => setActiveTab('references')}
             className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
               activeTab === 'references'
-                ? 'border-brand-primary text-brand-primary bg-brand-primary/5'
-                : 'border-transparent text-brand-muted hover:text-brand-text'
+                ? 'border-brand-primary text-brand-primary bg-brand-primary/5 opacity-100'
+                : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
             }`}
           >
             <Layers3 size={16} />
