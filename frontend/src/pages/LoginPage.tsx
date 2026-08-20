@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../api/auth';
+import { API_BASE_URL } from '../api/client';
 import { KeyRound, QrCode, AlertCircle, Settings, RotateCcw, Camera, X, CheckCircle } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 
@@ -18,7 +19,7 @@ export const LoginPage: React.FC = () => {
   // Connectivity Settings for mobile dev/local testing
   const [showSettings, setShowSettings] = useState(false);
   const [customApiUrl, setCustomApiUrl] = useState(
-    localStorage.getItem('custom_api_url') || 'http://10.100.110.155:8080/api/v1'
+    localStorage.getItem('custom_api_url') || API_BASE_URL
   );
 
   const handleSaveSettings = () => {
@@ -185,7 +186,7 @@ export const LoginPage: React.FC = () => {
               ⚙️ Endereço do Servidor
             </h3>
             <p className="text-[10px] text-brand-muted font-mono leading-relaxed">
-              Configure a URL da API local. Exemplo: http://10.100.110.155:8080/api/v1
+              Configure a URL da API local. Exemplo: {API_BASE_URL}
             </p>
             <div className="space-y-2">
               <input

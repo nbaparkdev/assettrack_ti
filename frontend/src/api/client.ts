@@ -9,8 +9,11 @@ const getApiBaseUrl = () => {
 
   const { hostname, protocol } = window.location;
   
+  // Check if running inside a Capacitor app
+  const isCapacitor = typeof window !== 'undefined' && !!(window as any).Capacitor;
+
   // If running inside Capacitor (localhost), fall back to the development server IP on the Wi-Fi network
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
+  if (isCapacitor && (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '')) {
     return 'http://10.100.110.155:8080/api/v1';
   }
   
