@@ -8,8 +8,11 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "mobile:sync": "npm run build && npx cap sync",
-    "mobile:open-android": "npx cap open android"
+    "mobile:sync": "npm run build && ./node_modules/.bin/cap sync",
+    "mobile:open-android": "./node_modules/.bin/cap open android",
+    "mobile:build": "cd android && ./gradlew assembleDebug",
+    "mobile:install": "~/Android/Sdk/platform-tools/adb install -r android/app/build/outputs/apk/debug/app-debug.apk",
+    "mobile:run": "npm run mobile:sync && npm run mobile:build && npm run mobile:install"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

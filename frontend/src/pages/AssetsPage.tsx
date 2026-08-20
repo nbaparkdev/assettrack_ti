@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { assetsApi } from '../api/assets';
+import { usersApi } from '../api/users';
+import { maintenanceApi } from '../api/maintenance';
 import type { 
   Asset, 
   AssetStatus, 
   AssetReferences,
   BulkCopySpec,
-  AssetImportResponse
+  AssetImportResponse,
+  User
 } from '../types';
 import { useAuthStore } from '../stores/authStore';
 import { 
@@ -26,7 +29,10 @@ import {
   RefreshCw,
   Lock,
   MapPin,
-  Layers3
+  Layers3,
+  Wrench,
+  Download,
+  ArrowRightLeft
 } from 'lucide-react';
 
 export const AssetsPage: React.FC = () => {
@@ -117,6 +123,25 @@ export const AssetsPage: React.FC = () => {
   const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
   const [deletingLocationId, setDeletingLocationId] = useState<number | null>(null);
 
+  // Asset Details Modal State
+  const [selectedAssetForDetail, setSelectedAssetForDetail] = useState<Asset | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showDetailMaintenanceForm, setShowDetailMaintenanceForm] = useState(false);
+  const [showDetailTransferForm, setShowDetailTransferForm] = useState(false);
+  
+  // Maintenance request inside modal state
+  const [detailMaintenanceDescription, setDetailMaintenanceDescription] = useState('');
+  const [detailMaintenanceLoading, setDetailMaintenanceLoading] = useState(false);
+  const [detailMaintenanceError, setDetailMaintenanceError] = useState<string | null>(null);
+
+  // Transfer inside modal state
+  const [detailTransferUserId, setDetailTransferUserId] = useState<number | ''>('');
+  const [detailTransferLoading, setDetailTransferLoading] = useState(false);
+  const [detailTransferError, setDetailTransferError] = useState<string | null>(null);
+
+  // List of users for transferring
+  const [usersList, setUsersList] = useState<User[]>([]);
+
   // Global UI states
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [globalSuccess, setGlobalSuccess] = useState<string | null>(null);
@@ -147,6 +172,19 @@ export const AssetsPage: React.FC = () => {
       console.error('Falha ao buscar referências:', err);
     }
   };
+
+  const fetchUsers = async () => {
+    try {
+      const data = await usersApi.list();
+      setUsersList(data);
+    } catch (err) {
+      console.error('Falha ao buscar usuários:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const fetchReportAssets = async () => {
     setReportLoading(true);
@@ -284,6 +322,78 @@ export const AssetsPage: React.FC = () => {
       fetchAssets();
     } catch (err: any) {
       setGlobalError('Não foi possível excluir o ativo.');
+    }
+  };
+
+  const handleOpenDetailModal = (asset: Asset) => {
+    setSelectedAssetForDetail(asset);
+    setShowDetailModal(true);
+    setShowDetailMaintenanceForm(false);
+    setShowDetailTransferForm(false);
+    setDetailMaintenanceDescription('');
+    setDetailMaintenanceError(null);
+    setDetailTransferUserId('');
+    setDetailTransferError(null);
+  };
+
+  const handleRequestMaintenanceFromDetail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAssetForDetail || !detailMaintenanceDescription.trim()) return;
+
+    setDetailMaintenanceLoading(true);
+    setDetailMaintenanceError(null);
+    try {
+      await maintenanceApi.createRequest({
+        asset_id: selectedAssetForDetail.id,
+        descricao: detailMaintenanceDescription.trim(),
+      });
+      setGlobalSuccess('Solicitação de manutenção criada com sucesso.');
+      fetchAssets();
+      setShowDetailMaintenanceForm(false);
+      setDetailMaintenanceDescription('');
+      // Update selected asset state locally if needed
+      const updatedData = await assetsApi.list(0, 100, { e_patrimonio: selectedAssetForDetail.e_patrimonio });
+      if (updatedData.length > 0) {
+        setSelectedAssetForDetail(updatedData[0]);
+      }
+    } catch (err: any) {
+      setDetailMaintenanceError(err.response?.data?.detail || 'Erro ao criar solicitação de manutenção.');
+    } finally {
+      setDetailMaintenanceLoading(false);
+    }
+  };
+
+  const handleTransferAssetFromDetail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAssetForDetail || !detailTransferUserId) return;
+
+    setDetailTransferLoading(true);
+    setDetailTransferError(null);
+    try {
+      const selectedUser = usersList.find(u => u.id === Number(detailTransferUserId));
+      
+      const payload: Partial<Asset> = {
+        current_user_id: Number(detailTransferUserId),
+        em_posse_de: selectedUser ? selectedUser.nome : null,
+        status: 'Em uso',
+      };
+      
+      const updated = await assetsApi.update(selectedAssetForDetail.id, payload);
+      
+      setSelectedAssetForDetail(updated);
+      setGlobalSuccess('Ativo transferido com sucesso.');
+      
+      fetchAssets();
+      if (activeTab === 'reports') {
+        fetchReportAssets();
+      }
+      
+      setShowDetailTransferForm(false);
+      setDetailTransferUserId('');
+    } catch (err: any) {
+      setDetailTransferError(err.response?.data?.error || 'Erro ao transferir o ativo.');
+    } finally {
+      setDetailTransferLoading(false);
     }
   };
 
@@ -651,8 +761,8 @@ export const AssetsPage: React.FC = () => {
           onClick={() => setActiveTab('table')}
           className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
             activeTab === 'table'
-              ? 'border-brand-primary text-brand-primary bg-brand-primary/5 opacity-100'
-              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
+              ? 'border-brand-primary text-brand-primary bg-[#ededed] opacity-100'
+              : 'border-transparent text-brand-text bg-[#e6e6e6] opacity-[0.75] hover:opacity-100'
           }`}
         >
           <TableIcon size={16} />
@@ -663,8 +773,8 @@ export const AssetsPage: React.FC = () => {
           onClick={() => setActiveTab('kanban')}
           className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
             activeTab === 'kanban'
-              ? 'border-brand-primary text-brand-primary bg-brand-primary/5 opacity-100'
-              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
+              ? 'border-brand-primary text-brand-primary bg-[#ededed] opacity-100'
+              : 'border-transparent text-brand-text bg-[#e6e6e6] opacity-[0.75] hover:opacity-100'
           }`}
         >
           <KanbanIcon size={16} />
@@ -675,8 +785,8 @@ export const AssetsPage: React.FC = () => {
           onClick={() => setActiveTab('reports')}
           className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
             activeTab === 'reports'
-              ? 'border-brand-primary text-brand-primary bg-brand-primary/5 opacity-100'
-              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
+              ? 'border-brand-primary text-brand-primary bg-[#ededed] opacity-100'
+              : 'border-transparent text-brand-text bg-[#e6e6e6] opacity-[0.75] hover:opacity-100'
           }`}
         >
           <FileText size={16} />
@@ -688,8 +798,8 @@ export const AssetsPage: React.FC = () => {
             onClick={() => setActiveTab('references')}
             className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
               activeTab === 'references'
-                ? 'border-brand-primary text-brand-primary bg-brand-primary/5 opacity-100'
-                : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
+                ? 'border-brand-primary text-brand-primary bg-[#ededed] opacity-100'
+                : 'border-transparent text-brand-text bg-[#e6e6e6] opacity-[0.75] hover:opacity-100'
             }`}
           >
             <Layers3 size={16} />
@@ -778,7 +888,11 @@ export const AssetsPage: React.FC = () => {
                       </thead>
                       <tbody className="divide-y divide-brand-border/30 text-sm">
                         {items.map(a => (
-                          <tr key={a.id} className="hover:bg-brand-dark/15">
+                          <tr 
+                            key={a.id} 
+                            onClick={() => handleOpenDetailModal(a)}
+                            className="hover:bg-brand-dark/15 cursor-pointer transition-colors"
+                          >
                             <td className="p-4">
                               <div className="font-medium text-brand-text flex items-center space-x-1.5">
                                 <span>{a.nome}</span>
@@ -817,21 +931,30 @@ export const AssetsPage: React.FC = () => {
                               <td className="p-4 text-right">
                                 <div className="flex items-center justify-end space-x-2">
                                   <button
-                                    onClick={() => handleOpenDuplicate(a)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenDuplicate(a);
+                                    }}
                                     className="border border-brand-border hover:border-brand-primary text-brand-text p-1.5 transition-colors"
                                     title="Duplicar ativo em lote"
                                   >
                                     <Copy size={13} />
                                   </button>
                                   <button
-                                    onClick={() => handleOpenEdit(a)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenEdit(a);
+                                    }}
                                     className="border border-brand-border hover:border-brand-primary text-brand-text p-1.5 transition-colors"
                                     title="Editar"
                                   >
                                     <Edit2 size={13} />
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteAsset(a.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteAsset(a.id);
+                                    }}
                                     className="border border-brand-border hover:border-red-500 text-red-400 p-1.5 transition-colors"
                                     title="Excluir"
                                   >
@@ -868,7 +991,11 @@ export const AssetsPage: React.FC = () => {
                 {/* Cards Container */}
                 <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-brand-dark/10">
                   {columnAssets.map(a => (
-                    <div key={a.id} className="border border-brand-border bg-brand-card p-3 space-y-3 shadow-sm hover:border-brand-primary/50 transition-colors">
+                    <div 
+                      key={a.id} 
+                      onClick={() => handleOpenDetailModal(a)}
+                      className="border border-brand-border bg-brand-card p-3 space-y-3 shadow-sm hover:border-brand-primary/50 transition-colors cursor-pointer"
+                    >
                       <div>
                         <div className="font-medium text-xs text-brand-text flex items-center justify-between">
                           <span className="truncate pr-1">{a.nome}</span>
@@ -879,7 +1006,7 @@ export const AssetsPage: React.FC = () => {
 
                       {/* Dropdown status update */}
                       {isManagerOrAbove && (
-                        <div>
+                        <div onClick={(e) => e.stopPropagation()}>
                           <label className="text-[9px] font-mono uppercase text-brand-muted block mb-1">Mudar Status</label>
                           <select
                             value={a.status}
@@ -2053,6 +2180,325 @@ export const AssetsPage: React.FC = () => {
               >
                 {importingCsv && <RefreshCw size={14} className="animate-spin" />}
                 <span>{importingCsv ? 'Importando...' : 'Importar Agora'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DETAIL MODAL */}
+      {showDetailModal && selectedAssetForDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-dark/80 backdrop-blur-md">
+          <div className="w-full max-w-4xl bg-brand-card border border-brand-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-brand-border bg-brand-dark/50">
+              <div>
+                <span className="text-[10px] font-mono font-bold text-brand-primary uppercase tracking-widest bg-brand-primary/10 px-2 py-0.5 border border-brand-primary/20 mr-2.5">
+                  {selectedAssetForDetail.e_patrimonio}
+                </span>
+                <h3 className="inline-block text-lg font-bold font-mono uppercase tracking-wider text-brand-text">
+                  {selectedAssetForDetail.nome}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowDetailModal(false)} 
+                className="text-brand-muted hover:text-brand-text transition-colors p-1"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-[1.3fr_0.7fr] gap-6">
+              {/* Left Column: Full Registration Data */}
+              <div className="space-y-6">
+                {/* Status and Type alerts */}
+                <div className="flex flex-wrap gap-2.5">
+                  <span className={`text-[10px] font-mono uppercase px-2.5 py-1 border ${
+                    selectedAssetForDetail.status === 'Manutenção' 
+                      ? 'border-amber-500/30 bg-amber-500/5 text-amber-400' 
+                      : selectedAssetForDetail.status === 'Disponível'
+                      ? 'border-green-500/30 bg-green-500/5 text-green-400'
+                      : 'border-brand-border bg-brand-dark/30 text-brand-text'
+                  }`}>
+                    Status: {selectedAssetForDetail.status}
+                  </span>
+                  
+                  {selectedAssetForDetail.bloqueado && (
+                    <span className="text-[10px] font-mono uppercase px-2.5 py-1 border border-purple-500/30 bg-purple-500/5 text-purple-400 flex items-center space-x-1.5">
+                      <Lock size={12} />
+                      <span>🔒 Ativo Fixo (Bloqueado)</span>
+                    </span>
+                  )}
+
+                  {selectedAssetForDetail.requer_termo_rh && (
+                    <span className="text-[10px] font-mono uppercase px-2.5 py-1 border border-blue-500/30 bg-blue-500/5 text-blue-400">
+                      📋 Requer Termo RH
+                    </span>
+                  )}
+                </div>
+
+                {/* Section: Geral */}
+                <div className="border border-brand-border/60 bg-brand-dark/10 p-4 space-y-3">
+                  <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-widest border-b border-brand-border pb-1.5">
+                    Informações Gerais
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Modelo</span>
+                      <span className="text-brand-text font-semibold">{selectedAssetForDetail.modelo || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Número de Série (S/N)</span>
+                      <span className="text-brand-text font-mono">{selectedAssetForDetail.numero_serie || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Categoria</span>
+                      <span className="text-brand-text">{selectedAssetForDetail.categoria?.nome || 'Sem categoria'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Criado por</span>
+                      <span className="text-brand-text">{selectedAssetForDetail.created_by?.nome || '—'}</span>
+                    </div>
+                    <div className="md:col-span-2">
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Descrição</span>
+                      <p className="text-brand-text bg-brand-dark/40 p-2.5 border border-brand-border/40 rounded-sm font-mono mt-1 text-[11px] whitespace-pre-wrap">
+                        {selectedAssetForDetail.descricao || 'Nenhuma descrição fornecida.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Localização e Responsabilidade */}
+                <div className="border border-brand-border/60 bg-brand-dark/10 p-4 space-y-3">
+                  <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-widest border-b border-brand-border pb-1.5">
+                    Localização & Responsabilidade
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Localização Atual</span>
+                      <span className="text-brand-text font-semibold">{getAssetLocationLabel(selectedAssetForDetail)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Armazenamento</span>
+                      <span className="text-brand-text">{getAssetStorageLabel(selectedAssetForDetail) || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Em Posse De</span>
+                      <span className="text-brand-text font-semibold">{selectedAssetForDetail.em_posse_de || 'Ninguém (Disponível)'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Setor / Departamento</span>
+                      <span className="text-brand-text">{selectedAssetForDetail.current_departamento?.nome || '—'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Financeiro & Aquisição */}
+                <div className="border border-brand-border/60 bg-brand-dark/10 p-4 space-y-3">
+                  <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-widest border-b border-brand-border pb-1.5">
+                    Financeiro & Aquisição
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Valor de Aquisição</span>
+                      <span className="text-brand-text font-mono font-semibold">
+                        {selectedAssetForDetail.valor 
+                          ? selectedAssetForDetail.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+                          : '—'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Data de Aquisição</span>
+                      <span className="text-brand-text font-mono">
+                        {selectedAssetForDetail.data_aquisicao 
+                          ? new Date(selectedAssetForDetail.data_aquisicao).toLocaleDateString('pt-BR') 
+                          : '—'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Fornecedor</span>
+                      <span className="text-brand-text">{selectedAssetForDetail.fornecedor?.nome || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Nota Fiscal</span>
+                      <span className="text-brand-text font-mono">{selectedAssetForDetail.nota_fiscal?.numero_nota || '—'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: QR Code & Quick Actions */}
+              <div className="space-y-6 flex flex-col">
+                {/* QR Code Container */}
+                <div className="border border-brand-border bg-brand-dark/20 p-4 flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider">
+                    QR Code Patrimonial
+                  </div>
+                  <div className="bg-white p-2.5 border border-brand-border/60">
+                    <img 
+                      src={assetsApi.getQRCodeUrl(selectedAssetForDetail.id)} 
+                      alt={`QR Code para ${selectedAssetForDetail.nome}`}
+                      className="w-40 h-40 object-contain"
+                    />
+                  </div>
+                  <button
+                    onClick={() => assetsApi.downloadQRCode(selectedAssetForDetail.id, selectedAssetForDetail.e_patrimonio)}
+                    className="flex items-center justify-center space-x-2 w-full py-2 bg-brand-dark hover:bg-brand-card border border-brand-border text-brand-text font-bold font-mono text-xs uppercase tracking-wider transition-colors"
+                  >
+                    <Download size={14} />
+                    <span>Download QR Code</span>
+                  </button>
+                </div>
+
+                {/* Actions Panel */}
+                <div className="border border-brand-border bg-brand-dark/20 p-4 space-y-4 flex-1">
+                  <div className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider">
+                    Ações de Inventário
+                  </div>
+
+                  {!showDetailMaintenanceForm && !showDetailTransferForm && (
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => {
+                          setShowDetailMaintenanceForm(true);
+                          setShowDetailTransferForm(false);
+                          setDetailMaintenanceDescription('');
+                          setDetailMaintenanceError(null);
+                        }}
+                        className="flex items-center justify-center space-x-2 w-full py-2.5 bg-brand-primary text-brand-dark font-bold font-mono text-xs uppercase tracking-wider hover:bg-brand-primary/95 transition-all"
+                      >
+                        <Wrench size={14} />
+                        <span>Solicitar Manutenção</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowDetailTransferForm(true);
+                          setShowDetailMaintenanceForm(false);
+                          setDetailTransferUserId('');
+                          setDetailTransferError(null);
+                        }}
+                        className="flex items-center justify-center space-x-2 w-full py-2.5 bg-brand-dark border border-brand-border text-brand-text font-bold font-mono text-xs uppercase tracking-wider hover:bg-brand-card transition-all"
+                      >
+                        <ArrowRightLeft size={14} />
+                        <span>Transferir Ativo</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Request Maintenance Form */}
+                  {showDetailMaintenanceForm && (
+                    <form onSubmit={handleRequestMaintenanceFromDetail} className="space-y-3.5 pt-2">
+                      <div className="font-semibold text-xs text-brand-text flex items-center space-x-2 border-b border-brand-border/60 pb-1.5">
+                        <Wrench size={14} className="text-brand-primary" />
+                        <span>Solicitação de Manutenção</span>
+                      </div>
+                      
+                      {detailMaintenanceError && (
+                        <div className="p-2.5 border border-red-500/20 bg-red-500/5 text-red-400 text-[11px] font-mono">
+                          {detailMaintenanceError}
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
+                          Motivo / Descrição do Problema
+                        </label>
+                        <textarea
+                          required
+                          rows={3}
+                          value={detailMaintenanceDescription}
+                          onChange={(e) => setDetailMaintenanceDescription(e.target.value)}
+                          placeholder="Descreva detalhadamente o defeito ou motivo da manutenção..."
+                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary placeholder-brand-muted/40"
+                        />
+                      </div>
+
+                      <div className="flex space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowDetailMaintenanceForm(false)}
+                          className="w-1/3 py-1.5 bg-brand-dark border border-brand-border text-brand-muted text-xs font-semibold font-mono uppercase"
+                        >
+                          Voltar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={detailMaintenanceLoading || !detailMaintenanceDescription.trim()}
+                          className="flex-1 py-1.5 bg-brand-primary text-brand-dark text-xs font-semibold font-mono uppercase flex items-center justify-center space-x-1.5 disabled:opacity-50"
+                        >
+                          {detailMaintenanceLoading && <RefreshCw size={12} className="animate-spin" />}
+                          <span>Confirmar</span>
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Transfer Asset Form */}
+                  {showDetailTransferForm && (
+                    <form onSubmit={handleTransferAssetFromDetail} className="space-y-3.5 pt-2">
+                      <div className="font-semibold text-xs text-brand-text flex items-center space-x-2 border-b border-brand-border/60 pb-1.5">
+                        <ArrowRightLeft size={14} className="text-brand-primary" />
+                        <span>Transferir Equipamento</span>
+                      </div>
+
+                      {detailTransferError && (
+                        <div className="p-2.5 border border-red-500/20 bg-red-500/5 text-red-400 text-[11px] font-mono">
+                          {detailTransferError}
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
+                          Selecione o Destinatário
+                        </label>
+                        <select
+                          required
+                          value={detailTransferUserId}
+                          onChange={(e) => setDetailTransferUserId(e.target.value ? Number(e.target.value) : '')}
+                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary font-mono"
+                        >
+                          <option value="">Selecione o usuário...</option>
+                          {usersList.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.nome} ({u.role})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowDetailTransferForm(false)}
+                          className="w-1/3 py-1.5 bg-brand-dark border border-brand-border text-brand-muted text-xs font-semibold font-mono uppercase"
+                        >
+                          Voltar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={detailTransferLoading || !detailTransferUserId}
+                          className="flex-1 py-1.5 bg-brand-primary text-brand-dark text-xs font-semibold font-mono uppercase flex items-center justify-center space-x-1.5 disabled:opacity-50"
+                        >
+                          {detailTransferLoading && <RefreshCw size={12} className="animate-spin" />}
+                          <span>Transferir</span>
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-brand-dark/30 border-t border-brand-border flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDetailModal(false)}
+                className="border border-brand-border hover:bg-brand-card text-brand-text font-bold font-mono px-4 py-2 uppercase tracking-wider text-xs transition-colors"
+              >
+                Fechar
               </button>
             </div>
           </div>

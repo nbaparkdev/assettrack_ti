@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../api/auth';
-import { KeyRound, QrCode, AlertCircle } from 'lucide-react';
+import { KeyRound, QrCode, AlertCircle, Settings, RotateCcw, Camera, X, CheckCircle } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 
 export const LoginPage: React.FC = () => {
   const loginStore = useAuthStore().login;
@@ -12,6 +13,124 @@ export const LoginPage: React.FC = () => {
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [qrSuccessMsg, setQrSuccessMsg] = useState<string | null>(null);
+
+  // Connectivity Settings for mobile dev/local testing
+  const [showSettings, setShowSettings] = useState(false);
+  const [customApiUrl, setCustomApiUrl] = useState(
+    localStorage.getItem('custom_api_url') || 'http://10.100.110.155:8080/api/v1'
+  );
+
+  const handleSaveSettings = () => {
+    localStorage.setItem('custom_api_url', customApiUrl.trim());
+    window.location.reload();
+  };
+
+  const handleResetSettings = () => {
+    localStorage.removeItem('custom_api_url');
+    window.location.reload();
+  };
+
+  // Camera Scanner configuration
+  const [cameraActive, setCameraActive] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const regionId = 'qr-reader-login';
+
+  useEffect(() => {
+    return () => {
+      // Clean up camera on unmount
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(console.error);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mode !== 'qr') {
+      stopCamera();
+    }
+    setQrSuccessMsg(null);
+  }, [mode]);
+
+  const extractTokenFromQr = (text: string): string => {
+    if (!text) return '';
+    const trimmed = text.trim();
+    
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      try {
+        const url = new URL(trimmed);
+        const tokenParam = url.searchParams.get('token');
+        if (tokenParam) return tokenParam;
+        
+        for (const [_, value] of url.searchParams.entries()) {
+          if (value.length === 36 && value.includes('-')) {
+            return value;
+          }
+        }
+        
+        const pathParts = url.pathname.split('/');
+        for (const part of pathParts) {
+          if (part.length === 36 && part.includes('-')) {
+            return part;
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing QR URL:', e);
+      }
+    }
+    return trimmed;
+  };
+
+  const startCamera = async () => {
+    try {
+      setScanError(null);
+      setCameraActive(true);
+      
+      setTimeout(async () => {
+        try {
+          const html5Qrcode = new Html5Qrcode(regionId);
+          scannerRef.current = html5Qrcode;
+
+          await html5Qrcode.start(
+            { facingMode: 'environment' },
+            {
+              fps: 10,
+              qrbox: { width: 180, height: 180 },
+            },
+            (decodedText) => {
+              const token = extractTokenFromQr(decodedText);
+              setQrToken(token);
+              setQrSuccessMsg('Token lido com sucesso! Digite o PIN de Segurança para entrar.');
+              stopCamera();
+            },
+            () => {
+              // Expected frame failures can be ignored
+            }
+          );
+        } catch (err: any) {
+          console.error('Html5Qrcode login init error:', err);
+          setScanError('Não foi possível iniciar a câmera. Verifique as permissões de acesso.');
+          setCameraActive(false);
+        }
+      }, 300);
+    } catch (err: any) {
+      setScanError('Erro ao carregar a câmera.');
+      setCameraActive(false);
+    }
+  };
+
+  const stopCamera = async () => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      try {
+        await scannerRef.current.stop();
+      } catch (err) {
+        console.error('Stop scanner error:', err);
+      }
+      scannerRef.current = null;
+    }
+    setCameraActive(false);
+  };
 
   const handleStandardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +141,7 @@ export const LoginPage: React.FC = () => {
       await loginStore(res.access_token);
       window.location.href = '/';
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Credenciais inválidas');
+      setError(err.response?.data?.detail || `Erro: ${err.message || 'Conexão falhou'}`);
     } finally {
       setLoading(false);
     }
@@ -37,7 +156,7 @@ export const LoginPage: React.FC = () => {
       await loginStore(res.access_token);
       window.location.href = '/';
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'QR Token ou PIN incorretos');
+      setError(err.response?.data?.detail || `Erro: ${err.message || 'Conexão falhou'}`);
     } finally {
       setLoading(false);
     }
@@ -45,7 +164,17 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-[radial-gradient(circle_at_80%_15%,rgba(255,255,255,.30),transparent_25rem),linear-gradient(135deg,#a9d4ee,#68acd3)]">
-      <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/90 p-8 shadow-[0_18px_60px_rgba(9,30,66,.22)] backdrop-blur">
+      <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/90 p-8 shadow-[0_18px_60px_rgba(9,30,66,.22)] backdrop-blur relative">
+        {/* Settings Trigger Icon */}
+        <button
+          type="button"
+          onClick={() => setShowSettings(!showSettings)}
+          className="absolute top-6 right-6 p-2 rounded-xl text-brand-muted hover:text-brand-primary hover:bg-slate-100/50 transition-all duration-200"
+          title="Configurações de Conexão"
+        >
+          <Settings size={18} className={`transition-transform duration-300 ${showSettings ? 'rotate-90' : ''}`} />
+        </button>
+
         {/* Header */}
         <div className="text-center mb-8">
           <span className="text-xs text-brand-primary uppercase tracking-widest block mb-2 font-semibold">
@@ -55,6 +184,44 @@ export const LoginPage: React.FC = () => {
             Painel de Acesso
           </h2>
         </div>
+
+        {/* Connection Settings Panel */}
+        {showSettings && (
+          <div className="mb-6 p-4 rounded-xl border border-blue-500/20 bg-blue-50/50 backdrop-blur-sm space-y-3 transition-all duration-300">
+            <h3 className="text-xs font-mono uppercase tracking-wider text-brand-primary font-bold">
+              ⚙️ Endereço do Servidor
+            </h3>
+            <p className="text-[10px] text-brand-muted font-mono leading-relaxed">
+              Configure a URL da API local. Exemplo: http://10.100.110.155:8080/api/v1
+            </p>
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={customApiUrl}
+                onChange={(e) => setCustomApiUrl(e.target.value)}
+                className="w-full rounded-lg bg-white border border-brand-border px-3 py-2 text-xs font-mono text-brand-text focus:outline-none focus:border-brand-primary"
+                placeholder="http://192.168.X.X:8080/api/v1"
+              />
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={handleSaveSettings}
+                  className="flex-1 bg-brand-primary hover:bg-brand-primary/90 text-white font-bold py-2 rounded-lg text-[10px] font-mono tracking-wider transition-colors shadow-sm cursor-pointer"
+                >
+                  Salvar e Conectar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetSettings}
+                  className="px-3 bg-slate-200 hover:bg-slate-300 text-brand-text rounded-lg text-[10px] flex items-center justify-center transition-colors cursor-pointer"
+                  title="Restaurar Padrão"
+                >
+                  <RotateCcw size={12} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mode Toggle */}
         <div className="flex rounded-xl border border-brand-border bg-slate-50 p-1 mb-6">
@@ -89,6 +256,14 @@ export const LoginPage: React.FC = () => {
           <div className="mb-6 p-4 border border-red-500/30 bg-red-500/5 text-red-400 text-xs font-mono flex items-start space-x-2">
             <AlertCircle size={16} className="shrink-0 mt-0.5" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {/* QR Success Notification */}
+        {qrSuccessMsg && (
+          <div className="mb-6 p-4 border border-emerald-500/30 bg-emerald-500/5 text-emerald-600 text-xs font-mono flex items-start space-x-2 rounded-lg">
+            <CheckCircle size={16} className="shrink-0 mt-0.5 text-emerald-500" />
+            <span>{qrSuccessMsg}</span>
           </div>
         )}
 
@@ -137,15 +312,47 @@ export const LoginPage: React.FC = () => {
               <label htmlFor="qr" className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-2">
                 Token QR Code
               </label>
-              <input
-                id="qr"
-                type="text"
-                required
-                value={qrToken}
-                onChange={(e) => setQrToken(e.target.value)}
-                className="w-full rounded-lg bg-white border border-brand-border px-4 py-3 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors"
-                placeholder="Insira o token do seu crachá"
-              />
+              
+              {cameraActive ? (
+                <div className="flex flex-col items-center justify-center space-y-3 mb-4 p-2 bg-slate-50 border border-brand-border rounded-xl">
+                  <div 
+                    id={regionId} 
+                    className="w-full max-w-[220px] aspect-square border border-brand-border bg-black overflow-hidden relative rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={stopCamera}
+                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-lg transition-colors flex items-center space-x-1 cursor-pointer"
+                  >
+                    <X size={12} />
+                    <span>Desativar Câmera</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex space-x-2">
+                  <input
+                    id="qr"
+                    type="text"
+                    required
+                    value={qrToken}
+                    onChange={(e) => setQrToken(e.target.value)}
+                    className="flex-1 rounded-lg bg-white border border-brand-border px-4 py-3 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors"
+                    placeholder="Insira o token do seu crachá"
+                  />
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    className="px-3 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary border border-brand-primary/20 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
+                    title="Escanear com a Câmera"
+                  >
+                    <Camera size={18} />
+                  </button>
+                </div>
+              )}
+              
+              {scanError && (
+                <p className="text-[10px] text-red-500 font-mono mt-1">{scanError}</p>
+              )}
             </div>
             <div>
               <label htmlFor="pin" className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-2">

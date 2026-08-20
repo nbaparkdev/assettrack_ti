@@ -483,3 +483,406 @@ Até 19/08/2026, esta frente entregou:
   - SLA de fornecedores.
 
 Em termos práticos, o AssetTrack TI saiu de um conjunto de telas isoladas para uma operação mais integrada, governável e auditável.
+
+---
+
+## 11. Adendo de continuidade — 20/08/2026
+
+Este documento passa a registrar também os avanços posteriores à consolidação inicial, sempre que novas melhorias relevantes forem aplicadas.
+
+### 11.1. Ajuste de lógica no modal de cotação do módulo Compras
+
+Foi revisado o fluxo de criação de cotação no módulo `/compras`, com foco na relação entre solicitação, itens e fornecedores.
+
+#### Problema identificado
+
+O modal de **Nova Cotação** estava induzindo uma interpretação confusa:
+
+- a interface fazia parecer que cada fornecedor estava vinculado a apenas um item;
+- a estrutura visual misturava fornecedor, frete, prazo e itens no mesmo bloco sem deixar claro o papel de cada camada;
+- ao abrir a cotação a partir de uma solicitação com múltiplos itens, a experiência não refletia bem a lógica esperada de compras corporativas.
+
+#### Correção aplicada
+
+O fluxo foi reorganizado para refletir a regra de negócio correta:
+
+- a **solicitação** define os itens que precisam ser cotados;
+- os **fornecedores** passam a apresentar propostas para os mesmos itens da solicitação;
+- a **cotação** deixa de parecer “um fornecedor por item” e passa a funcionar como comparação real entre propostas.
+
+#### Melhorias implementadas
+
+- exibição da solicitação base no topo do modal;
+- exibição dos itens da solicitação como referência para a cotação;
+- preenchimento inicial dos itens para cada fornecedor com base na solicitação;
+- aproveitamento dos fornecedores sugeridos quando existirem;
+- inclusão de ação para remover fornecedor da cotação;
+- bloqueio de fornecedor duplicado na mesma cotação;
+- mensagens mais claras sobre a finalidade do comparativo.
+
+### 11.2. Comparativo visual de fornecedores no próprio modal
+
+Além do ajuste estrutural, foi adicionada uma camada de leitura gerencial dentro da própria tela de cotação.
+
+#### Novos destaques automáticos
+
+Cada fornecedor agora pode receber destaque automático no comparativo:
+
+- **Menor preço**
+- **Menor prazo**
+- **Melhor custo-benefício**
+
+#### Critério de custo-benefício
+
+Foi adotada uma regra simples e transparente para o comparativo inicial:
+
+- 70% de peso para preço;
+- 30% de peso para prazo.
+
+#### Informações resumidas por fornecedor
+
+Cada card de fornecedor no comparativo passou a exibir:
+
+- valor total da proposta;
+- prazo de entrega em dias;
+- valor de frete;
+- média unitária dos itens cotados.
+
+### 11.3. Matriz comparativa por item × fornecedor
+
+Na continuidade desta melhoria, o modal de cotação recebeu uma visualização mais próxima de um ERP de compras.
+
+#### Evolução aplicada
+
+Foi incluído um **mapa comparativo por item**, no qual:
+
+- cada linha representa um item da solicitação;
+- cada coluna de fornecedor representa a proposta daquele fornecedor para o mesmo item;
+- o usuário consegue comparar valores unitários e totais por item sem precisar interpretar blocos separados mentalmente.
+
+#### Benefícios operacionais
+
+Essa estrutura melhora a leitura da cotação em situações reais, porque:
+
+- facilita identificar rapidamente qual fornecedor está melhor em cada item;
+- reduz a chance de erro na análise manual;
+- aproxima o fluxo da prática de compras corporativas baseada em mapa comparativo;
+- mantém o resumo final alinhado com a decisão de menor preço, menor prazo e melhor custo-benefício.
+
+#### Destaques da matriz
+
+Na tabela comparativa foram incluídos:
+
+- item solicitado;
+- quantidade solicitada;
+- valor estimado original;
+- valor unitário por fornecedor;
+- total por item em cada fornecedor;
+- destaque visual para o melhor valor daquele item;
+- linha de resumo final por fornecedor com total e prazo.
+
+### 11.4. Seleção guiada do vencedor da cotação
+
+Na etapa seguinte, a listagem de cotações também passou a oferecer apoio direto à decisão de compra.
+
+#### Evolução aplicada
+
+Cada fornecedor listado dentro de uma cotação passou a exibir:
+
+- indicação de **menor preço**;
+- indicação de **menor prazo**;
+- indicação de **melhor custo-benefício**;
+- motivo sugerido para a escolha daquele fornecedor.
+
+#### Confirmação mais clara antes de emitir pedido
+
+O fluxo de escolha do vencedor passou a mostrar, antes da confirmação:
+
+- nome do fornecedor selecionado;
+- motivo identificado pela lógica comparativa;
+- valor total da proposta;
+- prazo de entrega;
+- aviso explícito de que o pedido de compra será emitido automaticamente.
+
+#### Benefício operacional
+
+Essa camada reduz ambiguidade no momento mais crítico da cotação:
+
+- ajuda o comprador a justificar a decisão;
+- melhora rastreabilidade da escolha;
+- deixa o processo mais próximo de uma decisão assistida por critérios objetivos;
+- reduz risco de selecionar fornecedor sem avaliar custo e prazo de forma conjunta.
+
+### 11.5. Histórico visível da decisão e vínculo com o pedido gerado
+
+Na sequência, a própria listagem de cotações passou a exibir também o resultado consolidado da decisão.
+
+#### Evolução aplicada
+
+Quando a cotação já possui vencedor definido, a interface agora mostra:
+
+- fornecedor vencedor;
+- critério identificado para a escolha;
+- valor final vencedor;
+- prazo vencedor;
+- número do pedido de compra gerado a partir daquela cotação;
+- data/hora de emissão do pedido;
+- valor do pedido emitido.
+
+#### Benefício operacional
+
+Essa camada transforma a cotação em um registro mais auditável, porque:
+
+- reduz a dependência de memória operacional;
+- conecta a decisão da cotação ao pedido efetivamente emitido;
+- deixa mais claro o encadeamento entre análise, decisão e execução;
+- melhora leitura histórica do processo de compras.
+
+### 11.6. Indicador financeiro de economia versus estimativa
+
+Na continuidade, a cotação passou a mostrar também o efeito financeiro da decisão em relação ao valor originalmente previsto pela solicitação.
+
+#### Evolução aplicada
+
+Quando existe vencedor definido, a interface agora compara:
+
+- valor estimado da solicitação;
+- valor efetivamente fechado com o fornecedor vencedor;
+- economia obtida, quando o fechamento ficou abaixo da estimativa;
+- excesso sobre o estimado, quando o fechamento ficou acima do previsto;
+- percentual correspondente dessa diferença.
+
+#### Benefício operacional
+
+Essa camada fortalece a visão gerencial do processo de compras, porque:
+
+- evidencia ganho financeiro real da cotação;
+- facilita análise de eficiência da área de compras;
+- destaca rapidamente quando a compra superou o orçamento inicialmente previsto;
+- melhora a leitura do impacto econômico da decisão tomada.
+
+### 11.7. Alertas visuais de risco operacional na cotação
+
+Na sequência, a cotação passou a sinalizar também situações de atenção operacional já no resultado da decisão.
+
+#### Evolução aplicada
+
+Foram introduzidos alertas visuais para cenários como:
+
+- fechamento acima do valor estimado da solicitação;
+- prazo de entrega considerado alto para o fornecedor vencedor.
+
+Esses alertas aparecem junto ao bloco consolidado da decisão, com destaque visual e mensagem objetiva.
+
+#### Benefício operacional
+
+Essa camada ajuda a operação porque:
+
+- antecipa leitura de risco sem depender de análise manual detalhada;
+- chama atenção para compras com impacto financeiro negativo;
+- destaca fornecedores vencedores com prazo potencialmente problemático;
+- melhora a capacidade de acompanhamento gerencial da decisão tomada.
+
+### 11.8. Correção da trava entre aprovação da solicitação e criação da cotação
+
+Foi identificada e corrigida uma inconsistência entre a regra de interface e a regra do backend no fluxo de compras.
+
+#### Problema identificado
+
+A API de criação de cotação já exigia corretamente que a solicitação estivesse com status **Aprovada**.
+
+Porém, na interface, o botão **Cotar** estava sendo exibido apenas para solicitações com status:
+
+- **Pendente**
+- **Em aprovação**
+
+Na prática, isso bloqueava o fluxo real:
+
+- quando a solicitação ainda não estava aprovada, a UI deixava tentar cotar;
+- quando a solicitação ficava de fato aprovada, a ação desaparecia;
+- resultado: o usuário ficava sem conseguir iniciar a cotação no momento correto.
+
+#### Correção aplicada
+
+A lógica da tela foi ajustada para exibir a ação **Cotar** somente quando a solicitação estiver em status:
+
+- **Aprovada**
+
+Com isso, a interface passou a refletir corretamente a mesma regra já exigida pela API.
+
+#### Benefício operacional
+
+Essa correção remove uma trava funcional importante do módulo de compras, porque:
+
+- alinha frontend e backend na mesma regra de negócio;
+- evita tentativa de cotação em status inválido;
+- libera a cotação no momento exato do fluxo correto;
+- reduz confusão operacional durante o processo de aprovação.
+
+### 11.9. Correção da trava entre aprovação parcial e conclusão da aprovação
+
+Foi identificada uma segunda inconsistência no fluxo de solicitações de compra.
+
+#### Problema identificado
+
+Quando uma solicitação saía de **Pendente** para **Em aprovação**, a interface deixava de mostrar os botões de decisão.
+
+Na prática, isso criava um bloqueio:
+
+- a solicitação recebia uma aprovação inicial;
+- o status passava para **Em aprovação**;
+- a tela escondia os botões **Aprovar** e **Reprovar**;
+- a solicitação ficava presa sem conseguir avançar até **Aprovada**.
+
+#### Correção aplicada
+
+A interface foi ajustada para manter as ações de decisão disponíveis também quando a solicitação estiver em:
+
+- **Em aprovação**
+
+Com isso, o fluxo de aprovação pode continuar normalmente até atingir o nível final necessário.
+
+### 11.10. Correção da regressão de status após liberação de orçamento
+
+Também foi corrigida uma inconsistência no backend da liberação de orçamento.
+
+#### Problema identificado
+
+A rotina de liberação de orçamento podia devolver uma solicitação para **Em aprovação** apenas por existir histórico de aprovação, mesmo quando ela já atendia o nível necessário e deveria permanecer **Aprovada**.
+
+#### Correção aplicada
+
+A lógica do backend passou a recalcular corretamente o status após a liberação de orçamento, considerando:
+
+- valor estimado da solicitação;
+- nível de aprovação exigido;
+- maior nível já aprovado no histórico.
+
+Com isso, solicitações já suficientemente aprovadas permanecem em **Aprovada**, em vez de regredirem indevidamente.
+
+#### Ajuste aplicado na base atual
+
+Além da correção do código, foi regularizada a solicitação existente:
+
+- **SC-2026-000001**
+
+Status final confirmado em **20/08/2026**:
+
+- **Aprovada**
+
+### 11.11. Publicação da correção no ambiente Docker
+
+Após os ajustes de frontend e backend, os serviços da aplicação foram reconstruídos e reiniciados no ambiente Docker para que a correção passasse a valer no sistema em execução.
+
+Serviços atualizados:
+
+- API
+- Web
+
+Validação adicional:
+
+- checagem de saúde da API após reinício;
+- confirmação do status final da solicitação corrigida na base.
+
+### 11.12. Refino visual dos estados de decisão da cotação
+
+Também foi feito um ajuste fino de cor nos elementos visuais ligados à decisão final da cotação.
+
+#### Evolução aplicada
+
+Foram refinadas as cores dos seguintes elementos:
+
+- selo **Decisão registrada**;
+- selo **Vencedor**;
+- selo **Acima do estimado**;
+- valor financeiro em destaque quando a cotação ficou acima do estimado;
+- mensagem resumida de impacto financeiro da decisão;
+- mensagem detalhada do risco financeiro.
+
+#### Objetivo
+
+Esse ajuste teve como foco:
+
+- melhorar leitura do estado final da cotação;
+- dar mais contraste para situações de risco financeiro;
+- deixar os selos positivos e de alerta visualmente mais coerentes entre si;
+- manter consistência com a linguagem visual já aplicada no módulo.
+
+### 11.13. Padronização visual das abas em Ativos & Inventário
+
+Foi aplicada uma padronização visual no menu de abas da página `/assets`.
+
+#### Evolução aplicada
+
+O mesmo tratamento de fundo solicitado para:
+
+- **Tabela Geral**
+- **Kanban Oficina**
+
+foi estendido para o restante das abas do mesmo grupo, incluindo:
+
+- **Filtros & Relatórios**
+- **Cadastros Base**
+
+#### Regra visual adotada
+
+- aba ativa com fundo claro `#ededed`;
+- abas inativas com fundo `#e6e6e6`;
+- contraste mantido com a borda e a tipografia já existentes;
+- hover mais evidente nas abas inativas.
+
+#### Objetivo
+
+Esse ajuste melhora a navegação do módulo porque:
+
+- deixa o conjunto de abas mais uniforme;
+- reduz diferença visual inconsistente entre itens do mesmo menu;
+- reforça a leitura de estado ativo versus inativo;
+- acompanha a linguagem visual já aplicada na aplicação.
+
+### 11.14. Ajuste tipográfico do rodapé global
+
+Foi aplicado um ajuste tipográfico no rodapé compartilhado da aplicação.
+
+#### Evolução aplicada
+
+O texto:
+
+- `© 2026 AssetTrack TI. Todos os direitos reservados.`
+
+passou de:
+
+- `12px`
+
+para:
+
+- `14px`
+
+#### Objetivo
+
+Esse ajuste melhora:
+
+- legibilidade do rodapé;
+- equilíbrio visual com o restante da interface;
+- consistência do bloco institucional ao final das páginas.
+
+### 11.15. Validação desta rodada
+
+As melhorias acima foram validadas com:
+
+- build do frontend (`npm run build`);
+- testes do backend (`go test ./...`);
+- revisão de consistência da estrutura de dados enviada para criação da cotação;
+- revisão visual da experiência do modal.
+- reconstrução e reinício dos serviços Docker.
+
+### 11.16. Arquivos impactados nesta continuidade
+
+- [frontend/src/components/layout/MainLayout.tsx](/home/humberto/Aplicativos/assettrack_ti/frontend/src/components/layout/MainLayout.tsx)
+- [frontend/src/pages/AssetsPage.tsx](/home/humberto/Aplicativos/assettrack_ti/frontend/src/pages/AssetsPage.tsx)
+- [frontend/src/pages/ProcurementPage.tsx](/home/humberto/Aplicativos/assettrack_ti/frontend/src/pages/ProcurementPage.tsx)
+- [backend/internal/handler/procurement_handler.go](/home/humberto/Aplicativos/assettrack_ti/backend/internal/handler/procurement_handler.go)
+
+### 11.17. Regra operacional adotada daqui para frente
+
+A partir desta solicitação, toda mudança relevante implementada nesta frente deverá ser acompanhada de atualização documental correspondente, para manter histórico funcional e técnico do que foi entregue.

@@ -1350,9 +1350,22 @@ func (h *ProcurementHandler) ReleaseBudget(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Não autorizado a liberar orçamento"})
 		return
 	}
-	if len(req.Approvals) > 0 {
+	total := calcRequestEstimatedTotal(req)
+	requiredLevel := suggestedApprovalLevel(total, req.Urgencia, h.loadApprovalLimits(c))
+	highestApprovedRank := 0
+	for _, approval := range req.Approvals {
+		if approval.Status == models.ApprovalAprovado {
+			if rank := approvalLevelRank(approval.Nivel); rank > highestApprovedRank {
+				highestApprovedRank = rank
+			}
+		}
+	}
+	switch {
+	case highestApprovedRank >= approvalLevelRank(requiredLevel):
+		req.Status = models.PRStatusAprovada
+	case len(req.Approvals) > 0:
 		req.Status = models.PRStatusEmAprovacao
-	} else {
+	default:
 		req.Status = models.PRStatusPendente
 	}
 	if err := h.requestRepo.Update(req); err != nil {

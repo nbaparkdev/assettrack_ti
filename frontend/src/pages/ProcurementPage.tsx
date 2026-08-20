@@ -421,27 +421,195 @@ export const ProcurementPage: React.FC = () => {
   };
 
   // ---- Quotations ----
+  const buildQuotationItemsFromRequest = (req: PurchaseRequest) => (
+    req.itens.map((it) => ({
+      product_id: it.product_id,
+      quantidade: it.quantidade,
+      valor_unitario: it.valor_estimado || 0,
+    }))
+  );
+
+  const buildQuotationSupplierDraft = (req: PurchaseRequest, fornecedorId = 0) => ({
+    fornecedor_id: fornecedorId,
+    frete: 0,
+    prazo_entrega_dias: 0,
+    itens: buildQuotationItemsFromRequest(req),
+  });
+
+  const getQuotationDraftTotal = (supplier: { frete: number; itens: { quantidade: number; valor_unitario: number }[] }) => (
+    supplier.itens.reduce((sum, item) => sum + (Number(item.quantidade) || 0) * (Number(item.valor_unitario) || 0), 0) + (Number(supplier.frete) || 0)
+  );
+
+  const getQuotationDraftUnitAverage = (supplier: { itens: { quantidade: number; valor_unitario: number }[] }) => {
+    const validItems = supplier.itens.filter((item) => (Number(item.quantidade) || 0) > 0);
+    if (validItems.length === 0) return 0;
+    return validItems.reduce((sum, item) => sum + (Number(item.valor_unitario) || 0), 0) / validItems.length;
+  };
+
+  const getQuotationDraftBestValueIndex = () => {
+    const valid = qSuppliers
+      .map((supplier, index) => ({ supplier, index, total: getQuotationDraftTotal(supplier), prazo: Number(supplier.prazo_entrega_dias) || 0 }))
+      .filter(({ supplier }) => supplier.fornecedor_id > 0);
+
+    if (valid.length === 0) return -1;
+
+    const totals = valid.map((item) => item.total);
+    const deadlines = valid.map((item) => item.prazo);
+    const minTotal = Math.min(...totals);
+    const maxTotal = Math.max(...totals);
+    const minDeadline = Math.min(...deadlines);
+    const maxDeadline = Math.max(...deadlines);
+
+    const scored = valid.map((item) => {
+      const priceScore = maxTotal === minTotal ? 1 : 1 - ((item.total - minTotal) / (maxTotal - minTotal));
+      const deadlineScore = maxDeadline === minDeadline ? 1 : 1 - ((item.prazo - minDeadline) / (maxDeadline - minDeadline));
+      const finalScore = (priceScore * 0.7) + (deadlineScore * 0.3);
+      return { index: item.index, score: finalScore };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0]?.index ?? -1;
+  };
+
+  const getQuotationCheapestSupplierId = (quotation: PurchaseQuotation) => {
+    if (!quotation.suppliers.length) return null;
+    return quotation.suppliers.reduce((best, current) => (
+      current.valor_total < best.valor_total ? current : best
+    )).id;
+  };
+
+  const getQuotationFastestSupplierId = (quotation: PurchaseQuotation) => {
+    const valid = quotation.suppliers.filter((supplier) => supplier.prazo_entrega_dias >= 0);
+    if (!valid.length) return null;
+    return valid.reduce((best, current) => (
+      current.prazo_entrega_dias < best.prazo_entrega_dias ? current : best
+    )).id;
+  };
+
+  const getQuotationBestValueSupplierId = (quotation: PurchaseQuotation) => {
+    if (!quotation.suppliers.length) return null;
+    const totals = quotation.suppliers.map((supplier) => supplier.valor_total || 0);
+    const deadlines = quotation.suppliers.map((supplier) => supplier.prazo_entrega_dias || 0);
+    const minTotal = Math.min(...totals);
+    const maxTotal = Math.max(...totals);
+    const minDeadline = Math.min(...deadlines);
+    const maxDeadline = Math.max(...deadlines);
+
+    const scored = quotation.suppliers.map((supplier) => {
+      const priceScore = maxTotal === minTotal ? 1 : 1 - (((supplier.valor_total || 0) - minTotal) / (maxTotal - minTotal));
+      const deadlineScore = maxDeadline === minDeadline ? 1 : 1 - (((supplier.prazo_entrega_dias || 0) - minDeadline) / (maxDeadline - minDeadline));
+      return {
+        id: supplier.id,
+        score: (priceScore * 0.7) + (deadlineScore * 0.3),
+      };
+    }).sort((a, b) => b.score - a.score);
+
+    return scored[0]?.id ?? null;
+  };
+
+  const getQuotationWinnerReason = (quotation: PurchaseQuotation, supplierId: number) => {
+    const cheapestId = getQuotationCheapestSupplierId(quotation);
+    const fastestId = getQuotationFastestSupplierId(quotation);
+    const bestValueId = getQuotationBestValueSupplierId(quotation);
+    const reasons: string[] = [];
+
+    if (supplierId === cheapestId) reasons.push('menor preço total');
+    if (supplierId === fastestId) reasons.push('menor prazo de entrega');
+    if (supplierId === bestValueId) reasons.push('melhor custo-benefício');
+
+    if (reasons.length === 0) return 'seleção manual';
+    if (reasons.length === 1) return reasons[0];
+    return `${reasons.slice(0, -1).join(', ')} e ${reasons[reasons.length - 1]}`;
+  };
+
+  const getWinnerSupplier = (quotation: PurchaseQuotation) => quotation.suppliers.find((supplier) => supplier.escolhido);
+
+  const getOrderForQuotation = (quotationId: number) => orders.find((order) => order.quotation_id === quotationId);
+
+  const getQuotationEstimatedTotal = (quotation: PurchaseQuotation) => Number(quotation.request?.valor_estimado_total) || 0;
+
+  const getQuotationClosedTotal = (quotation: PurchaseQuotation) => {
+    const order = getOrderForQuotation(quotation.id);
+    if (order) return Number(order.valor_total) || 0;
+    return Number(getWinnerSupplier(quotation)?.valor_total) || 0;
+  };
+
+  const getQuotationSavings = (quotation: PurchaseQuotation) => getQuotationEstimatedTotal(quotation) - getQuotationClosedTotal(quotation);
+
+  const getQuotationSavingsPercent = (quotation: PurchaseQuotation) => {
+    const estimated = getQuotationEstimatedTotal(quotation);
+    if (estimated <= 0) return 0;
+    return (getQuotationSavings(quotation) / estimated) * 100;
+  };
+
+  const getQuotationRiskFlags = (quotation: PurchaseQuotation) => {
+    const winner = getWinnerSupplier(quotation);
+    if (!winner) return [];
+
+    const risks: { label: string; tone: 'red' | 'amber'; message: string }[] = [];
+    const savings = getQuotationSavings(quotation);
+    const deadline = Number(winner.prazo_entrega_dias) || 0;
+
+    if (savings < 0) {
+      risks.push({
+        label: 'Acima do estimado',
+        tone: 'red',
+        message: `Fechamento ${fmt(Math.abs(savings))} acima do valor previsto na solicitação.`,
+      });
+    }
+
+    if (deadline >= 15) {
+      risks.push({
+        label: 'Prazo alto',
+        tone: 'amber',
+        message: `Fornecedor vencedor com prazo de ${deadline} dia(s), acima do padrão ideal de atendimento rápido.`,
+      });
+    }
+
+    return risks;
+  };
+
+  const fmtDateTime = (value?: string) => {
+    if (!value) return '—';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString('pt-BR');
+  };
+
   const openQuotationModal = (req: PurchaseRequest) => {
     setQRequestId(req.id);
-    setQSuppliers(req.itens.map((it) => ({
-      fornecedor_id: it.fornecedor_sugerido_id ?? 0,
-      frete: 0,
-      prazo_entrega_dias: 0,
-      itens: [{ product_id: it.product_id, quantidade: it.quantidade, valor_unitario: it.valor_estimado }],
-    })));
+    const suggestedSupplierIds = Array.from(
+      new Set(req.itens.map((it) => it.fornecedor_sugerido_id).filter((id): id is number => Boolean(id))),
+    );
+    setQSuppliers(
+      suggestedSupplierIds.length > 0
+        ? suggestedSupplierIds.map((supplierId) => buildQuotationSupplierDraft(req, supplierId))
+        : [buildQuotationSupplierDraft(req)],
+    );
     setQuotModal(true);
   };
 
   const submitQuotation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!qRequestId) return;
+    const normalizedSuppliers = qSuppliers.filter((s) => s.fornecedor_id && s.itens.some((it) => it.product_id && it.quantidade > 0));
+    const uniqueSuppliers = new Set(normalizedSuppliers.map((s) => s.fornecedor_id));
+    if (normalizedSuppliers.length === 0) {
+      showError({ response: { data: { error: 'Adicione ao menos um fornecedor com itens válidos para a cotação.' } } });
+      return;
+    }
+    if (uniqueSuppliers.size !== normalizedSuppliers.length) {
+      showError({ response: { data: { error: 'Não é permitido repetir o mesmo fornecedor na mesma cotação.' } } });
+      return;
+    }
     try {
       await procurementApi.createQuotation(
         qRequestId,
-        qSuppliers.filter((s) => s.fornecedor_id && s.itens.length > 0),
+        normalizedSuppliers,
       );
       setQuotModal(false);
       setQRequestId(null);
+      setQSuppliers([]);
       fetchAll();
     } catch (err) {
       showError(err);
@@ -449,9 +617,23 @@ export const ProcurementPage: React.FC = () => {
   };
 
   const selectWinner = async (quotationId: number, supplierId: number) => {
-    if (!window.confirm('Confirmar este fornecedor como vencedor e emitir o Pedido de Compra?')) return;
+    const quotation = quotations.find((item) => item.id === quotationId);
+    const supplier = quotation?.suppliers.find((item) => item.id === supplierId);
+    const supplierName = supplier?.fornecedor?.nome ?? `#${supplier?.fornecedor_id ?? supplierId}`;
+    const justification = quotation ? getQuotationWinnerReason(quotation, supplierId) : 'seleção manual';
+    const confirmMessage = [
+      `Confirmar ${supplierName} como vencedor desta cotação?`,
+      '',
+      `Motivo identificado: ${justification}.`,
+      supplier ? `Valor total: ${fmt(supplier.valor_total)}.` : '',
+      supplier ? `Prazo: ${supplier.prazo_entrega_dias} dia(s).` : '',
+      '',
+      'Ao confirmar, o Pedido de Compra será emitido automaticamente.',
+    ].filter(Boolean).join('\n');
+    if (!window.confirm(confirmMessage)) return;
     try {
       await procurementApi.selectWinner(quotationId, supplierId);
+      setGlobalMessage(`Fornecedor ${supplierName} selecionado como vencedor por ${justification}. Pedido de compra emitido automaticamente.`);
       fetchAll();
     } catch (err) {
       showError(err);
@@ -861,7 +1043,7 @@ export const ProcurementPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="p-4 text-right whitespace-nowrap">
-                      {manage && r.status === 'Pendente' && (
+                      {manage && ['Pendente', 'Em aprovação'].includes(r.status) && (
                         <>
                           <button onClick={() => decideRequest(r, 'Aprovado')} className="text-green-400 border border-green-500/30 px-2.5 py-1.5 font-mono text-xs uppercase mr-2 hover:bg-green-500/10">
                             <CheckCircle2 size={12} className="inline mr-1" /> Aprovar
@@ -876,7 +1058,7 @@ export const ProcurementPage: React.FC = () => {
                           <ClipboardList size={12} className="inline mr-1" /> Liberar Orçamento
                         </button>
                       )}
-                      {manage && ['Pendente', 'Em aprovação'].includes(r.status) && (
+                      {manage && r.status === 'Aprovada' && (
                         <button onClick={() => openQuotationModal(r)} className="text-brand-primary border border-brand-primary/30 px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-brand-primary/10">
                           <Gavel size={12} className="inline mr-1" /> Cotar
                         </button>
@@ -914,21 +1096,147 @@ export const ProcurementPage: React.FC = () => {
                   <td className="p-4 text-brand-text">{q.status}</td>
                   <td className="p-4">
                     <div className="space-y-1">
-                      {q.suppliers.map((s) => (
-                        <div key={s.id} className="flex items-center space-x-2 text-xs">
-                          <span className="text-brand-text">{s.fornecedor?.nome ?? `#${s.fornecedor_id}`}</span>
-                          <span className="font-mono text-brand-muted">{fmt(s.valor_total)}</span>
-                          {s.escolhido && <span className="text-green-400 font-mono uppercase">Vencedor</span>}
-                        </div>
-                      ))}
+                      {q.suppliers.map((s) => {
+                        const isCheapest = s.id === getQuotationCheapestSupplierId(q);
+                        const isFastest = s.id === getQuotationFastestSupplierId(q);
+                        const isBestValue = s.id === getQuotationBestValueSupplierId(q);
+                        return (
+                          <div key={s.id} className="rounded-xl border border-brand-border/40 bg-brand-dark/10 p-2 text-xs space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-brand-text">{s.fornecedor?.nome ?? `#${s.fornecedor_id}`}</span>
+                              <span className="font-mono text-brand-muted">{fmt(s.valor_total)}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {isCheapest && <span className="rounded-full border border-cyan-400/40 bg-cyan-500/15 px-2 py-0.5 font-mono uppercase text-[#1079ea]">Menor preço</span>}
+                              {isFastest && <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2 py-0.5 font-mono uppercase text-[#d98a30]">Menor prazo</span>}
+                              {isBestValue && <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 font-mono uppercase text-[#63a83e]">Melhor custo-benefício</span>}
+                              {s.escolhido && <span className="rounded-full border border-green-400/40 bg-green-500/15 px-2 py-0.5 font-mono uppercase text-[#439d52]">Vencedor</span>}
+                            </div>
+                            <div className="text-brand-muted">
+                              Prazo: {s.prazo_entrega_dias} dia(s) · Motivo sugerido: {getQuotationWinnerReason(q, s.id)}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
+                    {getWinnerSupplier(q) && (
+                      <div className="mt-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-mono uppercase text-[#4c9532]">
+                            Decisão registrada
+                          </span>
+                          <span className="text-xs text-brand-text">
+                            Vencedor: <span className="font-semibold">{getWinnerSupplier(q)?.fornecedor?.nome ?? `#${getWinnerSupplier(q)?.fornecedor_id}`}</span>
+                          </span>
+                        </div>
+                        <div className="text-xs text-brand-muted">
+                          Critério de escolha identificado: {getQuotationWinnerReason(q, getWinnerSupplier(q)!.id)}.
+                        </div>
+                        {getQuotationRiskFlags(q).length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {getQuotationRiskFlags(q).map((risk) => (
+                              <span
+                                key={`${q.id}-${risk.label}`}
+                                className={`rounded-full border px-2 py-1 text-[10px] font-mono uppercase ${
+                                  risk.tone === 'red'
+                                    ? 'border-red-400/40 bg-red-500/15 text-[#9c4444]'
+                                    : 'border-amber-400/40 bg-amber-500/15 text-amber-200'
+                                }`}
+                                title={risk.message}
+                              >
+                                {risk.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="grid gap-2 md:grid-cols-5 text-xs">
+                          <div className="rounded-xl border border-brand-border/50 bg-brand-dark/15 px-3 py-2">
+                            <div className="text-[10px] font-mono uppercase tracking-wider text-brand-muted">Estimado</div>
+                            <div className="mt-1 font-mono text-brand-text">{fmt(getQuotationEstimatedTotal(q))}</div>
+                          </div>
+                          <div className="rounded-xl border border-brand-border/50 bg-brand-dark/15 px-3 py-2">
+                            <div className="text-[10px] font-mono uppercase tracking-wider text-brand-muted">Valor vencedor</div>
+                            <div className="mt-1 font-mono text-brand-text">{fmt(getWinnerSupplier(q)!.valor_total || 0)}</div>
+                          </div>
+                          <div className="rounded-xl border border-brand-border/50 bg-brand-dark/15 px-3 py-2">
+                            <div className="text-[10px] font-mono uppercase tracking-wider text-brand-muted">Prazo vencedor</div>
+                            <div className="mt-1 font-mono text-brand-text">{getWinnerSupplier(q)!.prazo_entrega_dias} dia(s)</div>
+                          </div>
+                          <div className="rounded-xl border border-brand-border/50 bg-brand-dark/15 px-3 py-2">
+                            <div className="text-[10px] font-mono uppercase tracking-wider text-brand-muted">Pedido gerado</div>
+                            <div className="mt-1 font-mono text-brand-text">{getOrderForQuotation(q.id)?.numero ?? 'Em processamento'}</div>
+                          </div>
+                          <div className={`rounded-xl border px-3 py-2 ${
+                            getQuotationSavings(q) >= 0
+                              ? 'border-green-400/30 bg-green-500/10'
+                              : 'border-red-400/30 bg-red-500/10'
+                          }`}>
+                            <div className="text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                              {getQuotationSavings(q) >= 0 ? 'Economia' : 'Acima do estimado'}
+                            </div>
+                            <div className={`mt-1 font-mono ${getQuotationSavings(q) >= 0 ? 'text-green-200' : 'text-[#b91d1d]'}`}>
+                              {fmt(Math.abs(getQuotationSavings(q)))}
+                            </div>
+                            <div className="mt-1 text-[11px] text-brand-muted">
+                              {Math.abs(getQuotationSavingsPercent(q)).toFixed(1)}%
+                            </div>
+                          </div>
+                        </div>
+                        {getOrderForQuotation(q.id) && (
+                          <div className="rounded-xl border border-brand-border/50 bg-brand-dark/15 px-3 py-2 text-xs text-brand-muted">
+                            Pedido <span className="font-mono text-brand-text">{getOrderForQuotation(q.id)?.numero}</span> emitido em{' '}
+                            <span className="font-mono text-brand-text">{fmtDateTime(getOrderForQuotation(q.id)?.data_emissao)}</span>
+                            {' '}no valor de <span className="font-mono text-brand-text">{fmt(getOrderForQuotation(q.id)?.valor_total || 0)}</span>.
+                          </div>
+                        )}
+                        <div className={`rounded-xl border px-3 py-2 text-xs ${
+                          getQuotationSavings(q) >= 0
+                            ? 'border-green-400/30 bg-green-500/10 text-green-100'
+                            : 'border-red-400/30 bg-red-500/10 text-[#c84646]'
+                        }`}>
+                          {getQuotationSavings(q) >= 0
+                            ? `A decisão desta cotação gerou economia de ${fmt(Math.abs(getQuotationSavings(q)))} em relação ao valor estimado da solicitação.`
+                            : `A decisão desta cotação ficou ${fmt(Math.abs(getQuotationSavings(q)))} acima do valor estimado da solicitação.`}
+                        </div>
+                        {getQuotationRiskFlags(q).map((risk) => (
+                          <div
+                            key={`${q.id}-risk-message-${risk.label}`}
+                            className={`rounded-xl border px-3 py-2 text-xs ${
+                              risk.tone === 'red'
+                                ? 'border-red-400/30 bg-red-500/10 text-[#c84646]'
+                                : 'border-amber-400/30 bg-amber-500/10 text-amber-100'
+                            }`}
+                          >
+                            {risk.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="p-4 text-right whitespace-nowrap">
-                    {manage && q.status === 'Em cotação' && q.suppliers.map((s) => (
-                      <button key={s.id} onClick={() => selectWinner(q.id, s.id)} className="text-brand-primary border border-brand-primary/30 px-2.5 py-1.5 font-mono text-xs uppercase mr-2 hover:bg-brand-primary/10">
-                        <ArrowRightCircle size={12} className="inline mr-1" /> Escolher
-                      </button>
-                    ))}
+                    {manage && q.status === 'Em cotação' && (
+                      <div className="flex flex-col items-end gap-2">
+                        {q.suppliers.map((s) => {
+                          const reason = getQuotationWinnerReason(q, s.id);
+                          const recommended = s.id === getQuotationBestValueSupplierId(q);
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={() => selectWinner(q.id, s.id)}
+                              className={`px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-brand-primary/10 border ${
+                                recommended
+                                  ? 'text-[#43a85c] border-emerald-400/40 bg-emerald-500/10'
+                                  : 'text-brand-primary border-brand-primary/30'
+                              }`}
+                              title={`Escolher ${s.fornecedor?.nome ?? `#${s.fornecedor_id}`} por ${reason}`}
+                            >
+                              <ArrowRightCircle size={12} className="inline mr-1" />
+                              {recommended ? 'Escolher recomendado' : 'Escolher'}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -1513,28 +1821,284 @@ export const ProcurementPage: React.FC = () => {
       {/* ---------- QUOTATION MODAL ---------- */}
       {quotModal && (
         <div className="fixed inset-0 bg-brand-dark/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl border border-brand-border bg-brand-card p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-6xl border border-brand-border bg-brand-card p-6 space-y-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-brand-border pb-4">
               <h3 className="text-lg font-bold font-mono uppercase tracking-wider text-brand-text">Nova Cotação</h3>
               <button onClick={() => setQuotModal(false)} className="text-brand-muted hover:text-brand-text"><X size={20} /></button>
             </div>
             <form onSubmit={submitQuotation} className="space-y-4">
+              {qRequestId && (() => {
+                const request = requests.find((req) => req.id === qRequestId);
+                if (!request) return null;
+                const cheapestIndex = qSuppliers.length > 0
+                  ? qSuppliers.reduce((bestIdx, supplier, currentIdx) => (
+                    getQuotationDraftTotal(supplier) < getQuotationDraftTotal(qSuppliers[bestIdx]) ? currentIdx : bestIdx
+                  ), 0)
+                  : -1;
+                const fastestIndex = qSuppliers.length > 0
+                  ? qSuppliers.reduce((bestIdx, supplier, currentIdx) => (
+                    (Number(supplier.prazo_entrega_dias) || 0) < (Number(qSuppliers[bestIdx].prazo_entrega_dias) || 0) ? currentIdx : bestIdx
+                  ), 0)
+                  : -1;
+                const bestValueIndex = getQuotationDraftBestValueIndex();
+                return (
+                  <div className="rounded-2xl border border-brand-border/70 bg-brand-dark/20 p-4 space-y-3">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-brand-muted">Solicitação base</div>
+                        <div className="text-sm font-semibold text-brand-text">{request.numero}</div>
+                      </div>
+                      <div className="text-xs text-brand-muted">
+                        Os fornecedores abaixo irão cotar os mesmos itens desta solicitação.
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {request.itens.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between rounded-xl border border-brand-border/50 bg-brand-card/30 px-3 py-2 text-xs">
+                          <div>
+                            <div className="font-medium text-brand-text">{item.product?.nome ?? `Produto #${item.product_id}`}</div>
+                            {item.fornecedor_sugerido?.nome && (
+                              <div className="mt-1 text-brand-muted">Fornecedor sugerido: {item.fornecedor_sugerido.nome}</div>
+                            )}
+                          </div>
+                          <div className="text-right font-mono text-brand-muted">
+                            <div>Qtd. {item.quantidade}</div>
+                            <div>Estimado {fmt(item.valor_estimado)}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {qSuppliers.length > 0 && (
+                      <div className="space-y-3 border-t border-brand-border/50 pt-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-brand-muted">Comparativo rápido da cotação</div>
+                          <div className="text-[11px] text-brand-muted">Regra usada no custo-benefício: 70% preço e 30% prazo.</div>
+                        </div>
+                        <div className="grid gap-3 lg:grid-cols-3">
+                          {qSuppliers.map((supplier, supplierIdx) => {
+                            const supplierName = suppliers.find((item) => item.id === supplier.fornecedor_id)?.nome || `Fornecedor ${supplierIdx + 1}`;
+                            const total = getQuotationDraftTotal(supplier);
+                            const averageUnit = getQuotationDraftUnitAverage(supplier);
+                            const isCheapest = supplier.fornecedor_id > 0 && supplierIdx === cheapestIndex;
+                            const isFastest = supplier.fornecedor_id > 0 && supplierIdx === fastestIndex;
+                            const isBestValue = supplier.fornecedor_id > 0 && supplierIdx === bestValueIndex;
+                            return (
+                              <div
+                                key={`comparison-${supplierIdx}`}
+                                className={`rounded-2xl border p-3 space-y-3 ${
+                                  isBestValue
+                                    ? 'border-emerald-400/60 bg-emerald-500/10'
+                                    : isCheapest
+                                      ? 'border-cyan-400/50 bg-cyan-500/10'
+                                      : isFastest
+                                        ? 'border-amber-400/50 bg-amber-500/10'
+                                        : 'border-brand-border/60 bg-brand-card/30'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <div className="text-sm font-semibold text-brand-text">{supplierName}</div>
+                                    <div className="text-[11px] text-brand-muted">
+                                      {supplier.fornecedor_id ? 'Proposta em comparação' : 'Selecione um fornecedor para comparar'}
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-wrap justify-end gap-1">
+                                    {isCheapest && <span className="rounded-full border border-cyan-400/40 bg-cyan-500/15 px-2 py-1 text-[10px] font-mono uppercase text-[#1079ea]">Menor preço</span>}
+                                    {isFastest && <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2 py-1 text-[10px] font-mono uppercase text-[#d98a30]">Menor prazo</span>}
+                                    {isBestValue && <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-1 text-[10px] font-mono uppercase text-[#63a83e]">Melhor custo-benefício</span>}
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="rounded-xl border border-brand-border/50 bg-brand-dark/15 px-3 py-2">
+                                    <div className="text-[10px] font-mono uppercase tracking-wider text-brand-muted">Total</div>
+                                    <div className="mt-1 font-mono text-brand-text">{fmt(total)}</div>
+                                  </div>
+                                  <div className="rounded-xl border border-brand-border/50 bg-brand-dark/15 px-3 py-2">
+                                    <div className="text-[10px] font-mono uppercase tracking-wider text-brand-muted">Prazo</div>
+                                    <div className="mt-1 font-mono text-brand-text">{Number(supplier.prazo_entrega_dias) || 0} dia(s)</div>
+                                  </div>
+                                  <div className="rounded-xl border border-brand-border/50 bg-brand-dark/15 px-3 py-2">
+                                    <div className="text-[10px] font-mono uppercase tracking-wider text-brand-muted">Frete</div>
+                                    <div className="mt-1 font-mono text-brand-text">{fmt(Number(supplier.frete) || 0)}</div>
+                                  </div>
+                                  <div className="rounded-xl border border-brand-border/50 bg-brand-dark/15 px-3 py-2">
+                                    <div className="text-[10px] font-mono uppercase tracking-wider text-brand-muted">Média unitária</div>
+                                    <div className="mt-1 font-mono text-brand-text">{fmt(averageUnit)}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="space-y-3 border-t border-brand-border/50 pt-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-brand-muted">Mapa comparativo por item</div>
+                            <div className="text-[11px] text-brand-muted">Aqui fica fácil ver quem ganhou em cada produto e no total.</div>
+                          </div>
+                          <div className="overflow-x-auto rounded-2xl border border-brand-border/60">
+                            <table className="min-w-full text-left text-xs">
+                              <thead className="bg-brand-dark/30">
+                                <tr className="border-b border-brand-border/60">
+                                  <th className="p-3 font-mono uppercase tracking-wider text-brand-muted">Item</th>
+                                  <th className="p-3 font-mono uppercase tracking-wider text-brand-muted">Qtd.</th>
+                                  <th className="p-3 font-mono uppercase tracking-wider text-brand-muted">Estimado</th>
+                                  {qSuppliers.map((supplier, supplierIdx) => {
+                                    const supplierName = suppliers.find((item) => item.id === supplier.fornecedor_id)?.nome || `Fornecedor ${supplierIdx + 1}`;
+                                    return (
+                                      <th key={`matrix-head-${supplierIdx}`} className="p-3 font-mono uppercase tracking-wider text-brand-muted min-w-[220px]">
+                                        {supplierName}
+                                      </th>
+                                    );
+                                  })}
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-brand-border/50">
+                                {request.itens.map((requestItem) => {
+                                  const quotedValues = qSuppliers.map((supplier) => {
+                                    const quotedItem = supplier.itens.find((item) => item.product_id === requestItem.product_id);
+                                    return Number(quotedItem?.valor_unitario) || 0;
+                                  }).filter((value) => value > 0);
+                                  const lowestQuotedValue = quotedValues.length > 0 ? Math.min(...quotedValues) : 0;
+
+                                  return (
+                                    <tr key={`matrix-row-${requestItem.id}`} className="bg-brand-card/10">
+                                      <td className="p-3">
+                                        <div className="font-medium text-brand-text">{requestItem.product?.nome ?? `Produto #${requestItem.product_id}`}</div>
+                                      </td>
+                                      <td className="p-3 font-mono text-brand-text">{requestItem.quantidade}</td>
+                                      <td className="p-3 font-mono text-brand-text">{fmt(requestItem.valor_estimado)}</td>
+                                      {qSuppliers.map((supplier, supplierIdx) => {
+                                        const quotedItem = supplier.itens.find((item) => item.product_id === requestItem.product_id);
+                                        const quotedValue = Number(quotedItem?.valor_unitario) || 0;
+                                        const totalItem = quotedValue * (Number(quotedItem?.quantidade) || 0);
+                                        const isBestItemValue = quotedValue > 0 && lowestQuotedValue > 0 && quotedValue === lowestQuotedValue;
+                                        return (
+                                          <td
+                                            key={`matrix-cell-${requestItem.id}-${supplierIdx}`}
+                                            className={`p-3 align-top ${
+                                              isBestItemValue ? 'bg-emerald-500/10' : ''
+                                            }`}
+                                          >
+                                            <div className="space-y-1">
+                                              <div className="font-mono text-brand-text">{fmt(quotedValue)}</div>
+                                              <div className="text-brand-muted">Total item: {fmt(totalItem)}</div>
+                                              {isBestItemValue && (
+                                                <span className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-mono uppercase text-emerald-200">
+                                                  Melhor item
+                                                </span>
+                                              )}
+                                            </div>
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  );
+                                })}
+                                <tr className="bg-brand-dark/20">
+                                  <td className="p-3 font-mono uppercase tracking-wider text-brand-muted">Resumo final</td>
+                                  <td className="p-3" />
+                                  <td className="p-3 font-mono text-brand-muted">Base da solicitação</td>
+                                  {qSuppliers.map((supplier, supplierIdx) => {
+                                    const total = getQuotationDraftTotal(supplier);
+                                    const isCheapest = supplier.fornecedor_id > 0 && supplierIdx === cheapestIndex;
+                                    const isFastest = supplier.fornecedor_id > 0 && supplierIdx === fastestIndex;
+                                    const isBestValue = supplier.fornecedor_id > 0 && supplierIdx === bestValueIndex;
+                                    return (
+                                      <td key={`matrix-summary-${supplierIdx}`} className="p-3 align-top">
+                                        <div className="space-y-1">
+                                          <div className="font-mono text-brand-text">Total: {fmt(total)}</div>
+                                          <div className="font-mono text-brand-muted">Prazo: {Number(supplier.prazo_entrega_dias) || 0} dia(s)</div>
+                                          <div className="flex flex-wrap gap-1 pt-1">
+                                            {isCheapest && <span className="rounded-full border border-cyan-400/40 bg-cyan-500/15 px-2 py-0.5 text-[10px] font-mono uppercase text-[#1079ea]">Menor preço</span>}
+                                            {isFastest && <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-mono uppercase text-[#d98a30]">Menor prazo</span>}
+                                            {isBestValue && <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-mono uppercase text-[#63a83e]">Melhor custo-benefício</span>}
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-mono uppercase tracking-wider text-brand-muted">Fornecedores cotados</span>
-                  <button type="button" onClick={() => setQSuppliers([...qSuppliers, { fornecedor_id: 0, frete: 0, prazo_entrega_dias: 0, itens: [] }])} className="text-brand-primary border border-brand-primary/30 px-2 py-1 font-mono text-xs uppercase">+ Fornecedor</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const request = requests.find((req) => req.id === qRequestId);
+                      if (!request) return;
+                      setQSuppliers([...qSuppliers, buildQuotationSupplierDraft(request)]);
+                    }}
+                    className="text-brand-primary border border-brand-primary/30 px-2 py-1 font-mono text-xs uppercase"
+                  >
+                    + Fornecedor
+                  </button>
                 </div>
                 {qSuppliers.map((s, idx) => (
-                  <div key={idx} className="border border-brand-border p-3 space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
-                      <select value={s.fornecedor_id} onChange={(e) => { const n = [...qSuppliers]; n[idx].fornecedor_id = Number(e.target.value); setQSuppliers(n); }} className="col-span-1 bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none">
-                        <option value={0}>Fornecedor...</option>
-                        {suppliers.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                      </select>
-                      <input type="number" step="0.01" placeholder="Frete" value={s.frete} onChange={(e) => { const n = [...qSuppliers]; n[idx].frete = Number(e.target.value); setQSuppliers(n); }} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
-                      <input type="number" placeholder="Prazo (dias)" value={s.prazo_entrega_dias} onChange={(e) => { const n = [...qSuppliers]; n[idx].prazo_entrega_dias = Number(e.target.value); setQSuppliers(n); }} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                  <div key={idx} className="rounded-2xl border border-brand-border p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-mono uppercase tracking-wider text-brand-muted">Proposta do fornecedor {idx + 1}</div>
+                      {qSuppliers.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setQSuppliers(qSuppliers.filter((_, supplierIdx) => supplierIdx !== idx))}
+                          className="text-red-300 border border-red-400/30 px-2 py-1 font-mono text-[10px] uppercase"
+                        >
+                          Remover
+                        </button>
+                      )}
                     </div>
-                    <button type="button" onClick={() => { const n = [...qSuppliers]; n[idx].itens.push({ product_id: 0, quantidade: 1, valor_unitario: 0 }); setQSuppliers(n); }} className="text-brand-primary border border-brand-primary/30 px-2 py-1 font-mono text-xs uppercase">+ Item</button>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                          Fornecedor
+                        </label>
+                        <select
+                          value={s.fornecedor_id}
+                          onChange={(e) => {
+                            const n = [...qSuppliers];
+                            n[idx].fornecedor_id = Number(e.target.value);
+                            setQSuppliers(n);
+                          }}
+                          className="col-span-1 w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
+                        >
+                          <option value={0}>Selecione...</option>
+                          {suppliers.map((f) => (
+                            <option
+                              key={f.id}
+                              value={f.id}
+                              disabled={qSuppliers.some((supplier, supplierIdx) => supplierIdx !== idx && supplier.fornecedor_id === f.id)}
+                            >
+                              {f.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                          Frete
+                        </label>
+                        <input type="number" step="0.01" placeholder="0,00" value={s.frete} onChange={(e) => { const n = [...qSuppliers]; n[idx].frete = Number(e.target.value); setQSuppliers(n); }} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                          Prazo de entrega
+                        </label>
+                        <input type="number" placeholder="Dias" value={s.prazo_entrega_dias} onChange={(e) => { const n = [...qSuppliers]; n[idx].prazo_entrega_dias = Number(e.target.value); setQSuppliers(n); }} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none font-mono" />
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-brand-border/50 bg-brand-dark/10 px-3 py-2 text-[11px] text-brand-muted">
+                      Cada fornecedor informa preço para os mesmos itens da solicitação. A quantidade já vem preenchida para manter o comparativo justo.
+                    </div>
                     {s.itens.map((it, iIdx) => (
                       <div key={iIdx} className="rounded-xl border border-brand-border/70 bg-brand-card/40 p-3">
                         <div className="grid gap-2 md:grid-cols-3">

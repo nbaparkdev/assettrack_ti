@@ -49,7 +49,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <Header />
         <main className="app-content flex-1 overflow-y-auto p-6 lg:p-8">
           {children}
-          <footer className="mt-10 border-t border-white/25 pt-4 pb-1 text-center text-xs text-[#172b4d]/60">
+          <footer className="mt-10 border-t border-white/25 pt-4 pb-1 text-center text-sm text-[#172b4d]/60">
             © {new Date().getFullYear()} AssetTrack TI. Todos os direitos reservados.
           </footer>
         </main>

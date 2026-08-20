@@ -1,10 +1,22 @@
 import axios from 'axios';
 
 const getApiBaseUrl = () => {
-  // Always use the browser's hostname to connect to the API on port 8080
-  // This allows access from other devices on the local network (e.g., 10.100.110.155)
+  // Check if there is a custom API URL configured (useful for mobile local testing)
+  const customUrl = typeof window !== 'undefined' ? localStorage.getItem('custom_api_url') : null;
+  if (customUrl) {
+    return customUrl;
+  }
+
   const { hostname, protocol } = window.location;
-  return `${protocol}//${hostname}:8080/api/v1`;
+  
+  // If running inside Capacitor (localhost), fall back to the development server IP on the Wi-Fi network
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
+    return 'http://10.100.110.155:8080/api/v1';
+  }
+  
+  // Ensure we use http/https protocol for requests (Capacitor uses custom protocols like capacitor://)
+  const apiProtocol = protocol.startsWith('http') ? protocol : 'http:';
+  return `${apiProtocol}//${hostname}:8080/api/v1`;
 };
 
 export const API_BASE_URL = getApiBaseUrl();

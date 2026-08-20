@@ -252,7 +252,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
                   placeholder="Ex: Notebook sem vídeo antes de reunião importante, falha crítica no sistema de vendas..."
                   value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}
-                  className="w-full bg-brand-dark border border-brand-border p-3 text-xs font-mono text-brand-text focus:outline-none focus:border-red-500 transition-colors"
+                  className="w-full bg-brand-dark border border-brand-border p-3 text-xs font-mono text-white focus:outline-none focus:border-red-500 transition-colors"
                 />
               </div>
 
@@ -260,7 +260,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowTriggerModal(false)}
-                  className="w-1/3 py-2.5 bg-brand-dark border border-brand-border text-xs font-mono uppercase tracking-wider text-brand-muted hover:text-brand-text transition-colors"
+                  className="w-1/3 py-2.5 bg-brand-dark border border-brand-border text-xs font-mono uppercase tracking-wider text-white hover:text-white transition-colors"
                 >
                   Cancelar
                 </button>

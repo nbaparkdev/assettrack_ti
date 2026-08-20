@@ -215,4 +215,18 @@ export const assetsApi = {
     const token = localStorage.getItem('token');
     return `${API_BASE_URL}/assets/${id}/qrcode?token=${token || ''}`;
   },
+
+  downloadQRCode: async (id: number, ePatrimonio: string): Promise<void> => {
+    const response = await apiClient.get<Blob>(`/assets/${id}/qrcode`, {
+      responseType: 'blob',
+    });
+    const blobUrl = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `qrcode_${ePatrimonio}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(blobUrl);
+  },
 };
