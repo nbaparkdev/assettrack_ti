@@ -691,6 +691,11 @@ func (h *AssetHandler) Update(c *gin.Context) {
 	}
 
 	oldStatus := asset.Status
+	var oldUserID *uint
+	if asset.CurrentUserID != nil {
+		uid := *asset.CurrentUserID
+		oldUserID = &uid
+	}
 
 	// Bind update payload into existing struct
 	if err := c.ShouldBindJSON(asset); err != nil {
@@ -742,6 +747,43 @@ func (h *AssetHandler) Update(c *gin.Context) {
 				"status":         models.StatusManutencaoConcluida,
 				"data_conclusao": &now,
 			})
+	}
+
+	// Handle User Transfer (Emprestimo Implícito)
+	if asset.CurrentUserID != nil {
+		if oldUserID == nil || *oldUserID != *asset.CurrentUserID {
+			var adminIDPtr *uint
+			if val, exists := c.Get("user_id"); exists {
+				uid := val.(uint)
+				adminIDPtr = &uid
+			}
+			
+			now := time.Now()
+			sol := &models.Solicitacao{
+				SolicitanteID:         asset.CurrentUserID,
+				AssetID:               &asset.ID,
+				Motivo:                "Transferência direta via painel de ativos",
+				Status:                models.StatusSolicitacaoEntregue,
+				DataSolicitacao:       now,
+				DataAprovacao:         &now,
+				AprovadorID:           adminIDPtr,
+				DataEntrega:           &now,
+				ConfirmadoPorID:       adminIDPtr,
+			}
+			
+			_ = h.repo.DB().Create(sol).Error
+			
+			mov := &models.Movimentacao{
+				AssetID:    asset.ID,
+				Tipo:       models.TipoMovimentacaoEmprestimo,
+				DeUserID:   oldUserID,
+				ParaUserID: asset.CurrentUserID,
+				Data:       now,
+			}
+			obs := "Transferência direta registrada pelo painel"
+			mov.Observacao = &obs
+			_ = h.repo.DB().Create(mov).Error
+		}
 	}
 
 	c.JSON(http.StatusOK, asset)

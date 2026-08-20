@@ -15,10 +15,11 @@ import (
 type TransactionHandler struct {
 	repo      *repository.TransactionRepository
 	assetRepo *repository.AssetRepository
+	userRepo  *repository.UserRepository
 }
 
-func NewTransactionHandler(repo *repository.TransactionRepository, assetRepo *repository.AssetRepository) *TransactionHandler {
-	return &TransactionHandler{repo: repo, assetRepo: assetRepo}
+func NewTransactionHandler(repo *repository.TransactionRepository, assetRepo *repository.AssetRepository, userRepo *repository.UserRepository) *TransactionHandler {
+	return &TransactionHandler{repo: repo, assetRepo: assetRepo, userRepo: userRepo}
 }
 
 func canProcessBorrowingReturn(role string) bool {
@@ -190,6 +191,118 @@ func (h *TransactionHandler) RejectSolicitacao(c *gin.Context) {
 	c.JSON(http.StatusOK, sol)
 }
 
+func (h *TransactionHandler) TransferirAsset(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil || !isStaff(user.Role) {
+		c.JSON(http.StatusForbidden, gin.H{"detail": "Apenas administradores, gerentes e técnicos podem transferir ativos."})
+		return
+	}
+
+	assetIDStr := c.Param("asset_id")
+	assetID, err := strconv.ParseUint(assetIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "ID de ativo inválido"})
+		return
+	}
+
+	var payload struct {
+		ParaUserID            uint       `json:"para_user_id" binding:"required"`
+		Motivo                string     `json:"motivo" binding:"required"`
+		DataPrevistaDevolucao *time.Time `json:"data_prevista_devolucao"`
+	}
+
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"detail": err.Error()})
+		return
+	}
+
+	payload.Motivo = strings.TrimSpace(payload.Motivo)
+	if payload.Motivo == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "O motivo da transferência é obrigatório."})
+		return
+	}
+
+	asset, err := h.assetRepo.GetByID(uint(assetID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Ativo não encontrado"})
+		return
+	}
+
+	if asset.Bloqueado {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Este ativo é fixo da empresa e não pode ser transferido."})
+		return
+	}
+
+	if asset.Status == models.AssetStatusManutencao {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Este ativo está em manutenção e não pode ser transferido no momento."})
+		return
+	}
+
+	targetUser, err := h.userRepo.GetByID(payload.ParaUserID)
+	if err != nil || targetUser == nil {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Usuário destinatário não encontrado"})
+		return
+	}
+
+	// Close existing active solicitacao if present
+	if activeSol, err := h.repo.GetActiveSolicitacaoByAssetID(uint(assetID)); err == nil && activeSol != nil {
+		now := time.Now()
+		receiverID := user.ID
+		activeSol.Status = models.StatusSolicitacaoDevolvida
+		activeSol.DataDevolucao = &now
+		activeSol.RecebidoPorID = &receiverID
+		obs := "Encerrada por re-transferência para " + targetUser.Nome
+		activeSol.ObservacoesDevolucao = &obs
+		_ = h.repo.UpdateSolicitacao(activeSol)
+	}
+
+	now := time.Now()
+	adminID := user.ID
+	sol := &models.Solicitacao{
+		SolicitanteID:         &payload.ParaUserID,
+		AssetID:               &asset.ID,
+		DataSolicitacao:       now,
+		Motivo:                payload.Motivo,
+		Status:                models.StatusSolicitacaoEntregue,
+		AprovadorID:           &adminID,
+		DataAprovacao:         &now,
+		DataEntrega:           &now,
+		ConfirmadoPorID:       &adminID,
+		DataPrevistaDevolucao: payload.DataPrevistaDevolucao,
+	}
+
+	if err := h.repo.CreateSolicitacao(sol); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Erro ao registrar transferência: " + err.Error()})
+		return
+	}
+
+	deUser := asset.CurrentUserID
+	asset.Status = models.AssetStatusEmUso
+	asset.CurrentUserID = &payload.ParaUserID
+	asset.EmPosseDe = &targetUser.Nome
+
+	if err := h.assetRepo.Update(asset); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Erro ao atualizar responsável pelo ativo: " + err.Error()})
+		return
+	}
+
+	obsMov := "Transferência direta de ativo efetuada por administrador: " + payload.Motivo
+	mov := &models.Movimentacao{
+		AssetID:    asset.ID,
+		Tipo:       models.TipoMovimentacaoTransferencia,
+		DeUserID:   deUser,
+		ParaUserID: &payload.ParaUserID,
+		Observacao: &obsMov,
+	}
+	_ = h.repo.CreateMovement(mov)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Ativo transferido com sucesso.",
+		"solicitacao": sol,
+		"asset":       asset,
+	})
+}
+
 func (h *TransactionHandler) DevolverAsset(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	if user == nil || !canProcessBorrowingReturn(user.Role) {
@@ -231,12 +344,6 @@ func (h *TransactionHandler) DevolverAsset(c *gin.Context) {
 		return
 	}
 
-	sol, err := h.repo.GetActiveSolicitacaoByAssetID(uint(assetID))
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Não existe empréstimo ativo para este equipamento"})
-		return
-	}
-
 	deUser := asset.CurrentUserID
 	now := time.Now()
 	receiverID := user.ID
@@ -248,31 +355,28 @@ func (h *TransactionHandler) DevolverAsset(c *gin.Context) {
 		legacyObservation = append(legacyObservation, "Observações adicionais: "+payload.ObservacoesAdicionais)
 	}
 	legacyObservationText := strings.Join(legacyObservation, " | ")
-	sol.Status = models.StatusSolicitacaoDevolvida
-	sol.DataDevolucao = &now
-	sol.RecebidoPorID = &receiverID
-	sol.CondicaoDevolucao = &payload.CondicaoEquipamento
-	sol.AcessoriosDevolvidos = &payload.AcessoriosDevolvidos
-	if payload.ObservacoesAdicionais != "" {
-		sol.ObservacoesDevolucao = &payload.ObservacoesAdicionais
-	} else {
-		sol.ObservacoesDevolucao = nil
-	}
-	sol.ObservacaoDevolucao = &legacyObservationText
-	if err := h.repo.UpdateSolicitacao(sol); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Erro ao encerrar solicitação de empréstimo: " + err.Error()})
-		return
+
+	// If there is an active solicitacao, close it
+	if sol, err := h.repo.GetActiveSolicitacaoByAssetID(uint(assetID)); err == nil && sol != nil {
+		sol.Status = models.StatusSolicitacaoDevolvida
+		sol.DataDevolucao = &now
+		sol.RecebidoPorID = &receiverID
+		sol.CondicaoDevolucao = &payload.CondicaoEquipamento
+		sol.AcessoriosDevolvidos = &payload.AcessoriosDevolvidos
+		if payload.ObservacoesAdicionais != "" {
+			sol.ObservacoesDevolucao = &payload.ObservacoesAdicionais
+		} else {
+			sol.ObservacoesDevolucao = nil
+		}
+		sol.ObservacaoDevolucao = &legacyObservationText
+		_ = h.repo.UpdateSolicitacao(sol)
 	}
 
-	// Reset ownership and location back to default storage/available
-	if asset.Bloqueado {
-		asset.Status = models.AssetStatusEmUso
-	} else {
-		asset.Status = models.AssetStatusDisponivel
-	}
+	// Reset ownership to available
+	asset.Status = models.AssetStatusDisponivel
 	asset.CurrentUserID = nil
-	asset.CurrentLocalID = nil
-	asset.CurrentDepartamentoID = nil
+	asset.CurrentUser = nil
+	asset.EmPosseDe = nil
 
 	if err := h.assetRepo.Update(asset); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Erro ao processar devolução do ativo: " + err.Error()})

@@ -2,11 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { dashboardApi } from '../api/dashboard';
+import { transactionApi } from '../api/transaction';
+import { maintenanceApi } from '../api/maintenance';
 import type { DashboardStats } from '../api/dashboard';
+import type { Solicitacao, SolicitacaoManutencao } from '../types';
 import { 
   LayoutDashboard, Wrench, MessageSquare, Briefcase, BellRing, FileDown,
-  AlertTriangle, Info, ShieldAlert, Cpu, QrCode, ArrowLeftRight, UserCheck
+  AlertTriangle, Info, ShieldAlert, Cpu, QrCode, ArrowLeftRight, UserCheck,
+  Laptop, Calendar, Clock
 } from 'lucide-react';
+
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -39,10 +45,16 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
+  const [myActiveLoans, setMyActiveLoans] = useState<Solicitacao[]>([]);
+  const [myMaintenanceRequests, setMyMaintenanceRequests] = useState<SolicitacaoManutencao[]>([]);
+  const [extraLoading, setExtraLoading] = useState(false);
 
   useEffect(() => {
     fetchStats();
-  }, []);
+    if (!isStaff) {
+      fetchUserDashboardData();
+    }
+  }, [isStaff]);
 
   const fetchStats = async () => {
     try {
@@ -55,6 +67,27 @@ export const DashboardPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const fetchUserDashboardData = async () => {
+    try {
+      setExtraLoading(true);
+      const [sols, maints] = await Promise.all([
+        transactionApi.listSolicitacoes(),
+        maintenanceApi.listRequests()
+      ]);
+      
+      const active = sols.filter(s => s.solicitante_id === user?.id && s.status?.toLowerCase() === 'entregue');
+      setMyActiveLoans(active);
+      
+      const myMaints = maints.filter(m => m.solicitante_id === user?.id);
+      setMyMaintenanceRequests(myMaints);
+    } catch (err) {
+      console.error('Erro ao buscar dados do dashboard do colaborador:', err);
+    } finally {
+      setExtraLoading(false);
+    }
+  };
+
 
   const exportPDF = () => {
     if (!stats) return;
@@ -216,7 +249,32 @@ export const DashboardPage: React.FC = () => {
             to="/emprestimos"
             className="px-4 py-2 bg-amber-500 text-brand-dark font-bold text-xs uppercase tracking-wider font-mono hover:bg-amber-400 transition-all shrink-0"
           >
-            Ver Solicitações →
+            Analisar Solicitações
+          </Link>
+        </div>
+      )}
+
+      {/* Alert Banner for Pending Maintenance Requests (Staff/Managers) */}
+      {isStaff && stats.pending_maintenance_requests > 0 && (
+        <div className="bg-red-500/10 border-l-4 border-red-500 p-4 flex items-center justify-between shadow-lg">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-red-500/20 text-red-400 rounded">
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-red-300 uppercase tracking-wider font-mono">
+                Atenção: {stats.pending_maintenance_requests} {stats.pending_maintenance_requests === 1 ? 'Solicitação de Manutenção Pendente' : 'Solicitações de Manutenção Pendentes'}
+              </h3>
+              <p className="text-xs text-brand-muted mt-0.5">
+                Existem solicitações de manutenção aguardando atendimento ou resposta técnica.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/manutencoes"
+            className="px-4 py-2 bg-red-500 text-brand-dark font-bold text-xs uppercase tracking-wider font-mono hover:bg-red-400 transition-all shrink-0"
+          >
+            Analisar Manutenções
           </Link>
         </div>
       )}
@@ -274,6 +332,115 @@ export const DashboardPage: React.FC = () => {
             </Link>
           </div>
 
+          {/* Active Loans & Maintenance Tracking */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Active Assets Block */}
+            <div className="bg-brand-card border border-brand-border p-6 space-y-4">
+              <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-muted flex items-center space-x-2">
+                <Laptop size={18} className="text-brand-primary" />
+                <span>Meus Equipamentos em Posse</span>
+              </h3>
+              
+              {extraLoading ? (
+                <div className="text-xs text-brand-muted font-mono">Carregando seus ativos...</div>
+              ) : myActiveLoans.length === 0 ? (
+                <div className="text-xs text-brand-muted bg-brand-dark/20 p-4 border border-brand-border/40 text-center">
+                  Você não possui nenhum equipamento emprestado no momento.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myActiveLoans.map(loan => (
+                    <div key={loan.id} className="p-4 bg-brand-dark/40 border border-brand-border/60 flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold text-brand-text text-sm">{loan.asset?.nome || 'Equipamento'}</h4>
+                        <p className="text-[11px] text-brand-muted font-mono mt-0.5">
+                          EP: {loan.asset?.e_patrimonio} {loan.asset?.modelo ? ` · ${loan.asset.modelo}` : ''}
+                        </p>
+                        <p className="text-[10px] text-brand-muted font-mono mt-1 flex items-center space-x-1">
+                          <Calendar size={10} />
+                          <span>Entregue em: {loan.data_entrega ? new Date(loan.data_entrega).toLocaleDateString('pt-BR') : '-'}</span>
+                        </p>
+                      </div>
+                      <Link 
+                        to="/emprestimos"
+                        className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-brand-dark font-bold text-xs uppercase tracking-wider font-mono flex items-center space-x-1 transition-all"
+                      >
+                        <Wrench size={12} />
+                        <span>Manutenção</span>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Maintenance Requests Block */}
+            <div className="bg-brand-card border border-brand-border p-6 space-y-4">
+              <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-muted flex items-center space-x-2">
+                <Wrench size={18} className="text-amber-500" />
+                <span>Solicitações de Manutenção</span>
+              </h3>
+              
+              {extraLoading ? (
+                <div className="text-xs text-brand-muted font-mono">Carregando solicitações...</div>
+              ) : myMaintenanceRequests.length === 0 ? (
+                <div className="text-xs text-brand-muted bg-brand-dark/20 p-4 border border-brand-border/40 text-center">
+                  Nenhuma solicitação de manutenção em aberto ou concluída.
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                  {myMaintenanceRequests.map(req => {
+                    const statusLower = req.status?.toLowerCase() || '';
+                    let statusColor = '';
+                    let statusLabel = '';
+
+                    if (statusLower === 'pendente') {
+                      statusColor = 'text-blue-400 bg-blue-400/10 border-blue-400/20';
+                      statusLabel = 'Pendente';
+                    } else if (statusLower === 'aceita' || statusLower === 'em_andamento') {
+                      statusColor = 'text-amber-400 bg-amber-400/10 border-amber-400/20';
+                      statusLabel = 'Em Manutenção';
+                    } else if (statusLower === 'aguardando_entrega' || statusLower === 'concluida') {
+                      statusColor = 'text-brand-primary bg-brand-primary/10 border-brand-primary/20';
+                      statusLabel = statusLower === 'concluida' ? 'Concluída' : 'Pronto p/ Retirada';
+                    } else if (statusLower === 'rejeitada') {
+                      statusColor = 'text-red-400 bg-red-400/10 border-red-400/20';
+                      statusLabel = 'Rejeitada';
+                    } else {
+                      statusLabel = req.status || '';
+                    }
+
+
+                    return (
+                      <div key={req.id} className="p-4 bg-brand-dark/40 border border-brand-border/60 flex flex-col justify-between space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-semibold text-brand-text text-xs">{req.asset?.nome || 'Equipamento'}</h4>
+                            <p className="text-[10px] text-brand-muted font-mono mt-0.5">EP: {req.asset?.e_patrimonio}</p>
+                          </div>
+                          <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 border ${statusColor}`}>
+                            {statusLabel}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-brand-muted bg-brand-dark/60 p-2 border border-brand-border/30 rounded font-mono truncate">
+                          Defeito: "{req.descricao}"
+                        </div>
+                        {req.data_resposta && (
+                          <div className="text-[9px] text-brand-muted font-mono flex items-center space-x-1">
+                            <Clock size={10} />
+                            <span>Respondido em: {new Date(req.data_resposta).toLocaleDateString('pt-BR')}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+          </div>
+
           <div className="p-6 bg-brand-card border border-brand-border flex items-center space-x-4">
             <div className="p-3 bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shrink-0">
               <UserCheck size={24} />
@@ -284,6 +451,7 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
         </div>
+
       ) : (
         /* Executive Dashboard Layout (Staff/Admin) */
         <>

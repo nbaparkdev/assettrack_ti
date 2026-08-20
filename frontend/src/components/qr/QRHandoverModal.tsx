@@ -121,9 +121,29 @@ export const QRHandoverModal: React.FC<QRHandoverModalProps> = ({ isOpen, onClos
   const handleTokenAcquired = async (token: string) => {
     setLoadingProfile(true);
     setErrorMsg(null);
+
+    // Extract token from scanned QR code or URL
+    let cleanToken = token.trim();
+    
+    // Remove query params or hash if any
+    cleanToken = cleanToken.split('?')[0].split('#')[0];
+    
+    if (cleanToken.includes('://') || cleanToken.includes('/')) {
+      if (cleanToken.includes('/usuario/')) {
+        const parts = cleanToken.split('/usuario/');
+        cleanToken = parts[parts.length - 1];
+      } else if (cleanToken.includes('token=')) {
+        cleanToken = cleanToken.split('token=')[1]?.split('&')[0] || cleanToken;
+      } else {
+        const parts = cleanToken.split('/');
+        cleanToken = parts[parts.length - 1] || cleanToken;
+      }
+    }
+
     try {
-      const data = await qrApi.getUserByQR(token);
+      const data = await qrApi.getUserByQR(cleanToken);
       setProfile(data);
+      setTokenInput(cleanToken);
       if (data.pending_deliveries.length > 0) {
         setSelectedItem(data.pending_deliveries[0]);
       }
@@ -149,7 +169,7 @@ export const QRHandoverModal: React.FC<QRHandoverModalProps> = ({ isOpen, onClos
 
     try {
       const payload: any = {
-        qr_token: tokenInput || profile.email, // Use target email/token
+        qr_token: tokenInput,
       };
 
       if (selectedItem.tipo === 'manutenção') {
@@ -165,11 +185,7 @@ export const QRHandoverModal: React.FC<QRHandoverModalProps> = ({ isOpen, onClos
         payload.pin = pin;
       }
 
-      // Hack to extract token from scanned data if we used camera
-      const response = await qrApi.confirmDelivery({
-        ...payload,
-        qr_token: tokenInput || (scannerRef.current ? '' : '') // Fallback handled
-      });
+      const response = await qrApi.confirmDelivery(payload);
 
       setSuccessMsg(response.message || 'Entrega confirmada com sucesso!');
       if (onSuccess) onSuccess();

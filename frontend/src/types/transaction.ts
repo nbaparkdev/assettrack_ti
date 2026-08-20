@@ -41,7 +41,9 @@ export interface Solicitacao {
   observacoes_devolucao?: string;
   observacao_devolucao?: string;
   data_prevista_devolucao?: string;
+  termo?: any;
 }
+
 
 export interface Movimentacao {
   id: number;

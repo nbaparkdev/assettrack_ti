@@ -41,6 +41,7 @@ func (r *TransactionRepository) ListSolicitacoes(skip, limit int) ([]models.Soli
 		Preload("Confirmador").
 		Preload("Recebedor").
 		Preload("Asset").
+		Preload("Termo").
 		Order("data_solicitacao desc").
 		Offset(skip).
 		Limit(limit).
@@ -55,6 +56,7 @@ func (r *TransactionRepository) GetSolicitacaoByID(id uint) (*models.Solicitacao
 		Preload("Confirmador").
 		Preload("Recebedor").
 		Preload("Asset").
+		Preload("Termo").
 		First(&sol, id).Error
 	if err != nil {
 		return nil, err
@@ -78,7 +80,8 @@ func (r *TransactionRepository) GetActiveSolicitacaoByAssetID(assetID uint) (*mo
 		Preload("Confirmador").
 		Preload("Recebedor").
 		Preload("Asset").
-		Where("asset_id = ? AND status = ?", assetID, models.StatusSolicitacaoEntregue).
+		Preload("Termo").
+		Where("asset_id = ? AND status IN (?)", assetID, []string{string(models.StatusSolicitacaoEntregue), string(models.StatusSolicitacaoAprovada)}).
 		Order("data_entrega desc, data_solicitacao desc").
 		First(&sol).Error
 	if err != nil {

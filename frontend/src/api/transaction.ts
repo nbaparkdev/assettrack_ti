@@ -20,7 +20,7 @@ export const transactionApi = {
     return response.data;
   },
 
-  // Devolution
+  // Devolution & Transfer
   devolverAsset: async (
     assetId: number,
     data: {
@@ -30,6 +30,18 @@ export const transactionApi = {
     }
   ): Promise<{ message: string }> => {
     const response = await apiClient.post<{ message: string }>(`/movimentacoes/devolver/${assetId}`, data);
+    return response.data;
+  },
+
+  transferirAsset: async (
+    assetId: number,
+    data: {
+      para_user_id: number;
+      motivo: string;
+      data_prevista_devolucao?: string;
+    }
+  ): Promise<{ message: string; solicitacao: Solicitacao }> => {
+    const response = await apiClient.post<{ message: string; solicitacao: Solicitacao }>(`/movimentacoes/transferir/${assetId}`, data);
     return response.data;
   },
 };

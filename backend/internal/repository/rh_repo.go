@@ -38,8 +38,10 @@ func (r *RHRepository) GetPendingSolicitacoesRH() ([]models.Solicitacao, error) 
 	// Solicitacoes Entregues that do not have a termo yet
 	subQuery := r.db.Model(&models.TermoResponsabilidade{}).Select("solicitacao_id").Where("solicitacao_id IS NOT NULL")
 	err := r.db.Preload("Solicitante").Preload("Asset").
-		Where("status = ?", "Entregue").
-		Where("id NOT IN (?)", subQuery).
+		Joins("JOIN assets ON assets.id = solicitacoes.asset_id").
+		Where("solicitacoes.status = ?", "Entregue").
+		Where("assets.requer_termo_rh = ?", true).
+		Where("solicitacoes.id NOT IN (?)", subQuery).
 		Find(&solicitacoes).Error
 	return solicitacoes, err
 }

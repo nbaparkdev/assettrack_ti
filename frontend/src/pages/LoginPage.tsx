@@ -55,29 +55,22 @@ export const LoginPage: React.FC = () => {
 
   const extractTokenFromQr = (text: string): string => {
     if (!text) return '';
-    const trimmed = text.trim();
+    let trimmed = text.trim();
     
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      try {
-        const url = new URL(trimmed);
-        const tokenParam = url.searchParams.get('token');
-        if (tokenParam) return tokenParam;
-        
-        for (const [_, value] of url.searchParams.entries()) {
-          if (value.length === 36 && value.includes('-')) {
-            return value;
-          }
-        }
-        
-        const pathParts = url.pathname.split('/');
-        for (const part of pathParts) {
-          if (part.length === 36 && part.includes('-')) {
-            return part;
-          }
-        }
-      } catch (e) {
-        console.error('Error parsing QR URL:', e);
+    // Remove query params or hash if any
+    trimmed = trimmed.split('?')[0].split('#')[0];
+    
+    if (trimmed.includes('://') || trimmed.includes('/')) {
+      if (trimmed.includes('/usuario/')) {
+        const parts = trimmed.split('/usuario/');
+        return parts[parts.length - 1];
       }
+      if (trimmed.includes('token=')) {
+        const parts = trimmed.split('token=');
+        return parts[1]?.split('&')[0] || trimmed;
+      }
+      const parts = trimmed.split('/');
+      return parts[parts.length - 1] || trimmed;
     }
     return trimmed;
   };

@@ -13,6 +13,7 @@ export interface DashboardStats {
   tickets_resolved: number;
   supplier_cost_monthly: number;
   pending_asset_requests: number;
+  pending_maintenance_requests: number;
   active_alerts: AlertSummary[] | null;
 }
 

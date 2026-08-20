@@ -114,6 +114,29 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 		})
 	}
 
+	// 5. Pending Maintenance Requests (SolicitacaoManutencao)
+	h.db.Model(&models.SolicitacaoManutencao{}).Where("LOWER(status) = ?", "pendente").Count(&response.PendingMaintenanceReqs)
+
+	var pendingReqs []models.SolicitacaoManutencao
+	h.db.Preload("Solicitante").Preload("Asset").Where("LOWER(status) = ?", "pendente").Order("data_solicitacao DESC").Limit(5).Find(&pendingReqs)
+
+	for _, r := range pendingReqs {
+		userStr := "Usuário"
+		if r.Solicitante != nil {
+			userStr = r.Solicitante.Nome
+		}
+		assetStr := "Equipamento"
+		if r.Asset != nil {
+			assetStr = r.Asset.Nome
+		}
+		response.ActiveAlerts = append(response.ActiveAlerts, dto.AlertSummary{
+			ID:        r.ID,
+			Title:     "Nova Solicitação de Manutenção: " + assetStr + " (por " + userStr + ")",
+			Severity:  "CRITICAL",
+			CreatedAt: r.DataSolicitacao.Format(time.RFC3339),
+		})
+	}
+
 	c.JSON(http.StatusOK, response)
 }
 

@@ -69,7 +69,8 @@ type Solicitacao struct {
 	Aprovador   *User  `gorm:"foreignKey:AprovadorID" json:"aprovador,omitempty"`
 	Confirmador *User  `gorm:"foreignKey:ConfirmadoPorID" json:"confirmador,omitempty"`
 	Recebedor   *User  `gorm:"foreignKey:RecebidoPorID" json:"recebedor,omitempty"`
-	Asset       *Asset `gorm:"foreignKey:AssetID" json:"asset,omitempty"`
+	Asset       *Asset                 `gorm:"foreignKey:AssetID" json:"asset,omitempty"`
+	Termo       *TermoResponsabilidade `gorm:"foreignKey:SolicitacaoID" json:"termo,omitempty"`
 }
 
 func (Solicitacao) TableName() string { return "solicitacoes" }

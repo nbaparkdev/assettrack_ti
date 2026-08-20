@@ -91,7 +91,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	assetHandler := handler.NewAssetHandler(assetRepo, categoryRepo)
 	serviceDeskHandler := handler.NewServiceDeskHandler(serviceDeskRepo)
 	maintenanceHandler := handler.NewMaintenanceHandler(maintRepo, assetRepo, txRepo)
-	transactionHandler := handler.NewTransactionHandler(txRepo, assetRepo)
+	transactionHandler := handler.NewTransactionHandler(txRepo, assetRepo, userRepo)
 	supplierHandler := handler.NewSupplierHandler(supplierRepo, invoiceRepo)
 	preventiveHandler := handler.NewPreventiveHandler(
 		pmPlanRepo, pmChecklistRepo, pmItemRepo, pmPlanAssetRepo, pmOrderRepo,
@@ -213,6 +213,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		// Movimentacoes routes (protected)
 		movs := v1.Group("/movimentacoes", authMW, rActive)
 		{
+			movs.POST("/transferir/:asset_id", rManager, transactionHandler.TransferirAsset)
 			movs.POST("/devolver/:asset_id", transactionHandler.DevolverAsset)
 		}
 

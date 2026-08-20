@@ -175,8 +175,8 @@ func (r *AssetRepository) Update(updated *models.Asset) error {
 		}
 	}
 
-	// Update record using db.Save (saves all fields including nil/zeros)
-	return r.db.Save(updated).Error
+	// Update record using db.Select("*").Save (saves all fields including nil/zeros)
+	return r.db.Select("*").Save(updated).Error
 }
 
 func (r *AssetRepository) Delete(id uint) error {

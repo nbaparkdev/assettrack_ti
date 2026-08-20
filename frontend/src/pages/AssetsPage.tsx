@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { assetsApi } from '../api/assets';
 import { usersApi } from '../api/users';
 import { maintenanceApi } from '../api/maintenance';
+import { transactionApi } from '../api/transaction';
 import type { 
   Asset, 
   AssetStatus, 
@@ -32,7 +33,8 @@ import {
   Layers3,
   Wrench,
   Download,
-  ArrowRightLeft
+  ArrowRightLeft,
+  RotateCcw
 } from 'lucide-react';
 
 export const AssetsPage: React.FC = () => {
@@ -136,8 +138,18 @@ export const AssetsPage: React.FC = () => {
 
   // Transfer inside modal state
   const [detailTransferUserId, setDetailTransferUserId] = useState<number | ''>('');
+  const [detailTransferMotivo, setDetailTransferMotivo] = useState('');
+  const [detailTransferDataPrevista, setDetailTransferDataPrevista] = useState('');
   const [detailTransferLoading, setDetailTransferLoading] = useState(false);
   const [detailTransferError, setDetailTransferError] = useState<string | null>(null);
+
+  // Forced Devolution inside modal state
+  const [showDetailDevolucaoForm, setShowDetailDevolucaoForm] = useState(false);
+  const [detailDevolucaoCondicao, setDetailDevolucaoCondicao] = useState('Íntegro e funcional');
+  const [detailDevolucaoAcessorios, setDetailDevolucaoAcessorios] = useState('Fonte e Carregador');
+  const [detailDevolucaoNotas, setDetailDevolucaoNotas] = useState('');
+  const [detailDevolucaoLoading, setDetailDevolucaoLoading] = useState(false);
+  const [detailDevolucaoError, setDetailDevolucaoError] = useState<string | null>(null);
 
   // List of users for transferring
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -365,35 +377,75 @@ export const AssetsPage: React.FC = () => {
 
   const handleTransferAssetFromDetail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAssetForDetail || !detailTransferUserId) return;
+    if (!selectedAssetForDetail || !detailTransferUserId || !detailTransferMotivo.trim()) return;
 
     setDetailTransferLoading(true);
     setDetailTransferError(null);
     try {
+      const res = await transactionApi.transferirAsset(selectedAssetForDetail.id, {
+        para_user_id: Number(detailTransferUserId),
+        motivo: detailTransferMotivo.trim(),
+        data_prevista_devolucao: detailTransferDataPrevista ? new Date(detailTransferDataPrevista).toISOString() : undefined,
+      });
+
       const selectedUser = usersList.find(u => u.id === Number(detailTransferUserId));
-      
-      const payload: Partial<Asset> = {
-        current_user_id: Number(detailTransferUserId),
-        em_posse_de: selectedUser ? selectedUser.nome : null,
+      setSelectedAssetForDetail({
+        ...selectedAssetForDetail,
         status: 'Em uso',
-      };
-      
-      const updated = await assetsApi.update(selectedAssetForDetail.id, payload);
-      
-      setSelectedAssetForDetail(updated);
-      setGlobalSuccess('Ativo transferido com sucesso.');
-      
+        current_user_id: Number(detailTransferUserId),
+        em_posse_de: selectedUser ? selectedUser.nome : 'Usuário',
+      });
+      setGlobalSuccess(res.message || 'Ativo transferido com sucesso.');
+
       fetchAssets();
       if (activeTab === 'reports') {
         fetchReportAssets();
       }
-      
+
       setShowDetailTransferForm(false);
       setDetailTransferUserId('');
+      setDetailTransferMotivo('');
+      setDetailTransferDataPrevista('');
     } catch (err: any) {
-      setDetailTransferError(err.response?.data?.error || 'Erro ao transferir o ativo.');
+      setDetailTransferError(err.response?.data?.detail || err.response?.data?.error || 'Erro ao transferir o ativo.');
     } finally {
       setDetailTransferLoading(false);
+    }
+  };
+
+  const handleDevolverAssetFromDetail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAssetForDetail || !detailDevolucaoCondicao.trim() || !detailDevolucaoAcessorios.trim()) return;
+
+    setDetailDevolucaoLoading(true);
+    setDetailDevolucaoError(null);
+    try {
+      const res = await transactionApi.devolverAsset(selectedAssetForDetail.id, {
+        condicao_equipamento: detailDevolucaoCondicao.trim(),
+        acessorios_devolvidos: detailDevolucaoAcessorios.trim(),
+        observacoes_adicionais: detailDevolucaoNotas.trim() || undefined,
+      });
+
+      setSelectedAssetForDetail({
+        ...selectedAssetForDetail,
+        status: 'Disponível',
+        current_user_id: null,
+        current_user: null,
+        em_posse_de: null,
+      });
+      setGlobalSuccess(res.message || 'Devolução concluída com sucesso. Ativo redefinido como Disponível.');
+
+      fetchAssets();
+      if (activeTab === 'reports') {
+        fetchReportAssets();
+      }
+
+      setShowDetailDevolucaoForm(false);
+      setDetailDevolucaoNotas('');
+    } catch (err: any) {
+      setDetailDevolucaoError(err.response?.data?.detail || err.response?.data?.error || 'Erro ao realizar devolução do ativo.');
+    } finally {
+      setDetailDevolucaoLoading(false);
     }
   };
 
@@ -924,7 +976,9 @@ export const AssetsPage: React.FC = () => {
                               )}
                             </td>
                             <td className="p-4 text-xs">
-                              <div className="text-brand-text">{a.current_user?.nome || '—'}</div>
+                              <div className="text-brand-text">
+                                {a.status === 'Disponível' ? '—' : (a.em_posse_de || a.current_user?.nome || '—')}
+                              </div>
                               <div className="text-brand-muted">{a.current_departamento?.nome}</div>
                             </td>
                             {isManagerOrAbove && (
@@ -2285,7 +2339,11 @@ export const AssetsPage: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-[10px] font-mono uppercase text-brand-muted block">Em Posse De</span>
-                      <span className="text-brand-text font-semibold">{selectedAssetForDetail.em_posse_de || 'Ninguém (Disponível)'}</span>
+                      <span className="text-brand-text font-semibold">
+                        {selectedAssetForDetail.status === 'Disponível'
+                          ? 'Ninguém (Disponível)'
+                          : (selectedAssetForDetail.em_posse_de || selectedAssetForDetail.current_user?.nome || 'Ninguém (Disponível)')}
+                      </span>
                     </div>
                     <div>
                       <span className="text-[10px] font-mono uppercase text-brand-muted block">Setor / Departamento</span>
@@ -2357,12 +2415,13 @@ export const AssetsPage: React.FC = () => {
                     Ações de Inventário
                   </div>
 
-                  {!showDetailMaintenanceForm && !showDetailTransferForm && (
+                  {!showDetailMaintenanceForm && !showDetailTransferForm && !showDetailDevolucaoForm && (
                     <div className="space-y-3">
                       <button
                         onClick={() => {
                           setShowDetailMaintenanceForm(true);
                           setShowDetailTransferForm(false);
+                          setShowDetailDevolucaoForm(false);
                           setDetailMaintenanceDescription('');
                           setDetailMaintenanceError(null);
                         }}
@@ -2376,7 +2435,10 @@ export const AssetsPage: React.FC = () => {
                         onClick={() => {
                           setShowDetailTransferForm(true);
                           setShowDetailMaintenanceForm(false);
+                          setShowDetailDevolucaoForm(false);
                           setDetailTransferUserId('');
+                          setDetailTransferMotivo('');
+                          setDetailTransferDataPrevista('');
                           setDetailTransferError(null);
                         }}
                         className="flex items-center justify-center space-x-2 w-full py-2.5 bg-brand-dark border border-brand-border text-brand-text font-bold font-mono text-xs uppercase tracking-wider hover:bg-brand-card transition-all"
@@ -2384,6 +2446,24 @@ export const AssetsPage: React.FC = () => {
                         <ArrowRightLeft size={14} />
                         <span>Transferir Ativo</span>
                       </button>
+
+                      {(selectedAssetForDetail.status === 'Em uso' || selectedAssetForDetail.current_user_id || selectedAssetForDetail.em_posse_de) && (
+                        <button
+                          onClick={() => {
+                            setShowDetailDevolucaoForm(true);
+                            setShowDetailMaintenanceForm(false);
+                            setShowDetailTransferForm(false);
+                            setDetailDevolucaoCondicao('Íntegro e funcional');
+                            setDetailDevolucaoAcessorios('Fonte e Carregador');
+                            setDetailDevolucaoNotas('');
+                            setDetailDevolucaoError(null);
+                          }}
+                          className="flex items-center justify-center space-x-2 w-full py-2.5 bg-amber-500/10 border border-amber-500/40 text-amber-400 font-bold font-mono text-xs uppercase tracking-wider hover:bg-amber-500/20 transition-all"
+                        >
+                          <RotateCcw size={14} />
+                          <span>Forçar Devolução</span>
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -2437,7 +2517,7 @@ export const AssetsPage: React.FC = () => {
 
                   {/* Transfer Asset Form */}
                   {showDetailTransferForm && (
-                    <form onSubmit={handleTransferAssetFromDetail} className="space-y-3.5 pt-2">
+                    <form onSubmit={handleTransferAssetFromDetail} className="space-y-3 pt-2">
                       <div className="font-semibold text-xs text-brand-text flex items-center space-x-2 border-b border-brand-border/60 pb-1.5">
                         <ArrowRightLeft size={14} className="text-brand-primary" />
                         <span>Transferir Equipamento</span>
@@ -2451,7 +2531,7 @@ export const AssetsPage: React.FC = () => {
 
                       <div className="space-y-1">
                         <label className="text-[10px] font-mono uppercase text-brand-muted block">
-                          Selecione o Destinatário
+                          Destinatário *
                         </label>
                         <select
                           required
@@ -2468,21 +2548,124 @@ export const AssetsPage: React.FC = () => {
                         </select>
                       </div>
 
-                      <div className="flex space-x-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
+                          Motivo da Transferência *
+                        </label>
+                        <textarea
+                          required
+                          rows={2}
+                          value={detailTransferMotivo}
+                          onChange={(e) => setDetailTransferMotivo(e.target.value)}
+                          placeholder="Informe o motivo da transferência..."
+                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary placeholder-brand-muted/40 font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
+                          Data Prevista de Devolução (Opcional)
+                        </label>
+                        <input
+                          type="date"
+                          value={detailTransferDataPrevista}
+                          onChange={(e) => setDetailTransferDataPrevista(e.target.value)}
+                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary font-mono"
+                        />
+                      </div>
+
+                      <div className="flex space-x-2 pt-1">
                         <button
                           type="button"
                           onClick={() => setShowDetailTransferForm(false)}
-                          className="w-1/3 py-1.5 bg-brand-dark border border-brand-border text-brand-muted text-xs font-semibold font-mono uppercase"
+                          className="w-1/3 py-1.5 bg-brand-dark border border-brand-border text-brand-muted text-xs font-semibold font-mono uppercase hover:bg-brand-card"
                         >
                           Voltar
                         </button>
                         <button
                           type="submit"
-                          disabled={detailTransferLoading || !detailTransferUserId}
+                          disabled={detailTransferLoading || !detailTransferUserId || !detailTransferMotivo.trim()}
                           className="flex-1 py-1.5 bg-brand-primary text-brand-dark text-xs font-semibold font-mono uppercase flex items-center justify-center space-x-1.5 disabled:opacity-50"
                         >
                           {detailTransferLoading && <RefreshCw size={12} className="animate-spin" />}
                           <span>Transferir</span>
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Forced Devolution Form */}
+                  {showDetailDevolucaoForm && (
+                    <form onSubmit={handleDevolverAssetFromDetail} className="space-y-3 pt-2">
+                      <div className="font-semibold text-xs text-amber-400 flex items-center space-x-2 border-b border-brand-border/60 pb-1.5">
+                        <RotateCcw size={14} className="text-amber-400" />
+                        <span>Forçar Devolução do Ativo</span>
+                      </div>
+
+                      {detailDevolucaoError && (
+                        <div className="p-2.5 border border-red-500/20 bg-red-500/5 text-red-400 text-[11px] font-mono">
+                          {detailDevolucaoError}
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
+                          Condição do Equipamento *
+                        </label>
+                        <select
+                          required
+                          value={detailDevolucaoCondicao}
+                          onChange={(e) => setDetailDevolucaoCondicao(e.target.value)}
+                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary font-mono"
+                        >
+                          <option value="Íntegro e funcional">Íntegro e funcional</option>
+                          <option value="Danificado com marcas de uso">Danificado com marcas de uso</option>
+                          <option value="Avariado / Necessita Manutenção">Avariado / Necessita Manutenção</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
+                          Acessórios Devolvidos *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={detailDevolucaoAcessorios}
+                          onChange={(e) => setDetailDevolucaoAcessorios(e.target.value)}
+                          placeholder="Ex: Fonte de alimentação, Cabo HDMI..."
+                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary placeholder-brand-muted/40 font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
+                          Observações Adicionais (Opcional)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={detailDevolucaoNotas}
+                          onChange={(e) => setDetailDevolucaoNotas(e.target.value)}
+                          placeholder="Ex: Devolução forçada via painel de ativos..."
+                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary placeholder-brand-muted/40 font-mono"
+                        />
+                      </div>
+
+                      <div className="flex space-x-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowDetailDevolucaoForm(false)}
+                          className="w-1/3 py-1.5 bg-brand-dark border border-brand-border text-brand-muted text-xs font-semibold font-mono uppercase hover:bg-brand-card"
+                        >
+                          Voltar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={detailDevolucaoLoading || !detailDevolucaoCondicao.trim() || !detailDevolucaoAcessorios.trim()}
+                          className="flex-1 py-1.5 bg-amber-500 text-brand-dark text-xs font-semibold font-mono uppercase flex items-center justify-center space-x-1.5 hover:bg-amber-400 disabled:opacity-50 font-bold"
+                        >
+                          {detailDevolucaoLoading && <RefreshCw size={12} className="animate-spin" />}
+                          <span>Confirmar Devolução</span>
                         </button>
                       </div>
                     </form>
