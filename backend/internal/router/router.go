@@ -109,7 +109,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		procContractRepo, procContractTypeRepo, procHistoryRepo, procNotifRepo,
 		procResearchRepo, assetRepo, userRepo, kanbanCardRepo, kanbanInteractionRepo, systemSettingsRepo,
 	)
-	rhHandler := handler.NewRHHandler(rhRepo, userRepo, assetRepo)
+	rhHandler := handler.NewRHHandler(rhRepo, userRepo, assetRepo, alertRepo, alertBroker)
 	webhookHandler := handler.NewWebhookHandler(webhookRepo, webhookDispatcher)
 	backupHandler := handler.NewBackupHandler(cfg)
 	dashboardHandler := handler.NewDashboardHandler(db)
@@ -122,6 +122,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	rActive := middleware.RequireActive()
 	rAdmin := middleware.RequireAdmin()
 	rManager := middleware.RequireManagerOrAbove()
+	rManagerOrRH := middleware.RequireManagerOrRH()
 	rRH := middleware.RequireRH()
 
 	// Health check
@@ -143,7 +144,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		// User routes (protected)
 		users := v1.Group("/users", authMW, rActive)
 		{
-			users.GET("", rManager, userHandler.List)
+			users.GET("", rManagerOrRH, userHandler.List)
 			users.POST("", rAdmin, userHandler.Create)
 			users.GET("/:id", userHandler.GetByID)
 			users.PUT("/:id", rAdmin, userHandler.Update)
@@ -184,9 +185,11 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			servicos.POST("/definicoes", rManager, serviceDeskHandler.CreateDefinition)
 			servicos.GET("/chamados", serviceDeskHandler.ListTickets)
 			servicos.POST("/chamados", serviceDeskHandler.CreateTicket)
+			servicos.POST("/chamados/upload", serviceDeskHandler.UploadTicketAttachment)
 			servicos.GET("/chamados/:id", serviceDeskHandler.GetTicketByID)
 			servicos.PUT("/chamados/:id", serviceDeskHandler.UpdateTicket)
 			servicos.POST("/chamados/:id/interacoes", serviceDeskHandler.CreateInteraction)
+			servicos.POST("/chamados/:id/interacoes/upload", serviceDeskHandler.UploadInteractionAttachment)
 		}
 
 		// Maintenance routes (protected)

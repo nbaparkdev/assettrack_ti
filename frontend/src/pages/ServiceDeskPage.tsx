@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { serviceDeskApi } from '../api/serviceDesk';
 import { usersApi } from '../api/users';
 import { useAuthStore } from '../stores/authStore';
+import { toApiFileUrl } from '../api/client';
 import type { ServiceTicket, ServiceCategory, ServiceDefinition, User } from '../types';
-import { 
-  Plus, 
-  MessageSquare, 
-  Clock, 
-  User as UserIcon, 
-  Check, 
-  X, 
-  AlertCircle, 
-  Filter, 
-  CheckCircle2, 
+import {
+  Plus,
+  MessageSquare,
+  Clock,
+  User as UserIcon,
+  Check,
+  X,
+  AlertCircle,
+  Filter,
+  CheckCircle2,
   Send,
   Star
 } from 'lucide-react';
@@ -25,7 +26,7 @@ export const ServiceDeskPage: React.FC = () => {
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [definitions, setDefinitions] = useState<ServiceDefinition[]>([]);
   const [technicians, setTechnicians] = useState<User[]>([]);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,30 +40,118 @@ export const ServiceDeskPage: React.FC = () => {
   const [newDescription, setNewDescription] = useState('');
   const [newPriority, setNewPriority] = useState<'baixa' | 'media' | 'alta' | 'urgente'>('media');
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<number | ''>('');
+  const [newTicketAttachedFile, setNewTicketAttachedFile] = useState<File | null>(null);
+  const [newTicketAttachedPath, setNewTicketAttachedPath] = useState<string>('');
+  const [newTicketUploading, setNewTicketUploading] = useState(false);
 
   // Config modal state
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [activeConfigTab, setActiveConfigTab] = useState<'categorias' | 'servicos'>('categorias');
-  
+
   // Category form
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryDesc, setNewCategoryDesc] = useState('');
-  
+
   // Definition form
   const [newDefName, setNewDefName] = useState('');
   const [newDefDesc, setNewDefDesc] = useState('');
   const [newDefCategoryId, setNewDefCategoryId] = useState<number | ''>('');
   // Detail panel state (Layout Diversification: Slide-out panel)
+  const normalizeStatus = (status: string | undefined): string => {
+    if (!status) return '';
+    return status.toLowerCase().replace(/\s+/g, '_');
+  };
+
+  const isImageFile = (url: string | undefined): boolean => {
+    if (!url) return false;
+    const lower = url.toLowerCase();
+    return lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp');
+  };
+
+  const getFileName = (url: string | undefined): string => {
+    if (!url) return '';
+    const parts = url.split('/');
+    return parts[parts.length - 1];
+  };
+
+  const handleNewTicketUpload = async (file: File) => {
+    try {
+      setNewTicketUploading(true);
+      const res = await serviceDeskApi.uploadTicketAttachment(file);
+      setNewTicketAttachedPath(res.url);
+      setNewTicketAttachedFile(file);
+    } catch (err: any) {
+      alert('Erro ao fazer upload do arquivo.');
+    } finally {
+      setNewTicketUploading(false);
+    }
+  };
+
+  const handleNewTicketPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          handleNewTicketUpload(file);
+          break;
+        }
+      }
+    }
+  };
+
+  const handleNewTicketFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleNewTicketUpload(e.target.files[0]);
+    }
+  };
+
+  const handleRemoveNewTicketAttachment = () => {
+    setNewTicketAttachedFile(null);
+    setNewTicketAttachedPath('');
+  };
+
+  // Detail panel state (Layout Diversification)
   const [selectedTicket, setSelectedTicket] = useState<ServiceTicket | null>(null);
   const [commentMessage, setCommentMessage] = useState('');
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [showResolutionForm, setShowResolutionForm] = useState(false);
-  const [rating, setRating] = useState<number>(5);
+  const [rating, setRating] = useState<number>(0);
+  const [hoveredRating, setHoveredRating] = useState<number | null>(null);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
-  
+
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+
   // Assign state
   const [assignedTechId, setAssignedTechId] = useState<number | ''>('');
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setAttachedFile(e.target.files[0]);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1 || items[i].type.indexOf('pdf') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          const extension = file.type.split('/')[1] || 'png';
+          const name = `pasted_image_${Date.now()}.${extension}`;
+          const renamedFile = new File([file], name, { type: file.type });
+          setAttachedFile(renamedFile);
+          e.preventDefault();
+        }
+      }
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -74,10 +163,10 @@ export const ServiceDeskPage: React.FC = () => {
     try {
       const ticketsData = await serviceDeskApi.listTickets();
       setTickets(ticketsData);
-      
+
       const catsData = await serviceDeskApi.listCategories();
       setCategories(catsData);
-      
+
       const defsData = await serviceDeskApi.listDefinitions();
       setDefinitions(defsData);
 
@@ -107,6 +196,7 @@ export const ServiceDeskPage: React.FC = () => {
         descricao: newDescription,
         prioridade: newPriority,
         servico_id: Number(selectedDefinitionId),
+        foto: newTicketAttachedPath || undefined,
       });
 
       setTickets([ticket, ...tickets]);
@@ -116,6 +206,9 @@ export const ServiceDeskPage: React.FC = () => {
       setNewDescription('');
       setNewPriority('media');
       setSelectedDefinitionId('');
+      setNewTicketAttachedFile(null);
+      setNewTicketAttachedPath('');
+      setNewTicketUploading(false);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erro ao abrir chamado.');
     }
@@ -157,19 +250,43 @@ export const ServiceDeskPage: React.FC = () => {
 
   const handleSendComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTicket || !commentMessage.trim()) return;
+    if (!selectedTicket) return;
 
+    const hasMessage = !!commentMessage.trim();
+    const hasFile = !!attachedFile;
+    if (!hasMessage && !hasFile) return;
+
+    setUploadingAttachment(true);
     try {
-      const newComment = await serviceDeskApi.createInteraction(selectedTicket.id, commentMessage);
-      
+      let fileUrl = '';
+      if (attachedFile) {
+        const uploadResult = await serviceDeskApi.uploadAttachment(selectedTicket.id, attachedFile);
+        fileUrl = uploadResult.url;
+      }
+
+      const finalMsg = hasMessage ? commentMessage : `Enviou um anexo: ${attachedFile?.name}`;
+      const newComment = await serviceDeskApi.createInteraction(selectedTicket.id, finalMsg, fileUrl || undefined);
+
+      if (currentUser) {
+        newComment.usuario = {
+          id: currentUser.id,
+          nome: currentUser.nome,
+          email: currentUser.email,
+        };
+        newComment.user = newComment.usuario;
+      }
+
       const updatedTicket = { ...selectedTicket };
       updatedTicket.interacoes = [...(updatedTicket.interacoes || []), newComment];
-      
+
       setSelectedTicket(updatedTicket);
       setTickets(tickets.map(t => t.id === updatedTicket.id ? updatedTicket : t));
       setCommentMessage('');
+      setAttachedFile(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erro ao enviar comentário.');
+    } finally {
+      setUploadingAttachment(false);
     }
   };
 
@@ -187,12 +304,12 @@ export const ServiceDeskPage: React.FC = () => {
       }
 
       const updated = await serviceDeskApi.updateTicket(selectedTicket.id, payload);
-      
+
       // reload full details to get interactions
       const freshTicket = await serviceDeskApi.getTicketById(updated.id);
       setSelectedTicket(freshTicket);
       setTickets(tickets.map(t => t.id === freshTicket.id ? freshTicket : t));
-      
+
       setShowResolutionForm(false);
       setResolutionNotes('');
     } catch (err: any) {
@@ -254,7 +371,7 @@ export const ServiceDeskPage: React.FC = () => {
 
   // Filtered tickets list
   const filteredTickets = tickets.filter(t => {
-    if (statusFilter && t.status !== statusFilter) return false;
+    if (statusFilter && normalizeStatus(t.status) !== statusFilter) return false;
     if (priorityFilter && t.prioridade !== priorityFilter) return false;
     return true;
   });
@@ -341,63 +458,71 @@ export const ServiceDeskPage: React.FC = () => {
               <div
                 key={ticket.id}
                 onClick={() => handleSelectTicket(ticket)}
-                className={`p-4 bg-brand-card border transition-all duration-150 cursor-pointer flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 hover:border-brand-primary/40 ${
-                  selectedTicket?.id === ticket.id ? 'border-brand-primary bg-brand-primary/5' : 'border-brand-border'
-                }`}
+                className={`p-4 bg-brand-card border transition-all duration-150 cursor-pointer flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 hover:border-brand-primary/40 ${selectedTicket?.id === ticket.id ? 'border-brand-primary bg-brand-primary/5' : 'border-brand-border'
+                  }`}
               >
-                <div className="space-y-2 flex-1 pr-4">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs font-mono font-bold text-brand-primary px-1.5 py-0.5 bg-brand-primary/10 border border-brand-primary/20">
-                      {ticket.codigo}
-                    </span>
-                    <span className="text-sm font-semibold text-brand-text">{ticket.titulo}</span>
-                  </div>
-                  <p className="text-xs text-brand-muted line-clamp-2">{ticket.descricao}</p>
-                  <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-brand-muted">
-                    <span className="flex items-center space-x-1">
-                      <UserIcon size={12} />
-                      <span>{ticket.solicitante?.nome || 'Usuário'}</span>
-                    </span>
-                    <span>•</span>
-                    <span className="flex items-center space-x-1">
-                      <Clock size={12} />
-                      <span>{new Date(ticket.data_abertura).toLocaleDateString('pt-BR')}</span>
-                    </span>
-                    {ticket.servico?.categoria && (
-                      <>
-                        <span>•</span>
-                        <span className="px-1.5 py-0.2 bg-brand-dark border border-brand-border text-brand-muted">
-                          {ticket.servico.categoria.nome}
-                        </span>
-                      </>
-                    )}
+                <div className="flex-1 flex items-start space-x-3 pr-4 font-sans">
+                  {ticket.foto && isImageFile(ticket.foto) && (
+                    <div className="shrink-0 mt-1">
+                      <img
+                        src={toApiFileUrl(ticket.foto)}
+                        alt="Thumbnail"
+                        className="w-12 h-12 object-cover border border-brand-border/60 rounded"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs font-mono font-bold text-brand-primary px-1.5 py-0.5 bg-brand-primary/10 border border-brand-primary/20">
+                        {ticket.codigo}
+                      </span>
+                      <span className="text-sm font-semibold text-brand-text">{ticket.titulo}</span>
+                    </div>
+                    <p className="text-xs text-brand-muted line-clamp-2">{ticket.descricao}</p>
+                    <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-brand-muted">
+                      <span className="flex items-center space-x-1">
+                        <UserIcon size={12} />
+                        <span>{ticket.solicitante?.nome || 'Usuário'}</span>
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center space-x-1">
+                        <Clock size={12} />
+                        <span>{new Date(ticket.data_abertura).toLocaleDateString('pt-BR')}</span>
+                      </span>
+                      {ticket.servico?.categoria && (
+                        <>
+                          <span>•</span>
+                          <span className="px-1.5 py-0.2 bg-brand-dark border border-brand-border text-brand-muted">
+                            {ticket.servico.categoria.nome}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-3 shrink-0">
                   {/* Priority Badge */}
-                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 border ${
-                    ticket.prioridade === 'urgente' 
-                      ? 'text-red-500 bg-red-500/10 border-red-500/20' 
-                      : ticket.prioridade === 'alta' 
-                      ? 'text-amber-500 bg-amber-500/10 border-amber-500/20'
-                      : ticket.prioridade === 'media'
-                      ? 'text-blue-500 bg-blue-500/10 border-blue-500/20'
-                      : 'text-brand-muted bg-brand-muted/10 border-brand-border'
-                  }`}>
+                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 border ${ticket.prioridade === 'urgente'
+                      ? 'text-red-500 bg-red-500/10 border-red-500/20'
+                      : ticket.prioridade === 'alta'
+                        ? 'text-amber-500 bg-amber-500/10 border-amber-500/20'
+                        : ticket.prioridade === 'media'
+                          ? 'text-blue-500 bg-blue-500/10 border-blue-500/20'
+                          : 'text-brand-muted bg-brand-muted/10 border-brand-border'
+                    }`}>
                     {ticket.prioridade}
                   </span>
 
                   {/* Status Badge */}
-                  <span className={`text-[10px] uppercase font-semibold px-2 py-0.5 ${
-                    ticket.status === 'aberto'
+                  <span className={`text-[10px] uppercase font-semibold px-2 py-0.5 ${normalizeStatus(ticket.status) === 'aberto'
                       ? 'text-blue-400 bg-blue-400/10 border border-blue-400/20'
-                      : ticket.status === 'em_atendimento'
-                      ? 'text-amber-400 bg-amber-400/10 border border-amber-400/20'
-                      : ticket.status === 'resolvido'
-                      ? 'text-brand-primary bg-brand-primary/10 border border-brand-primary/20'
-                      : 'text-brand-muted bg-brand-dark border border-brand-border'
-                  }`}>
+                      : normalizeStatus(ticket.status) === 'em_atendimento'
+                        ? 'text-amber-400 bg-amber-400/10 border border-amber-400/20'
+                        : normalizeStatus(ticket.status) === 'resolvido'
+                          ? 'text-brand-primary bg-brand-primary/10 border border-brand-primary/20'
+                          : 'text-brand-muted bg-brand-dark border border-brand-border'
+                    }`}>
                     {ticket.status.replace('_', ' ')}
                   </span>
                 </div>
@@ -434,7 +559,7 @@ export const ServiceDeskPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 text-[11px] font-mono border-t border-brand-border/40 pt-3">
                 <div className="text-brand-muted">Solicitante:</div>
                 <div className="text-brand-text text-right truncate">{selectedTicket.solicitante?.nome}</div>
-                
+
                 <div className="text-brand-muted">Serviço:</div>
                 <div className="text-brand-text text-right truncate">{selectedTicket.servico?.nome}</div>
 
@@ -446,7 +571,7 @@ export const ServiceDeskPage: React.FC = () => {
             </div>
 
             {/* Admin/Technician Management controls */}
-            {isTechnicianOrAbove && selectedTicket.status !== 'fechado' && (
+            {isTechnicianOrAbove && (
               <div className="border-t border-brand-border/60 pt-4 space-y-3">
                 <h5 className="text-xs font-semibold text-brand-primary uppercase tracking-wider font-mono">Gerenciamento Técnico</h5>
 
@@ -454,13 +579,14 @@ export const ServiceDeskPage: React.FC = () => {
                 <div className="space-y-1">
                   <label className="text-[10px] text-brand-muted">Delegar para Técnico:</label>
                   <select
+                    disabled={normalizeStatus(selectedTicket.status) === 'fechado'}
                     value={assignedTechId}
                     onChange={(e) => {
                       const id = e.target.value === '' ? '' : Number(e.target.value);
                       setAssignedTechId(id);
                       if (id) handleAssignTicket(id);
                     }}
-                    className="w-full bg-brand-dark border border-brand-border px-2 py-1 text-xs text-brand-text focus:outline-none focus:border-brand-primary"
+                    className="w-full bg-brand-dark border border-brand-border px-2 py-1 text-xs text-brand-text focus:outline-none focus:border-brand-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="">Atribuir a...</option>
                     {technicians.map(t => (
@@ -470,16 +596,17 @@ export const ServiceDeskPage: React.FC = () => {
                 </div>
 
                 <div className="flex space-x-2">
-                  {selectedTicket.status !== 'resolvido' && (
+                  {normalizeStatus(selectedTicket.status) !== 'resolvido' && (
                     <button
                       onClick={() => setShowResolutionForm(true)}
-                      className="flex-1 py-1.5 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1"
+                      disabled={normalizeStatus(selectedTicket.status) === 'fechado'}
+                      className="flex-1 py-1.5 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Check size={14} />
                       <span>Resolver Chamado</span>
                     </button>
                   )}
-                  {selectedTicket.status === 'resolvido' && (
+                  {normalizeStatus(selectedTicket.status) === 'resolvido' && (
                     <button
                       onClick={() => handleUpdateStatus('fechado')}
                       className="flex-1 py-1.5 bg-brand-muted/10 border border-brand-border hover:bg-brand-card text-brand-text text-xs font-semibold flex items-center justify-center space-x-1"
@@ -493,24 +620,24 @@ export const ServiceDeskPage: React.FC = () => {
             )}
 
             {/* User Rating / Feedback controls */}
-            {currentUser?.id === selectedTicket.solicitante_id && 
-             selectedTicket.status?.toLowerCase() === 'resolvido' && 
-             !selectedTicket.nota_feedback && 
-             !selectedTicket.avaliacao && (
-              <div className="border-t border-brand-border/60 pt-4 bg-brand-primary/5 p-3 border border-brand-primary/20 space-y-3">
-                <h5 className="text-xs font-semibold text-brand-primary flex items-center space-x-1">
-                  <Star size={14} />
-                  <span>Avaliar Atendimento</span>
-                </h5>
-                <p className="text-[11px] text-brand-text">Este chamado foi resolvido. Por favor, forneça sua avaliação de atendimento.</p>
-                <button
-                  onClick={() => setShowFeedbackForm(true)}
-                  className="w-full py-1.5 bg-brand-primary text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1"
-                >
-                  <span>Avaliar e Encerrar</span>
-                </button>
-              </div>
-            )}
+            {currentUser?.id === selectedTicket.solicitante_id &&
+              selectedTicket.status?.toLowerCase() === 'resolvido' &&
+              !selectedTicket.nota_feedback &&
+              !selectedTicket.avaliacao && (
+                <div className="border-t border-brand-border/60 pt-4 bg-brand-primary/5 p-3 border border-brand-primary/20 space-y-3">
+                  <h5 className="text-xs font-semibold text-brand-primary flex items-center space-x-1">
+                    <Star size={14} />
+                    <span>Avaliar Atendimento</span>
+                  </h5>
+                  <p className="text-[11px] text-brand-text">Este chamado foi resolvido. Por favor, forneça sua avaliação de atendimento.</p>
+                  <button
+                    onClick={() => setShowFeedbackForm(true)}
+                    className="w-full py-1.5 bg-brand-primary text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1"
+                  >
+                    <span>Avaliar e Encerrar</span>
+                  </button>
+                </div>
+              )}
 
             {/* Feedback Detail (if rated) */}
             {(selectedTicket.nota_feedback || selectedTicket.avaliacao) && (
@@ -555,17 +682,43 @@ export const ServiceDeskPage: React.FC = () => {
                 <MessageSquare size={14} />
                 <span>Interações e Comentários</span>
               </h5>
-              
+
               <div className="space-y-3">
-                {selectedTicket.interacoes && selectedTicket.interacoes.map((item) => (
-                  <div key={item.id} className="text-xs p-2.5 bg-brand-dark/40 border border-brand-border/50">
-                    <div className="flex items-center justify-between text-[10px] text-brand-muted mb-1 font-mono">
-                      <span className="font-semibold text-brand-text">{item.user?.nome}</span>
-                      <span>{new Date(item.data_criacao).toLocaleString('pt-BR')}</span>
+                {selectedTicket.interacoes && selectedTicket.interacoes.map((item) => {
+                  const author = item.usuario || item.user;
+                  return (
+                    <div key={item.id} className="text-xs p-2.5 bg-brand-dark/40 border border-brand-border/50 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] text-brand-muted mb-1 font-mono">
+                        <span className="font-semibold text-brand-text">{author?.nome || 'Usuário'}</span>
+                        <span>{new Date(item.data_criacao).toLocaleString('pt-BR')}</span>
+                      </div>
+                      <p className="text-brand-text text-[11px] whitespace-pre-wrap">{item.mensagem}</p>
+                      {item.foto && (
+                        <div className="mt-2 pt-2 border-t border-brand-border/20">
+                          {isImageFile(item.foto) ? (
+                            <a href={toApiFileUrl(item.foto)} target="_blank" rel="noreferrer" className="block max-w-max">
+                              <img
+                                src={toApiFileUrl(item.foto)}
+                                alt="Anexo"
+                                className="max-h-40 max-w-full rounded border border-brand-border/60 hover:border-brand-primary/60 transition-colors"
+                              />
+                            </a>
+                          ) : (
+                            <a
+                              href={toApiFileUrl(item.foto)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center space-x-1.5 text-brand-primary hover:underline"
+                            >
+                              <span>📎</span>
+                              <span className="truncate max-w-xs">{getFileName(item.foto)}</span>
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-brand-text text-[11px] whitespace-pre-wrap">{item.mensagem}</p>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {(!selectedTicket.interacoes || selectedTicket.interacoes.length === 0) && (
                   <p className="text-[11px] text-brand-muted text-center py-4">Sem interações registradas.</p>
@@ -575,22 +728,55 @@ export const ServiceDeskPage: React.FC = () => {
           </div>
 
           {/* Comment Message Box */}
-          {selectedTicket.status !== 'fechado' && (
-            <form onSubmit={handleSendComment} className="p-3 border-t border-brand-border bg-brand-dark/20 flex space-x-2">
-              <input
-                type="text"
-                placeholder="Escreva uma mensagem..."
-                value={commentMessage}
-                onChange={(e) => setCommentMessage(e.target.value)}
-                className="flex-1 bg-brand-dark border border-brand-border px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary text-brand-text placeholder-brand-muted/40"
-              />
-              <button
-                type="submit"
-                disabled={!commentMessage.trim()}
-                className="p-1.5 bg-brand-primary/10 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary hover:text-brand-dark transition-all disabled:opacity-40"
-              >
-                <Send size={14} />
-              </button>
+          {normalizeStatus(selectedTicket.status) !== 'fechado' && (
+            <form onSubmit={handleSendComment} className="p-3 border-t border-brand-border bg-brand-dark/20 flex flex-col space-y-2">
+              {attachedFile && (
+                <div className="flex items-center justify-between p-2 bg-brand-dark/60 border border-brand-border/60 rounded-sm text-xs">
+                  <div className="flex items-center space-x-2 truncate">
+                    <span className="text-brand-primary">📎</span>
+                    <span className="text-brand-text truncate">{attachedFile.name}</span>
+                    <span className="text-[10px] text-brand-muted">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAttachedFile(null)}
+                    className="text-red-400 hover:text-red-300 font-bold px-1"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  placeholder="Escreva uma mensagem ou cole arquivos/imagens..."
+                  value={commentMessage}
+                  onChange={(e) => setCommentMessage(e.target.value)}
+                  onPaste={handlePaste}
+                  className="flex-1 bg-brand-dark border border-brand-border px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary text-brand-text placeholder-brand-muted/40"
+                />
+
+                <label className="p-1.5 bg-brand-dark border border-brand-border text-brand-muted hover:text-brand-text hover:border-brand-primary/50 transition-all cursor-pointer flex items-center justify-center">
+                  <Plus size={14} />
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={uploadingAttachment || (!commentMessage.trim() && !attachedFile)}
+                  className="p-1.5 bg-brand-primary/10 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary hover:text-brand-dark transition-all disabled:opacity-40 flex items-center justify-center"
+                >
+                  {uploadingAttachment ? (
+                    <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full" />
+                  ) : (
+                    <Send size={14} />
+                  )}
+                </button>
+              </div>
             </form>
           )}
         </div>
@@ -649,6 +835,7 @@ export const ServiceDeskPage: React.FC = () => {
                   placeholder="Explique detalhadamente o ocorrido..."
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
+                  onPaste={handleNewTicketPaste}
                   className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm focus:outline-none focus:border-brand-primary text-brand-text placeholder-brand-muted/30"
                 />
               </div>
@@ -667,6 +854,55 @@ export const ServiceDeskPage: React.FC = () => {
                 </select>
               </div>
 
+              <div className="space-y-2 border-t border-brand-border/30 pt-3">
+                <label className="text-xs text-brand-muted block">Anexo / Imagem (opcional)</label>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center space-x-3">
+                    <label className="cursor-pointer bg-brand-dark hover:bg-brand-card border border-brand-border px-3 py-1.5 text-xs text-brand-text flex items-center space-x-2 transition-all">
+                      <span>📁 Escolher Arquivo</span>
+                      <input
+                        type="file"
+                        onChange={handleNewTicketFileChange}
+                        className="hidden"
+                        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar"
+                      />
+                    </label>
+                    <span className="text-[15px] text-brand-muted font-mono leading-tight">
+                      Dica: Você também pode colar (Ctrl+V) uma imagem diretamente na descrição.
+                    </span>
+                  </div>
+
+                  {newTicketUploading && (
+                    <div className="text-[10px] text-brand-primary font-mono animate-pulse">
+                      Fazendo upload do anexo...
+                    </div>
+                  )}
+
+                  {newTicketAttachedFile && (
+                    <div className="p-2 bg-brand-dark border border-brand-border flex items-center justify-between text-xs text-brand-text">
+                      <span className="truncate max-w-xs">📎 {newTicketAttachedFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={handleRemoveNewTicketAttachment}
+                        className="text-red-400 hover:text-red-300 font-bold font-mono px-2"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  )}
+
+                  {newTicketAttachedPath && isImageFile(newTicketAttachedPath) && (
+                    <div className="mt-2 border border-brand-border/40 max-w-max p-1 bg-brand-dark rounded">
+                      <img
+                        src={toApiFileUrl(newTicketAttachedPath)}
+                        alt="Preview"
+                        className="max-h-24 max-w-full object-contain rounded"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="flex space-x-3 pt-4">
                 <button
                   type="button"
@@ -677,7 +913,8 @@ export const ServiceDeskPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark font-semibold text-sm transition-all"
+                  disabled={newTicketUploading}
+                  className="flex-1 py-2 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark font-semibold text-sm transition-all disabled:opacity-50"
                 >
                   Enviar Chamado
                 </button>
@@ -742,20 +979,27 @@ export const ServiceDeskPage: React.FC = () => {
             <form onSubmit={handleSendFeedback} className="p-6 space-y-4">
               <div className="space-y-2 text-center">
                 <label className="text-xs text-brand-muted">Sua Nota para este Atendimento:</label>
-                <div className="flex justify-center space-x-2 pt-2">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setRating(s)}
-                      className="p-1 hover:scale-115 transition-transform"
-                    >
-                      <Star
-                        size={28}
-                        className={s <= rating ? 'text-amber-500 fill-amber-500' : 'text-brand-muted'}
-                      />
-                    </button>
-                  ))}
+                <div
+                  className="flex justify-center space-x-2 pt-2"
+                  onMouseLeave={() => setHoveredRating(null)}
+                >
+                  {[1, 2, 3, 4, 5].map((s) => {
+                    const isLit = hoveredRating !== null ? s <= hoveredRating : s <= rating;
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setRating(s)}
+                        onMouseEnter={() => setHoveredRating(s)}
+                        className="p-1 hover:scale-110 transition-transform focus:outline-none"
+                      >
+                        <Star
+                          size={28}
+                          className={isLit ? 'text-amber-500 fill-amber-500' : 'text-brand-muted'}
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -789,7 +1033,7 @@ export const ServiceDeskPage: React.FC = () => {
           </div>
         </div>
       )}
-    {/* Configuration Modal */}
+      {/* Configuration Modal */}
       {showConfigModal && isTechnicianOrAbove && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-dark/80 backdrop-blur-md">
           <div className="w-full max-w-2xl bg-brand-card border border-brand-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -866,7 +1110,7 @@ export const ServiceDeskPage: React.FC = () => {
                 <div className="space-y-6">
                   <form onSubmit={handleCreateDefinition} className="space-y-4 p-4 border border-brand-primary/30 bg-brand-primary/5">
                     <h4 className="text-sm font-bold text-brand-text uppercase font-mono tracking-wider">Novo Serviço/Incidente</h4>
-                    
+
                     <div className="space-y-1">
                       <label className="text-xs text-brand-muted">Categoria Relacionada</label>
                       <select

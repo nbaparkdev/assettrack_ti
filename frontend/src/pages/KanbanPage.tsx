@@ -61,6 +61,8 @@ const priorityBadgeClass: Record<string, string> = {
 
 export const KanbanPage: React.FC = () => {
   const currentUser = useAuthStore((state) => state.user);
+  const userRole = currentUser?.role?.toLowerCase() || '';
+  const isStaff = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'].includes(userRole);
   const [projects, setProjects] = useState<KanbanProject[]>([]);
   const [board, setBoard] = useState<{ project: KanbanProject; board_progress: number; total_cards: number } | null>(null);
   const [cardDetail, setCardDetail] = useState<KanbanCard | null>(null);
@@ -1602,67 +1604,71 @@ export const KanbanPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-[16px] border border-[#dfe1e6] bg-[#f8fafc] p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-xs font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Integração com manutenções</div>
-                        <div className="mt-1 text-sm text-[#44546f]">
-                          Ative para permitir que este projeto use o fluxo de manutenção ao mover cartões no board.
+                  {isStaff && (
+                    <>
+                      <div className="rounded-[16px] border border-[#dfe1e6] bg-[#f8fafc] p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="text-xs font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Integração com manutenções</div>
+                            <div className="mt-1 text-sm text-[#44546f]">
+                              Ative para permitir que este projeto use o fluxo de manutenção ao mover cartões no board.
+                            </div>
+                          </div>
+                          <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm">
+                            <input
+                              type="checkbox"
+                              checked={pRelatedToMaintenance}
+                              onChange={(e) => setPRelatedToMaintenance(e.target.checked)}
+                              className="h-4 w-4 rounded border-[#b6c2cf] text-[#0079bf] focus:ring-[#0079bf]"
+                            />
+                            <span className="text-sm font-semibold text-[#172b4d]">Relacionar</span>
+                          </label>
                         </div>
                       </div>
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm">
-                        <input
-                          type="checkbox"
-                          checked={pRelatedToMaintenance}
-                          onChange={(e) => setPRelatedToMaintenance(e.target.checked)}
-                          className="h-4 w-4 rounded border-[#b6c2cf] text-[#0079bf] focus:ring-[#0079bf]"
-                        />
-                        <span className="text-sm font-semibold text-[#172b4d]">Relacionar</span>
-                      </label>
-                    </div>
-                  </div>
 
-                  <div className="rounded-[16px] border border-[#dfe1e6] bg-[#f8fafc] p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-xs font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Integração com manutenção preventiva</div>
-                        <div className="mt-1 text-sm text-[#44546f]">
-                          Ative para conectar este board ao panorama de planos e ordens de serviço preventivas.
+                      <div className="rounded-[16px] border border-[#dfe1e6] bg-[#f8fafc] p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="text-xs font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Integração com manutenção preventiva</div>
+                            <div className="mt-1 text-sm text-[#44546f]">
+                              Ative para conectar este board ao panorama de planos e ordens de serviço preventivas.
+                            </div>
+                          </div>
+                          <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm">
+                            <input
+                              type="checkbox"
+                              checked={pRelatedToPreventive}
+                              onChange={(e) => setPRelatedToPreventive(e.target.checked)}
+                              className="h-4 w-4 rounded border-[#b6c2cf] text-[#0079bf] focus:ring-[#0079bf]"
+                            />
+                            <span className="text-sm font-semibold text-[#172b4d]">Relacionar</span>
+                          </label>
                         </div>
+                        {pRelatedToPreventive && (
+                          <div className="mt-4">
+                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-[#5e6c84]">
+                              Plano preventivo vinculado
+                            </label>
+                            <select
+                              value={pPreventivePlanId ?? ''}
+                              onChange={(e) => setPPreventivePlanId(e.target.value ? Number(e.target.value) : null)}
+                              className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] focus:border-[#0079bf] focus:outline-none"
+                            >
+                              <option value="">Selecionar depois</option>
+                              {preventivePlans.map((plan) => (
+                                <option key={plan.id} value={plan.id}>
+                                  {plan.nome} {plan.codigo ? `(${plan.codigo})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="mt-2 text-xs text-[#5e6c84]">
+                              Esse plano será usado como base para abrir rapidamente uma nova OS preventiva a partir do board.
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-white px-3 py-2 shadow-sm">
-                        <input
-                          type="checkbox"
-                          checked={pRelatedToPreventive}
-                          onChange={(e) => setPRelatedToPreventive(e.target.checked)}
-                          className="h-4 w-4 rounded border-[#b6c2cf] text-[#0079bf] focus:ring-[#0079bf]"
-                        />
-                        <span className="text-sm font-semibold text-[#172b4d]">Relacionar</span>
-                      </label>
-                    </div>
-                    {pRelatedToPreventive && (
-                      <div className="mt-4">
-                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-[#5e6c84]">
-                          Plano preventivo vinculado
-                        </label>
-                        <select
-                          value={pPreventivePlanId ?? ''}
-                          onChange={(e) => setPPreventivePlanId(e.target.value ? Number(e.target.value) : null)}
-                          className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] focus:border-[#0079bf] focus:outline-none"
-                        >
-                          <option value="">Selecionar depois</option>
-                          {preventivePlans.map((plan) => (
-                            <option key={plan.id} value={plan.id}>
-                              {plan.nome} {plan.codigo ? `(${plan.codigo})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="mt-2 text-xs text-[#5e6c84]">
-                          Esse plano será usado como base para abrir rapidamente uma nova OS preventiva a partir do board.
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="space-y-4">
@@ -1808,16 +1814,20 @@ export const KanbanPage: React.FC = () => {
                           <div className="mt-2 text-xs text-white/75">
                             O quadro final usará esta cor com o estilo <strong>{pBoardPattern}</strong>.
                           </div>
-                          <div className="mt-2 text-xs text-white/75">
-                            Integração com manutenção: <strong>{pRelatedToMaintenance ? 'ativada' : 'desativada'}</strong>.
-                          </div>
-                          <div className="mt-2 text-xs text-white/75">
-                            Integração com preventiva: <strong>{pRelatedToPreventive ? 'ativada' : 'desativada'}</strong>.
-                          </div>
-                          {pRelatedToPreventive && pPreventivePlanId && (
-                            <div className="mt-2 text-xs text-white/75">
-                              Plano vinculado: <strong>{preventivePlans.find((plan) => plan.id === pPreventivePlanId)?.nome ?? 'Plano selecionado'}</strong>.
-                            </div>
+                          {isStaff && (
+                            <>
+                              <div className="mt-2 text-xs text-white/75">
+                                Integração com manutenção: <strong>{pRelatedToMaintenance ? 'ativada' : 'desativada'}</strong>.
+                              </div>
+                              <div className="mt-2 text-xs text-white/75">
+                                Integração com preventiva: <strong>{pRelatedToPreventive ? 'ativada' : 'desativada'}</strong>.
+                              </div>
+                              {pRelatedToPreventive && pPreventivePlanId && (
+                                <div className="mt-2 text-xs text-white/75">
+                                  Plano vinculado: <strong>{preventivePlans.find((plan) => plan.id === pPreventivePlanId)?.nome ?? 'Plano selecionado'}</strong>.
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -1891,81 +1901,85 @@ export const KanbanPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className={`rounded-[16px] border p-4 shadow-[0_1px_0_rgba(9,30,66,0.08)] ${boardRelatedToMaintenance ? 'border-emerald-200 bg-emerald-50' : 'border-[#dfe1e6] bg-white'}`}>
-                <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#5e6c84]">Integração</div>
-                <div className="mt-2 text-sm font-semibold text-[#172b4d]">
-                  {boardRelatedToMaintenance ? 'Projeto relacionado a manutenções' : 'Sem vínculo com manutenções'}
-                </div>
-                <div className="mt-1 text-sm text-[#5e6c84]">
-                  {boardRelatedToMaintenance
-                    ? 'Movimentações deste board podem abrir o fluxo de manutenção quando necessário.'
-                    : 'Ative essa opção na edição do projeto para conectar o board ao módulo de manutenções.'}
-                </div>
-              </div>
-
-              <div className={`rounded-[16px] border p-4 shadow-[0_1px_0_rgba(9,30,66,0.08)] ${boardRelatedToPreventive ? 'border-cyan-200 bg-cyan-50' : 'border-[#dfe1e6] bg-white'}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#5e6c84]">Manutenção preventiva</div>
-                <div className="mt-2 text-sm font-semibold text-[#172b4d]">
-                  {boardRelatedToPreventive ? 'Projeto conectado ao módulo preventivo' : 'Sem vínculo com manutenção preventiva'}
-                </div>
-                <div className="mt-1 text-sm text-[#5e6c84]">
-                  {boardRelatedToPreventive
-                    ? 'Este board pode acompanhar o panorama preventivo com planos ativos e ordens abertas.'
-                    : 'Ative essa opção na edição do projeto para usar um board com contexto preventivo.'}
-                </div>
-                {board?.project.preventive_plan && (
-                  <div className="mt-3 rounded-[14px] border border-cyan-100 bg-white px-3 py-3">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Plano vinculado</div>
-                    <div className="mt-1 text-sm font-semibold text-[#172b4d]">{board.project.preventive_plan.nome}</div>
-                    <div className="text-xs text-[#5e6c84]">{board.project.preventive_plan.codigo}</div>
+              {isStaff && (
+                <>
+                  <div className={`rounded-[16px] border p-4 shadow-[0_1px_0_rgba(9,30,66,0.08)] ${boardRelatedToMaintenance ? 'border-emerald-200 bg-emerald-50' : 'border-[#dfe1e6] bg-white'}`}>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#5e6c84]">Integração</div>
+                    <div className="mt-2 text-sm font-semibold text-[#172b4d]">
+                      {boardRelatedToMaintenance ? 'Projeto relacionado a manutenções' : 'Sem vínculo com manutenções'}
+                    </div>
+                    <div className="mt-1 text-sm text-[#5e6c84]">
+                      {boardRelatedToMaintenance
+                        ? 'Movimentações deste board podem abrir o fluxo de manutenção quando necessário.'
+                        : 'Ative essa opção na edição do projeto para conectar o board ao módulo de manutenções.'}
+                    </div>
                   </div>
-                )}
-                </div>
-                  {boardRelatedToPreventive && (
-                    <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={() => window.location.assign('/manutencao-preventiva')}
-                        className="rounded-full border border-cyan-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-cyan-700 hover:bg-cyan-100"
-                      >
-                        Abrir preventiva
-                      </button>
-                      {board?.project.preventive_plan_id && (
-                      <button
-                        type="button"
-                        onClick={() => openPreventiveOrder({ planId: board.project.preventive_plan_id ?? null })}
-                        className="rounded-full bg-cyan-600 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white hover:bg-cyan-700"
-                      >
-                        Nova OS preventiva
-                        </button>
+
+                  <div className={`rounded-[16px] border p-4 shadow-[0_1px_0_rgba(9,30,66,0.08)] ${boardRelatedToPreventive ? 'border-cyan-200 bg-cyan-50' : 'border-[#dfe1e6] bg-white'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#5e6c84]">Manutenção preventiva</div>
+                        <div className="mt-2 text-sm font-semibold text-[#172b4d]">
+                          {boardRelatedToPreventive ? 'Projeto conectado ao módulo preventivo' : 'Sem vínculo com manutenção preventiva'}
+                        </div>
+                        <div className="mt-1 text-sm text-[#5e6c84]">
+                          {boardRelatedToPreventive
+                            ? 'Este board pode acompanhar o panorama preventivo com planos ativos e ordens abertas.'
+                            : 'Ative essa opção na edição do projeto para usar um board com contexto preventivo.'}
+                        </div>
+                        {board?.project.preventive_plan && (
+                          <div className="mt-3 rounded-[14px] border border-cyan-100 bg-white px-3 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Plano vinculado</div>
+                            <div className="mt-1 text-sm font-semibold text-[#172b4d]">{board.project.preventive_plan.nome}</div>
+                            <div className="text-xs text-[#5e6c84]">{board.project.preventive_plan.codigo}</div>
+                          </div>
+                        )}
+                      </div>
+                      {boardRelatedToPreventive && (
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => window.location.assign('/manutencao-preventiva')}
+                            className="rounded-full border border-cyan-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-cyan-700 hover:bg-cyan-100"
+                          >
+                            Abrir preventiva
+                          </button>
+                          {board?.project.preventive_plan_id && (
+                            <button
+                              type="button"
+                              onClick={() => openPreventiveOrder({ planId: board.project.preventive_plan_id ?? null })}
+                              className="rounded-full bg-cyan-600 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white hover:bg-cyan-700"
+                            >
+                              Nova OS preventiva
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
 
-                {boardRelatedToPreventive && preventiveSummary && (
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-[14px] border border-cyan-100 bg-white p-3">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Planos ativos</div>
-                      <div className="mt-2 text-2xl font-bold text-[#172b4d]">{preventiveSummary.active_plans}</div>
-                    </div>
-                    <div className="rounded-[14px] border border-cyan-100 bg-white p-3">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Planos vencendo</div>
-                      <div className="mt-2 text-2xl font-bold text-[#172b4d]">{preventiveSummary.plans_due}</div>
-                    </div>
-                    <div className="rounded-[14px] border border-cyan-100 bg-white p-3">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">OS abertas</div>
-                      <div className="mt-2 text-2xl font-bold text-[#172b4d]">{preventiveSummary.open_orders}</div>
-                    </div>
-                    <div className="rounded-[14px] border border-cyan-100 bg-white p-3">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Próximas em 7 dias</div>
-                      <div className="mt-2 text-2xl font-bold text-[#172b4d]">{preventiveSummary.due_soon}</div>
-                    </div>
+                    {boardRelatedToPreventive && preventiveSummary && (
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-[14px] border border-cyan-100 bg-white p-3">
+                          <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Planos ativos</div>
+                          <div className="mt-2 text-2xl font-bold text-[#172b4d]">{preventiveSummary.active_plans}</div>
+                        </div>
+                        <div className="rounded-[14px] border border-cyan-100 bg-white p-3">
+                          <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Planos vencendo</div>
+                          <div className="mt-2 text-2xl font-bold text-[#172b4d]">{preventiveSummary.plans_due}</div>
+                        </div>
+                        <div className="rounded-[14px] border border-cyan-100 bg-white p-3">
+                          <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">OS abertas</div>
+                          <div className="mt-2 text-2xl font-bold text-[#172b4d]">{preventiveSummary.open_orders}</div>
+                        </div>
+                        <div className="rounded-[14px] border border-cyan-100 bg-white p-3">
+                          <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Próximas em 7 dias</div>
+                          <div className="mt-2 text-2xl font-bold text-[#172b4d]">{preventiveSummary.due_soon}</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
 
               <div className="rounded-[18px] border border-[#dfe1e6] bg-white p-4 shadow-[0_1px_0_rgba(9,30,66,0.08)]">
                 <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#5e6c84]">Identidade visual</div>

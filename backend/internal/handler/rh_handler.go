@@ -91,13 +91,17 @@ type RHHandler struct {
 	rhRepo    *repository.RHRepository
 	userRepo  *repository.UserRepository
 	assetRepo *repository.AssetRepository
+	alertRepo *repository.EmergencyAlertRepository
+	broker    *AlertSSEBroker
 }
 
-func NewRHHandler(rhRepo *repository.RHRepository, userRepo *repository.UserRepository, assetRepo *repository.AssetRepository) *RHHandler {
+func NewRHHandler(rhRepo *repository.RHRepository, userRepo *repository.UserRepository, assetRepo *repository.AssetRepository, alertRepo *repository.EmergencyAlertRepository, broker *AlertSSEBroker) *RHHandler {
 	return &RHHandler{
 		rhRepo:    rhRepo,
 		userRepo:  userRepo,
 		assetRepo: assetRepo,
+		alertRepo: alertRepo,
+		broker:    broker,
 	}
 }
 
@@ -346,18 +350,65 @@ func (h *RHHandler) OffboardUser(c *gin.Context) {
 		return
 	}
 
-	// Update user assets
+	// List user assets to inform in the alert
 	assets, err := h.assetRepo.ListByCurrentUser(uint(id))
-	if err == nil {
-		for _, asset := range assets {
-			asset.Status = models.AssetStatusManutencao
-			asset.CurrentUserID = nil
-			h.assetRepo.Update(&asset)
+	ativoStr := "Nenhum ativo vinculado"
+	
+	if err == nil && len(assets) > 0 {
+		names := make([]string, 0, len(assets))
+		for _, a := range assets {
+			if a.EPatrimonio != "" {
+				names = append(names, a.Nome+" ("+a.EPatrimonio+")")
+			} else {
+				names = append(names, a.Nome)
+			}
+		}
+		ativoStr = strings.Join(names, ", ")
+	}
+
+	// Create emergency alert for IT
+	motivo := fmt.Sprintf("O colaborador %s foi desligado pelo RH. Por favor, utilize a opção de solicitação de devolução para recolher os seguintes ativos: %s.", user.Nome, ativoStr)
+	
+	setorStr := "Não informado"
+	if user.DepartamentoID != nil {
+		var dept models.Departamento
+		if err := h.userRepo.DB().First(&dept, *user.DepartamentoID).Error; err == nil {
+			setorStr = dept.Nome
+		}
+	} else if user.Cargo != nil && *user.Cargo != "" {
+		setorStr = *user.Cargo
+	}
+
+	alert := &models.EmergencyAlert{
+		UsuarioID:   user.ID,
+		UsuarioNome: user.Nome,
+		Motivo:      motivo,
+		Atendido:    false,
+	}
+	if setorStr != "" {
+		alert.SetorNome = &setorStr
+	}
+	if ativoStr != "Nenhum ativo vinculado" {
+		alert.AtivoNome = &ativoStr
+	}
+
+	if h.alertRepo != nil {
+		if err := h.alertRepo.Create(alert); err == nil && h.broker != nil {
+			payload := gin.H{
+				"id":           alert.ID,
+				"usuario_nome": user.Nome,
+				"usuario_id":   user.ID,
+				"setor_nome":   setorStr,
+				"ativo_nome":   ativoStr,
+				"motivo":       alert.Motivo,
+				"created_at":   alert.CreatedAt.Format("02/01/2006 15:04:05"),
+			}
+			h.broker.Broadcast(payload)
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Colaborador desligado com sucesso. Ativos movidos para Revisão/Manutenção.",
+		"message": "Colaborador desligado com sucesso. Alerta de devolução enviado para a TI.",
 		"assets_affected": len(assets),
 	})
 }

@@ -60,7 +60,7 @@ func (r *ServiceDeskRepository) CreateDefinition(def *models.ServiceDefinition) 
 // ServiceTicket methods
 func (r *ServiceDeskRepository) ListTickets(solicitanteID *uint, skip, limit int) ([]models.ServiceTicket, error) {
 	var tickets []models.ServiceTicket
-	query := r.db.Preload("Servico").Preload("Solicitante").Preload("Tecnico")
+	query := r.db.Preload("Servico").Preload("Solicitante").Preload("Tecnico").Preload("Interacoes").Preload("Interacoes.Usuario")
 	if solicitanteID != nil {
 		query = query.Where("solicitante_id = ?", *solicitanteID)
 	}

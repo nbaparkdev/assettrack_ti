@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/assettrack/backend/internal/dto"
+	"github.com/assettrack/backend/internal/middleware"
 	"github.com/assettrack/backend/internal/models"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -23,12 +24,17 @@ func NewDashboardHandler(db *gorm.DB) *DashboardHandler {
 func (h *DashboardHandler) GetStats(c *gin.Context) {
 	var response dto.DashboardStatsResponse
 
-	// 1. Total Assets in Maintenance (status = 'Manutenção' or 'manutencao' or 'em_manutencao')
-	h.db.Model(&models.Asset{}).Where("LOWER(status) LIKE '%manuten%' OR status IN ('Manutenção', 'MANUTENCAO', 'Em Manutenção')").Count(&response.TotalAssetsInMaintenance)
+	// 1. Assets count by Status
+	h.db.Model(&models.Asset{}).Where("LOWER(status) IN ('manutenção', 'manutencao', 'em manutenção', 'em_manutencao') OR LOWER(status) LIKE '%manuten%'").Count(&response.TotalAssetsInMaintenance)
+	h.db.Model(&models.Asset{}).Where("LOWER(status) IN ('disponível', 'disponivel')").Count(&response.TotalAssetsDisponivel)
+	h.db.Model(&models.Asset{}).Where("LOWER(status) IN ('em uso', 'em_uso', 'uso')").Count(&response.TotalAssetsEmUso)
+	h.db.Model(&models.Asset{}).Where("LOWER(status) IN ('armazenado', 'armazenamento')").Count(&response.TotalAssetsArmazenado)
+	h.db.Model(&models.Asset{}).Where("LOWER(status) IN ('baixado', 'baixa')").Count(&response.TotalAssetsBaixado)
 
-	// 2. Open vs Resolved Tickets
-	h.db.Model(&models.ServiceTicket{}).Where("UPPER(status) IN ?", []string{"ABERTO", "EM_ANDAMENTO", "EM ATENDIMENTO"}).Count(&response.TicketsOpen)
-	h.db.Model(&models.ServiceTicket{}).Where("UPPER(status) = ?", "RESOLVIDO").Count(&response.TicketsResolved)
+	// 2. Open vs Resolved vs Closed Tickets
+	h.db.Model(&models.ServiceTicket{}).Where("LOWER(status) NOT IN ('resolvido', 'fechado', 'cancelado')").Count(&response.TicketsOpen)
+	h.db.Model(&models.ServiceTicket{}).Where("LOWER(status) = ?", "resolvido").Count(&response.TicketsResolved)
+	h.db.Model(&models.ServiceTicket{}).Where("LOWER(status) IN ('fechado', 'cancelado')").Count(&response.TicketsClosed)
 
 	// 3. Supplier Cost Monthly
 	now := time.Now()
@@ -135,6 +141,26 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 			Severity:  "CRITICAL",
 			CreatedAt: r.DataSolicitacao.Format(time.RFC3339),
 		})
+	}
+
+	// 6. Open Service Desk Ticket Alerts (for Admins, Managers and Technicians)
+	currentUser := middleware.GetCurrentUser(c)
+	if currentUser != nil && currentUser.IsManagerOrAbove() {
+		var openTickets []models.ServiceTicket
+		h.db.Preload("Solicitante").Where("LOWER(status) = ?", "aberto").Order("data_abertura DESC").Limit(5).Find(&openTickets)
+
+		for _, t := range openTickets {
+			solicitanteName := "Usuário"
+			if t.Solicitante != nil {
+				solicitanteName = t.Solicitante.Nome
+			}
+			response.ActiveAlerts = append(response.ActiveAlerts, dto.AlertSummary{
+				ID:        t.ID,
+				Title:     "Chamado Aberto: " + t.Titulo + " (por " + solicitanteName + ")",
+				Severity:  "WARNING",
+				CreatedAt: t.DataAbertura.Format(time.RFC3339),
+			})
+		}
 	}
 
 	c.JSON(http.StatusOK, response)

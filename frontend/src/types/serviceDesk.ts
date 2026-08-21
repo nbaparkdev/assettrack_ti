@@ -21,7 +21,13 @@ export interface ServiceTicketInteraction {
     nome: string;
     email: string;
   };
+  usuario?: {
+    id: number;
+    nome: string;
+    email: string;
+  };
   mensagem: string;
+  foto?: string;
   data_criacao: string;
 }
 
@@ -32,6 +38,7 @@ export interface ServiceTicket {
   descricao: string;
   prioridade: 'baixa' | 'media' | 'alta' | 'urgente';
   status: 'aberto' | 'em_atendimento' | 'resolvido' | 'fechado';
+  foto?: string;
   solicitante_id: number;
   solicitante?: {
     id: number;

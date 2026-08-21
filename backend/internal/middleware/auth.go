@@ -97,6 +97,20 @@ func RequireManagerOrAbove() gin.HandlerFunc {
 	}
 }
 
+// RequireManagerOrRH ensures user is manager or RH
+func RequireManagerOrRH() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user := GetCurrentUser(c)
+		if user == nil || (!user.IsManagerOrAbove() && !user.CanManageRH()) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"detail": "The user doesn't have enough privileges",
+			})
+			return
+		}
+		c.Next()
+	}
+}
+
 // RequireSupplierManager ensures supplier module access (admin, gerente, gerente_infra, comprador)
 func RequireSupplierManager() gin.HandlerFunc {
 	return func(c *gin.Context) {

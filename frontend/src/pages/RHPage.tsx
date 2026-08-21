@@ -34,7 +34,19 @@ export const RHPage: React.FC = () => {
 
       // Load active users
       const res = await api.get<User[]>('/users');
-      setUsuarios((res.data || []).filter(u => u.is_active));
+      setUsuarios((res.data || []).filter(u => {
+        // Must be active in the system
+        if (!u.is_active) return false;
+        
+        // Must NOT be an administrator
+        if (u.role === 'admin') return false;
+        
+        // Allowed roles: comum, rh, compras, gerentes, tecnico
+        const allowedRoles = ['usuario_comum', 'rh', 'comprador', 'gerente_ti', 'gerente_infra', 'tecnico'];
+        if (!allowedRoles.includes(u.role)) return false;
+        
+        return true;
+      }));
     } catch (err) {
       console.error(err);
     } finally {
@@ -259,7 +271,7 @@ export const RHPage: React.FC = () => {
           <UserMinus size={16} className="mr-2" /> Desligamento de Colaborador (Offboarding)
         </div>
         <div className="p-4 bg-brand-dark/50 border-b border-brand-border text-xs text-brand-muted font-mono leading-relaxed">
-          Ao desligar um colaborador, o acesso ao sistema será imediatamente revogado e todos os ativos em sua posse serão movidos para o status de <strong>Manutenção/Revisão</strong> automaticamente, aguardando a TI formatar/higienizar os equipamentos.
+          Ao desligar um colaborador, o acesso ao sistema será imediatamente revogado. Um <strong>alerta emergencial</strong> será disparado automaticamente para a equipe técnica e administradores, informando os ativos em posse do usuário para que realizem a <strong>solicitação de devolução</strong> utilizando o fluxo padrão de Empréstimos/Inventário.
         </div>
         <div className="divide-y divide-brand-border/60 max-h-[300px] overflow-y-auto">
           {usuarios.map((u) => (

@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -306,4 +309,66 @@ func (h *ServiceDeskHandler) CreateInteraction(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, inter)
+}
+
+func (h *ServiceDeskHandler) UploadInteractionAttachment(c *gin.Context) {
+	fileHeader, err := c.FormFile("arquivo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Arquivo não fornecido"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	validExts := map[string]bool{
+		".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true,
+		".pdf": true, ".doc": true, ".docx": true, ".xls": true, ".xlsx": true,
+		".txt": true, ".zip": true, ".rar": true,
+	}
+	if !validExts[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Extensão de arquivo não permitida"})
+		return
+	}
+
+	os.MkdirAll("uploads/servicos", os.ModePerm)
+	filename := fmt.Sprintf("ticket_%s_%d%s", c.Param("id"), time.Now().UnixNano(), ext)
+	dst := filepath.Join("uploads", "servicos", filename)
+
+	if err := c.SaveUploadedFile(fileHeader, dst); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao salvar anexo"})
+		return
+	}
+
+	publicPath := fmt.Sprintf("/uploads/servicos/%s", filename)
+	c.JSON(http.StatusOK, gin.H{"url": publicPath})
+}
+
+func (h *ServiceDeskHandler) UploadTicketAttachment(c *gin.Context) {
+	fileHeader, err := c.FormFile("arquivo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Arquivo não fornecido"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	validExts := map[string]bool{
+		".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true,
+		".pdf": true, ".doc": true, ".docx": true, ".xls": true, ".xlsx": true,
+		".txt": true, ".zip": true, ".rar": true,
+	}
+	if !validExts[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Extensão de arquivo não permitida"})
+		return
+	}
+
+	os.MkdirAll("uploads/servicos", os.ModePerm)
+	filename := fmt.Sprintf("ticket_new_%d%s", time.Now().UnixNano(), ext)
+	dst := filepath.Join("uploads", "servicos", filename)
+
+	if err := c.SaveUploadedFile(fileHeader, dst); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao salvar anexo"})
+		return
+	}
+
+	publicPath := fmt.Sprintf("/uploads/servicos/%s", filename)
+	c.JSON(http.StatusOK, gin.H{"url": publicPath})
 }

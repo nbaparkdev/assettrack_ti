@@ -41,9 +41,30 @@ export const serviceDeskApi = {
   },
 
   // Interactions / Comments
-  createInteraction: async (ticketId: number, message: string): Promise<ServiceTicketInteraction> => {
+  createInteraction: async (ticketId: number, message: string, foto?: string): Promise<ServiceTicketInteraction> => {
     const response = await apiClient.post<ServiceTicketInteraction>(`/servicos/chamados/${ticketId}/interacoes`, {
       mensagem: message,
+      foto,
+    });
+    return response.data;
+  },
+  uploadAttachment: async (ticketId: number, file: File): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append('arquivo', file);
+    const response = await apiClient.post<{ url: string }>(`/servicos/chamados/${ticketId}/interacoes/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+  uploadTicketAttachment: async (file: File): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append('arquivo', file);
+    const response = await apiClient.post<{ url: string }>('/servicos/chamados/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
     return response.data;
   },
