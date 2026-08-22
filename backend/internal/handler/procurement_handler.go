@@ -2535,6 +2535,7 @@ func (h *ProcurementHandler) KanbanPurchaseRequest(c *gin.Context) {
 	var in struct {
 		TipoItem       string  `json:"tipo_item"`
 		NomeProduto    string  `json:"nome_produto"`
+		LinkProduto    string  `json:"link_produto"`
 		Quantidade     float64 `json:"quantidade"`
 		ValorEstimado  float64 `json:"valor_estimado"`
 		DepartamentoID *uint   `json:"departamento_id"`
@@ -2615,6 +2616,10 @@ func (h *ProcurementHandler) KanbanPurchaseRequest(c *gin.Context) {
 	if just == "" {
 		just = fmt.Sprintf("Solicitação de Compra gerada via Kanban (Card #%d: %s)", card.ID, card.Titulo)
 	}
+	if in.LinkProduto != "" {
+		just += fmt.Sprintf("\nLink do Produto: %s", in.LinkProduto)
+	}
+
 	urgencia := models.UrgencyMedia
 	if card.Prioridade == models.CardPriorityAlta || card.Prioridade == models.CardPriorityUrgente {
 		urgencia = models.UrgencyAlta
@@ -2630,6 +2635,9 @@ func (h *ProcurementHandler) KanbanPurchaseRequest(c *gin.Context) {
 		DataCriacao:    time.Now(),
 	}
 	obs := fmt.Sprintf("Item para a tarefa Kanban #%d", card.ID)
+	if in.LinkProduto != "" {
+		obs += fmt.Sprintf(" - Link: %s", in.LinkProduto)
+	}
 	req.Itens = append(req.Itens, models.PurchaseRequestItem{
 		ProductID:     product.ID,
 		Quantidade:    in.Quantidade,
@@ -2649,12 +2657,222 @@ func (h *ProcurementHandler) KanbanPurchaseRequest(c *gin.Context) {
 	card.TipoItemNecessario = &tipoItem
 	_ = h.cardRepo.Update(card)
 
+	// If a product link is provided, create a link attachment in the card
+	if in.LinkProduto != "" {
+		attachment := &models.KanbanAttachment{
+			CardID:   card.ID,
+			Nome:     fmt.Sprintf("Link de Compra: %s", in.NomeProduto),
+			Tipo:     "link",
+			URL:      in.LinkProduto,
+			CriadoEm: time.Now(),
+		}
+		_ = h.userRepo.DB().Create(attachment).Error
+	}
+
 	_ = h.interactionRepo.Create(&models.KanbanCardInteraction{
 		CardID:    card.ID,
 		UsuarioID: user.ID,
-		Mensagem:  fmt.Sprintf("Gerou a solicitação de compra %s para '%s'.", num, in.NomeProduto),
+		Mensagem:  fmt.Sprintf("Gerou a solicitação de compra %s para '%s' (Qtd: %.2f, Valor Est.: R$ %.2f).", num, in.NomeProduto, in.Quantidade, in.ValorEstimado),
 		Tipo:      models.InteractionSistemaSupr,
 	})
+
+	// Notify buyers (comprador, admin, gerente)
+	buyers, _ := h.userRepo.ListByRoles([]string{models.RoleComprador, models.RoleAdmin, models.RoleGerente})
+	for _, buyer := range buyers {
+		// Purchase Notification
+		linkRedir := fmt.Sprintf("/compras?tab=solicitacoes&id=%d", req.ID)
+		_ = h.notifRepo.Create(&models.PurchaseNotification{
+			UserID:               buyer.ID,
+			Mensagem:             fmt.Sprintf("Nova Solicitação de Compra %s recebida do Kanban (Card #%d: '%s') para o produto '%s'.", num, card.ID, card.Titulo, in.NomeProduto),
+			LinkRedirecionamento: &linkRedir,
+			DataCriacao:          time.Now(),
+		})
+
+		// Kanban Notification
+		kanbanLink := fmt.Sprintf("/kanban?project=%d&card=%d", card.ProjectID, card.ID)
+		_ = h.userRepo.DB().Create(&models.KanbanNotification{
+			UserID:    buyer.ID,
+			ProjectID: &card.ProjectID,
+			CardID:    &card.ID,
+			AutorID:   &user.ID,
+			Tipo:      models.NotifCartaoMovimentado,
+			Titulo:    "Nova Solicitação de Compra no Kanban",
+			Mensagem:  fmt.Sprintf("O usuário %s solicitou a compra de '%s' para a tarefa '%s'.", user.Nome, in.NomeProduto, card.Titulo),
+			Link:      &kanbanLink,
+			CreatedAt: time.Now(),
+		}).Error
+	}
+
+	c.JSON(http.StatusCreated, req)
+}
+
+// CreateMaintenancePurchaseRequest creates a purchase request originated from maintenance (corretiva or preventiva)
+func (h *ProcurementHandler) CreateMaintenancePurchaseRequest(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	var in struct {
+		NomeProduto          string   `json:"nome_produto"`
+		LinkProduto          string   `json:"link_produto"`
+		Quantidade           float64  `json:"quantidade"`
+		ValorEstimado        float64  `json:"valor_estimado"`
+		Justificativa        string   `json:"justificativa"`
+		Urgencia             string   `json:"urgencia"`
+		TipoItem             string   `json:"tipo_item"`
+		AssetID              *uint    `json:"asset_id"`
+		MaintenanceOrderID   *uint    `json:"maintenance_order_id"`
+		MaintenanceRequestID *uint    `json:"maintenance_request_id"`
+		CentroCustoID        *uint    `json:"centro_custo_id"`
+		DepartamentoID       *uint    `json:"departamento_id"`
+	}
+
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(in.NomeProduto) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nome da peça/produto é obrigatório"})
+		return
+	}
+	if in.Quantidade <= 0 {
+		in.Quantidade = 1
+	}
+	if in.Urgencia == "" {
+		in.Urgencia = models.UrgencyAlta
+	}
+
+	// 1. Get or create Category
+	category, err := h.categoryRepo.First()
+	if err != nil {
+		category = &models.PurchaseCategory{Nome: "Peças e Manutenção", Descricao: strPtr("Peças de reposição e componentes"), Ativo: true}
+		_ = h.categoryRepo.Create(category)
+	}
+
+	// 2. Product
+	product, err := h.productRepo.GetByName(in.NomeProduto)
+	if err != nil {
+		prodType := models.ProductTypeMaterialConsumo
+		if in.TipoItem == "Imobilizado" || in.TipoItem == models.ProductTypeEquipamento {
+			prodType = models.ProductTypeEquipamento
+		}
+		product = &models.PurchaseProduct{
+			Codigo:      fmt.Sprintf("PECA-%s", strings.ToUpper(uuid.New().String()[:6])),
+			Nome:        strings.TrimSpace(in.NomeProduto),
+			CategoriaID: category.ID,
+			Tipo:        prodType,
+			Unidade:     "UN",
+			Ativo:       true,
+		}
+		_ = h.productRepo.Create(product)
+	}
+
+	// 3. Department & cost center
+	var deptID, ccID uint
+	if in.DepartamentoID != nil {
+		deptID = *in.DepartamentoID
+	} else if user.DepartamentoID != nil {
+		deptID = *user.DepartamentoID
+	} else {
+		deptID = 1
+	}
+	if in.CentroCustoID != nil {
+		ccID = *in.CentroCustoID
+	} else {
+		if cc, err := h.ccRepo.First(); err == nil {
+			ccID = cc.ID
+		} else {
+			cc := &models.CostCenter{Codigo: "CC-MANUT-01", Nome: "Manutenção e Operações", AlertaLimite: true}
+			_ = h.ccRepo.Create(cc)
+			ccID = cc.ID
+		}
+	}
+
+	// 4. Request Number
+	num, err := h.requestRepo.GenerateRequestNumber(time.Now())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	just := in.Justificativa
+	var assetTag string
+	if in.AssetID != nil {
+		if asset, err := h.assetRepo.GetByID(*in.AssetID); err == nil && asset != nil {
+			assetTag = fmt.Sprintf(" (Ativo: %s - %s)", asset.EPatrimonio, asset.Nome)
+		}
+	}
+	if just == "" {
+		just = fmt.Sprintf("Solicitação de compra de peça para manutenção%s", assetTag)
+	} else {
+		just = fmt.Sprintf("%s%s", just, assetTag)
+	}
+	if in.LinkProduto != "" {
+		just += fmt.Sprintf("\nLink para compra: %s", in.LinkProduto)
+	}
+
+	req := &models.PurchaseRequest{
+		Numero:         num,
+		SolicitanteID:  user.ID,
+		DepartamentoID: deptID,
+		CentroCustoID:  ccID,
+		Justificativa:  just,
+		Urgencia:       in.Urgencia,
+		Status:         models.PRStatusPendente,
+		OrigemOSID:     in.MaintenanceOrderID,
+		OrigemTicketID: in.MaintenanceRequestID,
+		DataCriacao:    time.Now(),
+	}
+
+	obs := "Peça para manutenção"
+	if assetTag != "" {
+		obs += assetTag
+	}
+	if in.LinkProduto != "" {
+		obs += fmt.Sprintf(" | Link: %s", in.LinkProduto)
+	}
+
+	req.Itens = append(req.Itens, models.PurchaseRequestItem{
+		ProductID:     product.ID,
+		Quantidade:    in.Quantidade,
+		ValorEstimado: in.ValorEstimado,
+		Observacao:    &obs,
+	})
+
+	if err := h.requestRepo.Create(req); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// If linked to preventive order, add material record and history
+	if in.MaintenanceOrderID != nil {
+		_ = h.userRepo.DB().Create(&models.MaintenanceMaterial{
+			OrderID:       *in.MaintenanceOrderID,
+			ProductID:     &product.ID,
+			Produto:       in.NomeProduto,
+			Quantidade:    in.Quantidade,
+			ValorUnitario: in.ValorEstimado,
+			ValorTotal:    in.Quantidade * in.ValorEstimado,
+			Observacao:    &obs,
+		}).Error
+
+		_ = h.userRepo.DB().Create(&models.MaintenanceHistory{
+			OrderID:   *in.MaintenanceOrderID,
+			Acao:      "Solicitação de Compra de Peça",
+			Descricao: fmt.Sprintf("Solicitação %s gerada para compra de '%s' (Qtd: %.2f, Est.: R$ %.2f)", num, in.NomeProduto, in.Quantidade, in.ValorEstimado),
+			UsuarioID: &user.ID,
+			DataHora:  time.Now(),
+		}).Error
+	}
+
+	// Notify buyers
+	buyers, _ := h.userRepo.ListByRoles([]string{models.RoleComprador, models.RoleAdmin, models.RoleGerente})
+	for _, buyer := range buyers {
+		linkRedir := fmt.Sprintf("/compras?tab=solicitacoes&id=%d", req.ID)
+		_ = h.notifRepo.Create(&models.PurchaseNotification{
+			UserID:               buyer.ID,
+			Mensagem:             fmt.Sprintf("Nova Solicitação de Compra de Peça %s para '%s'%s.", num, in.NomeProduto, assetTag),
+			LinkRedirecionamento: &linkRedir,
+			DataCriacao:          time.Now(),
+		})
+	}
 
 	c.JSON(http.StatusCreated, req)
 }

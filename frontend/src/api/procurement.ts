@@ -263,6 +263,37 @@ export const procurementApi = {
     return response.data;
   },
 
+  // Maintenance and Kanban Purchase Requests
+  createMaintenancePurchaseRequest: async (data: {
+    nome_produto: string;
+    link_produto?: string;
+    quantidade: number;
+    valor_estimado: number;
+    justificativa?: string;
+    urgencia?: string;
+    tipo_item?: string;
+    asset_id?: number;
+    maintenance_order_id?: number;
+    maintenance_request_id?: number;
+  }): Promise<PurchaseRequest> => {
+    const response = await apiClient.post<PurchaseRequest>('/compras/solicitar-peca', data);
+    return response.data;
+  },
+
+  kanbanPurchaseRequest: async (cardId: number, data: {
+    nome_produto: string;
+    link_produto?: string;
+    quantidade: number;
+    valor_estimado: number;
+    justificativa?: string;
+    tipo_item?: string;
+    departamento_id?: number;
+    centro_custo_id?: number;
+  }): Promise<PurchaseRequest> => {
+    const response = await apiClient.post<PurchaseRequest>(`/kanban/cards/${cardId}/solicitar-compra`, data);
+    return response.data;
+  },
+
   // Notifications
   myNotifications: async (): Promise<PurchaseNotification[]> => {
     const response = await apiClient.get<PurchaseNotification[]>('/compras/notificacoes');

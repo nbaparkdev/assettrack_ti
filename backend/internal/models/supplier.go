@@ -10,7 +10,8 @@ type Fornecedor struct {
 	Endereco       *string `json:"endereco"`
 	Cidade         *string `json:"cidade"`
 	Estado         *string `json:"estado"`
-	TipoFornecedor *string `json:"tipo_fornecedor"`
+	TipoFornecedor *string      `json:"tipo_fornecedor"`
+	NotasFiscais   []NotaFiscal `gorm:"foreignKey:FornecedorID" json:"notas_fiscais,omitempty"`
 }
 
 func (Fornecedor) TableName() string { return "fornecedores" }

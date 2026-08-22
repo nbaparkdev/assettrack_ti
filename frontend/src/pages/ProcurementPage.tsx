@@ -23,6 +23,7 @@ import {
   Plus, X, ShieldAlert, Package, Gavel, CheckCircle2, Ban,
   ClipboardList, ArrowRightCircle,
   Building2, Pencil, Trash2, Save, Boxes, RefreshCw,
+  ExternalLink, Eye, ShoppingCart
 } from 'lucide-react';
 
 const canManage = ['admin', 'gerente_ti', 'gerente_infra', 'comprador'];
@@ -92,6 +93,9 @@ export const ProcurementPage: React.FC = () => {
   const [savingProduct, setSavingProduct] = useState(false);
   const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
   const [deletingProductId, setDeletingProductId] = useState<number | null>(null);
+
+  // Request view detail modal
+  const [viewingRequest, setViewingRequest] = useState<PurchaseRequest | null>(null);
 
   // Request modal
   const [reqModal, setReqModal] = useState(false);
@@ -781,7 +785,7 @@ export const ProcurementPage: React.FC = () => {
       )}
 
       {/* Tabs */}
-      <div className="flex space-x-1 border-b border-brand-border overflow-x-auto">
+      <div className="w-full min-w-0 max-w-full overflow-x-auto border-b border-brand-border flex items-center gap-1 pb-0.5 no-scrollbar scroll-smooth">
         {([
           ['dashboard', 'Dashboard'],
           ['solicitacoes', 'Solicitações'],
@@ -794,10 +798,10 @@ export const ProcurementPage: React.FC = () => {
           <button
             key={key}
             onClick={() => handleTabChange(key)}
-            className={`px-4 py-2.5 font-mono text-xs uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap bg-white text-[#000205] ${
+            className={`shrink-0 whitespace-nowrap px-4 py-2.5 font-mono text-xs uppercase tracking-wider border-b-2 transition-all rounded-t-lg cursor-pointer ${
               tab === key
-                ? 'border-brand-primary opacity-100'
-                : 'border-transparent opacity-[0.55] hover:opacity-75'
+                ? 'border-brand-primary bg-white text-brand-primary font-bold shadow-sm'
+                : 'border-transparent bg-white/40 text-brand-text opacity-70 hover:opacity-100 hover:bg-white/70'
             }`}
           >
             {label}
@@ -1053,6 +1057,13 @@ export const ProcurementPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="p-4 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => setViewingRequest(r)}
+                        className="text-brand-text border border-brand-border px-2.5 py-1.5 font-mono text-xs uppercase mr-2 hover:bg-brand-dark/30 hover:border-brand-primary/40 transition-colors"
+                        title="Visualizar itens e detalhes da solicitação"
+                      >
+                        <Eye size={12} className="inline mr-1" /> Detalhes
+                      </button>
                       {manage && ['Pendente', 'Em aprovação'].includes(r.status) && (
                         <>
                           <button onClick={() => decideRequest(r, 'Aprovado')} className="text-green-400 border border-green-500/30 px-2.5 py-1.5 font-mono text-xs uppercase mr-2 hover:bg-green-500/10">
@@ -1762,6 +1773,174 @@ export const ProcurementPage: React.FC = () => {
       )}
 
       {!loading && tab === 'fornecedores' && <SuppliersPage />}
+
+      {/* ---------- REQUEST DETAILS MODAL ---------- */}
+      {viewingRequest && (
+        <div className="fixed inset-0 bg-brand-dark/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-3xl border border-brand-border bg-brand-card p-6 space-y-5 max-h-[90vh] overflow-y-auto rounded shadow-2xl">
+            <div className="flex justify-between items-center border-b border-brand-border pb-3">
+              <div className="flex items-center space-x-3">
+                <span className="text-xs font-mono font-bold text-brand-primary bg-brand-primary/10 px-2 py-0.5 border border-brand-primary/20">
+                  {viewingRequest.numero}
+                </span>
+                <span className={`text-[10px] font-mono uppercase px-2 py-0.5 border ${requestStatusColor[viewingRequest.status] ?? 'border-brand-border'}`}>
+                  {viewingRequest.status}
+                </span>
+                <span className="text-xs font-mono text-brand-muted">
+                  Urgência: <span className="font-bold text-brand-text">{viewingRequest.urgencia}</span>
+                </span>
+              </div>
+              <button onClick={() => setViewingRequest(null)} className="text-brand-muted hover:text-brand-text p-1">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-brand-dark/30 p-3.5 border border-brand-border/40 rounded">
+              <div>
+                <span className="text-[10px] font-mono uppercase text-brand-muted block">Centro de Custo</span>
+                <span className="font-semibold text-brand-text">{viewingRequest.centro_custo?.nome ?? `#${viewingRequest.centro_custo_id}`}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-mono uppercase text-brand-muted block">Solicitante</span>
+                <span className="font-semibold text-brand-text">{viewingRequest.solicitante?.nome ?? 'Sistema / Usuário'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-mono uppercase text-brand-muted block">Data da Solicitação</span>
+                <span className="font-mono text-brand-text">
+                  {viewingRequest.data_criacao ? new Date(viewingRequest.data_criacao).toLocaleString('pt-BR') : '—'}
+                </span>
+              </div>
+            </div>
+
+            {/* Justification */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-mono uppercase text-brand-muted block">Justificativa / Motivo:</span>
+              <p className="text-xs text-brand-text bg-brand-dark/40 p-3 border border-brand-border/40 font-mono whitespace-pre-wrap rounded">
+                {viewingRequest.justificativa}
+              </p>
+            </div>
+
+            {/* Items Table */}
+            <div className="space-y-2">
+              <span className="text-xs font-mono uppercase tracking-wider text-brand-primary font-bold block flex items-center space-x-1.5">
+                <ShoppingCart size={13} />
+                <span>Itens Solicitados ({viewingRequest.itens?.length || 0})</span>
+              </span>
+
+              <div className="border border-brand-border overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse font-mono">
+                  <thead>
+                    <tr className="bg-brand-dark/40 border-b border-brand-border text-brand-muted uppercase text-[10px]">
+                      <th className="p-3">Produto / Item</th>
+                      <th className="p-3 text-center">Qtd</th>
+                      <th className="p-3 text-right">Valor Unit. Estimado</th>
+                      <th className="p-3 text-right">Total Estimado</th>
+                      <th className="p-3">Link da Loja / Observação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-border/40">
+                    {viewingRequest.itens?.map((item: any) => {
+                      // Detect external link
+                      const linkMatch = (item.observacao || '').match(/https?:\/\/[^\s]+/i) || (viewingRequest.justificativa || '').match(/https?:\/\/[^\s]+/i);
+                      const productUrl = linkMatch ? linkMatch[0] : null;
+
+                      return (
+                        <tr key={item.id} className="hover:bg-brand-dark/20">
+                          <td className="p-3 font-semibold text-brand-text">
+                            {item.product?.nome || `Item #${item.product_id}`}
+                          </td>
+                          <td className="p-3 text-center font-bold text-brand-primary">{item.quantidade}</td>
+                          <td className="p-3 text-right">{fmt(item.valor_estimado)}</td>
+                          <td className="p-3 text-right font-bold text-green-400">{fmt(item.valor_estimado * item.quantidade)}</td>
+                          <td className="p-3 space-y-1">
+                            {productUrl ? (
+                              <a
+                                href={productUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center space-x-1 px-2 py-1 bg-brand-primary/10 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary hover:text-brand-dark text-[11px] rounded transition-colors font-bold"
+                              >
+                                <ExternalLink size={12} />
+                                <span>Abrir Link do Site</span>
+                              </a>
+                            ) : null}
+                            {item.observacao && (
+                              <div className="text-[10px] text-brand-muted">{item.observacao}</div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {(!viewingRequest.itens || viewingRequest.itens.length === 0) && (
+                      <tr>
+                        <td colSpan={5} className="p-4 text-center text-brand-muted text-xs">
+                          Nenhum item listado individualmente.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Total Footer */}
+            <div className="flex justify-between items-center border-t border-brand-border pt-3">
+              <div>
+                <span className="text-[10px] font-mono text-brand-muted uppercase block">Valor Total Estimado:</span>
+                <span className="text-base font-mono font-bold text-green-400">{fmt(viewingRequest.valor_estimado_total || 0)}</span>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setViewingRequest(null)}
+                  className="px-4 py-2 border border-brand-border hover:bg-brand-card text-brand-text font-mono text-xs uppercase"
+                >
+                  Fechar
+                </button>
+                {manage && ['Pendente', 'Em aprovação'].includes(viewingRequest.status) && (
+                  <>
+                    <button
+                      onClick={() => {
+                        const req = viewingRequest;
+                        setViewingRequest(null);
+                        decideRequest(req, 'Reprovado');
+                      }}
+                      className="px-4 py-2 border border-red-500/30 text-red-400 font-mono text-xs uppercase hover:bg-red-500/10 flex items-center space-x-1"
+                    >
+                      <Ban size={13} />
+                      <span>Reprovar</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const req = viewingRequest;
+                        setViewingRequest(null);
+                        decideRequest(req, 'Aprovado');
+                      }}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-mono text-xs uppercase font-bold flex items-center space-x-1"
+                    >
+                      <CheckCircle2 size={13} />
+                      <span>Aprovar</span>
+                    </button>
+                  </>
+                )}
+                {manage && viewingRequest.status === 'Aprovada' && (
+                  <button
+                    onClick={() => {
+                      const req = viewingRequest;
+                      setViewingRequest(null);
+                      openQuotationModal(req);
+                    }}
+                    className="px-4 py-2 bg-brand-primary text-brand-dark font-mono text-xs uppercase font-bold hover:bg-brand-primary/90 flex items-center space-x-1"
+                  >
+                    <Gavel size={13} />
+                    <span>Iniciar Cotação</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ---------- REQUEST MODAL ---------- */}
       {reqModal && (

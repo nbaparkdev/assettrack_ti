@@ -132,12 +132,12 @@ export const UsersPage: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Title */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold uppercase tracking-wider font-mono text-brand-text m-0">
+          <h1 className="text-2xl sm:text-3xl font-bold uppercase tracking-wider font-mono text-brand-text m-0">
             Usuários
           </h1>
-          <p className="text-brand-muted text-sm mt-1">
+          <p className="text-brand-muted text-xs sm:text-sm mt-1">
             Visualização de colaboradores e atribuição de permissões no sistema.
           </p>
         </div>
@@ -145,7 +145,7 @@ export const UsersPage: React.FC = () => {
         {currentAuthUser?.role === 'admin' && (
           <button
             onClick={openCreateModal}
-            className="bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center space-x-1.5 transition-colors"
+            className="w-full sm:w-auto bg-brand-primary hover:bg-brand-primary/90 text-white font-bold font-mono px-4 py-2.5 rounded-xl uppercase tracking-wider text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-brand-primary/20 active:scale-95 cursor-pointer min-h-[40px]"
           >
             <Plus size={16} />
             <span>Novo Usuário</span>

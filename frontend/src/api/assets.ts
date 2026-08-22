@@ -1,5 +1,5 @@
 import { API_BASE_URL, apiClient } from './client';
-import type { Asset, AssetReferences, BulkDuplicateRequest, BulkDuplicateResponse, AssetCategory, Localizacao, Armazenamento, Departamento, AssetImportResponse } from '../types';
+import type { Asset, AssetReferences, BulkDuplicateRequest, BulkDuplicateResponse, AssetCategory, Localizacao, Armazenamento, Departamento, AssetImportResponse, AssetHistoryResponse } from '../types';
 
 export interface AssetListFilters {
   e_patrimonio?: string;
@@ -228,5 +228,10 @@ export const assetsApi = {
     link.click();
     link.remove();
     URL.revokeObjectURL(blobUrl);
+  },
+
+  getHistory: async (id: number): Promise<AssetHistoryResponse> => {
+    const response = await apiClient.get<AssetHistoryResponse>(`/assets/${id}/historico`);
+    return response.data;
   },
 };

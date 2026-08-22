@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { kanbanApi } from '../api/kanban';
 import { preventiveApi } from '../api/preventive';
+import { procurementApi } from '../api/procurement';
 import { usersApi } from '../api/users';
 import { assetsApi } from '../api/assets';
 import { toApiFileUrl } from '../api/client';
@@ -31,6 +32,12 @@ import {
   Star,
   Trash2,
   X,
+  ShoppingCart,
+  RefreshCw,
+  Link as LinkIcon,
+  CheckCircle2,
+  ExternalLink,
+  Globe
 } from 'lucide-react';
 
 const columnPalette = ['#60A5FA', '#F59E0B', '#A78BFA', '#34D399', '#F87171', '#22D3EE'];
@@ -52,6 +59,15 @@ const boardThemePresets = [
   { id: 'suporte', name: 'Suporte', color: '#14532D', pattern: 'glow', accent: '#34D399' },
   { id: 'criativo', name: 'Criativo', color: '#3B1D78', pattern: 'dots', accent: '#A78BFA' },
 ] as const;
+const getDomainName = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname.replace(/^www\./, '');
+  } catch {
+    return 'Loja / Site';
+  }
+};
+
 const priorityBadgeClass: Record<string, string> = {
   baixa: 'bg-[#61bd4f] text-white',
   media: 'bg-[#0079bf] text-white',
@@ -106,6 +122,22 @@ export const KanbanPage: React.FC = () => {
   const [comment, setComment] = useState('');
   const [moveModal, setMoveModal] = useState<{ card: KanbanCard; column: KanbanColumn; ordem: number } | null>(null);
   const [mMotivo, setMMotivo] = useState('');
+
+  // Purchase request modal for Kanban cards (especially "Aguardando Compras")
+  const [kanbanPurchaseModal, setKanbanPurchaseModal] = useState<{
+    card: KanbanCard;
+    column?: KanbanColumn;
+    ordem?: number;
+  } | null>(null);
+  const [kProductName, setKProductName] = useState('');
+  const [kProductLink, setKProductLink] = useState('');
+  const [kProductQty, setKProductQty] = useState<number>(1);
+  const [kProductEstimatedCost, setKProductEstimatedCost] = useState<string>('');
+  const [kProductJustification, setKProductJustification] = useState('');
+  const [kProductItemType, setKProductItemType] = useState('Consumo');
+  const [kPurchaseSubmitting, setKPurchaseSubmitting] = useState(false);
+  const [kPurchaseSuccess, setKPurchaseSuccess] = useState<string | null>(null);
+
   const [activeDragCardId, setActiveDragCardId] = useState<number | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<{ columnId: number; index: number } | null>(null);
 
@@ -764,6 +796,21 @@ export const KanbanPage: React.FC = () => {
 
     const colName = column.nome.toLowerCase();
     const projName = board?.project.titulo?.toLowerCase() || '';
+
+    // Check if moving to "Aguardando Compras" or purchase-related column
+    const isAguardandoCompras = colName.includes('compra') || colName.includes('aguardando compras') || colName.includes('suprimento');
+    if (isAguardandoCompras) {
+      setKProductName(card.titulo || '');
+      setKProductLink('');
+      setKProductQty(1);
+      setKProductEstimatedCost('');
+      setKProductJustification(`Solicitação de compra via Kanban Card #${card.id} - ${card.titulo}`);
+      setKProductItemType('Consumo');
+      setKPurchaseSuccess(null);
+      setKanbanPurchaseModal({ card, column, ordem: targetOrder });
+      return;
+    }
+
     const isMaintenance = Boolean(board?.project.related_to_maintenance)
       || colName.includes('manuten') || colName.includes('oficina') || colName.includes('reparo')
       || projName.includes('oficina') || projName.includes('manuten');
@@ -791,6 +838,45 @@ export const KanbanPage: React.FC = () => {
     } finally {
       setActiveDragCardId(null);
       setDragOverTarget(null);
+    }
+  };
+
+  const confirmKanbanPurchase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!kanbanPurchaseModal || !kProductName.trim()) return;
+
+    try {
+      setKPurchaseSubmitting(true);
+      const estCost = kProductEstimatedCost ? Number(kProductEstimatedCost.replace(',', '.')) : 0;
+      await procurementApi.kanbanPurchaseRequest(kanbanPurchaseModal.card.id, {
+        nome_produto: kProductName.trim(),
+        link_produto: kProductLink.trim() || undefined,
+        quantidade: kProductQty > 0 ? kProductQty : 1,
+        valor_estimado: isNaN(estCost) ? 0 : estCost,
+        justificativa: kProductJustification.trim(),
+        tipo_item: kProductItemType,
+      });
+
+      if (kanbanPurchaseModal.column) {
+        await kanbanApi.moveCard(
+          kanbanPurchaseModal.card.id,
+          kanbanPurchaseModal.column.id,
+          kanbanPurchaseModal.ordem ?? 0,
+          `Movido para ${kanbanPurchaseModal.column.nome} - Solicitação de compra gerada: ${kProductName.trim()}`
+        );
+      }
+
+      setKPurchaseSuccess('Solicitação de compra encaminhada com sucesso ao Comprador!');
+      setTimeout(() => {
+        setKanbanPurchaseModal(null);
+        setKPurchaseSuccess(null);
+        if (board) openBoard(board.project.id);
+        if (cardDetail?.id === kanbanPurchaseModal.card.id) openCard(kanbanPurchaseModal.card.id);
+      }, 1500);
+    } catch (err: any) {
+      showError(err);
+    } finally {
+      setKPurchaseSubmitting(false);
     }
   };
 
@@ -1009,7 +1095,7 @@ export const KanbanPage: React.FC = () => {
 
       {!loading && board && (
         <div
-          className="relative -m-8 min-h-[calc(100vh-4rem)] overflow-hidden text-[#172b4d]"
+          className="relative -m-3 sm:-m-5 lg:-m-8 min-h-[calc(100dvh-4rem)] flex flex-col overflow-hidden text-[#172b4d]"
           style={getBoardPatternStyle(board.project.board_background_color, board.project.board_pattern)}
         >
           {normalizeBoardPattern(board.project.board_pattern) === 'glow' && (
@@ -1025,87 +1111,96 @@ export const KanbanPage: React.FC = () => {
             </>
           )}
 
-          <div className="relative z-10 flex h-10 items-center justify-between bg-[#51627d]/55 px-3 text-white backdrop-blur">
-            <div className="flex items-center gap-1">
-              <button className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28" title="Início">
-                <Home size={17} />
+          {/* Project Top Navigation Bar */}
+          <div className="relative z-10 flex min-h-[44px] flex-wrap items-center justify-between bg-[#51627d]/90 px-3 sm:px-4 py-1 text-white backdrop-blur border-b border-white/15 gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <button
+                onClick={() => {
+                  setBoard(null);
+                  fetchProjects();
+                }}
+                className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28 transition-colors shrink-0"
+                title="Voltar aos Projetos"
+              >
+                <Home size={16} />
               </button>
               <button
                 onClick={() => {
                   setBoard(null);
                   fetchProjects();
                 }}
-                className="inline-flex h-8 items-center gap-2 rounded bg-white/18 px-3 text-sm font-bold hover:bg-white/28"
+                className="inline-flex h-8 items-center gap-1.5 rounded bg-white/18 px-2.5 sm:px-3 text-xs sm:text-sm font-bold hover:bg-white/28 transition-colors shrink-0"
               >
-                <Columns3 size={16} />
-                Projetos
+                <Columns3 size={15} />
+                <span>Projetos</span>
               </button>
-              <label className="ml-1 hidden h-8 w-52 items-center gap-2 rounded bg-white/18 px-3 md:flex">
-                <Search size={15} />
+              <label className="ml-1 hidden h-8 w-44 lg:w-56 items-center gap-2 rounded bg-white/18 px-3 md:flex">
+                <Search size={14} />
                 <input
                   value={boardSearchQuery}
                   onChange={(e) => setBoardSearchQuery(e.target.value)}
                   placeholder="Buscar cartões"
-                  className="w-full bg-transparent text-sm text-white placeholder:text-white/70 focus:outline-none"
+                  className="w-full bg-transparent text-xs sm:text-sm text-white placeholder:text-white/70 focus:outline-none"
                 />
               </label>
-              <span className="hidden rounded bg-white/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/80 md:inline-flex">
+              <span className="hidden rounded bg-white/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80 md:inline-flex">
                 {normalizeBoardPattern(board.project.board_pattern)}
               </span>
             </div>
-            <div className="hidden items-center gap-1 text-lg font-semibold italic opacity-85 md:flex">
-              <Columns3 size={18} />
-              AssetTrack Board
+            <div className="hidden items-center gap-1 text-sm lg:text-base font-semibold italic opacity-85 xl:flex">
+              <Columns3 size={16} />
+              <span>AssetTrack Board</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => duplicateProject(board.project, true)}
-                className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28"
+                className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28 transition-colors"
                 title="Duplicar projeto"
               >
-                <Copy size={16} />
+                <Copy size={15} />
               </button>
-              <button onClick={openCreateColumnModal} className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28" title="Nova coluna">
-                <Plus size={18} />
+              <button onClick={openCreateColumnModal} className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28 transition-colors" title="Nova coluna">
+                <Plus size={17} />
               </button>
               <button
                 onClick={() => setBoardInfoOpen(true)}
-                className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28"
+                className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28 transition-colors"
                 title="Informações"
               >
-                <Info size={17} />
+                <Info size={16} />
               </button>
               <button
                 onClick={() => openEditProjectModal(board.project)}
-                className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28"
+                className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28 transition-colors"
                 title="Configurações"
               >
-                <Settings size={17} />
+                <Settings size={16} />
               </button>
             </div>
           </div>
 
-          <div className="relative z-10 flex h-14 items-center justify-between gap-3 bg-white/24 px-5 text-[#172b4d] backdrop-blur">
+          {/* Project Title & Actions Bar */}
+          <div className="relative z-10 flex min-h-[48px] flex-wrap items-center justify-between gap-2 bg-white/30 px-3 sm:px-5 py-1.5 text-[#172b4d] backdrop-blur border-b border-white/20">
             <div className="flex min-w-0 items-center gap-2">
-              <h2 className="truncate text-xl font-bold">{board.project.titulo}</h2>
-              <button className="grid h-8 w-8 place-items-center rounded bg-white/28 hover:bg-white/45" title="Favoritar">
-                <Star size={16} />
+              <h2 className="truncate text-base sm:text-lg font-bold">{board.project.titulo}</h2>
+              <button className="grid h-7 w-7 place-items-center rounded bg-white/28 hover:bg-white/45 shrink-0" title="Favoritar">
+                <Star size={14} />
               </button>
-              <span className="hidden h-8 items-center rounded bg-white/28 px-3 text-sm font-medium md:inline-flex">
+              <span className="hidden h-7 items-center rounded bg-white/28 px-2.5 text-xs font-medium md:inline-flex">
                 {board.total_cards} cartões
               </span>
-              <span className="hidden h-8 items-center rounded bg-white/28 px-3 text-sm font-medium md:inline-flex">
+              <span className="hidden h-7 items-center rounded bg-white/28 px-2.5 text-xs font-medium md:inline-flex">
                 {board.board_progress}% progresso
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <div className="hidden -space-x-2 md:flex">
                 {board.project.participantes?.slice(0, 5).map((participant) => (
                   <div
                     key={participant.id}
                     title={participant.nome}
-                    className="grid h-8 w-8 place-items-center rounded-full border-2 border-white bg-[#0079bf] text-xs font-bold text-white shadow"
+                    className="grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-[#0079bf] text-[10px] font-bold text-white shadow"
                   >
                     {getInitials(participant.nome)}
                   </div>
@@ -1113,23 +1208,23 @@ export const KanbanPage: React.FC = () => {
               </div>
               <button
                 onClick={() => openEditProjectModal(board.project)}
-                className="hidden h-8 rounded bg-white/28 px-3 text-sm font-medium hover:bg-white/45 md:block"
+                className="hidden h-7.5 rounded bg-white/28 px-2.5 text-xs font-medium hover:bg-white/45 md:block"
               >
                 Personalizar
               </button>
               <button
                 onClick={openCreateColumnModal}
-                className="inline-flex h-8 items-center gap-2 rounded bg-white/28 px-3 text-sm font-medium hover:bg-white/45"
+                className="inline-flex h-7.5 items-center gap-1.5 rounded bg-white/28 px-2.5 text-xs font-medium hover:bg-white/45 transition-colors"
               >
-                <Plus size={15} />
-                Lista
+                <Plus size={14} />
+                <span>Coluna</span>
               </button>
             </div>
           </div>
 
-          <div className="relative z-10 h-[calc(100vh-10.5rem)] overflow-x-auto overflow-y-hidden px-2 py-2">
+          <div className="relative z-10 flex-1 h-[calc(100dvh-9.5rem)] overflow-x-auto overflow-y-hidden px-2 sm:px-3 py-2">
             <div
-              className="flex h-full items-start gap-2 rounded-[5px] px-2 py-2"
+              className="flex h-full items-start gap-2.5 sm:gap-3 rounded-[8px] px-2 py-2"
               style={{ backgroundColor: hexToRgba(board.project.board_background_color || defaultBoardBackgroundColor, 0.18) }}
             >
               {board.project.colunas?.map((col) => (
@@ -1177,6 +1272,9 @@ export const KanbanPage: React.FC = () => {
 
                     {(col.cards ?? []).filter(cardMatchesBoardFilters).map((card, index, visibleCards) => {
                       const coverImage = card.anexos?.find((attachment) => attachment.tipo === 'imagem');
+                      const linkAttachment = card.anexos?.find((attachment) => attachment.tipo === 'link' || attachment.url?.startsWith('http://') || attachment.url?.startsWith('https://'));
+                      const descLinkMatch = (card.descricao || '').match(/https?:\/\/[^\s]+/i);
+                      const productUrl = linkAttachment?.url || (descLinkMatch ? descLinkMatch[0] : null);
 
                       return (
                         <React.Fragment key={card.id}>
@@ -1246,7 +1344,37 @@ export const KanbanPage: React.FC = () => {
                               <p className="mt-2 line-clamp-3 text-sm font-medium text-[#334155]" style={{ color: '#334155' }}>{card.descricao}</p>
                             )}
 
-                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            {/* Link / Product Preview on Kanban card */}
+                            {productUrl && (
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(productUrl, '_blank', 'noopener,noreferrer');
+                                }}
+                                className="mt-2.5 rounded-lg border border-amber-300/90 bg-gradient-to-r from-amber-50 to-orange-50/90 p-2 shadow-xs transition-all hover:border-amber-500 hover:shadow-md hover:from-amber-100 hover:to-orange-100 group cursor-pointer"
+                                title="Abrir link do produto em nova aba"
+                              >
+                                <div className="flex items-center justify-between gap-1 text-[11px] font-bold text-amber-900 border-b border-amber-200/80 pb-1 mb-1">
+                                  <div className="flex items-center space-x-1.5 truncate">
+                                    <ShoppingCart size={12} className="text-amber-600 shrink-0" />
+                                    <span className="truncate font-mono">{getDomainName(productUrl)}</span>
+                                  </div>
+                                  <span className="inline-flex items-center space-x-0.5 text-[10px] font-bold text-amber-800 bg-amber-200/80 px-1.5 py-0.5 rounded font-mono group-hover:bg-amber-600 group-hover:text-white transition-colors shrink-0">
+                                    <span>Ver Loja</span>
+                                    <ExternalLink size={9} />
+                                  </span>
+                                </div>
+                                <div className="text-xs font-semibold text-[#172b4d] line-clamp-1">
+                                  {linkAttachment?.nome ? linkAttachment.nome.replace(/^Link de Compra:\s*/i, '') : card.titulo}
+                                </div>
+                                <div className="mt-0.5 text-[10px] text-amber-700 truncate font-mono flex items-center space-x-1">
+                                  <Globe size={10} className="shrink-0 text-amber-600" />
+                                  <span className="truncate">{productUrl}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                               <span className={`rounded px-2 py-0.5 text-xs font-bold leading-5 ${priorityBadgeClass[card.prioridade] ?? 'bg-[#b3bac5] text-white'}`}>
                                 {card.prioridade}
                               </span>
@@ -2582,6 +2710,88 @@ export const KanbanPage: React.FC = () => {
               </div>
             )}
 
+            {/* Procurement / Purchase action on Card */}
+            {(() => {
+              const detailLinkAttachment = cardDetail.anexos?.find((attachment) => attachment.tipo === 'link' || attachment.url?.startsWith('http://') || attachment.url?.startsWith('https://'));
+              const detailDescLinkMatch = (cardDetail.descricao || '').match(/https?:\/\/[^\s]+/i);
+              const detailProductUrl = detailLinkAttachment?.url || (detailDescLinkMatch ? detailDescLinkMatch[0] : null);
+
+              return (
+                <>
+                  {detailProductUrl && (
+                    <div className="rounded-lg border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50/90 p-4 shadow-sm space-y-3">
+                      <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
+                        <div className="flex items-center space-x-2">
+                          <ShoppingCart size={16} className="text-amber-600" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-amber-900 font-mono">
+                            Preview do Link do Produto ({getDomainName(detailProductUrl)})
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded bg-amber-200 text-amber-900">
+                          Aguardando Compras
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded border border-amber-200 shadow-inner">
+                        <div className="min-w-0 space-y-1">
+                          <div className="text-sm font-bold text-[#172b4d] truncate">
+                            {detailLinkAttachment?.nome ? detailLinkAttachment.nome.replace(/^Link de Compra:\s*/i, '') : cardDetail.titulo}
+                          </div>
+                          <div className="text-xs text-[#5e6c84] truncate font-mono flex items-center space-x-1.5">
+                            <Globe size={13} className="text-amber-600 shrink-0" />
+                            <span className="truncate">{detailProductUrl}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2 shrink-0">
+                          <a
+                            href={detailProductUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs font-mono uppercase rounded shadow-sm flex items-center space-x-1.5 transition-colors"
+                          >
+                            <span>Abrir no Site</span>
+                            <ExternalLink size={13} />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded border border-amber-200 bg-amber-50/80 p-3.5 shadow-[0_1px_0_rgba(9,30,66,0.12)]">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-[0.14em] text-amber-800 flex items-center space-x-1.5">
+                          <ShoppingCart size={14} className="text-amber-600" />
+                          <span>Setor de Compras & Suprimentos</span>
+                        </div>
+                        <div className="mt-1 text-xs text-amber-900">
+                          Solicitar aquisição de peça/produto com link do site para o Comprador no Kanban.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setKProductName(cardDetail.titulo || '');
+                          setKProductLink(detailProductUrl || '');
+                          setKProductQty(1);
+                          setKProductEstimatedCost('');
+                          setKProductJustification(`Solicitação de compra via Kanban Card #${cardDetail.id} - ${cardDetail.titulo}`);
+                          setKProductItemType('Consumo');
+                          setKPurchaseSuccess(null);
+                          setKanbanPurchaseModal({ card: cardDetail });
+                        }}
+                        className="rounded bg-amber-600 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white hover:bg-amber-700 flex items-center space-x-1.5 shadow-sm transition-colors"
+                      >
+                        <ShoppingCart size={13} />
+                        <span>Nova Solicitação de Compra</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+
             <div className="overflow-hidden rounded border border-[#dfe1e6] bg-white" style={{ backgroundColor: '#ffffff', color: '#172b4d' }}>
               <div className="flex items-center justify-between border-b border-[#dfe1e6] bg-[#ebecf0] p-3 text-xs font-bold uppercase text-[#475569]">
                 <span>Checklist ({cardDetailChecklistItems.length})</span>
@@ -2722,6 +2932,124 @@ export const KanbanPage: React.FC = () => {
               <div className="flex justify-end space-x-3 pt-4 border-t border-[#dfe1e6]">
                 <button type="button" onClick={() => setMoveModal(null)} className="rounded px-4 py-2 text-sm font-medium text-[#5e6c84] hover:bg-[#dfe1e6]">Cancelar</button>
                 <button type="submit" className="rounded bg-[#0079bf] px-4 py-2 text-sm font-bold text-white hover:bg-[#026aa7]">Confirmar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* KANBAN PURCHASE REQUEST MODAL (Aguardando Compras) */}
+      {kanbanPurchaseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg rounded-lg bg-[#f4f5f7] p-5 text-[#172b4d] shadow-[0_20px_64px_rgba(0,0,0,0.5)] border border-amber-400">
+            <div className="flex justify-between items-center border-b border-[#dfe1e6] pb-3">
+              <div className="flex items-center space-x-2 text-amber-700">
+                <ShoppingCart size={20} />
+                <h3 className="text-base font-bold uppercase tracking-wider">
+                  Nova Solicitação de Compra {kanbanPurchaseModal.column ? `(${kanbanPurchaseModal.column.nome})` : ''}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setKanbanPurchaseModal(null)} 
+                className="grid h-8 w-8 place-items-center rounded text-[#5e6c84] hover:bg-[#dfe1e6] hover:text-[#172b4d]"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={confirmKanbanPurchase} className="space-y-4 pt-3">
+              <div className="bg-amber-50 p-3 rounded border border-amber-200 text-xs">
+                <div className="font-bold text-amber-900">Cartão Kanban Vinculado:</div>
+                <div className="text-sm font-semibold text-[#172b4d] mt-0.5">{kanbanPurchaseModal.card.titulo}</div>
+                <div className="text-[11px] text-[#5e6c84]">ID #{kanbanPurchaseModal.card.id} · A solicitação será encaminhada para a lista do Comprador e adicionada como anexo a este cartão.</div>
+              </div>
+
+              {kPurchaseSuccess && (
+                <div className="p-3 bg-green-100 border border-green-300 text-green-800 rounded text-xs flex items-center space-x-2">
+                  <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+                  <span>{kPurchaseSuccess}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase text-[#5e6c84]">
+                  Qual produto / peça comprar? *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={kProductName}
+                  onChange={(e) => setKProductName(e.target.value)}
+                  placeholder="Ex: Mouse sem fio Logitech MX, Cabo HDMI 4K 2m, Memória RAM 16GB..."
+                  className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] shadow-inner focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 flex items-center space-x-1 text-xs font-bold uppercase text-[#5e6c84]">
+                  <LinkIcon size={12} className="text-amber-600" />
+                  <span>Link do Site do Produto (URL da Loja/Fornecedor)</span>
+                </label>
+                <input
+                  type="url"
+                  value={kProductLink}
+                  onChange={(e) => setKProductLink(e.target.value)}
+                  placeholder="https://www.mercadolivre.com.br/... ou https://kabum.com.br/..."
+                  className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] shadow-inner focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-bold uppercase text-[#5e6c84]">Quantidade *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={kProductQty}
+                    onChange={(e) => setKProductQty(Number(e.target.value))}
+                    className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] shadow-inner focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-bold uppercase text-[#5e6c84]">Valor Estimado (R$)</label>
+                  <input
+                    type="text"
+                    value={kProductEstimatedCost}
+                    onChange={(e) => setKProductEstimatedCost(e.target.value)}
+                    placeholder="Ex: 199.90"
+                    className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] shadow-inner focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase text-[#5e6c84]">Justificativa da Compra</label>
+                <textarea
+                  rows={2}
+                  value={kProductJustification}
+                  onChange={(e) => setKProductJustification(e.target.value)}
+                  placeholder="Explique o motivo ou urgência..."
+                  className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] shadow-inner focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-3 border-t border-[#dfe1e6]">
+                <button
+                  type="button"
+                  onClick={() => setKanbanPurchaseModal(null)}
+                  className="rounded px-4 py-2 text-sm font-medium text-[#5e6c84] hover:bg-[#dfe1e6]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={kPurchaseSubmitting || !kProductName.trim()}
+                  className="rounded bg-amber-600 hover:bg-amber-700 px-4 py-2 text-sm font-bold text-white shadow flex items-center space-x-2 disabled:opacity-50"
+                >
+                  {kPurchaseSubmitting && <RefreshCw size={14} className="animate-spin" />}
+                  <span>Confirmar & Encaminhar ao Comprador</span>
+                </button>
               </div>
             </form>
           </div>

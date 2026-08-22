@@ -1,16 +1,38 @@
 import React from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { Link } from 'react-router-dom';
-import { Bell, CircleHelp, Home, Plus, Search, Settings, ShieldCheck, ShieldAlert, User as UserIcon } from 'lucide-react';
+import { Bell, CircleHelp, Home, Plus, Search, Settings, ShieldCheck, ShieldAlert, User as UserIcon, Menu } from 'lucide-react';
 import { triggerEmergencyAlertModal } from '../emergency/EmergencyGlobalHandler';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onOpenMobileMenu?: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
   const { user } = useAuthStore();
   const canAccessSettings = ['admin', 'gerente_ti', 'gerente_infra'].includes(user?.role?.toLowerCase() || '');
 
   return (
-    <header className="h-14 shrink-0 border-b border-white/20 flex items-center justify-between px-3 md:px-5 bg-[#345b7d]/78 text-white backdrop-blur-md sticky top-0 z-50 shadow-[0_2px_12px_rgba(9,30,66,.16)]">
+    <header
+      className="w-full shrink-0 border-b border-white/20 flex items-center justify-between px-3 md:px-5 bg-[#345b7d] text-white backdrop-blur-md sticky top-0 z-40 shadow-[0_2px_12px_rgba(9,30,66,.16)] box-border"
+      style={{
+        paddingTop: 'max(env(safe-area-inset-top, 0px), 6px)',
+        paddingBottom: '6px',
+        minHeight: 'calc(3.5rem + env(safe-area-inset-top, 0px))'
+      }}
+    >
       <div className="flex min-w-0 items-center gap-2">
+        {/* Mobile Hamburger Button */}
+        <button
+          type="button"
+          onClick={onOpenMobileMenu}
+          className="md:hidden grid h-9 w-9 place-items-center rounded-lg bg-white/16 hover:bg-white/28 active:scale-95 transition-all text-white cursor-pointer"
+          title="Menu de Navegação"
+          aria-label="Menu de Navegação"
+        >
+          <Menu size={20} />
+        </button>
+
         <Link to="/" className="grid h-8 w-8 place-items-center rounded bg-white/16 hover:bg-white/28" title="Início" aria-label="Início">
           <Home size={17} />
         </Link>
@@ -24,10 +46,10 @@ export const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-1.5">
-        {/* Emergency Trigger Button for ALL users */}
+        {/* Emergency Trigger Button for ALL users on Desktop / Web */}
         <button
           onClick={triggerEmergencyAlertModal}
-          className="hidden xl:flex bg-red-600/85 hover:bg-red-600 text-white font-bold text-xs px-3 py-1.5 rounded border border-red-300/30 items-center space-x-1.5 transition-all shadow-sm"
+          className="hidden sm:flex bg-red-600/90 hover:bg-red-600 text-white font-bold text-xs px-3 py-1.5 rounded border border-red-300/30 items-center space-x-1.5 transition-all shadow-sm active:scale-95"
           title="Disparar um alerta emergencial para a equipe de TI"
         >
           <ShieldAlert size={15} />

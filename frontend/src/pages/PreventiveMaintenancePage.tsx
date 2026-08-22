@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { preventiveApi } from '../api/preventive';
+import { procurementApi } from '../api/procurement';
 import { toApiFileUrl } from '../api/client';
 import { usersApi } from '../api/users';
 import { assetsApi } from '../api/assets';
@@ -21,6 +22,7 @@ import { useAuthStore } from '../stores/authStore';
 import {
   Plus, Edit2, Trash2, X, ShieldAlert, Wrench, ClipboardList, Bell, Play, Pause,
   CheckCircle2, Ban, FileText, Camera, CalendarDays, ChevronLeft, ChevronRight,
+  ShoppingCart, RefreshCw, Link as LinkIcon
 } from 'lucide-react';
 
 const structureRoles = ['admin', 'gerente_ti', 'gerente_infra'];
@@ -190,6 +192,64 @@ export const PreventiveMaintenancePage: React.FC = () => {
   const [completionAssetDestination, setCompletionAssetDestination] = useState('Disponível');
   const [completionExtraCost, setCompletionExtraCost] = useState('');
   const [timerNow, setTimerNow] = useState(Date.now());
+
+  // Purchase request modal for preventive maintenance
+  const [pmPurchaseModalOpen, setPmPurchaseModalOpen] = useState(false);
+  const [pmPartName, setPmPartName] = useState('');
+  const [pmPartLink, setPmPartLink] = useState('');
+  const [pmPartQty, setPmPartQty] = useState<number>(1);
+  const [pmPartEstimatedVal, setPmPartEstimatedVal] = useState<string>('');
+  const [pmPartJustification, setPmPartJustification] = useState('');
+  const [pmPartItemType, setPmPartItemType] = useState('Consumo');
+  const [pmPartSubmitting, setPmPartSubmitting] = useState(false);
+  const [pmPurchaseSuccess, setPmPurchaseSuccess] = useState<string | null>(null);
+  const [pmPurchaseError, setPmPurchaseError] = useState<string | null>(null);
+
+  const handleOpenPmPurchaseModal = () => {
+    if (!orderDetail) return;
+    setPmPartName('');
+    setPmPartLink('');
+    setPmPartQty(1);
+    setPmPartEstimatedVal('');
+    setPmPartJustification(`Peça/insumo para Ordem Preventiva ${orderDetail.order.numero} - ${orderDetail.order.asset?.nome || orderDetail.order.infra_predial_servico || ''}`);
+    setPmPartItemType('Consumo');
+    setPmPurchaseSuccess(null);
+    setPmPurchaseError(null);
+    setPmPurchaseModalOpen(true);
+  };
+
+  const handleSubmitPmPurchase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderDetail || !pmPartName.trim()) {
+      setPmPurchaseError('Informe o nome da peça/produto.');
+      return;
+    }
+
+    try {
+      setPmPartSubmitting(true);
+      setPmPurchaseError(null);
+      const val = pmPartEstimatedVal ? Number(pmPartEstimatedVal.replace(',', '.')) : 0;
+      await procurementApi.createMaintenancePurchaseRequest({
+        nome_produto: pmPartName.trim(),
+        link_produto: pmPartLink.trim() || undefined,
+        quantidade: pmPartQty > 0 ? pmPartQty : 1,
+        valor_estimado: isNaN(val) ? 0 : val,
+        justificativa: pmPartJustification.trim(),
+        tipo_item: pmPartItemType,
+        asset_id: orderDetail.order.asset_id || undefined,
+      });
+
+      setPmPurchaseSuccess('Solicitação de compra enviada para o Comprador com sucesso!');
+      setTimeout(() => {
+        setPmPurchaseModalOpen(false);
+        setPmPurchaseSuccess(null);
+      }, 2000);
+    } catch (err: any) {
+      setPmPurchaseError(err.response?.data?.error || err.response?.data?.detail || 'Erro ao enviar solicitação de compra.');
+    } finally {
+      setPmPartSubmitting(false);
+    }
+  };
 
   const normalizeOrderDetail = (detail: { order: MaintenanceOrder; checklists: MaintenanceChecklist[] | null }) => ({
     order: {
@@ -714,8 +774,8 @@ export const PreventiveMaintenancePage: React.FC = () => {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex space-x-1 border-b border-brand-border">
+      {/* Tabs with smooth touch horizontal scroll */}
+      <div className="w-full min-w-0 max-w-full overflow-x-auto border-b border-brand-border flex items-center gap-1.5 pb-0.5 no-scrollbar scroll-smooth">
         {([
           ['dashboard', 'Dashboard'],
           ['planos', 'Planos'],
@@ -726,10 +786,10 @@ export const PreventiveMaintenancePage: React.FC = () => {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`px-4 py-2.5 font-mono text-xs uppercase tracking-wider border-b-2 transition-colors ${
+            className={`shrink-0 whitespace-nowrap px-4 py-2.5 font-mono text-xs uppercase tracking-wider rounded-t-lg border-b-2 transition-all cursor-pointer ${
               tab === key
-                ? 'border-brand-primary bg-white text-brand-primary opacity-100'
-                : 'border-transparent bg-[#d9d9d9] text-brand-text opacity-[0.58] hover:opacity-75'
+                ? 'border-brand-primary bg-white text-brand-primary font-bold shadow-sm'
+                : 'border-transparent bg-white/40 text-brand-text opacity-70 hover:opacity-100 hover:bg-white/70'
             }`}
           >
             {label}
@@ -1070,65 +1130,115 @@ export const PreventiveMaintenancePage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4">
-            <div className="border border-brand-border bg-brand-card overflow-hidden">
+            <div className="border border-brand-border bg-brand-card overflow-hidden rounded-2xl shadow-sm">
               {calendarView === 'mensal' ? (
-                <>
-                  <div className="grid grid-cols-7 border-b border-brand-border bg-brand-dark/20">
-                    {weekdayLabels.map((label) => (
-                      <div key={label} className="p-3 text-center text-[11px] font-mono uppercase tracking-wider text-brand-muted">
-                        {label}
-                      </div>
-                    ))}
+                <div className="w-full overflow-x-auto no-scrollbar touch-pan-x">
+                  <div className="min-w-[600px] md:min-w-0">
+                    <div className="grid grid-cols-7 border-b border-brand-border bg-brand-dark/20">
+                      {weekdayLabels.map((label) => (
+                        <div key={label} className="p-2.5 text-center text-[11px] font-mono uppercase tracking-wider text-brand-muted font-bold">
+                          {label}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7">
+                      {calendarCells.map(({ date, inMonth }) => {
+                        const dayOrders = filteredUpcomingOrders.filter(({ eventDate }) => eventDate && isSameDay(eventDate, date));
+                        const isToday = isSameDay(date, today);
+                        return (
+                          <div
+                            key={date.toISOString()}
+                            className={`min-h-28 md:min-h-36 border-r border-b border-brand-border p-1.5 md:p-2 align-top ${
+                              inMonth ? 'bg-brand-card' : 'bg-brand-dark/10'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span
+                                className={`text-xs font-mono px-1.5 py-0.5 rounded-md ${
+                                  isToday
+                                    ? 'bg-brand-primary text-white font-bold shadow-sm'
+                                    : inMonth
+                                      ? 'text-brand-text font-semibold'
+                                      : 'text-brand-muted opacity-50'
+                                }`}
+                              >
+                                {date.getDate()}
+                              </span>
+                              {dayOrders.length > 0 && (
+                                <span className="text-[10px] font-mono font-bold uppercase text-brand-primary bg-brand-primary/10 px-1 rounded">
+                                  {dayOrders.length} OS
+                                </span>
+                              )}
+                            </div>
+                            <div className="space-y-1.5">
+                              {dayOrders.slice(0, 3).map(({ order }) => (
+                                <button
+                                  key={order.id}
+                                  onClick={() => openOrderDetail(order.id)}
+                                  className={`w-full text-left border p-1.5 rounded-lg hover:bg-brand-primary/10 transition-all cursor-pointer ${criticalityColor[order.criticidade] ?? 'border-brand-primary/20 bg-brand-dark/20 text-brand-text'}`}
+                                >
+                                  <div className="text-[10px] font-mono font-bold uppercase text-brand-primary truncate">{order.numero}</div>
+                                  <div className="text-xs text-brand-text truncate leading-tight">{order.asset?.nome ?? order.infra_predial_servico ?? 'Serviço'}</div>
+                                  <div className="mt-1 flex items-center justify-between gap-1">
+                                    <span className={`text-[9px] font-mono uppercase px-1 py-0.2 rounded border ${statusColor[order.status] ?? 'border-brand-border'}`}>
+                                      {order.status}
+                                    </span>
+                                    <span className="text-[9px] font-mono">{order.criticidade}</span>
+                                  </div>
+                                </button>
+                              ))}
+                              {dayOrders.length > 3 && (
+                                <div className="text-[10px] font-mono uppercase text-brand-muted px-1">
+                                  +{dayOrders.length - 3} adicional(is)
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-7">
-                    {calendarCells.map(({ date, inMonth }) => {
-                      const dayOrders = filteredUpcomingOrders.filter(({ eventDate }) => eventDate && isSameDay(eventDate, date));
+                </div>
+              ) : (
+                <div className="w-full overflow-x-auto no-scrollbar touch-pan-x">
+                  <div className="min-w-[600px] md:min-w-0 grid grid-cols-1 md:grid-cols-7">
+                    {weekDays.map((date) => {
+                      const dayOrders = weekOrders.filter(({ eventDate }) => eventDate && isSameDay(eventDate, date));
                       const isToday = isSameDay(date, today);
                       return (
-                        <div
-                          key={date.toISOString()}
-                          className={`min-h-36 border-r border-b border-brand-border p-2 align-top ${
-                            inMonth ? 'bg-brand-card' : 'bg-brand-dark/10'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span
-                              className={`text-xs font-mono px-1.5 py-0.5 ${
-                                isToday
-                                  ? 'bg-brand-primary text-brand-dark font-bold'
-                                  : inMonth
-                                    ? 'text-brand-text'
-                                    : 'text-brand-muted'
-                              }`}
-                            >
-                              {date.getDate()}
-                            </span>
-                            {dayOrders.length > 0 && (
-                              <span className="text-[10px] font-mono uppercase text-brand-primary">
-                                {dayOrders.length} OS
-                              </span>
-                            )}
+                        <div key={date.toISOString()} className="min-h-72 border-r border-b border-brand-border p-2.5">
+                          <div className="flex items-center justify-between mb-2.5">
+                            <div>
+                              <div className="text-[11px] font-mono uppercase tracking-wider text-brand-muted font-bold">
+                                {weekdayLabels[date.getDay()]}
+                              </div>
+                              <div className={`mt-0.5 inline-flex px-1.5 py-0.5 rounded text-xs font-mono ${isToday ? 'bg-brand-primary text-white font-bold' : 'text-brand-text border border-brand-border'}`}>
+                                {date.toLocaleDateString('pt-BR')}
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono font-bold uppercase text-brand-primary bg-brand-primary/10 px-1 rounded">{dayOrders.length} OS</span>
                           </div>
-                          <div className="space-y-2">
-                            {dayOrders.slice(0, 3).map(({ order }) => (
+                          <div className="space-y-1.5">
+                            {dayOrders.map(({ order }) => (
                               <button
                                 key={order.id}
                                 onClick={() => openOrderDetail(order.id)}
-                                className={`w-full text-left border p-2 hover:bg-brand-primary/10 ${criticalityColor[order.criticidade] ?? 'border-brand-primary/20 bg-brand-dark/20 text-brand-text'}`}
+                                className={`w-full text-left border p-1.5 rounded-lg hover:bg-brand-primary/10 transition-all cursor-pointer ${criticalityColor[order.criticidade] ?? 'border-brand-primary/20 bg-brand-dark/20 text-brand-text'}`}
                               >
-                                <div className="text-[10px] font-mono uppercase text-brand-primary truncate">{order.numero}</div>
-                                <div className="text-xs text-brand-text truncate">{order.asset?.nome ?? order.infra_predial_servico ?? 'Serviço'}</div>
-                                <div className="mt-1 flex items-center justify-between gap-2">
-                                  <span className={`text-[10px] font-mono uppercase px-1 py-0.5 border ${statusColor[order.status] ?? 'border-brand-border'}`}>
+                                <div className="text-[10px] font-mono font-bold uppercase text-brand-primary">{order.numero}</div>
+                                <div className="text-xs text-brand-text mt-0.5 truncate leading-tight">{order.asset?.nome ?? order.infra_predial_servico ?? 'Serviço'}</div>
+                                <div className="text-[10px] text-brand-muted mt-0.5 truncate">{order.tecnico?.nome ?? 'Sem técnico'}</div>
+                                <div className="mt-1.5 flex items-center justify-between gap-1">
+                                  <span className={`text-[9px] font-mono uppercase px-1 py-0.2 rounded border ${statusColor[order.status] ?? 'border-brand-border'}`}>
                                     {order.status}
                                   </span>
-                                  <span className="text-[10px] font-mono">{order.criticidade}</span>
+                                  <span className="text-[9px] font-mono">{order.criticidade}</span>
                                 </div>
                               </button>
                             ))}
-                            {dayOrders.length > 3 && (
-                              <div className="text-[10px] font-mono uppercase text-brand-muted px-1">
-                                +{dayOrders.length - 3} adicional(is)
+                            {dayOrders.length === 0 && (
+                              <div className="text-[10px] font-mono uppercase text-brand-muted border border-dashed border-brand-border p-3 text-center rounded-lg">
+                                Sem programação
                               </div>
                             )}
                           </div>
@@ -1136,52 +1246,6 @@ export const PreventiveMaintenancePage: React.FC = () => {
                       );
                     })}
                   </div>
-                </>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-7">
-                  {weekDays.map((date) => {
-                    const dayOrders = weekOrders.filter(({ eventDate }) => eventDate && isSameDay(eventDate, date));
-                    const isToday = isSameDay(date, today);
-                    return (
-                      <div key={date.toISOString()} className="min-h-80 border-r border-b border-brand-border p-3">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <div className="text-[11px] font-mono uppercase tracking-wider text-brand-muted">
-                              {weekdayLabels[date.getDay()]}
-                            </div>
-                            <div className={`mt-1 inline-flex px-2 py-1 text-xs font-mono ${isToday ? 'bg-brand-primary text-brand-dark' : 'text-brand-text border border-brand-border'}`}>
-                              {date.toLocaleDateString('pt-BR')}
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-mono uppercase text-brand-primary">{dayOrders.length} OS</span>
-                        </div>
-                        <div className="space-y-2">
-                          {dayOrders.map(({ order }) => (
-                            <button
-                              key={order.id}
-                              onClick={() => openOrderDetail(order.id)}
-                              className={`w-full text-left border p-2 hover:bg-brand-primary/10 ${criticalityColor[order.criticidade] ?? 'border-brand-primary/20 bg-brand-dark/20 text-brand-text'}`}
-                            >
-                              <div className="text-[10px] font-mono uppercase text-brand-primary">{order.numero}</div>
-                              <div className="text-xs text-brand-text mt-1">{order.asset?.nome ?? order.infra_predial_servico ?? 'Serviço'}</div>
-                              <div className="text-[10px] text-brand-muted mt-1">{order.tecnico?.nome ?? 'Sem técnico'}</div>
-                              <div className="mt-2 flex items-center justify-between gap-2">
-                                <span className={`text-[10px] font-mono uppercase px-1 py-0.5 border ${statusColor[order.status] ?? 'border-brand-border'}`}>
-                                  {order.status}
-                                </span>
-                                <span className="text-[10px] font-mono">{order.criticidade}</span>
-                              </div>
-                            </button>
-                          ))}
-                          {dayOrders.length === 0 && (
-                            <div className="text-[10px] font-mono uppercase text-brand-muted border border-dashed border-brand-border p-3 text-center">
-                              Sem programação
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               )}
             </div>
@@ -1845,8 +1909,21 @@ export const PreventiveMaintenancePage: React.FC = () => {
 
             {/* Materials */}
             <div className="border border-brand-border">
-              <div className="p-3 border-b border-brand-border bg-brand-dark/20 text-xs font-mono uppercase tracking-wider text-brand-muted flex items-center">
-                <Wrench size={14} className="mr-2" /> Materiais aplicados
+              <div className="p-3 border-b border-brand-border bg-brand-dark/20 text-xs font-mono uppercase tracking-wider text-brand-muted flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center">
+                  <Wrench size={14} className="mr-2 text-brand-primary" /> Materiais aplicados
+                </div>
+                {canWorkOrder && !['Concluída', 'Cancelada'].includes(orderDetail.order.status) && (
+                  <button
+                    type="button"
+                    onClick={handleOpenPmPurchaseModal}
+                    className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-mono uppercase font-bold flex items-center space-x-1.5 transition-colors"
+                    title="Solicitar compra de peça/suprimento para esta ordem"
+                  >
+                    <ShoppingCart size={13} />
+                    <span>Solicitar Compra de Peça</span>
+                  </button>
+                )}
               </div>
               {canWorkOrder && !['Concluída', 'Cancelada'].includes(orderDetail.order.status) && (
                 <form onSubmit={submitMaterial} className="p-3 border-b border-brand-border/60 bg-brand-card/40 space-y-3">
@@ -2124,6 +2201,142 @@ export const PreventiveMaintenancePage: React.FC = () => {
                 </form>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* PM PURCHASE REQUEST MODAL */}
+      {pmPurchaseModalOpen && orderDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-dark/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg bg-brand-card border border-amber-500/50 shadow-2xl overflow-hidden rounded-md">
+            <div className="bg-amber-500/10 border-b border-amber-500/30 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-amber-400">
+                <ShoppingCart size={20} />
+                <h3 className="font-bold font-mono text-sm uppercase tracking-wider text-amber-300">
+                  Solicitação de Compra / Peça para Preventiva
+                </h3>
+              </div>
+              <button
+                onClick={() => setPmPurchaseModalOpen(false)}
+                className="text-brand-muted hover:text-brand-text p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitPmPurchase} className="p-6 space-y-4">
+              <div className="bg-brand-dark/50 p-3 border border-brand-border/40 text-xs font-mono rounded">
+                <div className="text-brand-muted text-[10px] uppercase">Ordem de Serviço Preventiva:</div>
+                <div className="text-brand-text font-bold text-sm">
+                  OS {orderDetail.order.numero} — {orderDetail.order.asset?.nome || orderDetail.order.infra_predial_servico || 'Infraestrutura'}
+                </div>
+                {orderDetail.order.asset && (
+                  <div className="text-[11px] text-brand-primary mt-0.5">
+                    Patrimônio: {orderDetail.order.asset.e_patrimonio}
+                  </div>
+                )}
+              </div>
+
+              {pmPurchaseSuccess && (
+                <div className="p-3 bg-green-500/10 border border-green-500/30 text-green-400 font-mono text-xs flex items-center space-x-2">
+                  <CheckCircle2 size={16} />
+                  <span>{pmPurchaseSuccess}</span>
+                </div>
+              )}
+
+              {pmPurchaseError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 font-mono text-xs">
+                  {pmPurchaseError}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-xs font-mono font-bold text-brand-text uppercase block">
+                  Nome da Peça / Material *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={pmPartName}
+                  onChange={(e) => setPmPartName(e.target.value)}
+                  placeholder="Ex: Filtro de ar condicionado, Pasta térmica, Pasta de solda..."
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-mono font-bold text-brand-text uppercase flex items-center space-x-1">
+                  <LinkIcon size={12} className="text-amber-400" />
+                  <span>Link do Site / Loja (URL Fornecedor)</span>
+                </label>
+                <input
+                  type="url"
+                  value={pmPartLink}
+                  onChange={(e) => setPmPartLink(e.target.value)}
+                  placeholder="https://www.mercadolivre.com.br/... ou link da loja"
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-mono font-bold text-brand-text uppercase block">
+                    Quantidade *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={pmPartQty}
+                    onChange={(e) => setPmPartQty(Number(e.target.value))}
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-mono font-bold text-brand-text uppercase block">
+                    Valor Estimado (R$)
+                  </label>
+                  <input
+                    type="text"
+                    value={pmPartEstimatedVal}
+                    onChange={(e) => setPmPartEstimatedVal(e.target.value)}
+                    placeholder="Ex: 85.00"
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-mono font-bold text-brand-text uppercase block">
+                  Justificativa / Motivo
+                </label>
+                <textarea
+                  rows={2}
+                  value={pmPartJustification}
+                  onChange={(e) => setPmPartJustification(e.target.value)}
+                  placeholder="Justificativa da necessidade de compra..."
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPmPurchaseModalOpen(false)}
+                  className="w-1/3 py-2.5 bg-brand-dark border border-brand-border text-xs font-mono uppercase text-brand-muted hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={pmPartSubmitting || !pmPartName.trim()}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-brand-dark font-bold font-mono text-xs uppercase flex items-center justify-center space-x-2 disabled:opacity-50 shadow-md"
+                >
+                  {pmPartSubmitting && <RefreshCw size={14} className="animate-spin" />}
+                  <span>Encaminhar para Comprador</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

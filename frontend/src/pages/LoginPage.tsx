@@ -126,6 +126,18 @@ export const LoginPage: React.FC = () => {
     setCameraActive(false);
   };
 
+  const formatLoginError = (err: any): string => {
+    const detail = err.response?.data?.detail || err.message || '';
+    const lower = detail.toLowerCase();
+    if (lower.includes('inactive') || lower.includes('inativo')) {
+      return 'Usuario Inativo entrar em contato com TI.';
+    }
+    if (lower.includes('incorrect') || lower.includes('incorret')) {
+      return 'E-mail ou senha incorretos.';
+    }
+    return detail || 'Falha ao autenticar. Tente novamente.';
+  };
+
   const handleStandardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -135,7 +147,7 @@ export const LoginPage: React.FC = () => {
       await loginStore(res.access_token);
       window.location.href = '/';
     } catch (err: any) {
-      setError(err.response?.data?.detail || `Erro: ${err.message || 'Conexão falhou'}`);
+      setError(formatLoginError(err));
     } finally {
       setLoading(false);
     }
@@ -150,7 +162,7 @@ export const LoginPage: React.FC = () => {
       await loginStore(res.access_token);
       window.location.href = '/';
     } catch (err: any) {
-      setError(err.response?.data?.detail || `Erro: ${err.message || 'Conexão falhou'}`);
+      setError(formatLoginError(err));
     } finally {
       setLoading(false);
     }

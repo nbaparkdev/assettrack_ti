@@ -205,7 +205,7 @@ export const BadgePage: React.FC = () => {
               <button
                 type="submit"
                 disabled={pinLoading || pin.length < 4}
-                className="w-full bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono py-2.5 uppercase tracking-wider text-xs transition-colors disabled:opacity-50"
+                className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white font-bold font-mono py-3 rounded-[10px] uppercase tracking-wider text-xs transition-colors disabled:opacity-50 shadow-md shadow-brand-primary/20"
               >
                 {pinLoading ? 'Gravando PIN...' : 'Salvar Novo PIN'}
               </button>

@@ -24,17 +24,59 @@ func NewDashboardHandler(db *gorm.DB) *DashboardHandler {
 func (h *DashboardHandler) GetStats(c *gin.Context) {
 	var response dto.DashboardStatsResponse
 
-	// 1. Assets count by Status
+	// 1. Total Assets & Assets count by Status
+	h.db.Model(&models.Asset{}).Count(&response.TotalAssets)
+	var totalAssetVal *float64
+	h.db.Model(&models.Asset{}).Select("COALESCE(SUM(valor), 0)").Scan(&totalAssetVal)
+	if totalAssetVal != nil {
+		response.TotalAssetsValue = *totalAssetVal
+	}
+
 	h.db.Model(&models.Asset{}).Where("LOWER(status) IN ('manutenção', 'manutencao', 'em manutenção', 'em_manutencao') OR LOWER(status) LIKE '%manuten%'").Count(&response.TotalAssetsInMaintenance)
 	h.db.Model(&models.Asset{}).Where("LOWER(status) IN ('disponível', 'disponivel')").Count(&response.TotalAssetsDisponivel)
 	h.db.Model(&models.Asset{}).Where("LOWER(status) IN ('em uso', 'em_uso', 'uso')").Count(&response.TotalAssetsEmUso)
 	h.db.Model(&models.Asset{}).Where("LOWER(status) IN ('armazenado', 'armazenamento')").Count(&response.TotalAssetsArmazenado)
 	h.db.Model(&models.Asset{}).Where("LOWER(status) IN ('baixado', 'baixa')").Count(&response.TotalAssetsBaixado)
 
+	// 1.1 Assets by Category
+	type catCount struct {
+		Category string
+		Count    int64
+	}
+	var catCounts []catCount
+	h.db.Table("assets").
+		Select("COALESCE(asset_categories.nome, 'Sem Categoria') as category, count(assets.id) as count").
+		Joins("LEFT JOIN asset_categories ON asset_categories.id = assets.categoria_id").
+		Group("COALESCE(asset_categories.nome, 'Sem Categoria')").
+		Order("count DESC").
+		Limit(7).
+		Scan(&catCounts)
+
+	for _, cc := range catCounts {
+		response.AssetsByCategory = append(response.AssetsByCategory, dto.CategoryStat{
+			Category: cc.Category,
+			Count:    cc.Count,
+		})
+	}
+
 	// 2. Open vs Resolved vs Closed Tickets
+	h.db.Model(&models.ServiceTicket{}).Count(&response.TicketsTotal)
 	h.db.Model(&models.ServiceTicket{}).Where("LOWER(status) NOT IN ('resolvido', 'fechado', 'cancelado')").Count(&response.TicketsOpen)
 	h.db.Model(&models.ServiceTicket{}).Where("LOWER(status) = ?", "resolvido").Count(&response.TicketsResolved)
 	h.db.Model(&models.ServiceTicket{}).Where("LOWER(status) IN ('fechado', 'cancelado')").Count(&response.TicketsClosed)
+
+	// 2.1 Average Rating of Tickets
+	var avgRating *float64
+	h.db.Model(&models.ServiceTicket{}).Where("avaliacao IS NOT NULL AND avaliacao > 0").Select("COALESCE(AVG(avaliacao), 0)").Scan(&avgRating)
+	if avgRating != nil {
+		response.TicketsAvgRating = *avgRating
+	}
+
+	// 2.2 Tickets by Priority
+	h.db.Model(&models.ServiceTicket{}).Where("LOWER(prioridade) = ?", "urgente").Count(&response.TicketsByPriority.Urgente)
+	h.db.Model(&models.ServiceTicket{}).Where("LOWER(prioridade) = ?", "alta").Count(&response.TicketsByPriority.Alta)
+	h.db.Model(&models.ServiceTicket{}).Where("LOWER(prioridade) IN ('média', 'media')").Count(&response.TicketsByPriority.Media)
+	h.db.Model(&models.ServiceTicket{}).Where("LOWER(prioridade) = ?", "baixa").Count(&response.TicketsByPriority.Baixa)
 
 	// 3. Supplier Cost Monthly
 	now := time.Now()
@@ -54,6 +96,52 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 
 	// 4. Pending Asset Requests
 	h.db.Model(&models.Solicitacao{}).Where("LOWER(status) = ?", "pendente").Count(&response.PendingAssetRequests)
+
+	// 4.1 Recent Activities (Timeline)
+	var recentMovs []models.Movimentacao
+	h.db.Preload("Asset").Preload("ParaUser").Preload("DeUser").Order("data DESC").Limit(5).Find(&recentMovs)
+	for _, m := range recentMovs {
+		assetName := "Ativo"
+		if m.Asset != nil {
+			assetName = m.Asset.Nome
+		}
+		userName := "Sistema"
+		if m.ParaUser != nil {
+			userName = m.ParaUser.Nome
+		} else if m.DeUser != nil {
+			userName = m.DeUser.Nome
+		}
+		response.RecentActivities = append(response.RecentActivities, dto.RecentActivityItem{
+			ID:        m.ID,
+			Type:      "movimentacao",
+			Title:     string(m.Tipo) + ": " + assetName,
+			Subtitle:  "Usuário: " + userName,
+			Status:    string(m.Tipo),
+			CreatedAt: m.Data.Format(time.RFC3339),
+		})
+	}
+
+	var recentSols []models.Solicitacao
+	h.db.Preload("Asset").Preload("Solicitante").Order("data_solicitacao DESC").Limit(4).Find(&recentSols)
+	for _, s := range recentSols {
+		assetName := "Equipamento"
+		if s.Asset != nil {
+			assetName = s.Asset.Nome
+		}
+		userName := "Colaborador"
+		if s.Solicitante != nil {
+			userName = s.Solicitante.Nome
+		}
+		response.RecentActivities = append(response.RecentActivities, dto.RecentActivityItem{
+			ID:        s.ID,
+			Type:      "solicitacao",
+			Title:     "Empréstimo: " + assetName,
+			Subtitle:  "Solicitado por " + userName,
+			Status:    string(s.Status),
+			CreatedAt: s.DataSolicitacao.Format(time.RFC3339),
+		})
+	}
+
 
 	// 5. Main Alerts (Emergency Alerts + Pending Asset Requests + Assets in Maintenance)
 	var alerts []models.EmergencyAlert

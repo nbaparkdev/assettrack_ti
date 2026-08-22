@@ -15,13 +15,13 @@ func NewSupplierRepository(db *gorm.DB) *SupplierRepository {
 
 func (r *SupplierRepository) List(skip, limit int) ([]models.Fornecedor, error) {
 	var suppliers []models.Fornecedor
-	err := r.db.Offset(skip).Limit(limit).Order("nome asc").Find(&suppliers).Error
+	err := r.db.Preload("NotasFiscais").Offset(skip).Limit(limit).Order("nome asc").Find(&suppliers).Error
 	return suppliers, err
 }
 
 func (r *SupplierRepository) GetByID(id uint) (*models.Fornecedor, error) {
 	var s models.Fornecedor
-	err := r.db.First(&s, id).Error
+	err := r.db.Preload("NotasFiscais").First(&s, id).Error
 	if err != nil {
 		return nil, err
 	}

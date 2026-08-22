@@ -62,7 +62,7 @@ func RequireActive() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := GetCurrentUser(c)
 		if user == nil || !user.IsActive {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"detail": "Inactive user"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"detail": "Usuario Inativo entrar em contato com TI."})
 			return
 		}
 		c.Next()

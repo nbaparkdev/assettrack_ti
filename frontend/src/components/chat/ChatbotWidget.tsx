@@ -53,28 +53,38 @@ export const ChatbotWidget: React.FC = () => {
       {/* Botão flutuante */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 p-4 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-all z-50 flex items-center justify-center"
+        className="fixed bottom-20 md:bottom-6 right-4 md:right-6 p-3.5 sm:p-4 bg-[#0c66e4] text-white rounded-full shadow-xl hover:bg-[#0055cc] active:scale-95 transition-all z-40 flex items-center justify-center cursor-pointer"
+        title="Assistente IA"
+        aria-label="Assistente IA"
       >
-        {isOpen ? <X size={24} /> : <Bot size={24} />}
+        {isOpen ? <X size={22} /> : <Bot size={22} />}
       </button>
 
       {/* Janela de Chat */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden z-50">
+        <div className="fixed bottom-36 md:bottom-24 right-3 sm:right-6 w-[calc(100vw-1.5rem)] sm:w-96 h-[480px] max-h-[75vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden z-50 animate-fade-in">
           {/* Header */}
-          <div className="bg-indigo-600 text-white p-4 flex items-center gap-3">
-            <Bot size={24} />
-            <div>
-              <h3 className="font-semibold text-lg leading-tight">Assistente IA</h3>
-              <p className="text-indigo-200 text-xs">Suporte Inteligente</p>
+          <div className="bg-[#0c66e4] text-white p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Bot size={22} />
+              <div>
+                <h3 className="font-semibold text-base leading-tight">Assistente IA</h3>
+                <p className="text-blue-100 text-[11px]">Suporte Inteligente</p>
+              </div>
             </div>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X size={18} />
+            </button>
           </div>
 
           {/* Mensagens */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] rounded-xl p-3 text-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'}`}>
+                <div className={`max-w-[85%] rounded-xl p-3 text-sm leading-relaxed ${msg.role === 'user' ? 'bg-[#0c66e4] text-white rounded-br-none' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'}`}>
                   {msg.content}
                 </div>
               </div>
@@ -82,7 +92,7 @@ export const ChatbotWidget: React.FC = () => {
             {loading && (
               <div className="flex justify-start">
                 <div className="bg-white border border-gray-200 rounded-xl rounded-bl-none p-3 shadow-sm">
-                  <Loader2 className="animate-spin text-indigo-600" size={16} />
+                  <Loader2 className="animate-spin text-[#0c66e4]" size={16} />
                 </div>
               </div>
             )}
@@ -97,15 +107,15 @@ export const ChatbotWidget: React.FC = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Digite sua mensagem..."
-              className="flex-1 bg-gray-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="flex-1 bg-gray-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#0c66e4] text-sm"
               disabled={loading}
             />
             <button
               onClick={handleSend}
               disabled={loading || !input.trim()}
-              className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              className="p-2.5 bg-[#0c66e4] text-white rounded-lg hover:bg-[#0055cc] active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
             >
-              <Send size={18} />
+              <Send size={16} />
             </button>
           </div>
         </div>

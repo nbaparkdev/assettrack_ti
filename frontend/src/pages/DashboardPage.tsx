@@ -8,9 +8,12 @@ import type { DashboardStats } from '../api/dashboard';
 import type { Solicitacao, SolicitacaoManutencao } from '../types';
 import {
   LayoutDashboard, Wrench, MessageSquare, Briefcase, BellRing, FileDown,
-  AlertTriangle, Info, ShieldAlert, Cpu, QrCode, ArrowLeftRight, UserCheck,
-  Laptop, Calendar, Clock, X, Send, Paperclip, Star
+  AlertTriangle, Info, QrCode, ArrowLeftRight, UserCheck,
+  Laptop, Calendar, Clock, X, Send, Paperclip, Star, TrendingUp,
+  PlusCircle, Activity, Layers, BarChart3, PieChart, ShieldCheck, RefreshCw,
+  ChevronRight, Package, Zap, ShieldAlert
 } from 'lucide-react';
+import { triggerEmergencyAlertModal } from '../components/emergency/EmergencyGlobalHandler';
 import { serviceDeskApi } from '../api/serviceDesk';
 import { toApiFileUrl } from '../api/client';
 import type { ServiceTicket } from '../types';
@@ -46,6 +49,7 @@ export const DashboardPage: React.FC = () => {
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const [myActiveLoans, setMyActiveLoans] = useState<Solicitacao[]>([]);
@@ -65,13 +69,6 @@ export const DashboardPage: React.FC = () => {
   const [dashboardFeedbackComment, setDashboardFeedbackComment] = useState<string>('');
   const [submittingEmergency, setSubmittingEmergency] = useState<boolean>(false);
 
-  useEffect(() => {
-    fetchStats();
-    if (!isStaff) {
-      fetchUserDashboardData();
-    }
-  }, [isStaff]);
-
   const fetchStats = async () => {
     try {
       setLoading(true);
@@ -81,6 +78,7 @@ export const DashboardPage: React.FC = () => {
       console.error(err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -113,6 +111,14 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchStats();
+    if (!isStaff) {
+      await fetchUserDashboardData();
+    }
+  };
+
   const handleConfirmReceipt = async (id: number) => {
     if (!window.confirm('Confirma que recebeu o equipamento consertado e que ele está funcionando corretamente?')) return;
     try {
@@ -125,23 +131,6 @@ export const DashboardPage: React.FC = () => {
       setExtraLoading(false);
     }
   };
-
-  // Real-time synchronization (polling) for tickets on collaborator dashboard
-  useEffect(() => {
-    if (isStaff) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const ticketsData = await serviceDeskApi.listTickets();
-        setMyTickets(ticketsData.filter(t => t.status?.toLowerCase() !== 'fechado'));
-        setResolvedTickets(ticketsData.filter(t => t.status?.toLowerCase() === 'resolvido'));
-      } catch (err) {
-        console.error('Erro ao recarregar chamados em tempo real:', err);
-      }
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [isStaff]);
 
   const handleConfirmEmergencyClose = async (ticketId: number) => {
     try {
@@ -167,24 +156,6 @@ export const DashboardPage: React.FC = () => {
       setSubmittingEmergency(false);
     }
   };
-
-  // Real-time synchronization (polling) for the active selected ticket's details/comments
-  useEffect(() => {
-    if (!selectedDashboardTicket) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const freshTicket = await serviceDeskApi.getTicketById(selectedDashboardTicket.id);
-        setSelectedDashboardTicket(freshTicket);
-        // Also update in the local list
-        setMyTickets(prev => prev.map(t => t.id === freshTicket.id ? freshTicket : t));
-      } catch (err) {
-        console.error('Erro ao atualizar chamado no modal:', err);
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [selectedDashboardTicket?.id]);
 
   const hasUnreadComments = (ticket: ServiceTicket) => {
     if (!ticket.interacoes || ticket.interacoes.length === 0) return false;
@@ -292,45 +263,81 @@ export const DashboardPage: React.FC = () => {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(20);
       doc.setTextColor(15, 23, 42); // slate-900
-      doc.text('AssetTrack TI - Relatório Executivo', 14, 20);
+      doc.text('AssetTrack TI - Relatório Executivo do Sistema', 14, 20);
 
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 116, 139);
-      doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 28);
+      doc.text(`Gerado por: ${user?.nome || 'Administrador'} em: ${new Date().toLocaleString('pt-BR')}`, 14, 28);
 
-      // KPIs
-      doc.setFontSize(14);
+      // KPIs Principais
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42);
-      doc.text('Indicadores Principais (KPIs)', 14, 40);
+      doc.text('1. Indicadores Principais de Inventário & Operação (KPIs)', 14, 40);
+
+      const totalAssetsCalc = stats.total_assets || (
+        (stats.total_assets_disponivel || 0) +
+        (stats.total_assets_em_uso || 0) +
+        (stats.total_assets_maintenance || 0) +
+        (stats.total_assets_armazenado || 0) +
+        (stats.total_assets_baixado || 0)
+      );
 
       autoTable(doc, {
         startY: 45,
         theme: 'grid',
-        headStyles: { fillColor: [56, 189, 248] }, // sky-400 equivalent for brand
-        head: [['Métrica', 'Valor Registrado']],
+        headStyles: { fillColor: [12, 102, 228] }, // brand primary
+        head: [['Métrica / Indicador', 'Valor Registrado', 'Detalhes']],
         body: [
-          ['Ativos em Manutenção', String(stats?.total_assets_maintenance || 0)],
-          ['Ativos Disponíveis', String(stats?.total_assets_disponivel || 0)],
-          ['Ativos Em Uso', String(stats?.total_assets_em_uso || 0)],
-          ['Ativos Armazenados', String(stats?.total_assets_armazenado || 0)],
-          ['Ativos Baixados', String(stats?.total_assets_baixado || 0)],
-          ['Chamados Abertos vs Resolvidos', `${stats?.tickets_open || 0} Abertos / ${stats?.tickets_resolved || 0} Resolvidos / ${stats?.tickets_closed || 0} Fechados`],
-          ['Solicitações de Ativos (Pendentes)', String(stats?.pending_asset_requests || 0)],
-          ['Custo Mensal Fornecedores', `R$ ${(stats?.supplier_cost_monthly || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+          ['Total de Ativos Cadastrados', String(totalAssetsCalc), '100% da base inventariada'],
+          ['Valor Total Patrimonial', `R$ ${(stats.total_assets_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor venal / aquisição'],
+          ['Ativos Disponíveis', String(stats.total_assets_disponivel || 0), `${totalAssetsCalc > 0 ? ((stats.total_assets_disponivel / totalAssetsCalc) * 100).toFixed(1) : 0}% do inventário`],
+          ['Ativos Em Uso', String(stats.total_assets_em_uso || 0), `${totalAssetsCalc > 0 ? ((stats.total_assets_em_uso / totalAssetsCalc) * 100).toFixed(1) : 0}% em posse de colaboradores`],
+          ['Ativos em Manutenção', String(stats.total_assets_maintenance || 0), 'Na oficina / laboratório técnico'],
+          ['Ativos Armazenados', String(stats.total_assets_armazenado || 0), 'Estoque reserva / almoxarifado'],
+          ['Ativos Baixados', String(stats.total_assets_baixado || 0), 'Descartados / Fim de vida útil'],
+          ['Service Desk (Chamados)', `${stats.tickets_open || 0} Abertos / ${stats.tickets_resolved || 0} Resolvidos / ${stats.tickets_closed || 0} Fechados`, `Satisfação: ${(stats.tickets_avg_rating || 0).toFixed(1)} / 5.0 estrelas`],
+          ['Solicitações de Ativos Pendentes', String(stats.pending_asset_requests || 0), 'Aguardando aprovação ou entrega'],
+          ['Solicitações de Manutenção Pendentes', String(stats.pending_maintenance_requests || 0), 'Aguardando triagem técnica'],
+          ['Custo Mensal (Compras)', `R$ ${(stats.supplier_cost_monthly || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Ordens de compra emitidas no mês'],
         ]
       });
 
-      // Alerts
-      const currentY = (doc as any).lastAutoTable.finalY + 15;
-      doc.text('Alertas Ativos', 14, currentY);
+      // Categories Breakdown
+      let currentY = (doc as any).lastAutoTable.finalY + 12;
+      if (stats.assets_by_category && stats.assets_by_category.length > 0) {
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text('2. Distribuição de Ativos por Categoria', 14, currentY);
 
-      if (stats?.active_alerts && stats.active_alerts.length > 0) {
         autoTable(doc, {
           startY: currentY + 5,
           theme: 'striped',
-          headStyles: { fillColor: [239, 68, 68] }, // red-500
-          head: [['Gravidade', 'Título', 'Data']],
+          headStyles: { fillColor: [56, 189, 248] },
+          head: [['Categoria', 'Quantidade', 'Participação (%)']],
+          body: stats.assets_by_category.map(c => [
+            c.category,
+            String(c.count),
+            `${totalAssetsCalc > 0 ? ((c.count / totalAssetsCalc) * 100).toFixed(1) : 0}%`
+          ])
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 12;
+      }
+
+      // Alerts Section
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text('3. Alertas e Notificações Ativas', 14, currentY);
+
+      if (stats.active_alerts && stats.active_alerts.length > 0) {
+        autoTable(doc, {
+          startY: currentY + 5,
+          theme: 'striped',
+          headStyles: { fillColor: [239, 68, 68] },
+          head: [['Gravidade', 'Descrição do Alerta', 'Data de Registro']],
           body: stats.active_alerts.map(a => [
             a.severity,
             a.title,
@@ -339,7 +346,9 @@ export const DashboardPage: React.FC = () => {
         });
       } else {
         doc.setFontSize(10);
-        doc.text('Nenhum alerta crítico ativo no momento.', 14, currentY + 8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text('Nenhum alerta crítico pendente no momento.', 14, currentY + 8);
       }
 
       // Footer
@@ -348,7 +357,7 @@ export const DashboardPage: React.FC = () => {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.setTextColor(150);
-        doc.text(`Página ${i} de ${pageCount} - AssetTrack TI`, 14, doc.internal.pageSize.height - 10);
+        doc.text(`Página ${i} de ${pageCount} - AssetTrack TI · Relatório de Gestão`, 14, doc.internal.pageSize.height - 10);
       }
 
       doc.save(`relatorio_executivo_${new Date().getTime()}.pdf`);
@@ -360,11 +369,68 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="text-brand-muted font-mono text-sm">Carregando painel analítico...</div>;
-  if (!stats) return <div className="text-red-400">Erro ao carregar dados.</div>;
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  };
 
-  // Chart Data
-  const ticketsData = {
+  // 1. Primary data load effect
+  useEffect(() => {
+    fetchStats();
+    if (!isStaff) {
+      fetchUserDashboardData();
+    }
+  }, [isStaff]);
+
+  // 2. Real-time synchronization (polling) for tickets on collaborator dashboard
+  useEffect(() => {
+    if (isStaff) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const ticketsData = await serviceDeskApi.listTickets();
+        setMyTickets(ticketsData.filter(t => t.status?.toLowerCase() !== 'fechado'));
+        setResolvedTickets(ticketsData.filter(t => t.status?.toLowerCase() === 'resolvido'));
+      } catch (err) {
+        console.error('Erro ao recarregar chamados em tempo real:', err);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [isStaff]);
+
+  // 3. Real-time synchronization (polling) for the active selected ticket's details/comments
+  useEffect(() => {
+    if (!selectedDashboardTicket) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const freshTicket = await serviceDeskApi.getTicketById(selectedDashboardTicket.id);
+        setSelectedDashboardTicket(freshTicket);
+        setMyTickets(prev => prev.map(t => t.id === freshTicket.id ? freshTicket : t));
+      } catch (err) {
+        console.error('Erro ao atualizar chamado no modal:', err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [selectedDashboardTicket?.id]);
+
+  // Early returns (only after all React hooks have been declared)
+  if (loading) return <div className="text-brand-muted font-mono text-sm p-8 text-center animate-pulse">Carregando painel analítico e indicadores...</div>;
+  if (!stats) return <div className="text-red-500 font-bold p-8 text-center">Erro ao carregar dados do painel analítico.</div>;
+
+  const totalAssetsCount = stats.total_assets || (
+    (stats.total_assets_disponivel || 0) +
+    (stats.total_assets_em_uso || 0) +
+    (stats.total_assets_maintenance || 0) +
+    (stats.total_assets_armazenado || 0) +
+    (stats.total_assets_baixado || 0)
+  );
+
+  const totalTicketsCount = (stats.tickets_open || 0) + (stats.tickets_resolved || 0) + (stats.tickets_closed || 0);
+
+  // Tickets Doughnut Chart Data
+  const ticketsChartData = {
     labels: ['Abertos', 'Resolvidos', 'Fechados'],
     datasets: [
       {
@@ -374,21 +440,23 @@ export const DashboardPage: React.FC = () => {
           stats?.tickets_closed || 0
         ],
         backgroundColor: [
-          'rgba(239, 68, 68, 0.8)', // red-500
-          'rgba(245, 158, 11, 0.8)', // amber-500
-          'rgba(34, 197, 94, 0.8)', // green-500
+          '#ef4444', // red-500 (Abertos)
+          '#f59e0b', // amber-500 (Resolvidos)
+          '#10b981', // emerald-500 (Fechados)
         ],
-        borderColor: [
-          'rgba(239, 68, 68, 1)',
-          'rgba(245, 158, 11, 1)',
-          'rgba(34, 197, 94, 1)',
+        hoverBackgroundColor: [
+          '#dc2626',
+          '#d97706',
+          '#059669',
         ],
-        borderWidth: 1,
+        borderColor: '#ffffff',
+        borderWidth: 2,
       },
     ],
   };
 
-  const assetsStatusData = {
+  // Assets Status Bar Chart Data
+  const assetsStatusBarData = {
     labels: ['Disponível', 'Em Uso', 'Manutenção', 'Armazenado', 'Baixado'],
     datasets: [
       {
@@ -401,27 +469,27 @@ export const DashboardPage: React.FC = () => {
           stats?.total_assets_baixado || 0
         ],
         backgroundColor: [
-          'rgba(34, 197, 94, 0.5)',  // green-500
-          'rgba(59, 130, 246, 0.5)',  // blue-500
-          'rgba(245, 158, 11, 0.5)',  // amber-500
-          'rgba(107, 114, 128, 0.5)', // gray-500
-          'rgba(239, 68, 68, 0.5)'    // red-500
+          'rgba(16, 185, 129, 0.85)', // emerald
+          'rgba(12, 102, 228, 0.85)',  // brand primary blue
+          'rgba(245, 158, 11, 0.85)',  // amber
+          'rgba(100, 116, 139, 0.85)', // slate
+          'rgba(239, 68, 68, 0.85)'    // red
         ],
-        borderColor: [
-          'rgba(34, 197, 94, 1)',
-          'rgba(59, 130, 246, 1)',
-          'rgba(245, 158, 11, 1)',
-          'rgba(107, 114, 128, 1)',
-          'rgba(239, 68, 68, 1)'
+        hoverBackgroundColor: [
+          '#10b981',
+          '#0c66e4',
+          '#f59e0b',
+          '#64748b',
+          '#ef4444'
         ],
-        borderWidth: 1,
+        borderRadius: 8,
+        borderSkipped: false,
       },
     ],
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-  };
+
+
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -437,16 +505,36 @@ export const DashboardPage: React.FC = () => {
               : 'Gerencie seus chamados de TI, solicitações de equipamentos e crachá digital'}
           </p>
         </div>
-        {isStaff && (
+        <div className="flex items-center flex-wrap gap-2.5">
           <button
-            onClick={exportPDF}
-            disabled={exporting}
-            className="rounded-[10px] bg-brand-primary text-brand-dark font-bold font-mono px-4 py-2 uppercase tracking-wider text-sm flex items-center hover:bg-brand-primary/90 transition-colors shadow-lg shadow-brand-primary/20 disabled:opacity-50"
+            type="button"
+            onClick={triggerEmergencyAlertModal}
+            className="sm:hidden rounded-[10px] bg-red-600/90 hover:bg-red-600 text-white font-bold font-mono px-3.5 py-2 uppercase tracking-wider text-xs flex items-center shadow-lg shadow-red-600/30 transition-all active:scale-95 animate-pulse"
+            title="Disparar Alerta Emergencial (Pânico TI)"
           >
-            <FileDown size={18} className="mr-2" />
-            {exporting ? 'Gerando...' : 'Exportar Relatório PDF'}
+            <ShieldAlert size={16} className="mr-1.5" />
+            <span>Alerta Emergencial</span>
           </button>
-        )}
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            className="rounded-[10px] bg-brand-card border border-brand-border text-brand-text font-bold font-mono px-3.5 py-2 uppercase tracking-wider text-xs flex items-center hover:bg-brand-dark/40 transition-colors shadow-sm disabled:opacity-50"
+            title="Atualizar dados do dashboard"
+          >
+            <RefreshCw size={15} className={`mr-1.5 text-brand-primary ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Atualizando...' : 'Atualizar'}
+          </button>
+          {isStaff && (
+            <button
+              onClick={exportPDF}
+              disabled={exporting}
+              className="rounded-[10px] bg-brand-primary text-white font-bold font-mono px-4 py-2 uppercase tracking-wider text-sm flex items-center hover:bg-brand-primary/90 transition-colors shadow-lg shadow-brand-primary/20 disabled:opacity-50"
+            >
+              <FileDown size={18} className="mr-2" />
+              {exporting ? 'Gerando...' : 'Exportar Relatório PDF'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Alert Banner for Pending Asset Requests (Staff/Managers) */}
@@ -502,54 +590,71 @@ export const DashboardPage: React.FC = () => {
       {!isStaff ? (
         /* Portal do Colaborador Layout */
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <Link
               to="/servicos"
-              className="p-6 bg-brand-card border border-brand-border hover:border-brand-primary/50 transition-all group flex flex-col justify-between space-y-4"
+              className="p-5 bg-brand-card border border-brand-border hover:border-brand-primary/50 transition-all group flex flex-col justify-between space-y-4 rounded-xl"
             >
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                  <MessageSquare size={28} />
+                <div className="p-3 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg">
+                  <MessageSquare size={26} />
                 </div>
                 <span className="text-xs font-mono text-brand-muted group-hover:text-brand-primary transition-colors">Acessar →</span>
               </div>
               <div>
-                <h3 className="font-bold text-brand-text text-lg group-hover:text-brand-primary transition-colors">Central de Suporte</h3>
+                <h3 className="font-bold text-brand-text text-base group-hover:text-brand-primary transition-colors">Central de Suporte</h3>
                 <p className="text-xs text-brand-muted mt-1">Abra chamados para suporte técnico, incidentes ou dúvidas com a equipe de TI.</p>
               </div>
             </Link>
 
             <Link
               to="/emprestimos"
-              className="p-6 bg-brand-card border border-brand-border hover:border-brand-primary/50 transition-all group flex flex-col justify-between space-y-4"
+              className="p-5 bg-brand-card border border-brand-border hover:border-brand-primary/50 transition-all group flex flex-col justify-between space-y-4 rounded-xl"
             >
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                  <ArrowLeftRight size={28} />
+                <div className="p-3 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg">
+                  <ArrowLeftRight size={26} />
                 </div>
                 <span className="text-xs font-mono text-brand-muted group-hover:text-brand-primary transition-colors">Acessar →</span>
               </div>
               <div>
-                <h3 className="font-bold text-brand-text text-lg group-hover:text-brand-primary transition-colors">Solicitar Equipamento</h3>
+                <h3 className="font-bold text-brand-text text-base group-hover:text-brand-primary transition-colors">Solicitar Equipamento</h3>
                 <p className="text-xs text-brand-muted mt-1">Solicite empréstimos temporários de notebooks, periféricos ou dispositivos.</p>
               </div>
             </Link>
 
             <Link
               to="/badge"
-              className="p-6 bg-brand-card border border-brand-border hover:border-brand-primary/50 transition-all group flex flex-col justify-between space-y-4"
+              className="p-5 bg-brand-card border border-brand-border hover:border-brand-primary/50 transition-all group flex flex-col justify-between space-y-4 rounded-xl"
             >
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-                  <QrCode size={28} />
+                <div className="p-3 bg-brand-primary/10 text-brand-primary border border-brand-primary/20 rounded-lg">
+                  <QrCode size={26} />
                 </div>
                 <span className="text-xs font-mono text-brand-muted group-hover:text-brand-primary transition-colors">Acessar →</span>
               </div>
               <div>
-                <h3 className="font-bold text-brand-text text-lg group-hover:text-brand-primary transition-colors">Meu Crachá QR</h3>
-                <p className="text-xs text-brand-muted mt-1">Visualize seu token QR pessoal para identificação e retirada rápida de ativos.</p>
+                <h3 className="font-bold text-brand-text text-base group-hover:text-brand-primary transition-colors">Meu Crachá QR</h3>
+                <p className="text-xs text-brand-muted mt-1">Visualize seu token QR pessoal para identificação e retirada de ativos.</p>
               </div>
             </Link>
+
+            <button
+              type="button"
+              onClick={triggerEmergencyAlertModal}
+              className="p-5 bg-red-950/20 border border-red-500/40 hover:border-red-500 hover:bg-red-950/30 transition-all text-left group flex flex-col justify-between space-y-4 rounded-xl shadow-lg shadow-red-900/10"
+            >
+              <div className="flex items-center justify-between">
+                <div className="p-3 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg animate-pulse">
+                  <ShieldAlert size={26} />
+                </div>
+                <span className="text-xs font-mono text-red-400 group-hover:text-red-300 font-bold">Acionar →</span>
+              </div>
+              <div>
+                <h3 className="font-bold text-red-400 text-base group-hover:text-red-300">Alerta Emergencial</h3>
+                <p className="text-xs text-brand-muted mt-1">Paralisação geral, incidente crítico de segurança ou emergência física.</p>
+              </div>
+            </button>
           </div>
 
           {/* Real-time Support reply notification banner */}
@@ -809,144 +914,468 @@ export const DashboardPage: React.FC = () => {
 
       ) : (
         /* Executive Dashboard Layout (Staff/Admin) */
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="space-y-6">
 
-            <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
-              <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
-                <Wrench size={100} />
-              </div>
-              <div className="flex items-center space-x-3 mb-2">
-                <div className="p-2 bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-                  <Wrench size={20} />
+          {/* Quick Action Bar for Management/Technicians */}
+          <div className="bg-brand-card border border-brand-border p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center space-x-2 text-xs font-mono font-bold text-brand-muted uppercase tracking-wider">
+              <Zap size={16} className="text-brand-primary" />
+              <span>Ações Rápidas do Gestor:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to="/assets"
+                className="px-3 py-1.5 bg-brand-primary/10 hover:bg-brand-primary hover:text-white border border-brand-primary/20 text-brand-primary text-xs font-mono font-bold transition-all flex items-center space-x-1.5"
+              >
+                <Package size={14} />
+                <span>Cadastrar Ativo</span>
+              </Link>
+              <Link
+                to="/servicos"
+                className="px-3 py-1.5 bg-brand-primary/10 hover:bg-brand-primary hover:text-white border border-brand-primary/20 text-brand-primary text-xs font-mono font-bold transition-all flex items-center space-x-1.5"
+              >
+                <PlusCircle size={14} />
+                <span>Novo Chamado</span>
+              </Link>
+              <Link
+                to="/emprestimos"
+                className="px-3 py-1.5 bg-brand-primary/10 hover:bg-brand-primary hover:text-white border border-brand-primary/20 text-brand-primary text-xs font-mono font-bold transition-all flex items-center space-x-1.5"
+              >
+                <ArrowLeftRight size={14} />
+                <span>Empréstimos ({stats.pending_asset_requests})</span>
+              </Link>
+              <Link
+                to="/manutencoes"
+                className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-white border border-amber-500/30 text-amber-600 text-xs font-mono font-bold transition-all flex items-center space-x-1.5"
+              >
+                <Wrench size={14} />
+                <span>Oficina & Manutenção ({stats.total_assets_maintenance})</span>
+              </Link>
+              <Link
+                to="/fornecedores"
+                className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 text-emerald-600 text-xs font-mono font-bold transition-all flex items-center space-x-1.5"
+              >
+                <Briefcase size={14} />
+                <span>Compras & Ordens</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* 6 High-Impact Metric Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+
+            {/* Total Assets */}
+            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Total de Ativos</span>
+                <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg">
+                  <Layers size={18} />
                 </div>
-                <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Ativos em Manutenção</h3>
               </div>
-              <div className="text-4xl font-black font-mono text-brand-text">{stats.total_assets_maintenance}</div>
-              <div className="text-xs text-brand-muted mt-2">Equipamentos no conserto</div>
+              <div>
+                <div className="text-3xl font-black font-mono text-brand-text">{totalAssetsCount}</div>
+                <div className="text-[11px] text-emerald-600 font-mono font-semibold mt-1 flex items-center space-x-1">
+                  <span>●</span>
+                  <span>{stats.total_assets_disponivel} disponíveis ({totalAssetsCount > 0 ? ((stats.total_assets_disponivel / totalAssetsCount) * 100).toFixed(0) : 0}%)</span>
+                </div>
+              </div>
             </div>
 
-            <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
-              <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
-                <MessageSquare size={100} />
-              </div>
-              <div className="flex items-center space-x-3 mb-2">
-                <div className="p-2 bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                  <MessageSquare size={20} />
-                </div>
-                <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Tickets Abertos</h3>
-              </div>
-              <div className="flex items-baseline space-x-2">
-                <div className="text-4xl font-black font-mono text-brand-text">{stats.tickets_open}</div>
-                <div className="text-[11px] font-mono text-green-400">
-                  / {stats.tickets_resolved} resolvidos · {stats.tickets_closed} fechados
+            {/* Total Value in R$ */}
+            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Patrimônio Total</span>
+                <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
+                  <TrendingUp size={18} />
                 </div>
               </div>
-              <div className="text-xs text-brand-muted mt-2">Chamados pendentes no Service Desk</div>
+              <div>
+                <div className="text-2xl font-black font-mono text-emerald-600 truncate" title={formatCurrency(stats.total_assets_value || 0)}>
+                  {formatCurrency(stats.total_assets_value || 0)}
+                </div>
+                <div className="text-[11px] text-brand-muted mt-1">Valor de aquisição / inventário</div>
+              </div>
             </div>
 
-            <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
-              <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
-                <Cpu size={100} />
-              </div>
-              <div className="flex items-center space-x-3 mb-2">
-                <div className="p-2 bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                  <Cpu size={20} />
+            {/* Service Desk Tickets */}
+            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Service Desk</span>
+                <div className="p-2 bg-indigo-500/10 text-indigo-500 rounded-lg">
+                  <MessageSquare size={18} />
                 </div>
-                <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Solicitações de Ativos</h3>
               </div>
-              <div className="text-4xl font-black font-mono text-brand-text">{stats.pending_asset_requests}</div>
-              <div className="text-xs text-brand-muted mt-2">Pendentes de aprovação/entrega</div>
+              <div>
+                <div className="flex items-baseline space-x-1.5">
+                  <span className="text-3xl font-black font-mono text-brand-text">{stats.tickets_open}</span>
+                  <span className="text-xs font-mono text-brand-muted">abertos</span>
+                </div>
+                <div className="text-[11px] text-brand-muted mt-1 flex items-center justify-between">
+                  <span>{stats.tickets_closed} fechados</span>
+                  {stats.tickets_avg_rating && stats.tickets_avg_rating > 0 ? (
+                    <span className="text-amber-500 font-bold font-mono flex items-center">
+                      <Star size={11} className="fill-amber-400 mr-0.5 inline" />
+                      {stats.tickets_avg_rating.toFixed(1)}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
             </div>
 
-            <div className="bg-brand-card border border-brand-border p-5 relative overflow-hidden group">
-              <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform">
-                <Briefcase size={100} />
-              </div>
-              <div className="flex items-center space-x-3 mb-2">
-                <div className="p-2 bg-green-500/10 text-green-400 border border-green-500/20">
-                  <Briefcase size={20} />
+            {/* Pending Asset Requests */}
+            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Empréstimos</span>
+                <div className="p-2 bg-purple-500/10 text-purple-500 rounded-lg">
+                  <ArrowLeftRight size={18} />
                 </div>
-                <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-muted">Custo Mensal (Compras)</h3>
               </div>
-              <div className="text-2xl font-black font-mono text-green-400 mt-2">{formatCurrency(stats.supplier_cost_monthly)}</div>
-              <div className="text-xs text-brand-muted mt-2">Ordens de Compra aprovadas/recebidas</div>
+              <div>
+                <div className="text-3xl font-black font-mono text-brand-text">{stats.pending_asset_requests}</div>
+                <div className="text-[11px] text-brand-muted mt-1">Pendentes de aprovação/entrega</div>
+              </div>
+            </div>
+
+            {/* Assets in Maintenance */}
+            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Em Manutenção</span>
+                <div className="p-2 bg-amber-500/10 text-amber-500 rounded-lg">
+                  <Wrench size={18} />
+                </div>
+              </div>
+              <div>
+                <div className="text-3xl font-black font-mono text-brand-text">{stats.total_assets_maintenance}</div>
+                <div className="text-[11px] text-brand-muted mt-1">
+                  {stats.pending_maintenance_requests > 0
+                    ? `${stats.pending_maintenance_requests} solicitações pendentes`
+                    : 'Na oficina / laboratório'}
+                </div>
+              </div>
+            </div>
+
+            {/* Monthly Cost (Procurement) */}
+            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Compras no Mês</span>
+                <div className="p-2 bg-teal-500/10 text-teal-500 rounded-lg">
+                  <Briefcase size={18} />
+                </div>
+              </div>
+              <div>
+                <div className="text-xl font-black font-mono text-brand-text truncate" title={formatCurrency(stats.supplier_cost_monthly)}>
+                  {formatCurrency(stats.supplier_cost_monthly)}
+                </div>
+                <div className="text-[11px] text-brand-muted mt-1">Ordens aprovadas no mês</div>
+              </div>
             </div>
 
           </div>
-        </>
-      )}
 
-      {isStaff && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-          {/* Charts */}
-          <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-brand-card border border-brand-border p-4 opacity-80">
-              <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text mb-4 text-center">Volume de Chamados</h3>
-              <div className="h-64 flex items-center justify-center">
-                <Doughnut
-                  data={ticketsData}
-                  options={{ maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } } }}
-                />
+            {/* Doughnut: Tickets Volume */}
+            <div className="lg:col-span-5 bg-brand-card border border-brand-border p-5 flex flex-col justify-between">
+              <div className="flex items-center justify-between pb-3 border-b border-brand-border/60">
+                <div className="flex items-center space-x-2">
+                  <PieChart size={18} className="text-brand-primary" />
+                  <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-text">Volume & Status de Chamados</h3>
+                </div>
+                <span className="text-xs font-mono font-bold bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded">
+                  {totalTicketsCount} {totalTicketsCount === 1 ? 'chamado' : 'chamados'}
+                </span>
+              </div>
+
+              <div className="h-60 relative flex items-center justify-center my-3">
+                {totalTicketsCount === 0 ? (
+                  <div className="text-center text-brand-muted text-xs font-mono">
+                    Nenhum chamado registrado no momento.
+                  </div>
+                ) : (
+                  <>
+                    <Doughnut
+                      data={ticketsChartData}
+                      options={{
+                        maintainAspectRatio: false,
+                        cutout: '72%',
+                        plugins: {
+                          legend: {
+                            display: false,
+                          },
+                          tooltip: {
+                            callbacks: {
+                              label: (ctx) => {
+                                const v = ctx.raw as number;
+                                const pct = totalTicketsCount > 0 ? ((v / totalTicketsCount) * 100).toFixed(1) : '0';
+                                return ` ${ctx.label}: ${v} chamados (${pct}%)`;
+                              }
+                            }
+                          }
+                        }
+                      }}
+                    />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-3xl font-black font-mono text-brand-text">{totalTicketsCount}</span>
+                      <span className="text-[10px] font-mono text-brand-muted uppercase">Total</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Legend with exact counts and colors */}
+              <div className="grid grid-cols-3 gap-2 pt-3 border-t border-brand-border/60 text-center">
+                <div className="p-2 bg-red-500/5 border border-red-500/20 rounded-lg">
+                  <div className="text-[10px] font-mono text-red-600 font-bold uppercase">Abertos</div>
+                  <div className="text-base font-black font-mono text-red-600">{stats.tickets_open}</div>
+                  <div className="text-[9px] text-brand-muted font-mono">
+                    {totalTicketsCount > 0 ? ((stats.tickets_open / totalTicketsCount) * 100).toFixed(0) : 0}%
+                  </div>
+                </div>
+                <div className="p-2 bg-amber-500/5 border border-amber-500/20 rounded-lg">
+                  <div className="text-[10px] font-mono text-amber-600 font-bold uppercase">Resolvidos</div>
+                  <div className="text-base font-black font-mono text-amber-600">{stats.tickets_resolved}</div>
+                  <div className="text-[9px] text-brand-muted font-mono">
+                    {totalTicketsCount > 0 ? ((stats.tickets_resolved / totalTicketsCount) * 100).toFixed(0) : 0}%
+                  </div>
+                </div>
+                <div className="p-2 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
+                  <div className="text-[10px] font-mono text-emerald-600 font-bold uppercase">Fechados</div>
+                  <div className="text-base font-black font-mono text-emerald-600">{stats.tickets_closed}</div>
+                  <div className="text-[9px] text-brand-muted font-mono">
+                    {totalTicketsCount > 0 ? ((stats.tickets_closed / totalTicketsCount) * 100).toFixed(0) : 0}%
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="bg-brand-card border border-brand-border p-4 opacity-80">
-              <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text mb-4 text-center">Saúde dos Equipamentos</h3>
-              <div className="h-64 flex items-center justify-center">
+            {/* Bar: Assets Health / Status */}
+            <div className="lg:col-span-7 bg-brand-card border border-brand-border p-5 flex flex-col justify-between">
+              <div className="flex items-center justify-between pb-3 border-b border-brand-border/60">
+                <div className="flex items-center space-x-2">
+                  <BarChart3 size={18} className="text-brand-primary" />
+                  <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-text">Saúde e Status dos Equipamentos</h3>
+                </div>
+                <span className="text-xs font-mono text-brand-muted">
+                  Base total: <strong className="text-brand-text">{totalAssetsCount}</strong> ativos
+                </span>
+              </div>
+
+              <div className="h-60 relative flex items-center justify-center my-3">
                 <Bar
-                  data={assetsStatusData}
+                  data={assetsStatusBarData}
                   options={{
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8' } }, x: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8' } } }
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => {
+                            const v = ctx.raw as number;
+                            const pct = totalAssetsCount > 0 ? ((v / totalAssetsCount) * 100).toFixed(1) : '0';
+                            return ` ${ctx.label}: ${v} (${pct}% do inventário)`;
+                          }
+                        }
+                      }
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(9, 30, 66, 0.06)' },
+                        ticks: { color: '#5e6c84', font: { family: 'Inter, sans-serif', size: 11 } }
+                      },
+                      x: {
+                        grid: { display: false },
+                        ticks: { color: '#5e6c84', font: { family: 'Inter, sans-serif', size: 11, weight: 'bold' } }
+                      }
+                    }
                   }}
                 />
               </div>
+
+              {/* Status footer stats pills */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-brand-border/60 text-xs font-mono">
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                  <span className="text-brand-muted">Disponível: <strong className="text-brand-text">{stats.total_assets_disponivel}</strong></span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
+                  <span className="text-brand-muted">Em Uso: <strong className="text-brand-text">{stats.total_assets_em_uso}</strong></span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
+                  <span className="text-brand-muted">Manutenção: <strong className="text-brand-text">{stats.total_assets_maintenance}</strong></span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block" />
+                  <span className="text-brand-muted">Armazenado: <strong className="text-brand-text">{stats.total_assets_armazenado}</strong></span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
+                  <span className="text-brand-muted">Baixado: <strong className="text-brand-text">{stats.total_assets_baixado}</strong></span>
+                </div>
+              </div>
             </div>
+
           </div>
 
-          {/* Alerts Center */}
-          <div className="lg:col-span-1 bg-brand-card border border-brand-border flex flex-col h-full opacity-80">
-            <div className="p-4 border-b border-brand-border flex items-center justify-between">
-              <div className="flex items-center text-red-400">
-                <BellRing size={18} className="mr-2" />
-                <h3 className="text-sm font-bold font-mono uppercase tracking-wider m-0">Alertas Ativos</h3>
+          {/* Secondary Analytics: Categories Breakdown + Tickets Priority + Recent Activity + Alerts */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* Categories Breakdown */}
+            <div className="bg-brand-card border border-brand-border p-5 flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-brand-border/60">
+                <div className="flex items-center space-x-2">
+                  <Package size={18} className="text-brand-primary" />
+                  <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-text">Distribuição por Categoria</h3>
+                </div>
+                <Link to="/ativos" className="text-xs font-mono text-brand-primary hover:underline flex items-center">
+                  <span>Ver todos</span>
+                  <ChevronRight size={14} />
+                </Link>
               </div>
-              {stats.active_alerts && stats.active_alerts.length > 0 && (
-                <span className="bg-red-500/20 text-red-400 text-xs font-mono px-2 py-0.5 border border-red-500/30">
-                  {stats.active_alerts.length}
-                </span>
+
+              <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] pr-1">
+                {stats.assets_by_category && stats.assets_by_category.length > 0 ? (
+                  stats.assets_by_category.map((cat, idx) => {
+                    const percentage = totalAssetsCount > 0 ? ((cat.count / totalAssetsCount) * 100).toFixed(1) : '0';
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex justify-between items-center text-xs font-mono">
+                          <span className="font-semibold text-brand-text truncate max-w-[200px]" title={cat.category}>
+                            {cat.category}
+                          </span>
+                          <span className="text-brand-muted">
+                            <strong className="text-brand-text">{cat.count}</strong> ({percentage}%)
+                          </span>
+                        </div>
+                        <div className="w-full bg-brand-dark/30 h-2 rounded-full overflow-hidden border border-brand-border/30">
+                          <div
+                            className="bg-brand-primary h-full rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, Math.max(5, Number(percentage)))}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-xs text-brand-muted font-mono text-center py-6">
+                    Nenhuma categoria vinculada aos ativos.
+                  </div>
+                )}
+              </div>
+
+              {/* Service Desk Priority Summary */}
+              {stats.tickets_by_priority && (
+                <div className="pt-3 border-t border-brand-border/60 space-y-2">
+                  <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-brand-muted">
+                    Chamados por Prioridade
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5 text-center font-mono">
+                    <div className="p-1.5 bg-red-500/10 border border-red-500/20 rounded">
+                      <div className="text-[9px] text-red-600 font-bold uppercase">Urgente</div>
+                      <div className="text-xs font-black text-red-600">{stats.tickets_by_priority.urgente || 0}</div>
+                    </div>
+                    <div className="p-1.5 bg-amber-500/10 border border-amber-500/20 rounded">
+                      <div className="text-[9px] text-amber-600 font-bold uppercase">Alta</div>
+                      <div className="text-xs font-black text-amber-600">{stats.tickets_by_priority.alta || 0}</div>
+                    </div>
+                    <div className="p-1.5 bg-blue-500/10 border border-blue-500/20 rounded">
+                      <div className="text-[9px] text-blue-600 font-bold uppercase">Média</div>
+                      <div className="text-xs font-black text-blue-600">{stats.tickets_by_priority.media || 0}</div>
+                    </div>
+                    <div className="p-1.5 bg-slate-500/10 border border-slate-500/20 rounded">
+                      <div className="text-[9px] text-slate-600 font-bold uppercase">Baixa</div>
+                      <div className="text-xs font-black text-slate-600">{stats.tickets_by_priority.baixa || 0}</div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto">
-              {!stats.active_alerts || stats.active_alerts.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-brand-muted">
-                  <ShieldAlert size={48} className="mb-3 opacity-20" />
-                  <p className="text-sm font-mono">Nenhum alerta crítico detectado.</p>
+            {/* Recent Activities Feed */}
+            <div className="bg-brand-card border border-brand-border p-5 flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-brand-border/60">
+                <div className="flex items-center space-x-2">
+                  <Activity size={18} className="text-brand-primary" />
+                  <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-text">Atividades Recentes</h3>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {stats.active_alerts.map((alert) => (
-                    <div key={alert.id} className="border-l-2 border-red-500 bg-red-500/5 p-3 flex items-start">
+                <span className="text-[10px] font-mono text-brand-muted uppercase">Feed em tempo real</span>
+              </div>
+
+              <div className="space-y-3 flex-1 overflow-y-auto max-h-[380px] pr-1">
+                {stats.recent_activities && stats.recent_activities.length > 0 ? (
+                  stats.recent_activities.map((act) => (
+                    <div key={`${act.type}-${act.id}`} className="p-3 bg-brand-dark/20 border border-brand-border/60 flex items-start space-x-3 hover:border-brand-primary/40 transition-colors">
+                      <div className="p-1.5 bg-brand-primary/10 text-brand-primary rounded mt-0.5 shrink-0">
+                        {act.type === 'movimentacao' ? <ArrowLeftRight size={14} /> : <Laptop size={14} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-brand-text truncate">{act.title}</h4>
+                          <span className="text-[9px] font-mono text-brand-muted shrink-0 ml-2">
+                            {new Date(act.created_at).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-brand-muted font-mono truncate mt-0.5">{act.subtitle}</p>
+                        <div className="mt-1">
+                          <span className="text-[8px] font-mono uppercase font-bold px-1.5 py-0.2 bg-brand-dark border border-brand-border text-brand-muted">
+                            {act.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-brand-muted font-mono text-center py-10">
+                    Nenhuma atividade recente registrada.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Active Alerts Center */}
+            <div className="bg-brand-card border border-brand-border p-5 flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-brand-border/60">
+                <div className="flex items-center text-red-500">
+                  <BellRing size={18} className="mr-2" />
+                  <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-text">Central de Alertas</h3>
+                </div>
+                {stats.active_alerts && stats.active_alerts.length > 0 ? (
+                  <span className="bg-red-500/10 text-red-500 text-xs font-mono font-bold px-2 py-0.5 border border-red-500/20 rounded">
+                    {stats.active_alerts.length} ativo(s)
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="space-y-3 flex-1 overflow-y-auto max-h-[380px] pr-1">
+                {!stats.active_alerts || stats.active_alerts.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-brand-muted py-12 text-center">
+                    <ShieldCheck size={44} className="mb-2 text-emerald-500 opacity-60" />
+                    <p className="text-xs font-mono font-bold text-brand-text">Tudo em conformidade!</p>
+                    <p className="text-[11px] font-mono text-brand-muted mt-1">Nenhum alerta crítico ativo no momento.</p>
+                  </div>
+                ) : (
+                  stats.active_alerts.map((alert) => (
+                    <div key={alert.id} className="border-l-4 border-red-500 bg-red-500/5 p-3 flex items-start space-x-2.5">
                       {alert.severity === 'CRITICAL' ? (
-                        <AlertTriangle className="text-red-500 mt-0.5 mr-3 shrink-0" size={16} />
+                        <AlertTriangle className="text-red-500 mt-0.5 shrink-0" size={16} />
                       ) : (
-                        <Info className="text-yellow-500 mt-0.5 mr-3 shrink-0" size={16} />
+                        <Info className="text-amber-500 mt-0.5 shrink-0" size={16} />
                       )}
-                      <div>
-                        <h4 className="text-sm font-bold text-brand-text mb-1">{alert.title}</h4>
-                        <p className="text-xs font-mono text-brand-muted">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-bold text-brand-text mb-0.5 leading-snug">{alert.title}</h4>
+                        <p className="text-[10px] font-mono text-brand-muted">
                           {new Date(alert.created_at).toLocaleString('pt-BR')}
                         </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </div>
+
           </div>
 
         </div>
@@ -1018,8 +1447,8 @@ export const DashboardPage: React.FC = () => {
                         <div
                           key={item.id}
                           className={`p-3 border flex flex-col space-y-1.5 ${isMe
-                              ? 'border-brand-primary/20 bg-brand-primary/5 ml-8'
-                              : 'border-brand-border/60 bg-brand-dark/40 mr-8'
+                            ? 'border-brand-primary/20 bg-brand-primary/5 ml-8'
+                            : 'border-brand-border/60 bg-brand-dark/40 mr-8'
                             }`}
                         >
                           <div className="flex justify-between items-center text-[10px] text-brand-muted">
@@ -1170,8 +1599,8 @@ export const DashboardPage: React.FC = () => {
                         <Star
                           size={32}
                           className={`transition-colors duration-100 ${isLit
-                              ? 'text-amber-400 fill-amber-400 filter drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]'
-                              : 'text-slate-700 hover:text-amber-400'
+                            ? 'text-amber-400 fill-amber-400 filter drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]'
+                            : 'text-slate-700 hover:text-amber-400'
                             }`}
                         />
                       </button>

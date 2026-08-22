@@ -38,6 +38,7 @@ export const SuppliersPage: React.FC = () => {
   const [tipoFornecedor, setTipoFornecedor] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [xmlPreview, setXmlPreview] = useState<XMLParsedSupplier | null>(null);
+  const [pendingXmlFile, setPendingXmlFile] = useState<File | null>(null);
 
   // Invoice state
   const [invoiceSupplier, setInvoiceSupplier] = useState<Fornecedor | null>(null);
@@ -80,6 +81,7 @@ export const SuppliersPage: React.FC = () => {
     setTipoFornecedor('');
     setFormError(null);
     setXmlPreview(null);
+    setPendingXmlFile(null);
     setShowModal(true);
   };
 
@@ -96,6 +98,7 @@ export const SuppliersPage: React.FC = () => {
     setTipoFornecedor(s.tipo_fornecedor || '');
     setFormError(null);
     setXmlPreview(null);
+    setPendingXmlFile(null);
     setShowModal(true);
   };
 
@@ -116,13 +119,26 @@ export const SuppliersPage: React.FC = () => {
     };
 
     try {
+      let savedSupplier: Fornecedor;
       if (editId) {
-        await suppliersApi.update(editId, payload);
+        savedSupplier = await suppliersApi.update(editId, payload);
       } else {
-        await suppliersApi.create(payload);
+        savedSupplier = await suppliersApi.create(payload);
       }
+
+      // If an XML was imported during create/edit, upload and save it as a NotaFiscal for this supplier!
+      if (pendingXmlFile && (savedSupplier?.id || editId)) {
+        const targetId = savedSupplier?.id || editId!;
+        try {
+          await suppliersApi.uploadInvoice(targetId, pendingXmlFile);
+        } catch (uploadErr: any) {
+          console.warn('Nota fiscal já existia ou aviso ao salvar:', uploadErr);
+        }
+      }
+
       setShowModal(false);
       setXmlPreview(null);
+      setPendingXmlFile(null);
       fetchSuppliers();
     } catch (err: any) {
       setFormError(err.response?.data?.error || 'Erro ao salvar fornecedor');
@@ -142,6 +158,7 @@ export const SuppliersPage: React.FC = () => {
   // XML autofill for form
   const handleXMLAutofill = async (file: File) => {
     setFormError(null);
+    setPendingXmlFile(file);
     try {
       const data = await suppliersApi.parseXML(file);
       setXmlPreview(data);
@@ -158,6 +175,7 @@ export const SuppliersPage: React.FC = () => {
       if (data.estado) setEstado(data.estado);
     } catch (err: any) {
       setXmlPreview(null);
+      setPendingXmlFile(null);
       setFormError(normalizeXMLImportError(err.response?.data?.error));
     }
   };
@@ -171,6 +189,9 @@ export const SuppliersPage: React.FC = () => {
     try {
       const data = await suppliersApi.listInvoices(s.id);
       setInvoices(data);
+      if (data && data.length > 0) {
+        showInvoiceDetail(data[0].id);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -190,9 +211,15 @@ export const SuppliersPage: React.FC = () => {
     if (!invoiceSupplier) return;
     setInvoiceError(null);
     try {
-      await suppliersApi.uploadInvoice(invoiceSupplier.id, file);
+      const uploaded = await suppliersApi.uploadInvoice(invoiceSupplier.id, file);
       const data = await suppliersApi.listInvoices(invoiceSupplier.id);
       setInvoices(data);
+      if (uploaded?.id) {
+        showInvoiceDetail(uploaded.id);
+      } else if (data.length > 0) {
+        showInvoiceDetail(data[0].id);
+      }
+      fetchSuppliers();
     } catch (err: any) {
       setInvoiceError(normalizeXMLImportError(err.response?.data?.error || 'Erro ao processar XML da nota'));
     }
@@ -207,7 +234,11 @@ export const SuppliersPage: React.FC = () => {
       if (invoiceSupplier) {
         const data = await suppliersApi.listInvoices(invoiceSupplier.id);
         setInvoices(data);
+        if (data.length > 0) {
+          showInvoiceDetail(data[0].id);
+        }
       }
+      fetchSuppliers();
     } catch (err: any) {
       setInvoiceError(err.response?.data?.error || 'Erro ao excluir nota fiscal');
     }
@@ -283,10 +314,15 @@ export const SuppliersPage: React.FC = () => {
                         <button
                           onClick={() => openInvoices(s)}
                           title="Notas fiscais"
-                          className="text-brand-primary hover:bg-brand-primary/10 border border-brand-primary/30 px-2.5 py-1.5 font-mono text-xs uppercase mr-2"
+                          className="text-brand-primary hover:bg-brand-primary/10 border border-brand-primary/30 px-2.5 py-1.5 font-mono text-xs uppercase mr-2 inline-flex items-center transition-colors"
                         >
                           <FileText size={12} className="inline mr-1" />
-                          NF-e
+                          <span>NF-e</span>
+                          {s.notas_fiscais && s.notas_fiscais.length > 0 && (
+                            <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-brand-primary text-brand-dark font-bold text-[10px]">
+                              {s.notas_fiscais.length}
+                            </span>
+                          )}
                         </button>
                         <button
                           onClick={() => openEditModal(s)}

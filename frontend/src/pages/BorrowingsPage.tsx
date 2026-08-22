@@ -299,16 +299,16 @@ export const BorrowingsPage: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-brand-text">Solicitações de Empréstimo</h1>
-          <p className="text-sm text-brand-muted">Gerencie o empréstimo temporário de ativos para colaboradores</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-brand-text">Solicitações de Empréstimo</h1>
+          <p className="text-xs sm:text-sm text-brand-muted mt-0.5">Gerencie o empréstimo temporário de ativos para colaboradores</p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {isManagerOrAbove && (
             <button
               onClick={() => setShowQRModal(true)}
-              className="flex items-center space-x-2 px-4 py-2.5 bg-brand-dark border border-brand-primary/30 hover:border-brand-primary text-brand-primary font-medium transition-all"
+              className="flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-3.5 py-2.5 bg-white/70 border border-brand-primary/40 hover:bg-white text-brand-primary font-medium rounded-xl transition-all active:scale-95 cursor-pointer shadow-sm min-h-[40px]"
             >
               <QrCode size={18} />
               <span>Scanner QR</span>
@@ -316,7 +316,7 @@ export const BorrowingsPage: React.FC = () => {
           )}
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center space-x-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-medium transition-all"
+            className="flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white font-medium rounded-xl transition-all shadow-md shadow-brand-primary/20 active:scale-95 cursor-pointer min-h-[40px]"
           >
             <Plus size={18} />
             <span>Solicitar Equipamento</span>

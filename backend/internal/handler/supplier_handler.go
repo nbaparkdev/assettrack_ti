@@ -159,7 +159,14 @@ func (h *SupplierHandler) ListInvoices(c *gin.Context) {
 
 	result := make([]gin.H, 0, len(invoices))
 	for _, nf := range invoices {
-		result = append(result, gin.H{"id": nf.ID, "numero_nota": nf.NumeroNota})
+		result = append(result, gin.H{
+			"id":                nf.ID,
+			"numero_nota":       nf.NumeroNota,
+			"data_emissao":      nf.DataEmissao,
+			"valor_total":       nf.ValorTotal,
+			"natureza_operacao": nf.NaturezaOperacao,
+			"emitente_nome":     nf.EmitenteNome,
+		})
 	}
 	c.JSON(http.StatusOK, result)
 }

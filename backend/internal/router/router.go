@@ -170,6 +170,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			assets.POST("", rManager, assetHandler.Create)
 			assets.POST("/bulk", rManager, assetHandler.BulkDuplicate)
 			assets.GET("/:id", assetHandler.GetByID)
+			assets.GET("/:id/historico", assetHandler.GetAssetHistory)
 			assets.PUT("/:id", rManager, assetHandler.Update)
 			assets.DELETE("/:id", rAdmin, assetHandler.Delete)
 			assets.GET("/:id/qrcode", assetHandler.GetQRCode)
@@ -366,6 +367,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 
 			compras.GET("/solicitacoes", procurementHandler.ListRequests)
 			compras.POST("/solicitacoes", procurementHandler.CreateRequest)
+			compras.POST("/solicitar-peca", procurementHandler.CreateMaintenancePurchaseRequest)
 			compras.GET("/solicitacoes/:id", procurementHandler.GetRequest)
 			compras.POST("/solicitacoes/:id/decidir", procurementHandler.DecideRequest)
 			compras.POST("/solicitacoes/:id/liberar-orcamento", procurementHandler.ReleaseBudget)

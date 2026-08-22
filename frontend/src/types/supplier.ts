@@ -9,6 +9,7 @@ export interface Fornecedor {
   cidade?: string;
   estado?: string;
   tipo_fornecedor?: string;
+  notas_fiscais?: NotaFiscal[];
 }
 
 export interface NotaFiscalItem {

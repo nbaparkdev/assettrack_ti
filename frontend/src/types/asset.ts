@@ -140,3 +140,14 @@ export interface AssetImportResponse {
   falhas: number;
   resultados: AssetImportRowResult[];
 }
+
+export interface AssetHistoryResponse {
+  asset: Asset;
+  movimentacoes: any[];
+  solicitacoes_emprestimo: any[];
+  manutencoes: any[];
+  solicitacoes_manutencao: any[];
+  manutencoes_preventivas: any[];
+  planos_preventivos: any[];
+  solicitacoes_compra: any[];
+}

@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { assetsApi } from '../api/assets';
 import { usersApi } from '../api/users';
 import { maintenanceApi } from '../api/maintenance';
 import { transactionApi } from '../api/transaction';
+import { toApiFileUrl } from '../api/client';
 import type { 
   Asset, 
   AssetStatus, 
   AssetReferences,
   BulkCopySpec,
   AssetImportResponse,
+  AssetHistoryResponse,
   User
 } from '../types';
 import { useAuthStore } from '../stores/authStore';
@@ -34,7 +37,17 @@ import {
   Wrench,
   Download,
   ArrowRightLeft,
-  RotateCcw
+  RotateCcw,
+  Camera,
+  Eye,
+  History,
+  ShoppingCart,
+  CheckCircle2,
+  Clock,
+  ShieldCheck,
+  CalendarDays,
+  FileCheck,
+  DollarSign
 } from 'lucide-react';
 
 export const AssetsPage: React.FC = () => {
@@ -99,8 +112,14 @@ export const AssetsPage: React.FC = () => {
 
   // Scanner State
   const [showScannerModal, setShowScannerModal] = useState(false);
+  const [scannerMode, setScannerMode] = useState<'camera' | 'upload' | 'manual'>('camera');
+  const [scannerCameraActive, setScannerCameraActive] = useState(false);
+  const [scannerManualInput, setScannerManualInput] = useState('');
+  const [scanningAssetLoading, setScanningAssetLoading] = useState(false);
   const [scannerError, setScannerError] = useState<string | null>(null);
   const [scannedAsset, setScannedAsset] = useState<Asset | null>(null);
+  const scannerInstanceRef = useRef<Html5Qrcode | null>(null);
+  const scannerRegionId = 'asset-qr-reader-region';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,6 +147,9 @@ export const AssetsPage: React.FC = () => {
   // Asset Details Modal State
   const [selectedAssetForDetail, setSelectedAssetForDetail] = useState<Asset | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailActiveTab, setDetailActiveTab] = useState<'info' | 'movimentacoes' | 'manutencoes' | 'preventivas' | 'compras'>('info');
+  const [assetHistory, setAssetHistory] = useState<AssetHistoryResponse | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [showDetailMaintenanceForm, setShowDetailMaintenanceForm] = useState(false);
   const [showDetailTransferForm, setShowDetailTransferForm] = useState(false);
   
@@ -150,6 +172,18 @@ export const AssetsPage: React.FC = () => {
   const [detailDevolucaoNotas, setDetailDevolucaoNotas] = useState('');
   const [detailDevolucaoLoading, setDetailDevolucaoLoading] = useState(false);
   const [detailDevolucaoError, setDetailDevolucaoError] = useState<string | null>(null);
+
+  const fetchAssetHistory = async (assetId: number) => {
+    try {
+      setLoadingHistory(true);
+      const data = await assetsApi.getHistory(assetId);
+      setAssetHistory(data);
+    } catch (err) {
+      console.error('Falha ao carregar histórico do ativo:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   // List of users for transferring
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -340,12 +374,15 @@ export const AssetsPage: React.FC = () => {
   const handleOpenDetailModal = (asset: Asset) => {
     setSelectedAssetForDetail(asset);
     setShowDetailModal(true);
+    setDetailActiveTab('info');
     setShowDetailMaintenanceForm(false);
     setShowDetailTransferForm(false);
+    setShowDetailDevolucaoForm(false);
     setDetailMaintenanceDescription('');
     setDetailMaintenanceError(null);
     setDetailTransferUserId('');
     setDetailTransferError(null);
+    fetchAssetHistory(asset.id);
   };
 
   const handleRequestMaintenanceFromDetail = async (e: React.FormEvent) => {
@@ -534,18 +571,141 @@ export const AssetsPage: React.FC = () => {
     }
   };
 
-  // Scanning simulation
+  // Live QR Camera & Processing
+  const stopScannerCamera = () => {
+    if (scannerInstanceRef.current) {
+      try {
+        scannerInstanceRef.current.stop().then(() => {
+          scannerInstanceRef.current?.clear();
+          scannerInstanceRef.current = null;
+        }).catch(() => {
+          scannerInstanceRef.current = null;
+        });
+      } catch (_e) {
+        scannerInstanceRef.current = null;
+      }
+    }
+    setScannerCameraActive(false);
+  };
+
+  const handleProcessScannedText = async (rawText: string) => {
+    if (!rawText || !rawText.trim()) return;
+    setScanningAssetLoading(true);
+    setScannerError(null);
+    try {
+      let query = rawText.trim();
+      if (query.includes('assets/ep/')) {
+        query = query.split('assets/ep/')[1].split('?')[0].split('/')[0];
+      } else if (query.includes('assets/sn/')) {
+        query = query.split('assets/sn/')[1].split('?')[0].split('/')[0];
+      } else if (query.includes('assets/')) {
+        query = query.split('assets/')[1].split('?')[0].split('/')[0];
+      }
+
+      query = decodeURIComponent(query).trim();
+
+      // 1. Try finding asset by e_patrimonio in loaded list or API
+      let targetAsset: Asset | undefined = assets.find(
+        (a) => a.e_patrimonio.toLowerCase() === query.toLowerCase()
+      );
+
+      if (!targetAsset) {
+        const results = await assetsApi.list(0, 100, { e_patrimonio: query });
+        targetAsset = results.find(
+          (a) => a.e_patrimonio.toLowerCase() === query.toLowerCase()
+        ) || results[0];
+      }
+
+      // 2. If numeric, try by ID
+      if (!targetAsset && !isNaN(Number(query))) {
+        try {
+          targetAsset = await assetsApi.getById(Number(query));
+        } catch (_e) {}
+      }
+
+      if (targetAsset) {
+        setScannedAsset(targetAsset);
+        stopScannerCamera();
+        setShowScannerModal(false);
+        setSearchEP(targetAsset.e_patrimonio);
+        setActiveTab('table');
+        setSelectedAssetForDetail(targetAsset);
+        setShowDetailModal(true);
+        setGlobalSuccess(`Ativo #${targetAsset.e_patrimonio} (${targetAsset.nome}) localizado e aberto com sucesso!`);
+      } else {
+        setScannerError(`Nenhum ativo encontrado para o código "${query}".`);
+      }
+    } catch (err: any) {
+      setScannerError(err.response?.data?.error || 'Não foi possível carregar o ativo associado.');
+    } finally {
+      setScanningAssetLoading(false);
+    }
+  };
+
+  const startScannerCamera = () => {
+    setScannerError(null);
+    setScannerCameraActive(true);
+    setTimeout(async () => {
+      try {
+        if (scannerInstanceRef.current) {
+          try { await scannerInstanceRef.current.stop(); } catch (_e) {}
+        }
+        const html5Qrcode = new Html5Qrcode(scannerRegionId);
+        scannerInstanceRef.current = html5Qrcode;
+        await html5Qrcode.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 220, height: 220 },
+          },
+          (decodedText) => {
+            handleProcessScannedText(decodedText);
+          },
+          () => {}
+        );
+      } catch (err: any) {
+        console.warn('QR camera start failed:', err);
+        setScannerError('Câmera indisponível ou permissão não concedida. Você pode enviar uma foto ou digitar o código do patrimônio.');
+        setScannerCameraActive(false);
+      }
+    }, 300);
+  };
+
+  useEffect(() => {
+    if (showScannerModal && scannerMode === 'camera') {
+      startScannerCamera();
+    } else {
+      stopScannerCamera();
+    }
+    return () => {
+      stopScannerCamera();
+    };
+  }, [showScannerModal, scannerMode]);
+
+  // Scanning simulation / image upload
   const handleScanFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setScannerError(null);
     setScannedAsset(null);
+    setScanningAssetLoading(true);
     try {
       const result = await assetsApi.scanQRCode(file);
-      setScannedAsset(result);
+      if (result && result.id) {
+        setScannedAsset(result);
+        stopScannerCamera();
+        setShowScannerModal(false);
+        setSearchEP(result.e_patrimonio);
+        setActiveTab('table');
+        setSelectedAssetForDetail(result);
+        setShowDetailModal(true);
+        setGlobalSuccess(`Ativo #${result.e_patrimonio} (${result.nome}) localizado e aberto com sucesso!`);
+      }
     } catch (err: any) {
-      setScannerError(err.response?.data?.error || 'QR Code inválido ou inacessível.');
+      setScannerError(err.response?.data?.error || 'QR Code inválido ou ativo não encontrado.');
+    } finally {
+      setScanningAssetLoading(false);
     }
   };
 
@@ -760,7 +920,7 @@ export const AssetsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           <button
             onClick={() => {
               assetsApi.exportCsv({
@@ -771,7 +931,7 @@ export const AssetsPage: React.FC = () => {
                 setGlobalError('Falha ao exportar os ativos.');
               });
             }}
-            className="border border-brand-border hover:bg-brand-card text-brand-text font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center space-x-1.5 transition-colors"
+            className="flex-1 sm:flex-initial border border-brand-border bg-white/60 hover:bg-white text-brand-text font-bold font-mono px-3.5 py-2.5 rounded-xl uppercase tracking-wider text-xs flex items-center justify-center space-x-1.5 transition-all shadow-sm active:scale-95 cursor-pointer min-h-[40px]"
           >
             <FileText size={16} />
             <span>Exportar CSV</span>
@@ -780,7 +940,7 @@ export const AssetsPage: React.FC = () => {
           {isManagerOrAbove && (
             <button
               onClick={handleOpenImportModal}
-              className="border border-brand-border hover:bg-brand-card text-brand-text font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center space-x-1.5 transition-colors"
+              className="flex-1 sm:flex-initial border border-brand-border bg-white/60 hover:bg-white text-brand-text font-bold font-mono px-3.5 py-2.5 rounded-xl uppercase tracking-wider text-xs flex items-center justify-center space-x-1.5 transition-all shadow-sm active:scale-95 cursor-pointer min-h-[40px]"
             >
               <Upload size={16} />
               <span>Importar CSV</span>
@@ -788,8 +948,11 @@ export const AssetsPage: React.FC = () => {
           )}
 
           <button
-            onClick={() => setShowScannerModal(true)}
-            className="border border-brand-border hover:bg-brand-card text-brand-text font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center space-x-1.5 transition-colors"
+            onClick={() => {
+              setScannerMode('camera');
+              setShowScannerModal(true);
+            }}
+            className="flex-1 sm:flex-initial border border-brand-primary/40 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary font-bold font-mono px-3.5 py-2.5 rounded-xl uppercase tracking-wider text-xs flex items-center justify-center space-x-1.5 transition-all shadow-sm active:scale-95 cursor-pointer min-h-[40px]"
           >
             <QrCode size={16} />
             <span>Scanner QR</span>
@@ -798,7 +961,7 @@ export const AssetsPage: React.FC = () => {
           {isManagerOrAbove && (
             <button
               onClick={handleOpenCreate}
-              className="bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center space-x-1.5 transition-colors"
+              className="flex-1 sm:flex-initial bg-brand-primary hover:bg-brand-primary/90 text-white font-bold font-mono px-4 py-2.5 rounded-xl uppercase tracking-wider text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-brand-primary/20 active:scale-95 cursor-pointer min-h-[40px]"
             >
               <Plus size={16} />
               <span>Cadastrar Ativo</span>
@@ -808,13 +971,13 @@ export const AssetsPage: React.FC = () => {
       </div>
 
       {/* Tabs Menu */}
-      <div className="flex border-b border-brand-border">
+      <div className="w-full min-w-0 max-w-full overflow-x-auto border-b border-brand-border flex items-center gap-1 pb-0.5 no-scrollbar scroll-smooth">
         <button
           onClick={() => setActiveTab('table')}
-          className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap px-4 sm:px-5 py-2.5 sm:py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all cursor-pointer rounded-t-lg ${
             activeTab === 'table'
-              ? 'border-brand-primary text-brand-primary bg-[#ededed] opacity-100'
-              : 'border-transparent text-brand-text bg-[#e6e6e6] opacity-[0.75] hover:opacity-100'
+              ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
+              : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
           }`}
         >
           <TableIcon size={16} />
@@ -823,10 +986,10 @@ export const AssetsPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('kanban')}
-          className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap px-4 sm:px-5 py-2.5 sm:py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all cursor-pointer rounded-t-lg ${
             activeTab === 'kanban'
-              ? 'border-brand-primary text-brand-primary bg-[#ededed] opacity-100'
-              : 'border-transparent text-brand-text bg-[#e6e6e6] opacity-[0.75] hover:opacity-100'
+              ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
+              : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
           }`}
         >
           <KanbanIcon size={16} />
@@ -835,10 +998,10 @@ export const AssetsPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('reports')}
-          className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap px-4 sm:px-5 py-2.5 sm:py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all cursor-pointer rounded-t-lg ${
             activeTab === 'reports'
-              ? 'border-brand-primary text-brand-primary bg-[#ededed] opacity-100'
-              : 'border-transparent text-brand-text bg-[#e6e6e6] opacity-[0.75] hover:opacity-100'
+              ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
+              : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
           }`}
         >
           <FileText size={16} />
@@ -848,10 +1011,10 @@ export const AssetsPage: React.FC = () => {
         {isManagerOrAbove && (
           <button
             onClick={() => setActiveTab('references')}
-            className={`px-5 py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all ${
+            className={`shrink-0 whitespace-nowrap px-4 sm:px-5 py-2.5 sm:py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all cursor-pointer rounded-t-lg ${
               activeTab === 'references'
-                ? 'border-brand-primary text-brand-primary bg-[#ededed] opacity-100'
-                : 'border-transparent text-brand-text bg-[#e6e6e6] opacity-[0.75] hover:opacity-100'
+                ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
+                : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
             }`}
           >
             <Layers3 size={16} />
@@ -2001,84 +2164,207 @@ export const AssetsPage: React.FC = () => {
         </div>
       )}
 
-      {/* DIALOG: QR SCANNER IMAGE UPLOADER */}
+      {/* DIALOG: REAL-TIME QR SCANNER MODAL */}
       {showScannerModal && (
-        <div className="fixed inset-0 bg-brand-dark/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md border border-brand-border bg-brand-card p-6 space-y-6">
-            <div className="flex justify-between items-center border-b border-brand-border pb-4">
-              <h3 className="text-lg font-bold font-mono uppercase tracking-wider text-brand-text flex items-center space-x-2">
-                <QrCode size={18} className="text-brand-primary" />
-                <span>Simular Scanner QR</span>
+        <div className="fixed inset-0 bg-brand-dark/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg border border-brand-border bg-brand-card shadow-2xl p-5 sm:p-6 space-y-5 rounded-2xl animate-fade-in max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center border-b border-brand-border pb-3">
+              <h3 className="text-base sm:text-lg font-bold font-mono uppercase tracking-wider text-brand-text flex items-center space-x-2">
+                <QrCode size={20} className="text-brand-primary" />
+                <span>Scanner QR do Ativo</span>
               </h3>
-              <button onClick={() => setShowScannerModal(false)} className="text-brand-muted hover:text-brand-text">
+              <button
+                type="button"
+                onClick={() => {
+                  stopScannerCamera();
+                  setShowScannerModal(false);
+                }}
+                className="text-brand-muted hover:text-brand-text p-1 cursor-pointer transition-colors"
+                title="Fechar scanner"
+              >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="space-y-4">
-              <p className="text-xs text-brand-muted">
-                Envie uma imagem de QR Code para decodificar e carregar o ativo associado de forma instantânea.
-              </p>
-
-              {/* Upload trigger area */}
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-brand-border hover:border-brand-primary/50 bg-brand-dark/30 p-8 text-center cursor-pointer space-y-3 transition-colors"
+            {/* Mode Switcher */}
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-brand-dark/10 rounded-xl border border-brand-border">
+              <button
+                type="button"
+                onClick={() => setScannerMode('camera')}
+                className={`py-2 px-2 text-xs font-mono font-semibold rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                  scannerMode === 'camera'
+                    ? 'bg-brand-primary text-white shadow-sm'
+                    : 'text-brand-text hover:bg-white/60'
+                }`}
               >
-                <Upload className="mx-auto text-brand-muted hover:text-brand-primary transition-colors" size={32} />
-                <div>
-                  <span className="text-xs font-mono text-brand-text uppercase block font-semibold">Selecionar Imagem</span>
-                  <span className="text-[10px] text-brand-muted block mt-1">PNG, JPG ou GIF</span>
-                </div>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleScanFile} 
-                  accept="image/*" 
-                  className="hidden" 
-                />
-              </div>
-
-              {/* Error block */}
-              {scannerError && (
-                <div className="p-3 border border-red-500/30 bg-red-500/5 text-red-400 text-xs font-mono flex items-center space-x-2">
-                  <ShieldAlert size={16} />
-                  <span>{scannerError}</span>
-                </div>
-              )}
-
-              {/* Success Result */}
-              {scannedAsset && (
-                <div className="border border-brand-primary/30 bg-brand-primary/5 p-4 space-y-3">
-                  <div className="flex items-center space-x-2 text-brand-primary">
-                    <Check size={16} />
-                    <span className="font-mono text-[10px] font-bold uppercase tracking-wider">Ativo Identificado</span>
-                  </div>
-                  
-                  <div className="text-xs space-y-1">
-                    <div className="font-bold text-brand-text">{scannedAsset.nome}</div>
-                    <div className="font-mono text-brand-muted text-[10px]">{scannedAsset.e_patrimonio}</div>
-                    <div className="text-brand-muted">Local: {getAssetLocationLabel(scannedAsset)}</div>
-                    <div className="text-brand-muted">Status: {scannedAsset.status}</div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setShowScannerModal(false);
-                      handleOpenEdit(scannedAsset);
-                    }}
-                    className="w-full bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono py-2 uppercase tracking-wider text-[10px]"
-                  >
-                    Abrir para Visualização / Edição
-                  </button>
-                </div>
-              )}
+                <Camera size={14} />
+                <span>Câmera</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setScannerMode('upload')}
+                className={`py-2 px-2 text-xs font-mono font-semibold rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                  scannerMode === 'upload'
+                    ? 'bg-brand-primary text-white shadow-sm'
+                    : 'text-brand-text hover:bg-white/60'
+                }`}
+              >
+                <Upload size={14} />
+                <span>Imagem</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setScannerMode('manual')}
+                className={`py-2 px-2 text-xs font-mono font-semibold rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                  scannerMode === 'manual'
+                    ? 'bg-brand-primary text-white shadow-sm'
+                    : 'text-brand-text hover:bg-white/60'
+                }`}
+              >
+                <Search size={14} />
+                <span>Digitar</span>
+              </button>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-brand-border">
+            {/* Mode 1: Live Camera */}
+            {scannerMode === 'camera' && (
+              <div className="space-y-3">
+                <p className="text-xs text-brand-muted text-center">
+                  Aponte a câmera do celular para a etiqueta patrimonial com QR Code do ativo.
+                </p>
+                <div className="relative w-full aspect-square max-w-[280px] mx-auto bg-black rounded-2xl overflow-hidden border-2 border-brand-primary/50 shadow-inner flex items-center justify-center">
+                  <div id={scannerRegionId} className="w-full h-full" />
+                  {scanningAssetLoading && (
+                    <div className="absolute inset-0 bg-black/75 flex flex-col items-center justify-center space-y-2 z-20">
+                      <RefreshCw className="animate-spin text-brand-primary" size={28} />
+                      <span className="text-xs font-mono text-white uppercase tracking-wider">Identificando Ativo...</span>
+                    </div>
+                  )}
+                </div>
+                {!scannerCameraActive && (
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={startScannerCamera}
+                      className="px-4 py-2 bg-brand-primary text-white text-xs font-mono uppercase rounded-xl shadow-sm cursor-pointer"
+                    >
+                      Iniciar Câmera
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mode 2: Upload File */}
+            {scannerMode === 'upload' && (
+              <div className="space-y-3">
+                <p className="text-xs text-brand-muted text-center">
+                  Selecione uma foto do QR Code da galeria do seu dispositivo.
+                </p>
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-brand-border hover:border-brand-primary/50 bg-brand-dark/10 p-8 text-center cursor-pointer space-y-3 transition-colors rounded-2xl"
+                >
+                  <Upload className="mx-auto text-brand-primary" size={36} />
+                  <div>
+                    <span className="text-xs font-mono text-brand-text uppercase block font-semibold">Selecionar Foto do QR Code</span>
+                    <span className="text-[11px] text-brand-muted block mt-1">Formatos PNG, JPG ou WEBP</span>
+                  </div>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleScanFile} 
+                    accept="image/*" 
+                    className="hidden" 
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Mode 3: Manual Input */}
+            {scannerMode === 'manual' && (
+              <div className="space-y-3">
+                <p className="text-xs text-brand-muted">
+                  Digite o código patrimonial (E-Patrimônio) ou número do ativo para abrir sua página:
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={scannerManualInput}
+                    onChange={(e) => setScannerManualInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleProcessScannedText(scannerManualInput);
+                      }
+                    }}
+                    placeholder="Ex: NBA-001, EP-00123"
+                    className="flex-1 bg-white border border-brand-border px-3.5 py-2.5 rounded-xl text-sm font-mono text-brand-text focus:outline-none focus:border-brand-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleProcessScannedText(scannerManualInput)}
+                    disabled={!scannerManualInput.trim() || scanningAssetLoading}
+                    className="px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white font-bold font-mono text-xs uppercase rounded-xl disabled:opacity-50 transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm"
+                  >
+                    {scanningAssetLoading ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />}
+                    <span>Buscar</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Error block */}
+            {scannerError && (
+              <div className="p-3.5 border border-red-500/30 bg-red-500/10 text-red-500 text-xs font-mono rounded-xl flex items-center space-x-2">
+                <ShieldAlert size={18} className="shrink-0" />
+                <span>{scannerError}</span>
+              </div>
+            )}
+
+            {/* Scanned Result preview if modal stays open */}
+            {scannedAsset && (
+              <div className="border border-brand-primary/40 bg-brand-primary/10 p-4 rounded-xl space-y-3">
+                <div className="flex items-center space-x-2 text-brand-primary">
+                  <Check size={16} />
+                  <span className="font-mono text-xs font-bold uppercase tracking-wider">Ativo Identificado com Sucesso!</span>
+                </div>
+                
+                <div className="text-xs space-y-1 bg-white/70 p-3 rounded-lg border border-brand-border">
+                  <div className="font-bold text-brand-text text-sm">{scannedAsset.nome}</div>
+                  <div className="font-mono text-brand-primary font-bold text-xs">Patrimônio: #{scannedAsset.e_patrimonio}</div>
+                  <div className="text-brand-muted">Localização: {getAssetLocationLabel(scannedAsset)}</div>
+                  <div className="text-brand-muted">Status: {scannedAsset.status}</div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    stopScannerCamera();
+                    setShowScannerModal(false);
+                    setSearchEP(scannedAsset.e_patrimonio);
+                    setActiveTab('table');
+                    setSelectedAssetForDetail(scannedAsset);
+                    setShowDetailModal(true);
+                  }}
+                  className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white font-bold font-mono py-2.5 rounded-xl uppercase tracking-wider text-xs flex items-center justify-center space-x-2 shadow-md shadow-brand-primary/20 cursor-pointer"
+                >
+                  <Eye size={16} />
+                  <span>Carregar Página do Ativo</span>
+                </button>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex justify-end pt-3 border-t border-brand-border">
               <button
-                onClick={() => setShowScannerModal(false)}
-                className="border border-brand-border hover:bg-brand-card text-brand-muted px-4 py-2 font-mono text-xs uppercase"
+                type="button"
+                onClick={() => {
+                  stopScannerCamera();
+                  setShowScannerModal(false);
+                }}
+                className="border border-brand-border hover:bg-white text-brand-text px-4 py-2 font-mono text-xs uppercase rounded-xl transition-all cursor-pointer"
               >
                 Fechar
               </button>
@@ -2240,446 +2526,993 @@ export const AssetsPage: React.FC = () => {
         </div>
       )}
 
-      {/* DETAIL MODAL */}
+      {/* DETAIL & HISTORY MODAL */}
       {showDetailModal && selectedAssetForDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-dark/80 backdrop-blur-md">
-          <div className="w-full max-w-4xl bg-brand-card border border-brand-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-brand-dark/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-5xl bg-brand-card border border-brand-border shadow-2xl overflow-hidden flex flex-col max-h-[92vh] rounded-md">
             {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-brand-border bg-brand-dark/50">
-              <div>
-                <span className="text-[10px] font-mono font-bold text-brand-primary uppercase tracking-widest bg-brand-primary/10 px-2 py-0.5 border border-brand-primary/20 mr-2.5">
+            <div className="flex justify-between items-center px-4 sm:px-6 py-3.5 border-b border-brand-border bg-brand-dark/60">
+              <div className="flex items-center space-x-3 min-w-0">
+                <span className="text-[11px] font-mono font-bold text-brand-primary uppercase tracking-widest bg-brand-primary/10 px-2.5 py-1 border border-brand-primary/20 shrink-0">
                   {selectedAssetForDetail.e_patrimonio}
                 </span>
-                <h3 className="inline-block text-lg font-bold font-mono uppercase tracking-wider text-brand-text">
+                <h3 className="text-base sm:text-lg font-bold font-mono uppercase tracking-wider text-brand-text truncate">
                   {selectedAssetForDetail.nome}
                 </h3>
               </div>
               <button 
                 onClick={() => setShowDetailModal(false)} 
-                className="text-brand-muted hover:text-brand-text transition-colors p-1"
+                className="text-brand-muted hover:text-brand-text transition-colors p-1.5 rounded hover:bg-brand-dark"
+                title="Fechar"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-[1.3fr_0.7fr] gap-6">
-              {/* Left Column: Full Registration Data */}
-              <div className="space-y-6">
-                {/* Status and Type alerts */}
-                <div className="flex flex-wrap gap-2.5">
-                  <span className={`text-[10px] font-mono uppercase px-2.5 py-1 border ${
-                    selectedAssetForDetail.status === 'Manutenção' 
-                      ? 'border-amber-500/30 bg-amber-500/5 text-amber-400' 
-                      : selectedAssetForDetail.status === 'Disponível'
-                      ? 'border-green-500/30 bg-green-500/5 text-green-400'
-                      : 'border-brand-border bg-brand-dark/30 text-brand-text'
-                  }`}>
-                    Status: {selectedAssetForDetail.status}
+            {/* Subheader / Tabs Navigation */}
+            <div className="flex border-b border-brand-border bg-brand-dark/70 px-3 sm:px-6 overflow-x-auto no-scrollbar gap-2 py-2.5 items-center min-h-[56px]">
+              <button
+                type="button"
+                onClick={() => setDetailActiveTab('info')}
+                className={`px-4 py-2.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shrink-0 border min-h-[40px] ${
+                  detailActiveTab === 'info'
+                    ? 'border-brand-primary text-brand-primary bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
+                    : 'border-transparent text-brand-muted hover:text-brand-text hover:bg-brand-dark/50'
+                }`}
+              >
+                <FileText size={15} className="shrink-0" />
+                <span>Ficha Técnica</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDetailActiveTab('movimentacoes')}
+                className={`px-4 py-2.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shrink-0 border min-h-[40px] ${
+                  detailActiveTab === 'movimentacoes'
+                    ? 'border-brand-primary text-brand-primary bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
+                    : 'border-transparent text-brand-muted hover:text-brand-text hover:bg-brand-dark/50'
+                }`}
+              >
+                <ArrowRightLeft size={15} className="shrink-0" />
+                <span>Movimentações & Empréstimos</span>
+                {assetHistory && (
+                  <span className="bg-brand-dark/90 px-2 py-0.5 rounded-full text-[11px] font-bold text-brand-primary border border-brand-primary/40 ml-1">
+                    {(assetHistory.movimentacoes?.length || 0) + (assetHistory.solicitacoes_emprestimo?.length || 0)}
                   </span>
-                  
-                  {selectedAssetForDetail.bloqueado && (
-                    <span className="text-[10px] font-mono uppercase px-2.5 py-1 border border-purple-500/30 bg-purple-500/5 text-purple-400 flex items-center space-x-1.5">
-                      <Lock size={12} />
-                      <span>🔒 Ativo Fixo (Bloqueado)</span>
-                    </span>
-                  )}
+                )}
+              </button>
 
-                  {selectedAssetForDetail.requer_termo_rh && (
-                    <span className="text-[10px] font-mono uppercase px-2.5 py-1 border border-blue-500/30 bg-blue-500/5 text-blue-400">
-                      📋 Requer Termo RH
-                    </span>
-                  )}
+              <button
+                type="button"
+                onClick={() => setDetailActiveTab('manutencoes')}
+                className={`px-4 py-2.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shrink-0 border min-h-[40px] ${
+                  detailActiveTab === 'manutencoes'
+                    ? 'border-brand-primary text-brand-primary bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
+                    : 'border-transparent text-brand-muted hover:text-brand-text hover:bg-brand-dark/50'
+                }`}
+              >
+                <Wrench size={15} className="shrink-0" />
+                <span>Manutenções</span>
+                {assetHistory && (
+                  <span className="bg-brand-dark/90 px-2 py-0.5 rounded-full text-[11px] font-bold text-brand-primary border border-brand-primary/40 ml-1">
+                    {(assetHistory.manutencoes?.length || 0) + (assetHistory.solicitacoes_manutencao?.length || 0)}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDetailActiveTab('preventivas')}
+                className={`px-4 py-2.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shrink-0 border min-h-[40px] ${
+                  detailActiveTab === 'preventivas'
+                    ? 'border-brand-primary text-brand-primary bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
+                    : 'border-transparent text-brand-muted hover:text-brand-text hover:bg-brand-dark/50'
+                }`}
+              >
+                <CalendarDays size={15} className="shrink-0" />
+                <span>Preventivas & Planos</span>
+                {assetHistory && (
+                  <span className="bg-brand-dark/90 px-2 py-0.5 rounded-full text-[11px] font-bold text-brand-primary border border-brand-primary/40 ml-1">
+                    {(assetHistory.manutencoes_preventivas?.length || 0) + (assetHistory.planos_preventivos?.length || 0)}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDetailActiveTab('compras')}
+                className={`px-4 py-2.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shrink-0 border min-h-[40px] ${
+                  detailActiveTab === 'compras'
+                    ? 'border-brand-primary text-brand-primary bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
+                    : 'border-transparent text-brand-muted hover:text-brand-text hover:bg-brand-dark/50'
+                }`}
+              >
+                <ShoppingCart size={15} className="shrink-0" />
+                <span>Peças & Compras</span>
+                {assetHistory && (
+                  <span className="bg-brand-dark/90 px-2 py-0.5 rounded-full text-[11px] font-bold text-brand-primary border border-brand-primary/40 ml-1">
+                    {assetHistory.solicitacoes_compra?.length || 0}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              {loadingHistory && detailActiveTab !== 'info' && (
+                <div className="py-12 flex flex-col items-center justify-center space-y-3 text-brand-muted">
+                  <RefreshCw size={28} className="animate-spin text-brand-primary" />
+                  <span className="font-mono text-xs uppercase tracking-wider">Carregando histórico do ativo...</span>
                 </div>
+              )}
 
-                {/* Section: Geral */}
-                <div className="border border-brand-border/60 bg-brand-dark/10 p-4 space-y-3">
-                  <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-widest border-b border-brand-border pb-1.5">
-                    Informações Gerais
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 text-xs">
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Modelo</span>
-                      <span className="text-brand-text font-semibold">{selectedAssetForDetail.modelo || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Número de Série (S/N)</span>
-                      <span className="text-brand-text font-mono">{selectedAssetForDetail.numero_serie || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Categoria</span>
-                      <span className="text-brand-text">{selectedAssetForDetail.categoria?.nome || 'Sem categoria'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Criado por</span>
-                      <span className="text-brand-text">{selectedAssetForDetail.created_by?.nome || '—'}</span>
-                    </div>
-                    <div className="md:col-span-2">
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Descrição</span>
-                      <p className="text-brand-text bg-brand-dark/40 p-2.5 border border-brand-border/40 rounded-sm font-mono mt-1 text-[11px] whitespace-pre-wrap">
-                        {selectedAssetForDetail.descricao || 'Nenhuma descrição fornecida.'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Localização e Responsabilidade */}
-                <div className="border border-brand-border/60 bg-brand-dark/10 p-4 space-y-3">
-                  <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-widest border-b border-brand-border pb-1.5">
-                    Localização & Responsabilidade
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 text-xs">
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Localização Atual</span>
-                      <span className="text-brand-text font-semibold">{getAssetLocationLabel(selectedAssetForDetail)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Armazenamento</span>
-                      <span className="text-brand-text">{getAssetStorageLabel(selectedAssetForDetail) || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Em Posse De</span>
-                      <span className="text-brand-text font-semibold">
-                        {selectedAssetForDetail.status === 'Disponível'
-                          ? 'Ninguém (Disponível)'
-                          : (selectedAssetForDetail.em_posse_de || selectedAssetForDetail.current_user?.nome || 'Ninguém (Disponível)')}
+              {/* TAB 1: FICHA TÉCNICA E AÇÕES */}
+              {detailActiveTab === 'info' && (
+                <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_0.7fr] gap-6">
+                  {/* Left Column: Registration Data */}
+                  <div className="space-y-5">
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`text-[10px] font-mono uppercase px-2.5 py-1 border ${
+                        selectedAssetForDetail.status === 'Manutenção' 
+                          ? 'border-amber-500/30 bg-amber-500/5 text-amber-400' 
+                          : selectedAssetForDetail.status === 'Disponível'
+                          ? 'border-green-500/30 bg-green-500/5 text-green-400'
+                          : 'border-brand-border bg-brand-dark/30 text-brand-text'
+                      }`}>
+                        Status: {selectedAssetForDetail.status}
                       </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Setor / Departamento</span>
-                      <span className="text-brand-text">{selectedAssetForDetail.current_departamento?.nome || '—'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Financeiro & Aquisição */}
-                <div className="border border-brand-border/60 bg-brand-dark/10 p-4 space-y-3">
-                  <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-widest border-b border-brand-border pb-1.5">
-                    Financeiro & Aquisição
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 text-xs">
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Valor de Aquisição</span>
-                      <span className="text-brand-text font-mono font-semibold">
-                        {selectedAssetForDetail.valor 
-                          ? selectedAssetForDetail.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
-                          : '—'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Data de Aquisição</span>
-                      <span className="text-brand-text font-mono">
-                        {selectedAssetForDetail.data_aquisicao 
-                          ? new Date(selectedAssetForDetail.data_aquisicao).toLocaleDateString('pt-BR') 
-                          : '—'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Fornecedor</span>
-                      <span className="text-brand-text">{selectedAssetForDetail.fornecedor?.nome || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-brand-muted block">Nota Fiscal</span>
-                      <span className="text-brand-text font-mono">{selectedAssetForDetail.nota_fiscal?.numero_nota || '—'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: QR Code & Quick Actions */}
-              <div className="space-y-6 flex flex-col">
-                {/* QR Code Container */}
-                <div className="border border-brand-border bg-brand-dark/20 p-4 flex flex-col items-center justify-center text-center space-y-4">
-                  <div className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider">
-                    QR Code Patrimonial
-                  </div>
-                  <div className="bg-white p-2.5 border border-brand-border/60">
-                    <img 
-                      src={assetsApi.getQRCodeUrl(selectedAssetForDetail.id)} 
-                      alt={`QR Code para ${selectedAssetForDetail.nome}`}
-                      className="w-40 h-40 object-contain"
-                    />
-                  </div>
-                  <button
-                    onClick={() => assetsApi.downloadQRCode(selectedAssetForDetail.id, selectedAssetForDetail.e_patrimonio)}
-                    className="flex items-center justify-center space-x-2 w-full py-2 bg-brand-dark hover:bg-brand-card border border-brand-border text-brand-text font-bold font-mono text-xs uppercase tracking-wider transition-colors"
-                  >
-                    <Download size={14} />
-                    <span>Download QR Code</span>
-                  </button>
-                </div>
-
-                {/* Actions Panel */}
-                <div className="border border-brand-border bg-brand-dark/20 p-4 space-y-4 flex-1">
-                  <div className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider">
-                    Ações de Inventário
-                  </div>
-
-                  {!showDetailMaintenanceForm && !showDetailTransferForm && !showDetailDevolucaoForm && (
-                    <div className="space-y-3">
-                      <button
-                        onClick={() => {
-                          setShowDetailMaintenanceForm(true);
-                          setShowDetailTransferForm(false);
-                          setShowDetailDevolucaoForm(false);
-                          setDetailMaintenanceDescription('');
-                          setDetailMaintenanceError(null);
-                        }}
-                        className="flex items-center justify-center space-x-2 w-full py-2.5 bg-brand-primary text-brand-dark font-bold font-mono text-xs uppercase tracking-wider hover:bg-brand-primary/95 transition-all"
-                      >
-                        <Wrench size={14} />
-                        <span>Solicitar Manutenção</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setShowDetailTransferForm(true);
-                          setShowDetailMaintenanceForm(false);
-                          setShowDetailDevolucaoForm(false);
-                          setDetailTransferUserId('');
-                          setDetailTransferMotivo('');
-                          setDetailTransferDataPrevista('');
-                          setDetailTransferError(null);
-                        }}
-                        className="flex items-center justify-center space-x-2 w-full py-2.5 bg-brand-dark border border-brand-border text-brand-text font-bold font-mono text-xs uppercase tracking-wider hover:bg-brand-card transition-all"
-                      >
-                        <ArrowRightLeft size={14} />
-                        <span>Transferir Ativo</span>
-                      </button>
-
-                      {(selectedAssetForDetail.status === 'Em uso' || selectedAssetForDetail.current_user_id || selectedAssetForDetail.em_posse_de) && (
-                        <button
-                          onClick={() => {
-                            setShowDetailDevolucaoForm(true);
-                            setShowDetailMaintenanceForm(false);
-                            setShowDetailTransferForm(false);
-                            setDetailDevolucaoCondicao('Íntegro e funcional');
-                            setDetailDevolucaoAcessorios('Fonte e Carregador');
-                            setDetailDevolucaoNotas('');
-                            setDetailDevolucaoError(null);
-                          }}
-                          className="flex items-center justify-center space-x-2 w-full py-2.5 bg-amber-500/10 border border-amber-500/40 text-amber-400 font-bold font-mono text-xs uppercase tracking-wider hover:bg-amber-500/20 transition-all"
-                        >
-                          <RotateCcw size={14} />
-                          <span>Forçar Devolução</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Request Maintenance Form */}
-                  {showDetailMaintenanceForm && (
-                    <form onSubmit={handleRequestMaintenanceFromDetail} className="space-y-3.5 pt-2">
-                      <div className="font-semibold text-xs text-brand-text flex items-center space-x-2 border-b border-brand-border/60 pb-1.5">
-                        <Wrench size={14} className="text-brand-primary" />
-                        <span>Solicitação de Manutenção</span>
-                      </div>
                       
-                      {detailMaintenanceError && (
-                        <div className="p-2.5 border border-red-500/20 bg-red-500/5 text-red-400 text-[11px] font-mono">
-                          {detailMaintenanceError}
+                      {selectedAssetForDetail.bloqueado && (
+                        <span className="text-[10px] font-mono uppercase px-2.5 py-1 border border-purple-500/30 bg-purple-500/5 text-purple-400 flex items-center space-x-1">
+                          <Lock size={12} />
+                          <span>Ativo Fixo (Bloqueado)</span>
+                        </span>
+                      )}
+
+                      {selectedAssetForDetail.requer_termo_rh && (
+                        <span className="text-[10px] font-mono uppercase px-2.5 py-1 border border-blue-500/30 bg-blue-500/5 text-blue-400 flex items-center space-x-1">
+                          <FileCheck size={12} />
+                          <span>Requer Termo RH</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="border border-brand-border bg-brand-dark/10 p-4 space-y-3 rounded-sm">
+                      <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-widest border-b border-brand-border pb-1.5 flex items-center space-x-1.5">
+                        <FileText size={13} />
+                        <span>Informações Gerais</span>
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Modelo</span>
+                          <span className="text-brand-text font-semibold">{selectedAssetForDetail.modelo || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Número de Série (S/N)</span>
+                          <span className="text-brand-text font-mono">{selectedAssetForDetail.numero_serie || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Categoria</span>
+                          <span className="text-brand-text">{selectedAssetForDetail.categoria?.nome || 'Sem categoria'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Cadastrado por</span>
+                          <span className="text-brand-text">{selectedAssetForDetail.created_by?.nome || '—'}</span>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Descrição</span>
+                          <p className="text-brand-text bg-brand-dark/40 p-2.5 border border-brand-border/40 font-mono mt-1 text-[11px] whitespace-pre-wrap">
+                            {selectedAssetForDetail.descricao || 'Nenhuma descrição fornecida.'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border border-brand-border bg-brand-dark/10 p-4 space-y-3 rounded-sm">
+                      <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-widest border-b border-brand-border pb-1.5 flex items-center space-x-1.5">
+                        <MapPin size={13} />
+                        <span>Localização & Posse</span>
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Localização</span>
+                          <span className="text-brand-text font-semibold">{getAssetLocationLabel(selectedAssetForDetail)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Armazenamento</span>
+                          <span className="text-brand-text">{getAssetStorageLabel(selectedAssetForDetail) || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Em Posse De</span>
+                          <span className="text-brand-text font-semibold">
+                            {selectedAssetForDetail.status === 'Disponível'
+                              ? 'Ninguém (Disponível)'
+                              : (selectedAssetForDetail.em_posse_de || selectedAssetForDetail.current_user?.nome || 'Ninguém (Disponível)')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Setor / Departamento</span>
+                          <span className="text-brand-text">{selectedAssetForDetail.current_departamento?.nome || '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border border-brand-border bg-brand-dark/10 p-4 space-y-3 rounded-sm">
+                      <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-widest border-b border-brand-border pb-1.5 flex items-center space-x-1.5">
+                        <DollarSign size={13} />
+                        <span>Dados Fiscais & Aquisição</span>
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Valor de Aquisição</span>
+                          <span className="text-brand-text font-mono font-semibold">
+                            {selectedAssetForDetail.valor 
+                              ? selectedAssetForDetail.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+                              : '—'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Data de Aquisição</span>
+                          <span className="text-brand-text font-mono">
+                            {selectedAssetForDetail.data_aquisicao 
+                              ? new Date(selectedAssetForDetail.data_aquisicao).toLocaleDateString('pt-BR') 
+                              : '—'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Fornecedor</span>
+                          <span className="text-brand-text">{selectedAssetForDetail.fornecedor?.nome || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-mono uppercase text-brand-muted block">Nota Fiscal</span>
+                          <span className="text-brand-text font-mono">{selectedAssetForDetail.nota_fiscal?.numero_nota || '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: QR Code & Actions */}
+                  <div className="space-y-5 flex flex-col">
+                    <div className="border border-brand-border bg-brand-dark/20 p-4 flex flex-col items-center justify-center text-center space-y-3 rounded-sm">
+                      <div className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider flex items-center space-x-1.5">
+                        <QrCode size={14} />
+                        <span>QR Code Patrimonial</span>
+                      </div>
+                      <div className="bg-white p-2.5 border border-brand-border/60 rounded">
+                        <img 
+                          src={assetsApi.getQRCodeUrl(selectedAssetForDetail.id)} 
+                          alt={`QR Code para ${selectedAssetForDetail.nome}`}
+                          className="w-36 h-36 object-contain"
+                        />
+                      </div>
+                      <button
+                        onClick={() => assetsApi.downloadQRCode(selectedAssetForDetail.id, selectedAssetForDetail.e_patrimonio)}
+                        className="flex items-center justify-center space-x-2 w-full py-2 bg-brand-dark hover:bg-brand-card border border-brand-border text-brand-text font-bold font-mono text-xs uppercase tracking-wider transition-colors"
+                      >
+                        <Download size={14} />
+                        <span>Download QR Code</span>
+                      </button>
+                    </div>
+
+                    <div className="border border-brand-border bg-brand-dark/20 p-4 space-y-3 flex-1 rounded-sm">
+                      <div className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider">
+                        Ações de Inventário
+                      </div>
+
+                      {!showDetailMaintenanceForm && !showDetailTransferForm && !showDetailDevolucaoForm && (
+                        <div className="space-y-2.5">
+                          <button
+                            onClick={() => {
+                              setShowDetailMaintenanceForm(true);
+                              setShowDetailTransferForm(false);
+                              setShowDetailDevolucaoForm(false);
+                              setDetailMaintenanceDescription('');
+                              setDetailMaintenanceError(null);
+                            }}
+                            className="flex items-center justify-center space-x-2 w-full py-2.5 bg-brand-primary text-brand-dark font-bold font-mono text-xs uppercase tracking-wider hover:bg-brand-primary/95 transition-all shadow-sm"
+                          >
+                            <Wrench size={14} />
+                            <span>Solicitar Manutenção</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setShowDetailTransferForm(true);
+                              setShowDetailMaintenanceForm(false);
+                              setShowDetailDevolucaoForm(false);
+                              setDetailTransferUserId('');
+                              setDetailTransferMotivo('');
+                              setDetailTransferDataPrevista('');
+                              setDetailTransferError(null);
+                            }}
+                            className="flex items-center justify-center space-x-2 w-full py-2.5 bg-brand-dark border border-brand-border text-brand-text font-bold font-mono text-xs uppercase tracking-wider hover:bg-brand-card transition-all"
+                          >
+                            <ArrowRightLeft size={14} />
+                            <span>Transferir Ativo</span>
+                          </button>
+
+                          {(selectedAssetForDetail.status === 'Em uso' || selectedAssetForDetail.current_user_id || selectedAssetForDetail.em_posse_de) && (
+                            <button
+                              onClick={() => {
+                                setShowDetailDevolucaoForm(true);
+                                setShowDetailMaintenanceForm(false);
+                                setShowDetailTransferForm(false);
+                                setDetailDevolucaoCondicao('Íntegro e funcional');
+                                setDetailDevolucaoAcessorios('Fonte e Carregador');
+                                setDetailDevolucaoNotas('');
+                                setDetailDevolucaoError(null);
+                              }}
+                              className="flex items-center justify-center space-x-2 w-full py-2.5 bg-amber-500/10 border border-amber-500/40 text-amber-400 font-bold font-mono text-xs uppercase tracking-wider hover:bg-amber-500/20 transition-all"
+                            >
+                              <RotateCcw size={14} />
+                              <span>Forçar Devolução</span>
+                            </button>
+                          )}
                         </div>
                       )}
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
-                          Motivo / Descrição do Problema
-                        </label>
-                        <textarea
-                          required
-                          rows={3}
-                          value={detailMaintenanceDescription}
-                          onChange={(e) => setDetailMaintenanceDescription(e.target.value)}
-                          placeholder="Descreva detalhadamente o defeito ou motivo da manutenção..."
-                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary placeholder-brand-muted/40"
-                        />
-                      </div>
+                      {/* Request Maintenance Form */}
+                      {showDetailMaintenanceForm && (
+                        <form onSubmit={handleRequestMaintenanceFromDetail} className="space-y-3 pt-1">
+                          <div className="font-semibold text-xs text-brand-text flex items-center space-x-2 border-b border-brand-border/60 pb-1.5">
+                            <Wrench size={14} className="text-brand-primary" />
+                            <span>Solicitação de Manutenção</span>
+                          </div>
+                          
+                          {detailMaintenanceError && (
+                            <div className="p-2 border border-red-500/20 bg-red-500/5 text-red-400 text-[11px] font-mono">
+                              {detailMaintenanceError}
+                            </div>
+                          )}
 
-                      <div className="flex space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => setShowDetailMaintenanceForm(false)}
-                          className="w-1/3 py-1.5 bg-brand-dark border border-brand-border text-brand-muted text-xs font-semibold font-mono uppercase"
-                        >
-                          Voltar
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={detailMaintenanceLoading || !detailMaintenanceDescription.trim()}
-                          className="flex-1 py-1.5 bg-brand-primary text-brand-dark text-xs font-semibold font-mono uppercase flex items-center justify-center space-x-1.5 disabled:opacity-50"
-                        >
-                          {detailMaintenanceLoading && <RefreshCw size={12} className="animate-spin" />}
-                          <span>Confirmar</span>
-                        </button>
-                      </div>
-                    </form>
-                  )}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-mono uppercase text-brand-muted block">
+                              Motivo / Descrição do Problema
+                            </label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={detailMaintenanceDescription}
+                              onChange={(e) => setDetailMaintenanceDescription(e.target.value)}
+                              placeholder="Descreva detalhadamente o defeito..."
+                              className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary placeholder-brand-muted/40"
+                            />
+                          </div>
 
-                  {/* Transfer Asset Form */}
-                  {showDetailTransferForm && (
-                    <form onSubmit={handleTransferAssetFromDetail} className="space-y-3 pt-2">
-                      <div className="font-semibold text-xs text-brand-text flex items-center space-x-2 border-b border-brand-border/60 pb-1.5">
-                        <ArrowRightLeft size={14} className="text-brand-primary" />
-                        <span>Transferir Equipamento</span>
-                      </div>
-
-                      {detailTransferError && (
-                        <div className="p-2.5 border border-red-500/20 bg-red-500/5 text-red-400 text-[11px] font-mono">
-                          {detailTransferError}
-                        </div>
+                          <div className="flex space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => setShowDetailMaintenanceForm(false)}
+                              className="w-1/3 py-1.5 bg-brand-dark border border-brand-border text-brand-muted text-xs font-semibold font-mono uppercase"
+                            >
+                              Voltar
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={detailMaintenanceLoading || !detailMaintenanceDescription.trim()}
+                              className="flex-1 py-1.5 bg-brand-primary text-brand-dark text-xs font-semibold font-mono uppercase flex items-center justify-center space-x-1.5 disabled:opacity-50"
+                            >
+                              {detailMaintenanceLoading && <RefreshCw size={12} className="animate-spin" />}
+                              <span>Confirmar</span>
+                            </button>
+                          </div>
+                        </form>
                       )}
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
-                          Destinatário *
-                        </label>
-                        <select
-                          required
-                          value={detailTransferUserId}
-                          onChange={(e) => setDetailTransferUserId(e.target.value ? Number(e.target.value) : '')}
-                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary font-mono"
-                        >
-                          <option value="">Selecione o usuário...</option>
-                          {usersList.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.nome} ({u.role})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      {/* Transfer Asset Form */}
+                      {showDetailTransferForm && (
+                        <form onSubmit={handleTransferAssetFromDetail} className="space-y-3 pt-1">
+                          <div className="font-semibold text-xs text-brand-text flex items-center space-x-2 border-b border-brand-border/60 pb-1.5">
+                            <ArrowRightLeft size={14} className="text-brand-primary" />
+                            <span>Transferir Equipamento</span>
+                          </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
-                          Motivo da Transferência *
-                        </label>
-                        <textarea
-                          required
-                          rows={2}
-                          value={detailTransferMotivo}
-                          onChange={(e) => setDetailTransferMotivo(e.target.value)}
-                          placeholder="Informe o motivo da transferência..."
-                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary placeholder-brand-muted/40 font-mono"
-                        />
-                      </div>
+                          {detailTransferError && (
+                            <div className="p-2 border border-red-500/20 bg-red-500/5 text-red-400 text-[11px] font-mono">
+                              {detailTransferError}
+                            </div>
+                          )}
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
-                          Data Prevista de Devolução (Opcional)
-                        </label>
-                        <input
-                          type="date"
-                          value={detailTransferDataPrevista}
-                          onChange={(e) => setDetailTransferDataPrevista(e.target.value)}
-                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary font-mono"
-                        />
-                      </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-mono uppercase text-brand-muted block">Destinatário *</label>
+                            <select
+                              required
+                              value={detailTransferUserId}
+                              onChange={(e) => setDetailTransferUserId(e.target.value ? Number(e.target.value) : '')}
+                              className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary font-mono"
+                            >
+                              <option value="">Selecione o usuário...</option>
+                              {usersList.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.nome} ({u.role})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
-                      <div className="flex space-x-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setShowDetailTransferForm(false)}
-                          className="w-1/3 py-1.5 bg-brand-dark border border-brand-border text-brand-muted text-xs font-semibold font-mono uppercase hover:bg-brand-card"
-                        >
-                          Voltar
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={detailTransferLoading || !detailTransferUserId || !detailTransferMotivo.trim()}
-                          className="flex-1 py-1.5 bg-brand-primary text-brand-dark text-xs font-semibold font-mono uppercase flex items-center justify-center space-x-1.5 disabled:opacity-50"
-                        >
-                          {detailTransferLoading && <RefreshCw size={12} className="animate-spin" />}
-                          <span>Transferir</span>
-                        </button>
-                      </div>
-                    </form>
-                  )}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-mono uppercase text-brand-muted block">Motivo *</label>
+                            <textarea
+                              required
+                              rows={2}
+                              value={detailTransferMotivo}
+                              onChange={(e) => setDetailTransferMotivo(e.target.value)}
+                              placeholder="Informe o motivo..."
+                              className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary placeholder-brand-muted/40 font-mono"
+                            />
+                          </div>
 
-                  {/* Forced Devolution Form */}
-                  {showDetailDevolucaoForm && (
-                    <form onSubmit={handleDevolverAssetFromDetail} className="space-y-3 pt-2">
-                      <div className="font-semibold text-xs text-amber-400 flex items-center space-x-2 border-b border-brand-border/60 pb-1.5">
-                        <RotateCcw size={14} className="text-amber-400" />
-                        <span>Forçar Devolução do Ativo</span>
-                      </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-mono uppercase text-brand-muted block">Data Prevista Devolução</label>
+                            <input
+                              type="date"
+                              value={detailTransferDataPrevista}
+                              onChange={(e) => setDetailTransferDataPrevista(e.target.value)}
+                              className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary font-mono"
+                            />
+                          </div>
 
-                      {detailDevolucaoError && (
-                        <div className="p-2.5 border border-red-500/20 bg-red-500/5 text-red-400 text-[11px] font-mono">
-                          {detailDevolucaoError}
-                        </div>
+                          <div className="flex space-x-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setShowDetailTransferForm(false)}
+                              className="w-1/3 py-1.5 bg-brand-dark border border-brand-border text-brand-muted text-xs font-semibold font-mono uppercase hover:bg-brand-card"
+                            >
+                              Voltar
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={detailTransferLoading || !detailTransferUserId || !detailTransferMotivo.trim()}
+                              className="flex-1 py-1.5 bg-brand-primary text-brand-dark text-xs font-semibold font-mono uppercase flex items-center justify-center space-x-1.5 disabled:opacity-50"
+                            >
+                              {detailTransferLoading && <RefreshCw size={12} className="animate-spin" />}
+                              <span>Transferir</span>
+                            </button>
+                          </div>
+                        </form>
                       )}
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
-                          Condição do Equipamento *
-                        </label>
-                        <select
-                          required
-                          value={detailDevolucaoCondicao}
-                          onChange={(e) => setDetailDevolucaoCondicao(e.target.value)}
-                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary font-mono"
-                        >
-                          <option value="Íntegro e funcional">Íntegro e funcional</option>
-                          <option value="Danificado com marcas de uso">Danificado com marcas de uso</option>
-                          <option value="Avariado / Necessita Manutenção">Avariado / Necessita Manutenção</option>
-                        </select>
-                      </div>
+                      {/* Forced Devolution Form */}
+                      {showDetailDevolucaoForm && (
+                        <form onSubmit={handleDevolverAssetFromDetail} className="space-y-3 pt-1">
+                          <div className="font-semibold text-xs text-amber-400 flex items-center space-x-2 border-b border-brand-border/60 pb-1.5">
+                            <RotateCcw size={14} className="text-amber-400" />
+                            <span>Forçar Devolução</span>
+                          </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
-                          Acessórios Devolvidos *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={detailDevolucaoAcessorios}
-                          onChange={(e) => setDetailDevolucaoAcessorios(e.target.value)}
-                          placeholder="Ex: Fonte de alimentação, Cabo HDMI..."
-                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary placeholder-brand-muted/40 font-mono"
-                        />
-                      </div>
+                          {detailDevolucaoError && (
+                            <div className="p-2 border border-red-500/20 bg-red-500/5 text-red-400 text-[11px] font-mono">
+                              {detailDevolucaoError}
+                            </div>
+                          )}
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-mono uppercase text-brand-muted block">
-                          Observações Adicionais (Opcional)
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={detailDevolucaoNotas}
-                          onChange={(e) => setDetailDevolucaoNotas(e.target.value)}
-                          placeholder="Ex: Devolução forçada via painel de ativos..."
-                          className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary placeholder-brand-muted/40 font-mono"
-                        />
-                      </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-mono uppercase text-brand-muted block">Condição *</label>
+                            <select
+                              required
+                              value={detailDevolucaoCondicao}
+                              onChange={(e) => setDetailDevolucaoCondicao(e.target.value)}
+                              className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary font-mono"
+                            >
+                              <option value="Íntegro e funcional">Íntegro e funcional</option>
+                              <option value="Danificado com marcas de uso">Danificado com marcas de uso</option>
+                              <option value="Avariado / Necessita Manutenção">Avariado / Necessita Manutenção</option>
+                            </select>
+                          </div>
 
-                      <div className="flex space-x-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setShowDetailDevolucaoForm(false)}
-                          className="w-1/3 py-1.5 bg-brand-dark border border-brand-border text-brand-muted text-xs font-semibold font-mono uppercase hover:bg-brand-card"
-                        >
-                          Voltar
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={detailDevolucaoLoading || !detailDevolucaoCondicao.trim() || !detailDevolucaoAcessorios.trim()}
-                          className="flex-1 py-1.5 bg-amber-500 text-brand-dark text-xs font-semibold font-mono uppercase flex items-center justify-center space-x-1.5 hover:bg-amber-400 disabled:opacity-50 font-bold"
-                        >
-                          {detailDevolucaoLoading && <RefreshCw size={12} className="animate-spin" />}
-                          <span>Confirmar Devolução</span>
-                        </button>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-mono uppercase text-brand-muted block">Acessórios Devolvidos *</label>
+                            <input
+                              type="text"
+                              required
+                              value={detailDevolucaoAcessorios}
+                              onChange={(e) => setDetailDevolucaoAcessorios(e.target.value)}
+                              placeholder="Ex: Fonte de alimentação..."
+                              className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary font-mono"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-mono uppercase text-brand-muted block">Observações</label>
+                            <textarea
+                              rows={2}
+                              value={detailDevolucaoNotas}
+                              onChange={(e) => setDetailDevolucaoNotas(e.target.value)}
+                              placeholder="Observações..."
+                              className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary font-mono"
+                            />
+                          </div>
+
+                          <div className="flex space-x-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setShowDetailDevolucaoForm(false)}
+                              className="w-1/3 py-1.5 bg-brand-dark border border-brand-border text-brand-muted text-xs font-semibold font-mono uppercase hover:bg-brand-card"
+                            >
+                              Voltar
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={detailDevolucaoLoading || !detailDevolucaoCondicao.trim() || !detailDevolucaoAcessorios.trim()}
+                              className="flex-1 py-1.5 bg-amber-500 text-brand-dark text-xs font-semibold font-mono uppercase flex items-center justify-center space-x-1.5 hover:bg-amber-400 disabled:opacity-50 font-bold"
+                            >
+                              {detailDevolucaoLoading && <RefreshCw size={12} className="animate-spin" />}
+                              <span>Confirmar</span>
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: HISTÓRICO DE MOVIMENTAÇÕES & EMPRÉSTIMOS */}
+              {detailActiveTab === 'movimentacoes' && (
+                <div className="space-y-6">
+                  {/* Solicitações de Empréstimo e Posse */}
+                  <div className="space-y-3">
+                    <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider flex items-center space-x-2 border-b border-brand-border pb-2">
+                      <FileCheck size={14} />
+                      <span>Empréstimos, Autorizações & Devoluções ({assetHistory?.solicitacoes_emprestimo?.length || 0})</span>
+                    </h4>
+
+                    {(!assetHistory?.solicitacoes_emprestimo || assetHistory.solicitacoes_emprestimo.length === 0) ? (
+                      <div className="p-4 border border-dashed border-brand-border text-center text-xs font-mono text-brand-muted">
+                        Nenhum registro de empréstimo ou solicitação formal para este ativo.
                       </div>
-                    </form>
+                    ) : (
+                      <div className="space-y-3">
+                        {assetHistory.solicitacoes_emprestimo.map((sol: any) => (
+                          <div key={sol.id} className="border border-brand-border bg-brand-dark/20 p-4 space-y-3 rounded">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-border/40 pb-2">
+                              <div className="flex items-center space-x-2">
+                                <span className={`text-[10px] font-mono uppercase px-2 py-0.5 border font-bold ${
+                                  sol.status === 'Entregue' ? 'border-green-500/30 bg-green-500/10 text-green-400' :
+                                  sol.status === 'Devolvida' ? 'border-blue-500/30 bg-blue-500/10 text-blue-400' :
+                                  sol.status === 'Aprovada' ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' :
+                                  'border-brand-border bg-brand-dark/40 text-brand-muted'
+                                }`}>
+                                  {sol.status}
+                                </span>
+                                <span className="font-mono text-xs text-brand-text font-bold">
+                                  Solicitação #{sol.id}
+                                </span>
+                              </div>
+                              <span className="text-[11px] font-mono text-brand-muted">
+                                Solicitado em: {new Date(sol.data_solicitacao).toLocaleString('pt-BR')}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                              <div className="bg-brand-dark/40 p-2.5 border border-brand-border/30 rounded space-y-1">
+                                <span className="text-[10px] font-mono uppercase text-brand-muted block">Solicitante</span>
+                                <div className="font-bold text-brand-text">{sol.solicitante?.nome || '—'}</div>
+                                <div className="text-[11px] text-brand-muted">{sol.solicitante?.cargo || sol.solicitante?.email}</div>
+                              </div>
+
+                              <div className="bg-brand-dark/40 p-2.5 border border-brand-border/30 rounded space-y-1">
+                                <span className="text-[10px] font-mono uppercase text-brand-muted block">Quem Autorizou (Aprovador)</span>
+                                <div className="font-bold text-amber-400">{sol.aprovador?.nome || 'Pendente / Não informado'}</div>
+                                <div className="text-[11px] text-brand-muted">
+                                  {sol.data_aprovacao ? `Aprovado em: ${new Date(sol.data_aprovacao).toLocaleString('pt-BR')}` : 'Aguardando aprovação'}
+                                </div>
+                              </div>
+
+                              <div className="bg-brand-dark/40 p-2.5 border border-brand-border/30 rounded space-y-1">
+                                <span className="text-[10px] font-mono uppercase text-brand-muted block">Entrega & Confirmação</span>
+                                <div className="font-bold text-green-400">{sol.confirmador?.nome || sol.solicitante?.nome || '—'}</div>
+                                <div className="text-[11px] text-brand-muted">
+                                  {sol.data_entrega ? `Entregue em: ${new Date(sol.data_entrega).toLocaleString('pt-BR')}` : 'Não entregue'}
+                                  {sol.confirmado_via_qr && ' (✓ QR Code)'}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="bg-brand-dark/30 p-2.5 text-xs font-mono space-y-1 border border-brand-border/20">
+                              <span className="text-[10px] uppercase text-brand-muted block">Motivo do Empréstimo:</span>
+                              <p className="text-brand-text italic whitespace-pre-wrap">{sol.motivo || '—'}</p>
+                            </div>
+
+                            {/* Devolução */}
+                            {sol.data_devolucao && (
+                              <div className="bg-blue-500/5 border border-blue-500/20 p-3 rounded space-y-2 text-xs">
+                                <div className="font-mono text-blue-400 font-bold text-[11px] uppercase flex items-center space-x-1.5">
+                                  <CheckCircle2 size={13} />
+                                  <span>Registro de Devolução Concluída</span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  <div>
+                                    <span className="text-[10px] font-mono text-brand-muted block">Data Devolução</span>
+                                    <span className="font-mono text-brand-text">{new Date(sol.data_devolucao).toLocaleString('pt-BR')}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] font-mono text-brand-muted block">Recebido Por</span>
+                                    <span className="text-brand-text">{sol.recebedor?.nome || '—'}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] font-mono text-brand-muted block">Condição Devolvida</span>
+                                    <span className="text-brand-text font-bold">{sol.condicao_devolucao || 'Íntegro'}</span>
+                                  </div>
+                                </div>
+                                {sol.acessorios_devolvidos && (
+                                  <div>
+                                    <span className="text-[10px] font-mono text-brand-muted block">Acessórios Devolvidos:</span>
+                                    <span className="text-brand-text font-mono text-[11px]">{sol.acessorios_devolvidos}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Termo de responsabilidade */}
+                            {sol.termo && (
+                              <div className="flex items-center justify-between bg-brand-dark/50 p-2.5 border border-brand-border/40 text-xs">
+                                <div className="flex items-center space-x-2">
+                                  <FileCheck size={14} className="text-brand-primary" />
+                                  <span className="font-mono text-brand-text">Termo RH #{sol.termo.id} - Status: {sol.termo.status}</span>
+                                </div>
+                                <span className="text-[11px] font-mono text-brand-muted">
+                                  {sol.termo.assinado_em ? `Assinado em: ${new Date(sol.termo.assinado_em).toLocaleDateString('pt-BR')}` : 'Aguardando assinatura'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Movimentações Diretas de Inventário */}
+                  <div className="space-y-3 pt-2">
+                    <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider flex items-center space-x-2 border-b border-brand-border pb-2">
+                      <History size={14} />
+                      <span>Histórico de Movimentações Diretas ({assetHistory?.movimentacoes?.length || 0})</span>
+                    </h4>
+
+                    {(!assetHistory?.movimentacoes || assetHistory.movimentacoes.length === 0) ? (
+                      <div className="p-4 border border-dashed border-brand-border text-center text-xs font-mono text-brand-muted">
+                        Nenhuma movimentação avulsa registrada no log.
+                      </div>
+                    ) : (
+                      <div className="border border-brand-border divide-y divide-brand-border/60 bg-brand-dark/20 text-xs font-mono">
+                        {assetHistory.movimentacoes.map((mov: any) => (
+                          <div key={mov.id} className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center space-x-2">
+                                <span className="bg-brand-primary/10 text-brand-primary px-2 py-0.5 border border-brand-primary/20 text-[10px] uppercase font-bold">
+                                  {mov.tipo}
+                                </span>
+                                <span className="text-brand-text font-bold">
+                                  {mov.de_user?.nome || 'Estoque/Sistema'} → {mov.para_user?.nome || 'Disponível'}
+                                </span>
+                              </div>
+                              {mov.observacao && (
+                                <p className="text-[11px] text-brand-muted italic mt-0.5">{mov.observacao}</p>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-brand-muted shrink-0">
+                              {new Date(mov.data).toLocaleString('pt-BR')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: MANUTENÇÕES CORRETIVAS */}
+              {detailActiveTab === 'manutencoes' && (
+                <div className="space-y-6">
+                  {/* Ordens de Manutenção */}
+                  <div className="space-y-3">
+                    <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider flex items-center space-x-2 border-b border-brand-border pb-2">
+                      <Wrench size={14} />
+                      <span>Manutenções Realizadas & Em Andamento ({assetHistory?.manutencoes?.length || 0})</span>
+                    </h4>
+
+                    {(!assetHistory?.manutencoes || assetHistory.manutencoes.length === 0) ? (
+                      <div className="p-4 border border-dashed border-brand-border text-center text-xs font-mono text-brand-muted">
+                        Nenhum registro de manutenção na oficina para este equipamento.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {assetHistory.manutencoes.map((m: any) => (
+                          <div key={m.id} className="border border-brand-border bg-brand-dark/20 p-4 space-y-3 rounded">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-border/40 pb-2">
+                              <div className="flex items-center space-x-2">
+                                <span className={`text-[10px] font-mono uppercase px-2 py-0.5 border font-bold ${
+                                  m.status === 'concluida' ? 'border-green-500/30 bg-green-500/10 text-green-400' :
+                                  m.status === 'em_andamento' ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' :
+                                  'border-red-500/30 bg-red-500/10 text-red-400'
+                                }`}>
+                                  {m.status}
+                                </span>
+                                <span className="font-mono text-xs font-bold text-brand-text">
+                                  Manutenção #{m.id} ({m.tipo})
+                                </span>
+                              </div>
+                              {m.custo && (
+                                <span className="font-mono text-xs text-green-400 font-bold">
+                                  Custo: {m.custo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                              <div>
+                                <span className="text-[10px] font-mono uppercase text-brand-muted block">Data Entrada</span>
+                                <span className="font-mono text-brand-text">{new Date(m.data_entrada).toLocaleString('pt-BR')}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-mono uppercase text-brand-muted block">Data Conclusão</span>
+                                <span className="font-mono text-brand-text">{m.data_conclusao ? new Date(m.data_conclusao).toLocaleString('pt-BR') : 'Em reparo'}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-mono uppercase text-brand-muted block">Técnico Responsável</span>
+                                <span className="text-brand-text font-bold">{m.responsavel?.nome || 'Não atribuído'}</span>
+                              </div>
+                            </div>
+
+                            <div className="bg-brand-dark/30 p-2.5 text-xs font-mono border border-brand-border/20 space-y-1">
+                              <span className="text-[10px] uppercase text-brand-muted block">Motivo da Entrada:</span>
+                              <p className="text-brand-text">{m.motivo}</p>
+                            </div>
+
+                            {m.observacao_conclusao && (
+                              <div className="bg-green-500/5 p-2.5 text-xs font-mono border border-green-500/20 space-y-1">
+                                <span className="text-[10px] uppercase text-green-400 block font-bold">Laudo / Conclusão Técnica:</span>
+                                <p className="text-brand-text">{m.observacao_conclusao}</p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Solicitações de Manutenção Abertas por Usuários */}
+                  <div className="space-y-3 pt-2">
+                    <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider flex items-center space-x-2 border-b border-brand-border pb-2">
+                      <Clock size={14} />
+                      <span>Chamados / Solicitações de Usuários ({assetHistory?.solicitacoes_manutencao?.length || 0})</span>
+                    </h4>
+
+                    {(!assetHistory?.solicitacoes_manutencao || assetHistory.solicitacoes_manutencao.length === 0) ? (
+                      <div className="p-4 border border-dashed border-brand-border text-center text-xs font-mono text-brand-muted">
+                        Nenhum chamado de manutenção aberto por usuários para este equipamento.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {assetHistory.solicitacoes_manutencao.map((sm: any) => (
+                          <div key={sm.id} className="border border-brand-border bg-brand-dark/20 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="bg-brand-dark px-2 py-0.5 border border-brand-border text-[10px] uppercase font-bold text-brand-muted">
+                                  {sm.status}
+                                </span>
+                                <span className="text-brand-text font-bold">Solicitante: {sm.solicitante?.nome || '—'}</span>
+                              </div>
+                              <p className="text-[11px] text-brand-muted">{sm.descricao}</p>
+                            </div>
+                            <span className="text-[10px] text-brand-muted shrink-0">
+                              {new Date(sm.data_solicitacao).toLocaleString('pt-BR')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: MANUTENÇÕES PREVENTIVAS & PLANOS */}
+              {detailActiveTab === 'preventivas' && (
+                <div className="space-y-6">
+                  {/* Planos Preventivos Atribuídos */}
+                  <div className="space-y-3">
+                    <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider flex items-center space-x-2 border-b border-brand-border pb-2">
+                      <CalendarDays size={14} />
+                      <span>Planos Preventivos Associados ({assetHistory?.planos_preventivos?.length || 0})</span>
+                    </h4>
+
+                    {(!assetHistory?.planos_preventivos || assetHistory.planos_preventivos.length === 0) ? (
+                      <div className="p-4 border border-dashed border-brand-border text-center text-xs font-mono text-brand-muted">
+                        Este ativo ainda não possui planos de manutenção preventiva vinculados.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {assetHistory.planos_preventivos.map((plano: any) => (
+                          <div key={plano.id} className="border border-brand-border bg-brand-dark/20 p-3.5 space-y-2 rounded text-xs">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className="text-[10px] font-mono text-brand-primary font-bold">{plano.codigo}</span>
+                                <h5 className="font-bold text-brand-text">{plano.nome}</h5>
+                              </div>
+                              <span className="text-[10px] font-mono bg-brand-dark px-2 py-0.5 border border-brand-border text-brand-muted uppercase">
+                                {plano.periodicidade}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-brand-muted space-y-0.5 font-mono">
+                              <div>Criticidade: <span className="text-amber-400 font-bold">{plano.criticidade}</span></div>
+                              <div>Próxima Execução: <span className="text-brand-text">{new Date(plano.proxima_execucao).toLocaleDateString('pt-BR')}</span></div>
+                              <div>Responsável: <span className="text-brand-text">{plano.responsavel?.nome || '—'}</span></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ordens Preventivas Executadas */}
+                  <div className="space-y-3 pt-2">
+                    <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider flex items-center space-x-2 border-b border-brand-border pb-2">
+                      <ShieldCheck size={14} />
+                      <span>Ordens de Manutenção Preventiva Executadas ({assetHistory?.manutencoes_preventivas?.length || 0})</span>
+                    </h4>
+
+                    {(!assetHistory?.manutencoes_preventivas || assetHistory.manutencoes_preventivas.length === 0) ? (
+                      <div className="p-4 border border-dashed border-brand-border text-center text-xs font-mono text-brand-muted">
+                        Nenhuma ordem preventiva executada para este equipamento.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {assetHistory.manutencoes_preventivas.map((ord: any) => (
+                          <div key={ord.id} className="border border-brand-border bg-brand-dark/20 p-4 space-y-3 rounded text-xs">
+                            <div className="flex flex-wrap justify-between items-center gap-2 border-b border-brand-border/40 pb-2">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-mono font-bold text-brand-primary text-xs">{ord.numero}</span>
+                                <span className={`text-[10px] font-mono px-2 py-0.5 border uppercase font-bold ${
+                                  ord.status === 'Concluída' ? 'border-green-500/30 bg-green-500/10 text-green-400' :
+                                  ord.status === 'Em andamento' ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' :
+                                  'border-brand-border bg-brand-dark text-brand-muted'
+                                }`}>
+                                  {ord.status}
+                                </span>
+                              </div>
+                              <span className="font-mono text-[11px] text-brand-muted">
+                                Abertura: {new Date(ord.data_abertura).toLocaleDateString('pt-BR')}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <span className="text-[10px] font-mono uppercase text-brand-muted block">Técnico</span>
+                                <span className="font-bold text-brand-text">{ord.tecnico?.nome || '—'}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-mono uppercase text-brand-muted block">Plano</span>
+                                <span className="text-brand-text">{ord.plan?.nome || 'Ordem Avulsa'}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-mono uppercase text-brand-muted block">Conclusão</span>
+                                <span className="font-mono text-brand-text">{ord.data_conclusao ? new Date(ord.data_conclusao).toLocaleDateString('pt-BR') : '—'}</span>
+                              </div>
+                            </div>
+
+                            {/* Checklists Executados */}
+                            {ord.executions && ord.executions.length > 0 && (
+                              <div className="bg-brand-dark/40 p-2.5 border border-brand-border/30 rounded space-y-1.5">
+                                <span className="text-[10px] font-mono uppercase text-brand-primary font-bold block">
+                                  Itens do Checklist Executados ({ord.executions.filter((e: any) => e.concluido).length}/{ord.executions.length})
+                                </span>
+                                <div className="space-y-1 font-mono text-[11px]">
+                                  {ord.executions.map((exe: any) => (
+                                    <div key={exe.id} className="flex items-center space-x-2">
+                                      <span className={exe.concluido ? 'text-green-400 font-bold' : 'text-brand-muted'}>
+                                        {exe.concluido ? '✓' : '○'}
+                                      </span>
+                                      <span className={exe.concluido ? 'text-brand-text' : 'text-brand-muted'}>
+                                        {exe.checklist_item?.descricao || 'Item de inspeção'}
+                                      </span>
+                                      {exe.observacao && <span className="text-brand-muted italic text-[10px]">({exe.observacao})</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Fotos anexadas */}
+                            {ord.photos && ord.photos.length > 0 && (
+                              <div className="space-y-1.5 pt-1">
+                                <span className="text-[10px] font-mono uppercase text-brand-muted font-bold block">Fotos de Evidência:</span>
+                                <div className="flex flex-wrap gap-2">
+                                  {ord.photos.map((photo: any) => (
+                                    <a 
+                                      key={photo.id} 
+                                      href={toApiFileUrl(photo.caminho_arquivo)} 
+                                      target="_blank" 
+                                      rel="noreferrer"
+                                      className="border border-brand-border p-1 bg-brand-dark rounded hover:border-brand-primary transition-colors block"
+                                    >
+                                      <img 
+                                        src={toApiFileUrl(photo.caminho_arquivo)} 
+                                        alt={photo.descricao || 'Foto Preventiva'} 
+                                        className="w-16 h-16 object-cover rounded" 
+                                      />
+                                      <span className="text-[9px] font-mono text-center block text-brand-muted mt-0.5">{photo.tipo}</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 5: PEÇAS & COMPRAS */}
+              {detailActiveTab === 'compras' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center border-b border-brand-border pb-2">
+                    <h4 className="font-mono text-xs font-bold text-brand-primary uppercase tracking-wider flex items-center space-x-2">
+                      <ShoppingCart size={14} />
+                      <span>Peças & Solicitações de Compra Vinculadas ({assetHistory?.solicitacoes_compra?.length || 0})</span>
+                    </h4>
+                  </div>
+
+                  {(!assetHistory?.solicitacoes_compra || assetHistory.solicitacoes_compra.length === 0) ? (
+                    <div className="p-8 border border-dashed border-brand-border text-center text-xs font-mono text-brand-muted">
+                      Nenhuma solicitação de compra ou peça registrada para o patrimônio {selectedAssetForDetail.e_patrimonio}.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {assetHistory.solicitacoes_compra.map((item: any) => (
+                        <div key={item.id} className="border border-brand-border bg-brand-dark/20 p-4 space-y-3 rounded text-xs font-mono">
+                          <div className="flex flex-wrap justify-between items-center gap-2 border-b border-brand-border/40 pb-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-bold text-brand-text text-sm">
+                                {item.product?.nome || 'Peça / Componente'}
+                              </span>
+                              <span className="bg-brand-dark px-2 py-0.5 border border-brand-border text-[10px] uppercase text-brand-primary">
+                                Qtd: {item.quantidade}
+                              </span>
+                            </div>
+                            <span className="text-green-400 font-bold">
+                              {item.valor_estimado ? (item.valor_estimado * item.quantidade).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                            <div>
+                              <span className="text-[10px] text-brand-muted uppercase block">Solicitação de Compra</span>
+                              <span className="text-brand-text font-bold">{item.request?.numero || `Req #${item.request_id}`}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-brand-muted uppercase block">Status da Compra</span>
+                              <span className="text-amber-400 font-bold">{item.request?.status || 'Pendente'}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-brand-muted uppercase block">Solicitante</span>
+                              <span className="text-brand-text">{item.request?.solicitante?.nome || '—'}</span>
+                            </div>
+                          </div>
+
+                          {item.observacao && (
+                            <div className="bg-brand-dark/40 p-2 border border-brand-border/30 text-[11px] text-brand-muted">
+                              {item.observacao}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-brand-dark/30 border-t border-brand-border flex justify-end">
+            <div className="px-4 sm:px-6 py-3.5 bg-brand-dark/40 border-t border-brand-border flex justify-between items-center">
+              <span className="text-[11px] font-mono text-brand-muted hidden sm:inline">
+                AssetTrack Rastreabilidade & Controle Patrimonial
+              </span>
               <button
                 type="button"
                 onClick={() => setShowDetailModal(false)}
-                className="border border-brand-border hover:bg-brand-card text-brand-text font-bold font-mono px-4 py-2 uppercase tracking-wider text-xs transition-colors"
+                className="border border-brand-border hover:bg-brand-card text-brand-text font-bold font-mono px-5 py-2 uppercase tracking-wider text-xs transition-colors rounded"
               >
                 Fechar
               </button>

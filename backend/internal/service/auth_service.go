@@ -34,7 +34,7 @@ func (s *AuthService) Login(req dto.LoginRequest) (*dto.TokenResponse, error) {
 	}
 
 	if !user.IsActive {
-		return nil, apperr.NewUnauthorized("Inactive user")
+		return nil, apperr.NewUnauthorized("Usuario Inativo entrar em contato com TI.")
 	}
 
 	token, err := s.createAccessToken(user.Email, user.Role)

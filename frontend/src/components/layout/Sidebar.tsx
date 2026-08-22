@@ -23,7 +23,12 @@ import {
   PanelLeftOpen
 } from 'lucide-react';
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseMobile }) => {
   const { user, logout } = useAuthStore();
   const userRole = user?.role?.toLowerCase() || '';
   const [collapsed, setCollapsed] = useState(() => {
@@ -71,46 +76,65 @@ export const Sidebar: React.FC = () => {
     item => !item.roleLimit || item.roleLimit.includes(userRole)
   );
 
-  return (
-    <aside
-      className={`app-sidebar shrink-0 bg-[#edf5fa]/88 border-r border-white/45 h-auto min-h-screen max-md:min-h-0 lg:min-h-[1057px] flex flex-col justify-between select-none backdrop-blur-md text-[#172b4d] transition-[width] duration-200 ease-out ${collapsed ? 'w-16' : 'w-60'}`}
-    >
-      <div className="flex flex-col">
-        {/* Logo */}
-        <div className={`h-14 flex items-center border-b border-brand-border ${collapsed ? 'justify-center px-2' : 'justify-between px-5'}`}>
-          {!collapsed && <span className="font-bold text-[#172b4d] tracking-tight text-lg">AssetTrack<span className="text-brand-primary font-light lowercase">.ti</span></span>}
-          <button
-            type="button"
-            onClick={() => setCollapsed((current) => !current)}
-            className="grid h-8 w-8 place-items-center rounded-lg text-brand-muted hover:bg-white hover:text-brand-primary"
-            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
-            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-          >
-            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-          </button>
+  const renderNavContent = (isMobileView: boolean) => (
+    <div className="flex flex-col h-full justify-between overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* Header */}
+        <div className={`h-14 shrink-0 flex items-center border-b border-brand-border ${!isMobileView && collapsed ? 'justify-center px-2' : 'justify-between px-5'}`}>
+          <span className="font-bold text-[#172b4d] tracking-tight text-lg">
+            AssetTrack<span className="text-brand-primary font-light lowercase">.ti</span>
+          </span>
+          {isMobileView ? (
+            <button
+              type="button"
+              onClick={onCloseMobile}
+              className="grid h-8 w-8 place-items-center rounded-lg text-brand-muted hover:bg-white hover:text-brand-primary cursor-pointer"
+              title="Fechar menu"
+              aria-label="Fechar menu"
+            >
+              <PanelLeftClose size={18} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCollapsed((current) => !current)}
+              className="grid h-8 w-8 place-items-center rounded-lg text-brand-muted hover:bg-white hover:text-brand-primary cursor-pointer"
+              title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+              aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            >
+              {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            </button>
+          )}
         </div>
 
         {/* User Info Card */}
-        <NavLink to="/profile" title={collapsed ? user?.nome : undefined} className={`border-b border-brand-border bg-white/35 hover:bg-white/70 transition-colors block cursor-pointer ${collapsed ? 'p-3' : 'p-4'}`}>
-          <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
-            <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center font-semibold text-white text-sm bg-brand-primary overflow-hidden shadow-sm">
+        <NavLink
+          to="/profile"
+          onClick={() => isMobileView && onCloseMobile?.()}
+          title={!isMobileView && collapsed ? user?.nome : undefined}
+          className={`shrink-0 border-b border-brand-border bg-white/35 hover:bg-white/70 transition-colors block cursor-pointer ${!isMobileView && collapsed ? 'p-3' : 'p-4'}`}
+        >
+          <div className={`flex items-center ${!isMobileView && collapsed ? 'justify-center' : 'space-x-3'}`}>
+            <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center font-semibold text-white text-sm bg-brand-primary overflow-hidden shadow-sm flex-shrink-0">
               {user?.avatar_url ? (
                 <img src={toApiFileUrl(user.avatar_url)} alt="Avatar" className="w-full h-full rounded-[20px] object-cover" />
               ) : (
                 user?.nome.substring(0, 2).toUpperCase()
               )}
             </div>
-            {!collapsed && <div className="overflow-hidden">
-              <h4 className="text-sm font-semibold truncate text-brand-text group-hover:text-brand-primary">{user?.nome}</h4>
-              <span className="text-[10px] text-brand-primary uppercase bg-brand-primary/10 px-2 py-0.5 rounded-full mt-1 inline-block">
-                {user?.role.replace('_', ' ')}
-              </span>
-            </div>}
+            {(isMobileView || !collapsed) && (
+              <div className="overflow-hidden">
+                <h4 className="text-sm font-semibold truncate text-brand-text group-hover:text-brand-primary">{user?.nome}</h4>
+                <span className="text-[10px] text-brand-primary uppercase bg-brand-primary/10 px-2 py-0.5 rounded-full mt-1 inline-block">
+                  {user?.role.replace('_', ' ')}
+                </span>
+              </div>
+            )}
           </div>
         </NavLink>
 
         {/* Navigation */}
-        <nav className={`p-3 space-y-0.5 overflow-y-auto ${collapsed ? 'px-2' : ''}`}>
+        <nav className={`p-3 space-y-1 flex-1 overflow-y-auto ${!isMobileView && collapsed ? 'px-2' : ''}`}>
           {menuItems.map((item) => {
             if (item.roleLimit && !item.roleLimit.includes(userRole)) {
               return null;
@@ -119,40 +143,46 @@ export const Sidebar: React.FC = () => {
               <NavLink
                 key={item.name}
                 to={item.path}
-                title={collapsed ? item.name : undefined}
+                onClick={() => isMobileView && onCloseMobile?.()}
+                title={!isMobileView && collapsed ? item.name : undefined}
                 className={({ isActive }) =>
-                  `flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-lg border border-transparent text-sm transition-all duration-150 ${
+                  `flex items-center ${!isMobileView && collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl border border-transparent text-sm transition-all duration-150 active:scale-[0.98] ${
                     isActive
                       ? 'bg-[#dbeafe] text-[#0055cc] font-semibold shadow-sm'
                       : 'text-brand-muted hover:text-brand-text hover:bg-white/65'
                   }`
                 }
               >
-                <item.icon size={18} />
-                {!collapsed && <span>{item.name}</span>}
+                <item.icon size={18} className="flex-shrink-0" />
+                {(isMobileView || !collapsed) && <span>{item.name}</span>}
               </NavLink>
             );
           })}
 
           {visibleAdminModules.length > 0 && (
             <>
-              {!collapsed && <div className="pt-4 pb-2 px-3 text-[10px] font-semibold text-brand-muted/80 tracking-widest uppercase">Administração</div>}
+              {(isMobileView || !collapsed) && (
+                <div className="pt-4 pb-2 px-3 text-[10px] font-semibold text-brand-muted/80 tracking-widest uppercase">
+                  Administração
+                </div>
+              )}
 
               {visibleAdminModules.map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.path}
-                  title={collapsed ? item.name : undefined}
+                  onClick={() => isMobileView && onCloseMobile?.()}
+                  title={!isMobileView && collapsed ? item.name : undefined}
                   className={({ isActive }) =>
-                    `flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-lg text-sm transition-all duration-150 ${
+                    `flex items-center ${!isMobileView && collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm transition-all duration-150 active:scale-[0.98] ${
                       isActive
-                        ? 'bg-[#dbeafe] text-[#0055cc] font-semibold'
+                        ? 'bg-[#dbeafe] text-[#0055cc] font-semibold shadow-sm'
                         : 'text-brand-muted/80 hover:bg-white/65 hover:text-brand-text'
                     }`
                   }
                 >
-                  <item.icon size={18} />
-                  {!collapsed && <span>{item.name}</span>}
+                  <item.icon size={18} className="flex-shrink-0" />
+                  {(isMobileView || !collapsed) && <span>{item.name}</span>}
                 </NavLink>
               ))}
             </>
@@ -161,16 +191,52 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Logout */}
-      <div className={`p-3 border-t border-brand-border ${collapsed ? 'px-2' : ''}`}>
+      <div className={`p-3 shrink-0 border-t border-brand-border ${!isMobileView && collapsed ? 'px-2' : ''}`}>
         <button
           onClick={logout}
-          title={collapsed ? 'Encerrar sessão' : undefined}
-          className={`w-full flex items-center py-2.5 rounded-lg border border-red-500/20 text-red-500 hover:bg-red-500/10 text-sm transition-all duration-150 ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'}`}
+          title={!isMobileView && collapsed ? 'Encerrar sessão' : undefined}
+          className={`w-full flex items-center py-2.5 rounded-xl border border-red-500/20 text-red-500 hover:bg-red-500/10 text-sm transition-all duration-150 active:scale-95 cursor-pointer ${
+            !isMobileView && collapsed ? 'justify-center px-2' : 'space-x-3 px-3'
+          }`}
         >
-          <LogOut size={18} />
-          {!collapsed && <span>Encerrar Sessão</span>}
+          <LogOut size={18} className="flex-shrink-0" />
+          {(isMobileView || !collapsed) && <span>Encerrar Sessão</span>}
         </button>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Mobile Drawer Backdrop */}
+      {isOpenMobile && (
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/45 backdrop-blur-sm transition-opacity animate-fade-in"
+          onClick={onCloseMobile}
+        />
+      )}
+
+      {/* Mobile Off-Canvas Drawer */}
+      <aside
+        className={`md:hidden fixed top-0 bottom-0 left-0 z-50 w-72 max-w-[85vw] h-full max-h-[100dvh] bg-[#edf5fa] border-r border-white/60 shadow-2xl flex flex-col justify-between select-none text-[#172b4d] transform transition-transform duration-250 ease-out ${
+          isOpenMobile ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 4px)',
+          paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)'
+        }}
+      >
+        {renderNavContent(true)}
+      </aside>
+
+      {/* Desktop & Tablet Persistent Sidebar */}
+      <aside
+        className={`app-sidebar hidden md:flex shrink-0 bg-[#edf5fa]/88 border-r border-white/45 h-full max-h-[100dvh] flex-col justify-between select-none backdrop-blur-md text-[#172b4d] transition-[width] duration-200 ease-out ${
+          collapsed ? 'w-16' : 'w-60'
+        }`}
+      >
+        {renderNavContent(false)}
+      </aside>
+    </>
   );
 };

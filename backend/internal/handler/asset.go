@@ -1048,24 +1048,34 @@ func (h *AssetHandler) ScanQRCode(c *gin.Context) {
 		return
 	}
 
-	decoded := matrix.Content
+	decoded := strings.TrimSpace(matrix.Content)
 	var asset *models.Asset
 
 	if strings.Contains(decoded, "assets/ep/") {
 		patrimonio := strings.Split(decoded, "assets/ep/")[1]
-		asset, err = h.repo.GetByEPatrimonio(patrimonio)
+		patrimonio = strings.Split(patrimonio, "?")[0]
+		patrimonio = strings.Split(patrimonio, "/")[0]
+		asset, err = h.repo.GetByEPatrimonio(strings.TrimSpace(patrimonio))
 	} else if strings.Contains(decoded, "assets/sn/") {
 		serial := strings.Split(decoded, "assets/sn/")[1]
-		asset, err = h.repo.GetByEPatrimonio(serial)
+		serial = strings.Split(serial, "?")[0]
+		serial = strings.Split(serial, "/")[0]
+		asset, err = h.repo.GetByEPatrimonio(strings.TrimSpace(serial))
 	} else if strings.Contains(decoded, "assets/") {
 		assetIDStr := strings.Split(decoded, "assets/")[1]
+		assetIDStr = strings.Split(assetIDStr, "?")[0]
+		assetIDStr = strings.Split(assetIDStr, "/")[0]
 		assetID, _ := strconv.ParseUint(assetIDStr, 10, 32)
 		asset, err = h.repo.GetByID(uint(assetID))
 	} else {
-		// Try parsing direct ID
+		// Try parsing direct ID first
 		assetID, errParse := strconv.ParseUint(decoded, 10, 32)
 		if errParse == nil {
 			asset, err = h.repo.GetByID(uint(assetID))
+		}
+		// If not found by ID or decode is alphanumeric, search by EPatrimonio
+		if asset == nil {
+			asset, err = h.repo.GetByEPatrimonio(decoded)
 		}
 	}
 
@@ -1182,5 +1192,108 @@ func (h *AssetHandler) BulkDuplicate(c *gin.Context) {
 		"success_count": successCount,
 		"failed_count":  failedCount,
 		"results":       results,
+	})
+}
+
+// GetAssetHistory returns the complete audit and operational history of an asset
+func (h *AssetHandler) GetAssetHistory(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	assetID := uint(id)
+
+	asset, err := h.repo.GetByID(assetID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ativo não encontrado"})
+		return
+	}
+
+	db := h.repo.DB()
+
+	// 1. Movimentações
+	var movs []models.Movimentacao
+	_ = db.Where("asset_id = ?", assetID).
+		Preload("DeUser").
+		Preload("ParaUser").
+		Order("data desc").
+		Find(&movs).Error
+
+	// 2. Solicitações de Empréstimo
+	var sols []models.Solicitacao
+	_ = db.Where("asset_id = ?", assetID).
+		Preload("Solicitante").
+		Preload("Aprovador").
+		Preload("Confirmador").
+		Preload("Recebedor").
+		Preload("Termo").
+		Order("data_solicitacao desc").
+		Find(&sols).Error
+
+	// 3. Manutenções Corretivas / Gerais
+	var maints []models.Manutencao
+	_ = db.Where("asset_id = ?", assetID).
+		Preload("Responsavel").
+		Preload("DestinoUser").
+		Order("data_entrada desc").
+		Find(&maints).Error
+
+	// 4. Solicitações de Manutenção
+	var solMaints []models.SolicitacaoManutencao
+	_ = db.Where("asset_id = ?", assetID).
+		Preload("Solicitante").
+		Preload("Responsavel").
+		Preload("Manutencao").
+		Order("data_solicitacao desc").
+		Find(&solMaints).Error
+
+	// 5. Ordens de Manutenção Preventiva
+	var prevOrders []models.MaintenanceOrder
+	_ = db.Where("asset_id = ?", assetID).
+		Preload("Plan").
+		Preload("Tecnico").
+		Preload("ValidadoPor").
+		Preload("Materials").
+		Preload("Photos").
+		Preload("History").
+		Preload("Executions.ChecklistItem").
+		Order("data_abertura desc").
+		Find(&prevOrders).Error
+
+	// 6. Planos Preventivos Vinculados
+	var planAssets []models.MaintenancePlanAsset
+	var planIDs []uint
+	_ = db.Where("asset_id = ?", assetID).Find(&planAssets).Error
+	for _, pa := range planAssets {
+		planIDs = append(planIDs, pa.PlanID)
+	}
+	var plans []models.MaintenancePlan
+	if len(planIDs) > 0 {
+		_ = db.Where("id IN ?", planIDs).
+			Preload("Responsavel").
+			Preload("Departamento").
+			Find(&plans).Error
+	}
+
+	// 7. Solicitações de Compra / Peças vinculadas
+	var purchaseItems []models.PurchaseRequestItem
+	_ = db.Joins("JOIN purchase_requests ON purchase_requests.id = purchase_request_items.request_id").
+		Where("purchase_request_items.observacao ILIKE ? OR purchase_requests.justificativa ILIKE ?", "%"+asset.EPatrimonio+"%", "%"+asset.EPatrimonio+"%").
+		Preload("Request.Solicitante").
+		Preload("Product").
+		Preload("FornecedorSugerido").
+		Order("purchase_request_items.id desc").
+		Find(&purchaseItems).Error
+
+	c.JSON(http.StatusOK, gin.H{
+		"asset":                   asset,
+		"movimentacoes":           movs,
+		"solicitacoes_emprestimo": sols,
+		"manutencoes":             maints,
+		"solicitacoes_manutencao": solMaints,
+		"manutencoes_preventivas": prevOrders,
+		"planos_preventivos":      plans,
+		"solicitacoes_compra":     purchaseItems,
 	})
 }

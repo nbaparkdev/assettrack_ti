@@ -180,7 +180,7 @@ func (h *QRHandler) LoginWithQR(c *gin.Context) {
 	}
 
 	if !user.IsActive {
-		c.JSON(http.StatusUnauthorized, gin.H{"detail": "Conta não está ativa"})
+		c.JSON(http.StatusUnauthorized, gin.H{"detail": "Usuario Inativo entrar em contato com TI."})
 		return
 	}
 

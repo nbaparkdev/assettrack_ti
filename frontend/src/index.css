@@ -14,17 +14,43 @@
   color: #172b4d;
   background: #7bb7df;
   color-scheme: light;
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  min-height: 100%;
+  min-height: 100dvh;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
 
 body {
-  margin: 0;
-  min-height: 100vh;
   background:
     radial-gradient(circle at 86% 8%, rgba(255,255,255,.30), transparent 26rem),
     radial-gradient(circle at 20% 100%, rgba(76, 154, 210, .34), transparent 36rem),
     linear-gradient(135deg, #a9d4ee 0%, #79b5d9 47%, #68acd3 100%);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button, input, select, textarea { font: inherit; }
@@ -37,12 +63,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 /* Shared AssetTrack Board surface: keeps legacy markup consistent while pages migrate. */
-.app-shell { min-height: 100vh; color: var(--color-brand-text); }
-.app-content { background: transparent; }
+.app-shell {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  min-height: 100%;
+  min-height: 100dvh;
+  overflow: hidden;
+  color: var(--color-brand-text);
+}
+.app-content {
+  background: transparent;
+  -webkit-overflow-scrolling: touch;
+}
 .app-content [class*="bg-brand-card"] {
-  background-color: rgba(255, 255, 255, .88) !important;
+  background-color: rgba(255, 255, 255, .90) !important;
   border-radius: 14px;
-  box-shadow: 0 6px 18px rgba(9, 30, 66, .10);
+  box-shadow: 0 6px 18px rgba(9, 30, 66, .08);
 }
 .app-content [class*="bg-brand-dark"] { background-color: #f7f9fc !important; }
 .app-content input[class*="bg-brand-dark"],
@@ -63,8 +100,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .app-content [class*="bg-brand-primary"] { box-shadow: 0 3px 8px rgba(12, 102, 228, .17); }
 .app-content [class*="bg-brand-primary"]:not([class*="/10"]):not([class*="/5"]) { color: white; }
 
-/* Unified modal veil. The selector is limited to page content so fixed widgets
-   and critical emergency overlays retain their own visual priority. */
+/* Unified modal veil */
 .app-content [class~="fixed"][class~="inset-0"][class*="justify-center"] {
   background-color: rgba(9, 30, 66, .46) !important;
   -webkit-backdrop-filter: blur(5px);
@@ -80,12 +116,30 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   opacity: .48;
 }
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: rgba(255,255,255,.16); }
 ::-webkit-scrollbar-thumb { background: rgba(23, 43, 77, .28); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(23, 43, 77, .45); }
 
+/* Hide scrollbar on horizontal submenus for touch devices */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Responsive adjustments for phones and tablets */
 @media (max-width: 768px) {
-  .app-content { padding: 1rem !important; }
-  .app-sidebar { height: auto; }
+  .app-content {
+    padding: 0.875rem !important;
+    padding-bottom: calc(5rem + var(--sab)) !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .app-content {
+    padding: 1.25rem !important;
+  }
 }

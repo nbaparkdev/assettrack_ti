@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { maintenanceApi } from '../api/maintenance';
 import { assetsApi } from '../api/assets';
+import { procurementApi } from '../api/procurement';
 import { useAuthStore } from '../stores/authStore';
 import type { SolicitacaoManutencao, Asset } from '../types';
 import { QRHandoverModal } from '../components/qr/QRHandoverModal';
@@ -14,7 +15,11 @@ import {
   QrCode, 
   DollarSign,
   User,
-  ExternalLink
+  ExternalLink,
+  ShoppingCart,
+  CheckCircle2,
+  Link as LinkIcon,
+  RefreshCw
 } from 'lucide-react';
 
 export const MaintenancePage: React.FC = () => {
@@ -48,6 +53,64 @@ export const MaintenancePage: React.FC = () => {
 
   // QR Handover modal integration
   const [showQRModal, setShowQRModal] = useState(false);
+
+  // Purchase request modal for maintenance parts
+  const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
+  const [purchaseTargetRequest, setPurchaseTargetRequest] = useState<SolicitacaoManutencao | null>(null);
+  const [partName, setPartName] = useState('');
+  const [partLink, setPartLink] = useState('');
+  const [partQty, setPartQty] = useState<number>(1);
+  const [partEstimatedVal, setPartEstimatedVal] = useState<string>('');
+  const [partJustification, setPartJustification] = useState('');
+  const [partItemType, setPartItemType] = useState('Consumo');
+  const [partSubmitting, setPartSubmitting] = useState(false);
+  const [purchaseSuccessMessage, setPurchaseSuccessMessage] = useState<string | null>(null);
+
+  const handleOpenPurchaseModal = (req: SolicitacaoManutencao) => {
+    setPurchaseTargetRequest(req);
+    setPartName('');
+    setPartLink('');
+    setPartQty(1);
+    setPartEstimatedVal('');
+    setPartJustification(`Compra de peça/reposição para o ativo ${req.asset?.e_patrimonio} (${req.asset?.nome}) - Chamado #${req.id}`);
+    setPartItemType('Consumo');
+    setPurchaseSuccessMessage(null);
+    setPurchaseModalOpen(true);
+  };
+
+  const handleSubmitPurchaseRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!purchaseTargetRequest || !partName.trim()) {
+      setError('Informe o nome do produto/peça a comprar.');
+      return;
+    }
+
+    try {
+      setPartSubmitting(true);
+      setError(null);
+      const val = partEstimatedVal ? Number(partEstimatedVal.replace(',', '.')) : 0;
+      await procurementApi.createMaintenancePurchaseRequest({
+        nome_produto: partName.trim(),
+        link_produto: partLink.trim() || undefined,
+        quantidade: partQty > 0 ? partQty : 1,
+        valor_estimado: isNaN(val) ? 0 : val,
+        justificativa: partJustification.trim(),
+        tipo_item: partItemType,
+        asset_id: purchaseTargetRequest.asset_id,
+        maintenance_request_id: purchaseTargetRequest.id,
+      });
+
+      setPurchaseSuccessMessage('Solicitação de compra encaminhada com sucesso para o Comprador!');
+      setTimeout(() => {
+        setPurchaseModalOpen(false);
+        setPurchaseSuccessMessage(null);
+      }, 2000);
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Erro ao gerar solicitação de compra.');
+    } finally {
+      setPartSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     fetchRequests();
@@ -198,16 +261,16 @@ export const MaintenancePage: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-brand-text">Gestão de Oficina & Manutenção</h1>
-          <p className="text-sm text-brand-muted">Acompanhe solicitações corretivas, preventivas e relatórios técnicos</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-brand-text">Gestão de Oficina & Manutenção</h1>
+          <p className="text-xs sm:text-sm text-brand-muted mt-0.5">Acompanhe solicitações corretivas, preventivas e relatórios técnicos</p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {isTechnicianOrAbove && (
             <button
               onClick={() => setShowQRModal(true)}
-              className="flex items-center space-x-2 px-4 py-2.5 bg-brand-dark border border-brand-primary/30 hover:border-brand-primary text-brand-primary font-medium transition-all"
+              className="flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-3.5 py-2.5 bg-white/70 border border-brand-primary/40 hover:bg-white text-brand-primary font-medium rounded-xl transition-all active:scale-95 cursor-pointer shadow-sm min-h-[40px]"
             >
               <QrCode size={18} />
               <span>Scanner de Handover</span>
@@ -215,7 +278,7 @@ export const MaintenancePage: React.FC = () => {
           )}
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center space-x-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-medium transition-all"
+            className="flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white font-medium rounded-xl transition-all shadow-md shadow-brand-primary/20 active:scale-95 cursor-pointer min-h-[40px]"
           >
             <Plus size={18} />
             <span>Solicitar Manutenção</span>
@@ -256,33 +319,33 @@ export const MaintenancePage: React.FC = () => {
       )}
 
       {/* Tabs */}
-      <div className="border-b border-brand-border flex space-x-6">
+      <div className="w-full min-w-0 max-w-full overflow-x-auto border-b border-brand-border flex items-center gap-2 pb-0.5 no-scrollbar scroll-smooth">
         <button
           onClick={() => { setActiveTab('requests'); setStatusFilter(''); }}
-          className={`py-3 text-sm font-semibold border-b-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer rounded-t-lg ${
             activeTab === 'requests'
-              ? 'border-brand-primary text-brand-primary opacity-100'
-              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
+              ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
+              : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
           }`}
         >
           Triagem e Solicitações ({totalPending})
         </button>
         <button
           onClick={() => { setActiveTab('active'); setStatusFilter(''); }}
-          className={`py-3 text-sm font-semibold border-b-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer rounded-t-lg ${
             activeTab === 'active'
-              ? 'border-brand-primary text-brand-primary opacity-100'
-              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
+              ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
+              : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
           }`}
         >
           Oficina Ativa ({totalInWorkshop})
         </button>
         <button
           onClick={() => { setActiveTab('history'); setStatusFilter(''); }}
-          className={`py-3 text-sm font-semibold border-b-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer rounded-t-lg ${
             activeTab === 'history'
-              ? 'border-brand-primary text-brand-primary opacity-100'
-              : 'border-transparent text-brand-text opacity-[0.55] hover:opacity-75'
+              ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
+              : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
           }`}
         >
           Histórico de Reparos ({totalConcluded})
@@ -446,12 +509,35 @@ export const MaintenancePage: React.FC = () => {
                   )}
 
                   {request.status === 'aceita' && (
+                    <div className="flex space-x-2 w-full">
+                      <button
+                        onClick={() => setConcludingRequestId(request.id)}
+                        className="flex-1 py-1.5 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1"
+                      >
+                        <Check size={14} />
+                        <span>Concluir Reparo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPurchaseModal(request)}
+                        className="py-1.5 px-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center justify-center space-x-1 transition-colors"
+                        title="Solicitar compra de peça/suprimento"
+                      >
+                        <ShoppingCart size={13} />
+                        <span>Pedir Peça</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {request.status === 'pendente' && (
                     <button
-                      onClick={() => setConcludingRequestId(request.id)}
-                      className="w-full py-1.5 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1"
+                      type="button"
+                      onClick={() => handleOpenPurchaseModal(request)}
+                      className="w-full py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center justify-center space-x-1 transition-colors mt-2"
+                      title="Solicitar compra de peça para este chamado"
                     >
-                      <Check size={14} />
-                      <span>Concluir Reparo</span>
+                      <ShoppingCart size={13} />
+                      <span>Solicitar Compra de Peça</span>
                     </button>
                   )}
 
@@ -643,6 +729,132 @@ export const MaintenancePage: React.FC = () => {
                   className="flex-1 py-1.5 bg-brand-primary text-brand-dark text-xs font-semibold"
                 >
                   Confirmar Conclusão
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PURCHASE REQUEST MODAL FOR MAINTENANCE PARTS */}
+      {purchaseModalOpen && purchaseTargetRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-dark/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg bg-brand-card border border-amber-500/50 shadow-2xl overflow-hidden rounded-md">
+            <div className="bg-amber-500/10 border-b border-amber-500/30 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-amber-400">
+                <ShoppingCart size={20} />
+                <h3 className="font-bold font-mono text-sm uppercase tracking-wider text-amber-300">
+                  Solicitação de Compra de Peça
+                </h3>
+              </div>
+              <button
+                onClick={() => setPurchaseModalOpen(false)}
+                className="text-brand-muted hover:text-brand-text p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitPurchaseRequest} className="p-6 space-y-4">
+              <div className="bg-brand-dark/50 p-3 border border-brand-border/40 text-xs font-mono rounded">
+                <div className="text-brand-muted text-[10px] uppercase">Equipamento Vinculado:</div>
+                <div className="text-brand-text font-bold text-sm">
+                  {purchaseTargetRequest.asset?.nome} ({purchaseTargetRequest.asset?.e_patrimonio})
+                </div>
+                <div className="text-[11px] text-brand-muted mt-0.5">Chamado #{purchaseTargetRequest.id}</div>
+              </div>
+
+              {purchaseSuccessMessage && (
+                <div className="p-3 bg-green-500/10 border border-green-500/30 text-green-400 font-mono text-xs flex items-center space-x-2">
+                  <CheckCircle2 size={16} />
+                  <span>{purchaseSuccessMessage}</span>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-xs font-mono font-bold text-brand-text uppercase block">
+                  Nome da Peça / Produto *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={partName}
+                  onChange={(e) => setPartName(e.target.value)}
+                  placeholder="Ex: Teclado Dell Latitude 5440, SSD NVMe 512GB, Bateria..."
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-mono font-bold text-brand-text uppercase flex items-center space-x-1">
+                  <LinkIcon size={12} className="text-amber-400" />
+                  <span>Link do Site / Loja (URL do Fornecedor)</span>
+                </label>
+                <input
+                  type="url"
+                  value={partLink}
+                  onChange={(e) => setPartLink(e.target.value)}
+                  placeholder="https://www.mercadolivre.com.br/... ou https://kabum.com.br/..."
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-mono font-bold text-brand-text uppercase block">
+                    Quantidade *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={partQty}
+                    onChange={(e) => setPartQty(Number(e.target.value))}
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-mono font-bold text-brand-text uppercase block">
+                    Valor Estimado (R$)
+                  </label>
+                  <input
+                    type="text"
+                    value={partEstimatedVal}
+                    onChange={(e) => setPartEstimatedVal(e.target.value)}
+                    placeholder="Ex: 149.90"
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-mono font-bold text-brand-text uppercase block">
+                  Justificativa da Troca / Reposição
+                </label>
+                <textarea
+                  rows={2}
+                  value={partJustification}
+                  onChange={(e) => setPartJustification(e.target.value)}
+                  placeholder="Explique a necessidade da peça..."
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPurchaseModalOpen(false)}
+                  className="w-1/3 py-2.5 bg-brand-dark border border-brand-border text-xs font-mono uppercase text-brand-muted hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={partSubmitting || !partName.trim()}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-brand-dark font-bold font-mono text-xs uppercase flex items-center justify-center space-x-2 disabled:opacity-50 shadow-md"
+                >
+                  {partSubmitting && <RefreshCw size={14} className="animate-spin" />}
+                  <span>Encaminhar para Comprador</span>
                 </button>
               </div>
             </form>
