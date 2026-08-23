@@ -67,6 +67,29 @@ Módulo de alta prioridade para notificação instantânea de incidentes crític
 
 ---
 
+## 📢 Comunicados & Avisos Oficiais do Sistema
+
+Módulo de transmissão de comunicados e comunicados institucionais para toda a equipe.
+
+- **Criação Multimídia por Staff:** Administradores, Gerentes e Técnicos podem publicar comunicados em `/alertas` contendo texto formatado, links de ação, imagens em alta resolução (upload direto) e vídeos (uploads de arquivos MP4/WEBM ou links incorporados do YouTube/Vimeo).
+- **Exibição Universal na Dashboard:** Seção em destaque no topo do Dashboard para todos os perfis de usuários com atualização via polling a cada 15 segundos.
+- **Visualizador Modal Interativo:** Ao clicar em qualquer card de aviso na Dashboard, abre-se um modal amplo com reprodução de vídeo em tela cheia, galeria de fotos e texto completo.
+
+---
+
+## 📱 Aplicativo Android (Capacitor) & Arquitetura Offline-First
+
+- **Arquitetura Offline-First:** Fila de mutações persistida no armazenamento local (`localStorage`), permitindo que técnicos registrem ações (chamados, manutenções e verificações de ativos) mesmo totalmente sem sinal de internet.
+- **Sincronização Automática:** Reconexão transparente ao sinal de rede com indicador visual de status e contagem de itens sincronizados.
+- **Botão e Modal de Download do APK na Web:** Botão em destaque no cabeçalho da versão web com modal interativo que exibe:
+  - Download direto do arquivo `AssetTrack-TI-v1.2.0.apk` (5.6 MB).
+  - QR Code apontando diretamente para a URL da API para leitura e download imediato no celular.
+  - Notas da versão e changelog.
+  - Guia de 3 passos simples para instalação no Android.
+- **Notificador de Novas Versões:** Verificação em segundo plano informando a disponibilidade de atualizações do aplicativo com 1 clique.
+
+---
+
 ## 🛠️ Manutenção
 
 - **Solicitação de Reparo:** Usuários podem relatar defeitos em seus equipamentos.

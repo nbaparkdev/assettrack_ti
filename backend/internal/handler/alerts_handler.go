@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -424,3 +427,51 @@ func (h *AlertsHandler) DeleteAviso(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Aviso excluído"})
 }
+
+// UploadAvisoMedia handles image and video uploads for system notices
+func (h *AlertsHandler) UploadAvisoMedia(c *gin.Context) {
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nenhum arquivo enviado"})
+		return
+	}
+
+	// 100MB max limit for videos/images
+	if fileHeader.Size > 100*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Arquivo excede o limite máximo de 100MB"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	mediaTipo := "imagem"
+	if ext == ".mp4" || ext == ".webm" || ext == ".mov" || ext == ".mkv" || ext == ".avi" {
+		mediaTipo = "video"
+	} else if ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" || ext == ".gif" || ext == ".svg" {
+		mediaTipo = "imagem"
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Formato de arquivo não suportado. Envie imagens ou vídeos."})
+		return
+	}
+
+	uploadDir := filepath.Join("uploads", "avisos")
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar diretório de uploads"})
+		return
+	}
+
+	filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), filepath.Base(fileHeader.Filename))
+	dst := filepath.Join(uploadDir, filename)
+
+	if err := c.SaveUploadedFile(fileHeader, dst); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao salvar arquivo"})
+		return
+	}
+
+	publicURL := fmt.Sprintf("/uploads/avisos/%s", filename)
+	c.JSON(http.StatusOK, gin.H{
+		"url":        publicURL,
+		"midia_tipo": mediaTipo,
+		"filename":   filename,
+	})
+}
+

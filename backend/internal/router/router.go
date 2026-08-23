@@ -116,6 +116,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	settingsHandler := handler.NewSettingsHandler(systemSettingsRepo)
 	emailLogHandler := handler.NewEmailLogHandler(emailLogRepo)
 	aiHandler := handler.NewAIHandler(aiSvc)
+	appHandler := handler.NewAppHandler()
 
 	// Auth middleware helper
 	authMW := middleware.AuthMiddleware(authSvc, userRepo)
@@ -133,6 +134,13 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	// API v1
 	v1 := r.Group("/api/v1")
 	{
+		// App & APK Download routes (public)
+		appGroup := v1.Group("/app")
+		{
+			appGroup.GET("/version", appHandler.GetAppVersion)
+			appGroup.GET("/download", appHandler.DownloadAPK)
+		}
+
 		// Auth routes (public)
 		auth := v1.Group("/auth")
 		{
@@ -337,6 +345,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			avisos.GET("", alertsHandler.ListAvisos)
 			avisos.GET("/ativos", alertsHandler.ListActiveAvisos)
 			avisos.POST("", rManager, alertsHandler.CreateAviso)
+			avisos.POST("/upload", rManager, alertsHandler.UploadAvisoMedia)
 			avisos.PUT("/:avisoId", rManager, alertsHandler.UpdateAviso)
 			avisos.POST("/:avisoId/toggle", rManager, alertsHandler.ToggleAviso)
 			avisos.DELETE("/:avisoId", rManager, alertsHandler.DeleteAviso)

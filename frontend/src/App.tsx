@@ -21,6 +21,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { EmailLogsPage } from './pages/EmailLogsPage';
 import { SetoresPage } from './pages/SetoresPage';
+import { AppUpdateNotifier } from './components/layout/AppUpdateNotifier';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <AppUpdateNotifier />
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />

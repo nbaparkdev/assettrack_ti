@@ -3,6 +3,8 @@ import { useAuthStore } from '../../stores/authStore';
 import { Link } from 'react-router-dom';
 import { Bell, CircleHelp, Home, Plus, Search, Settings, ShieldCheck, ShieldAlert, User as UserIcon, Menu } from 'lucide-react';
 import { triggerEmergencyAlertModal } from '../emergency/EmergencyGlobalHandler';
+import { OfflineStatusIndicator } from './OfflineStatusIndicator';
+import { ApkDownloadButton } from './ApkDownloadButton';
 
 interface HeaderProps {
   onOpenMobileMenu?: () => void;
@@ -45,7 +47,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         </label>
       </div>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
+        {/* APK Download Button for Web Users */}
+        <ApkDownloadButton />
+
+        {/* Offline Status & Sync Indicator */}
+        <OfflineStatusIndicator />
+
         {/* Emergency Trigger Button for ALL users on Desktop / Web */}
         <button
           onClick={triggerEmergencyAlertModal}

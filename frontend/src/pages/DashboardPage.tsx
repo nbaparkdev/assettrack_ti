@@ -11,12 +11,14 @@ import {
   AlertTriangle, Info, QrCode, ArrowLeftRight, UserCheck,
   Laptop, Calendar, Clock, X, Send, Paperclip, Star, TrendingUp,
   PlusCircle, Activity, Layers, BarChart3, PieChart, ShieldCheck, RefreshCw,
-  ChevronRight, Package, Zap, ShieldAlert
+  ChevronRight, Package, Zap, ShieldAlert, ExternalLink, Eye, Maximize2
 } from 'lucide-react';
 import { triggerEmergencyAlertModal } from '../components/emergency/EmergencyGlobalHandler';
 import { serviceDeskApi } from '../api/serviceDesk';
+import { alertsApi } from '../api/alerts';
 import { toApiFileUrl } from '../api/client';
 import type { ServiceTicket } from '../types';
+import type { Aviso } from '../types/alerts';
 
 
 import {
@@ -55,6 +57,10 @@ export const DashboardPage: React.FC = () => {
   const [myActiveLoans, setMyActiveLoans] = useState<Solicitacao[]>([]);
   const [myMaintenanceRequests, setMyMaintenanceRequests] = useState<SolicitacaoManutencao[]>([]);
   const [extraLoading, setExtraLoading] = useState(false);
+
+  // System notices (Avisos) for all users
+  const [activeAvisos, setActiveAvisos] = useState<Aviso[]>([]);
+  const [selectedAviso, setSelectedAviso] = useState<Aviso | null>(null);
 
   // Service desk states for collaborator tracking
   const [myTickets, setMyTickets] = useState<ServiceTicket[]>([]);
@@ -111,12 +117,22 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const fetchActiveAvisos = async () => {
+    try {
+      const data = await alertsApi.listActiveAvisos();
+      setActiveAvisos(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar avisos ativos:', err);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchStats();
-    if (!isStaff) {
-      await fetchUserDashboardData();
-    }
+    await Promise.all([
+      fetchStats(),
+      fetchActiveAvisos(),
+      !isStaff ? fetchUserDashboardData() : Promise.resolve(),
+    ]);
   };
 
   const handleConfirmReceipt = async (id: number) => {
@@ -376,10 +392,19 @@ export const DashboardPage: React.FC = () => {
   // 1. Primary data load effect
   useEffect(() => {
     fetchStats();
+    fetchActiveAvisos();
     if (!isStaff) {
       fetchUserDashboardData();
     }
   }, [isStaff]);
+
+  // Real-time polling for active avisos (for all users)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchActiveAvisos();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   // 2. Real-time synchronization (polling) for tickets on collaborator dashboard
   useEffect(() => {
@@ -536,6 +561,149 @@ export const DashboardPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* System Announcements & Avisos (Visible to ALL users on Desktop & Mobile) */}
+      {activeAvisos.length > 0 ? (
+        <div className="bg-brand-card border border-brand-primary/40 p-4 md:p-5 rounded-sm shadow-xl space-y-4">
+          <div className="flex items-center justify-between border-b border-brand-border/60 pb-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 bg-brand-primary/20 text-brand-primary rounded">
+                <BellRing size={20} className="animate-bounce" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold font-mono uppercase tracking-wider text-brand-text m-0">
+                  Comunicados & Avisos Oficiais ({activeAvisos.length})
+                </h3>
+                <p className="text-xs text-brand-muted mt-0.5">Informações e comunicados importantes transmitidos pela equipe de TI</p>
+              </div>
+            </div>
+            {isStaff && (
+              <Link
+                to="/alertas"
+                className="px-3 py-1.5 bg-brand-primary/10 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary hover:text-brand-dark transition-all text-xs font-semibold rounded font-mono uppercase"
+              >
+                Gerenciar Avisos
+              </Link>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {activeAvisos.map((aviso) => (
+              <div
+                key={aviso.id}
+                onClick={() => setSelectedAviso(aviso)}
+                className="bg-brand-dark/60 border border-brand-border hover:border-brand-primary/60 transition-all p-4 rounded-sm flex flex-col justify-between space-y-3 cursor-pointer group shadow-sm hover:shadow-lg relative overflow-hidden"
+              >
+                {/* Visual hint on hover */}
+                <div className="absolute top-0 right-0 left-0 h-0.5 bg-brand-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="font-bold text-brand-text text-sm sm:text-base leading-snug group-hover:text-brand-primary transition-colors flex items-center gap-1.5">
+                      <span>{aviso.titulo}</span>
+                    </h4>
+                    <div className="flex items-center space-x-1.5 shrink-0">
+                      <span className="text-[10px] font-mono text-brand-muted bg-brand-card px-2 py-0.5 border border-brand-border">
+                        {new Date(aviso.data_cadastro).toLocaleDateString('pt-BR')}
+                      </span>
+                      <span className="text-brand-primary opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-brand-primary/10 rounded" title="Ampliar comunicado">
+                        <Maximize2 size={13} />
+                      </span>
+                    </div>
+                  </div>
+
+                  {aviso.texto && (
+                    <p className="text-xs sm:text-sm text-brand-muted line-clamp-3 leading-relaxed">
+                      {aviso.texto}
+                    </p>
+                  )}
+
+                  {/* Media Thumbnail / Preview */}
+                  {aviso.midia_url && (
+                    <div className="pt-2 rounded overflow-hidden relative">
+                      {aviso.midia_tipo === 'video' || aviso.midia_url.includes('youtube') || aviso.midia_url.includes('youtu.be') ? (
+                        <div className="relative rounded overflow-hidden border border-brand-border aspect-video bg-black flex items-center justify-center">
+                          {aviso.midia_url.includes('youtube.com/watch?v=') || aviso.midia_url.includes('youtu.be/') ? (
+                            <iframe
+                              src={aviso.midia_url.includes('youtu.be/')
+                                ? `https://www.youtube.com/embed/${aviso.midia_url.split('youtu.be/')[1]?.split('?')[0]}`
+                                : `https://www.youtube.com/embed/${new URLSearchParams(aviso.midia_url.split('?')[1]).get('v')}`}
+                              className="w-full h-full pointer-events-none"
+                              title={aviso.titulo}
+                            />
+                          ) : (
+                            <video
+                              src={toApiFileUrl(aviso.midia_url)}
+                              className="w-full h-full object-cover pointer-events-none"
+                            />
+                          )}
+                          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 flex items-center justify-center transition-all">
+                            <div className="p-2.5 bg-brand-primary/90 text-brand-dark rounded-full shadow-lg group-hover:scale-110 transition-transform flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold font-mono">
+                              <Eye size={14} />
+                              <span>Assistir / Ver Detalhes</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative rounded overflow-hidden border border-brand-border max-h-52 bg-black">
+                          <img
+                            src={toApiFileUrl(aviso.midia_url)}
+                            alt={aviso.titulo}
+                            className="w-full max-h-52 object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2.5">
+                            <span className="text-[11px] font-mono text-white flex items-center space-x-1">
+                              <Maximize2 size={12} className="text-brand-primary" />
+                              <span>Clique para ampliar imagem</span>
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-brand-border/40 flex items-center justify-between text-xs">
+                  <span className="text-brand-primary font-mono text-[11px] flex items-center space-x-1 group-hover:underline">
+                    <Eye size={12} />
+                    <span>Ver comunicado completo</span>
+                  </span>
+                  {aviso.link_url && (
+                    <a
+                      href={aviso.link_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1 bg-brand-primary/10 border border-brand-primary/30 text-brand-primary text-xs rounded hover:bg-brand-primary hover:text-brand-dark transition-all"
+                    >
+                      <span>{aviso.link_texto || 'Acessar Link'}</span>
+                      <ExternalLink size={11} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : isStaff ? (
+        <div className="bg-brand-card border border-brand-border p-4 rounded-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-brand-primary/10 text-brand-primary rounded">
+              <BellRing size={20} />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold font-mono uppercase text-brand-text">Avisos do Sistema & Comunicados</h4>
+              <p className="text-xs text-brand-muted">Publique avisos com imagens, vídeos e links que aparecem aqui na Dashboard para todos os usuários.</p>
+            </div>
+          </div>
+          <Link
+            to="/alertas"
+            className="px-3.5 py-2 bg-brand-primary text-brand-dark font-bold text-xs rounded hover:bg-brand-primary/90 transition-all font-mono uppercase shrink-0"
+          >
+            + Criar Novo Comunicado
+          </Link>
+        </div>
+      ) : null}
 
       {/* Alert Banner for Pending Asset Requests (Staff/Managers) */}
       {isStaff && stats.pending_asset_requests > 0 && (
@@ -1645,6 +1813,107 @@ export const DashboardPage: React.FC = () => {
             <div className="h-4 bg-amber-500" style={{
               backgroundImage: 'repeating-linear-gradient(-45deg, #f59e0b, #f59e0b 10px, #000 10px, #000 20px)'
             }} />
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Visualização Completa do Aviso / Comunicado */}
+      {selectedAviso && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+          onClick={() => setSelectedAviso(null)}
+        >
+          <div
+            className="w-full max-w-3xl bg-brand-card border border-brand-border shadow-2xl rounded-sm flex flex-col max-h-[92vh] my-auto overflow-hidden animate-in fade-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-brand-border flex items-center justify-between bg-brand-dark/60 shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-brand-primary/20 text-brand-primary rounded">
+                  <BellRing size={22} className="animate-bounce" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-brand-text text-base sm:text-lg m-0">{selectedAviso.titulo}</h3>
+                  <p className="text-xs text-brand-muted mt-0.5 m-0 font-mono">
+                    Publicado em {new Date(selectedAviso.data_cadastro).toLocaleString('pt-BR')}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedAviso(null)}
+                className="text-brand-muted hover:text-brand-text transition-colors p-1.5 hover:bg-brand-dark rounded"
+                title="Fechar"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+              {/* Media (High Res / Full Player) */}
+              {selectedAviso.midia_url && (
+                <div className="rounded-sm overflow-hidden border border-brand-border bg-black">
+                  {selectedAviso.midia_tipo === 'video' || selectedAviso.midia_url.includes('youtube') || selectedAviso.midia_url.includes('youtu.be') ? (
+                    selectedAviso.midia_url.includes('youtube.com/watch?v=') || selectedAviso.midia_url.includes('youtu.be/') ? (
+                      <iframe
+                        src={selectedAviso.midia_url.includes('youtu.be/')
+                          ? `https://www.youtube.com/embed/${selectedAviso.midia_url.split('youtu.be/')[1]?.split('?')[0]}?autoplay=1`
+                          : `https://www.youtube.com/embed/${new URLSearchParams(selectedAviso.midia_url.split('?')[1]).get('v')}?autoplay=1`}
+                        className="w-full aspect-video"
+                        title={selectedAviso.titulo}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video
+                        src={toApiFileUrl(selectedAviso.midia_url)}
+                        controls
+                        autoPlay
+                        className="w-full max-h-[500px] bg-black mx-auto"
+                      />
+                    )
+                  ) : (
+                    <img
+                      src={toApiFileUrl(selectedAviso.midia_url)}
+                      alt={selectedAviso.titulo}
+                      className="w-full max-h-[550px] object-contain mx-auto"
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Text Description */}
+              {selectedAviso.texto && (
+                <div className="p-4 bg-brand-dark/50 border border-brand-border/60 rounded-sm">
+                  <p className="text-sm sm:text-base text-brand-text whitespace-pre-wrap leading-relaxed m-0">
+                    {selectedAviso.texto}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-brand-border bg-brand-dark/40 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedAviso(null)}
+                className="px-4 py-2 bg-brand-dark border border-brand-border text-xs text-brand-text hover:bg-brand-card rounded font-mono uppercase"
+              >
+                Fechar Visualização
+              </button>
+              {selectedAviso.link_url && (
+                <a
+                  href={selectedAviso.link_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center space-x-2 px-5 py-2.5 bg-brand-primary text-brand-dark font-bold text-xs rounded hover:bg-brand-primary/90 transition-all shadow-md font-mono uppercase"
+                >
+                  <span>{selectedAviso.link_texto || 'Acessar Link do Comunicado'}</span>
+                  <ExternalLink size={14} />
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}

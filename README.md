@@ -182,6 +182,23 @@ Sistema de notificação de alta prioridade para chamados de emergência de TI e
 | **Banner e Contadores no Dashboard** | Exibição de contadores ao vivo (`Total Recebidos` e `Pendentes`) no painel da equipe staff. |
 | **Histórico e Atendimento de Alertas** | Modal interativo com filtros por status (Todos/Pendentes/Atendidos) e botão para marcar como "Atendido", vinculando o responsável técnico. |
 
+## 📢 Comunicados & Avisos Oficiais do Sistema
+
+| Recurso | Descrição |
+| :--- | :--- |
+| **Suporte Multimídia Completo** | Publicação de avisos por administradores, gerentes e técnicos com uploads diretos de imagens e vídeos (MP4/WEBM) ou links de streaming (YouTube/Vimeo). |
+| **Exibição na Dashboard** | Seção em destaque no topo da Dashboard para todos os perfis com polling de 15s. |
+| **Modal Interativo em Tela Cheia** | Player de vídeo integrado, galeria de imagens em alta resolução e texto completo. |
+
+## 📱 Aplicativo Android (Capacitor) & Arquitetura Offline-First
+
+| Recurso | Descrição |
+| :--- | :--- |
+| **Operação Offline-First** | Fila de mutações gravada no armazenamento local (`localStorage`), permitindo que a equipe trabalhe mesmo sem sinal. |
+| **Sincronização Automática** | Auto-envio de pendências ao reconectar à rede com notificação visual (toast). |
+| **Botão & Modal de Download do APK** | Botão em destaque na versão web com download direto (`AssetTrack-TI-v1.2.0.apk`), QR Code para celulares e guia de 3 passos. |
+| **Notificador de Novas Versões** | Verificação em segundo plano alertando sobre atualizações disponíveis do aplicativo. |
+
 ## 📱 Sistema de QR Code
 
 Funcionalidades de identificação, login rápido e acompanhamento ágil.

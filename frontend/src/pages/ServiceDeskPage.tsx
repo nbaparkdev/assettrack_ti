@@ -15,7 +15,8 @@ import {
   Filter,
   CheckCircle2,
   Send,
-  Star
+  Star,
+  Play
 } from 'lucide-react';
 
 export const ServiceDeskPage: React.FC = () => {
@@ -380,16 +381,16 @@ export const ServiceDeskPage: React.FC = () => {
     <div className="flex h-full min-h-[calc(100vh-4rem)] bg-brand-dark overflow-hidden">
       {/* Main Panel */}
       <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left gap-4">
           <div>
             <h1 className="text-2xl font-bold text-brand-text">Central de Suporte & Chamados</h1>
             <p className="text-sm text-brand-muted">Registre e acompanhe incidentes e solicitações de TI</p>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto">
             {isTechnicianOrAbove && (
               <button
                 onClick={() => setShowConfigModal(true)}
-                className="flex items-center space-x-2 px-4 py-2.5 bg-brand-dark border border-brand-border hover:bg-brand-card text-brand-text font-medium transition-all"
+                className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-dark border border-brand-border hover:bg-brand-card text-brand-text font-medium transition-all w-full sm:w-auto"
               >
                 <Plus size={18} />
                 <span>Configurar Serviços</span>
@@ -397,7 +398,7 @@ export const ServiceDeskPage: React.FC = () => {
             )}
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center space-x-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-medium transition-all"
+              className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-medium transition-all w-full sm:w-auto"
             >
               <Plus size={18} />
               <span>Abrir Chamado</span>
@@ -414,7 +415,7 @@ export const ServiceDeskPage: React.FC = () => {
         )}
 
         {/* Filters */}
-        <div className="p-4 bg-brand-card border border-brand-border flex flex-wrap gap-4 items-center">
+        <div className="p-4 bg-brand-card border border-brand-border flex flex-wrap gap-4 items-center justify-center sm:justify-start">
           <div className="flex items-center space-x-2 text-brand-muted text-sm mr-2">
             <Filter size={16} />
             <span>Filtros:</span>
@@ -532,92 +533,124 @@ export const ServiceDeskPage: React.FC = () => {
         )}
       </div>
 
-      {/* Slide-out Ticket details panel (Layout Diversification) */}
+      {/* Ticket Details Modal (Centered & Responsive Modal Overlay) */}
       {selectedTicket && (
-        <div className="w-96 bg-brand-card border-l border-brand-border flex flex-col h-full shrink-0">
-          <div className="p-4 border-b border-brand-border flex items-center justify-between bg-brand-dark/30">
-            <div>
-              <h3 className="font-bold text-brand-text text-sm">{selectedTicket.codigo}</h3>
-              <p className="text-[11px] text-brand-muted">Aberto em {new Date(selectedTicket.data_abertura).toLocaleString('pt-BR')}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-brand-dark/80 backdrop-blur-md overflow-y-auto">
+          <div className="w-full max-w-2xl bg-brand-card border border-brand-border shadow-2xl flex flex-col max-h-[92vh] my-auto rounded-sm overflow-hidden">
+            <div className="p-4 border-b border-brand-border flex items-center justify-between bg-brand-dark/50 shrink-0">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="font-bold text-brand-text text-base">{selectedTicket.codigo}</h3>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 border font-semibold ${
+                    normalizeStatus(selectedTicket.status) === 'aberto' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
+                    normalizeStatus(selectedTicket.status) === 'em_atendimento' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
+                    normalizeStatus(selectedTicket.status) === 'resolvido' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                    'bg-gray-500/10 text-gray-400 border-gray-500/30'
+                  }`}>
+                    {normalizeStatus(selectedTicket.status).replace('_', ' ').toUpperCase()}
+                  </span>
+                </div>
+                <p className="text-[11px] text-brand-muted">Aberto em {new Date(selectedTicket.data_abertura).toLocaleString('pt-BR')}</p>
+              </div>
+              <button
+                onClick={() => setSelectedTicket(null)}
+                className="text-brand-muted hover:text-brand-text transition-colors p-1.5 hover:bg-brand-dark rounded"
+              >
+                <X size={20} />
+              </button>
             </div>
-            <button
-              onClick={() => setSelectedTicket(null)}
-              className="text-brand-muted hover:text-brand-text transition-colors p-1"
-            >
-              <X size={18} />
-            </button>
-          </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {/* Ticket Info */}
-            <div className="space-y-3">
-              <h4 className="font-semibold text-brand-text text-sm">{selectedTicket.titulo}</h4>
-              <p className="text-xs text-brand-muted bg-brand-dark p-3 border border-brand-border/60 rounded-sm whitespace-pre-wrap">
-                {selectedTicket.descricao}
-              </p>
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              {/* Ticket Info */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-brand-text text-base">{selectedTicket.titulo}</h4>
+                <p className="text-xs text-brand-muted bg-brand-dark p-3 border border-brand-border/60 rounded-sm whitespace-pre-wrap">
+                  {selectedTicket.descricao}
+                </p>
 
-              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono border-t border-brand-border/40 pt-3">
-                <div className="text-brand-muted">Solicitante:</div>
-                <div className="text-brand-text text-right truncate">{selectedTicket.solicitante?.nome}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono border-t border-brand-border/40 pt-3">
+                  <div className="flex justify-between sm:block">
+                    <span className="text-brand-muted">Solicitante: </span>
+                    <span className="text-brand-text font-semibold">{selectedTicket.solicitante?.nome || 'N/A'}</span>
+                  </div>
 
-                <div className="text-brand-muted">Serviço:</div>
-                <div className="text-brand-text text-right truncate">{selectedTicket.servico?.nome}</div>
+                  <div className="flex justify-between sm:block">
+                    <span className="text-brand-muted">Serviço: </span>
+                    <span className="text-brand-text font-semibold">{selectedTicket.servico?.nome || 'Geral'}</span>
+                  </div>
 
-                <div className="text-brand-muted">Técnico:</div>
-                <div className="text-brand-text text-right truncate">
-                  {selectedTicket.tecnico?.nome || selectedTicket.responsavel?.nome || 'Não atribuído'}
+                  <div className="flex justify-between sm:block">
+                    <span className="text-brand-muted">Técnico Atribuído: </span>
+                    <span className="text-brand-text font-semibold">
+                      {selectedTicket.tecnico?.nome || selectedTicket.responsavel?.nome || 'Não atribuído'}
+                    </span>
+                  </div>
+
+                  {selectedTicket.prioridade && (
+                    <div className="flex justify-between sm:block">
+                      <span className="text-brand-muted">Prioridade: </span>
+                      <span className="text-brand-text font-semibold capitalize">{selectedTicket.prioridade}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Admin/Technician Management controls */}
-            {isTechnicianOrAbove && (
-              <div className="border-t border-brand-border/60 pt-4 space-y-3">
-                <h5 className="text-xs font-semibold text-brand-primary uppercase tracking-wider font-mono">Gerenciamento Técnico</h5>
+              {/* Admin/Technician Management controls */}
+              {isTechnicianOrAbove && (
+                <div className="border-t border-brand-border/60 pt-4 space-y-3">
+                  <h5 className="text-xs font-semibold text-brand-primary uppercase tracking-wider font-mono">Gerenciamento Técnico</h5>
 
-                {/* Delegation selection */}
-                <div className="space-y-1">
-                  <label className="text-[10px] text-brand-muted">Delegar para Técnico:</label>
-                  <select
-                    disabled={normalizeStatus(selectedTicket.status) === 'fechado'}
-                    value={assignedTechId}
-                    onChange={(e) => {
-                      const id = e.target.value === '' ? '' : Number(e.target.value);
-                      setAssignedTechId(id);
-                      if (id) handleAssignTicket(id);
-                    }}
-                    className="w-full bg-brand-dark border border-brand-border px-2 py-1 text-xs text-brand-text focus:outline-none focus:border-brand-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Atribuir a...</option>
-                    {technicians.map(t => (
-                      <option key={t.id} value={t.id}>{t.nome}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex space-x-2">
-                  {normalizeStatus(selectedTicket.status) !== 'resolvido' && (
-                    <button
-                      onClick={() => setShowResolutionForm(true)}
+                  {/* Delegation selection */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-brand-muted">Delegar para Técnico:</label>
+                    <select
                       disabled={normalizeStatus(selectedTicket.status) === 'fechado'}
-                      className="flex-1 py-1.5 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      value={assignedTechId}
+                      onChange={(e) => {
+                        const id = e.target.value === '' ? '' : Number(e.target.value);
+                        setAssignedTechId(id);
+                        if (id) handleAssignTicket(id);
+                      }}
+                      className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs text-brand-text focus:outline-none focus:border-brand-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Check size={14} />
-                      <span>Resolver Chamado</span>
-                    </button>
-                  )}
-                  {normalizeStatus(selectedTicket.status) === 'resolvido' && (
-                    <button
-                      onClick={() => handleUpdateStatus('fechado')}
-                      className="flex-1 py-1.5 bg-brand-muted/10 border border-brand-border hover:bg-brand-card text-brand-text text-xs font-semibold flex items-center justify-center space-x-1"
-                    >
-                      <CheckCircle2 size={14} />
-                      <span>Fechar Chamado</span>
-                    </button>
-                  )}
+                      <option value="">Atribuir a...</option>
+                      {technicians.map(t => (
+                        <option key={t.id} value={t.id}>{t.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                    {normalizeStatus(selectedTicket.status) === 'aberto' && (
+                      <button
+                        onClick={() => handleUpdateStatus('em_atendimento')}
+                        className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm rounded-sm"
+                      >
+                        <Play size={14} />
+                        <span>Iniciar Atendimento</span>
+                      </button>
+                    )}
+                    {normalizeStatus(selectedTicket.status) !== 'resolvido' && normalizeStatus(selectedTicket.status) !== 'fechado' && (
+                      <button
+                        onClick={() => setShowResolutionForm(true)}
+                        className="flex-1 py-2 px-3 bg-brand-primary hover:bg-brand-primary/95 text-brand-dark text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm rounded-sm"
+                      >
+                        <Check size={14} />
+                        <span>Resolver Chamado</span>
+                      </button>
+                    )}
+                    {normalizeStatus(selectedTicket.status) === 'resolvido' && (
+                      <button
+                        onClick={() => handleUpdateStatus('fechado')}
+                        className="flex-1 py-2 px-3 bg-brand-muted/10 border border-brand-border hover:bg-brand-card text-brand-text text-xs font-semibold flex items-center justify-center space-x-1.5 rounded-sm"
+                      >
+                        <CheckCircle2 size={14} />
+                        <span>Fechar Chamado</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* User Rating / Feedback controls */}
             {currentUser?.id === selectedTicket.solicitante_id &&
@@ -780,6 +813,7 @@ export const ServiceDeskPage: React.FC = () => {
             </form>
           )}
         </div>
+      </div>
       )}
 
       {/* Create Ticket Modal */}

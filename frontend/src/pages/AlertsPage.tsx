@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { alertsApi } from '../api/alerts';
+import { toApiFileUrl } from '../api/client';
 import type { EmergencyAlert, Aviso } from '../types/alerts';
 import { useAuthStore } from '../stores/authStore';
-import { ShieldAlert, Siren, Bell, Plus, Trash2, Edit2, X, CheckCircle2, Volume2 } from 'lucide-react';
+import {
+  ShieldAlert, Siren, Bell, Plus, Trash2, Edit2, X, CheckCircle2, Volume2,
+  Image as ImageIcon, Video as VideoIcon, UploadCloud, ExternalLink
+} from 'lucide-react';
 import { triggerTestEmergencyAlert } from '../components/emergency/EmergencyGlobalHandler';
 
 const staffRoles = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'];
@@ -10,7 +14,7 @@ const staffRoles = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'];
 export const AlertsPage: React.FC = () => {
   const user = useAuthStore().user;
   const isStaff = user ? staffRoles.includes(user.role) : false;
-  const canManageAvisos = user ? ['admin', 'gerente_ti', 'gerente_infra'].includes(user.role) : false;
+  const canManageAvisos = user ? ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'].includes(user.role) : false;
 
   const [motivo, setMotivo] = useState('');
   const [sending, setSending] = useState(false);
@@ -20,15 +24,18 @@ export const AlertsPage: React.FC = () => {
   const [liveAlerts, setLiveAlerts] = useState<any[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  // Aviso form
+  // Aviso form states
   const [avisoModal, setAvisoModal] = useState(false);
   const [editAvisoId, setEditAvisoId] = useState<number | null>(null);
   const [aTitulo, setATitulo] = useState('');
   const [aTexto, setATexto] = useState('');
+  const [aMidiaUrl, setAMidiaUrl] = useState('');
+  const [aMidiaTipo, setAMidiaTipo] = useState<'imagem' | 'video' | ''>('');
   const [aLink, setALink] = useState('');
   const [aLinkTexto, setALinkTexto] = useState('');
   const [aInicio, setAInicio] = useState('');
   const [aFim, setAFim] = useState('');
+  const [uploadingMedia, setUploadingMedia] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -64,6 +71,12 @@ export const AlertsPage: React.FC = () => {
   const submitAlert = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!motivo.trim()) return;
+
+    if (!navigator.onLine) {
+      window.alert('⚠️ Disparo indisponível: Você está sem conexão à internet. Os alertas emergenciais são transmitidos em tempo real para os técnicos e exigem conexão ativa.');
+      return;
+    }
+
     setSending(true);
     try {
       await alertsApi.sendAlert(motivo);
@@ -71,9 +84,25 @@ export const AlertsPage: React.FC = () => {
       setSent(true);
       setTimeout(() => setSent(false), 5000);
     } catch (err) {
-      window.alert('Erro ao enviar alerta');
+      window.alert('Erro ao enviar alerta de emergência.');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingMedia(true);
+      const res = await alertsApi.uploadMedia(file);
+      setAMidiaUrl(res.url);
+      setAMidiaTipo(res.midia_tipo as 'imagem' | 'video');
+    } catch (err: any) {
+      window.alert(err.response?.data?.error || 'Erro ao fazer upload do arquivo de mídia.');
+    } finally {
+      setUploadingMedia(false);
     }
   };
 
@@ -81,6 +110,8 @@ export const AlertsPage: React.FC = () => {
     setEditAvisoId(aviso?.id ?? null);
     setATitulo(aviso?.titulo ?? '');
     setATexto(aviso?.texto ?? '');
+    setAMidiaUrl(aviso?.midia_url ?? '');
+    setAMidiaTipo((aviso?.midia_tipo as 'imagem' | 'video') ?? '');
     setALink(aviso?.link_url ?? '');
     setALinkTexto(aviso?.link_texto ?? '');
     setAInicio(aviso?.programado_inicio ? aviso.programado_inicio.slice(0, 16) : '');
@@ -91,9 +122,21 @@ export const AlertsPage: React.FC = () => {
   const submitAviso = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // If external video URL like YouTube, set type to video
+      let finalTipo = aMidiaTipo;
+      if (aMidiaUrl && !finalTipo) {
+        if (aMidiaUrl.includes('youtube.com') || aMidiaUrl.includes('youtu.be') || aMidiaUrl.includes('vimeo.com') || aMidiaUrl.endsWith('.mp4')) {
+          finalTipo = 'video';
+        } else {
+          finalTipo = 'imagem';
+        }
+      }
+
       const payload = {
         titulo: aTitulo,
         texto: aTexto || undefined,
+        midia_url: aMidiaUrl || undefined,
+        midia_tipo: finalTipo || undefined,
         link_url: aLink || undefined,
         link_texto: aLinkTexto || undefined,
         programado_inicio: aInicio ? new Date(aInicio).toISOString() : undefined,
@@ -103,8 +146,8 @@ export const AlertsPage: React.FC = () => {
       else await alertsApi.createAviso(payload);
       setAvisoModal(false);
       fetchData();
-    } catch (err) {
-      window.alert('Erro ao salvar aviso');
+    } catch (err: any) {
+      window.alert(err.response?.data?.error || 'Erro ao salvar aviso');
     }
   };
 
@@ -239,10 +282,13 @@ export const AlertsPage: React.FC = () => {
       {/* Avisos */}
       <div className="border border-brand-border bg-brand-card">
         <div className="p-4 border-b border-brand-border flex justify-between items-center">
-          <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text m-0">Avisos do sistema</h3>
+          <div>
+            <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text m-0">Avisos e Comunicados do Sistema</h3>
+            <p className="text-xs text-brand-muted mt-0.5">Visíveis na Dashboard para todos os usuários da aplicação</p>
+          </div>
           {canManageAvisos && (
             <button onClick={() => openAvisoModal()}
-              className="bg-brand-primary text-brand-dark font-bold font-mono px-3 py-2 uppercase tracking-wider text-xs flex items-center space-x-1.5">
+              className="bg-brand-primary text-brand-dark font-bold font-mono px-3 py-2 uppercase tracking-wider text-xs flex items-center space-x-1.5 hover:bg-brand-primary/90 transition-all">
               <Plus size={14} />
               <span>Novo Aviso</span>
             </button>
@@ -250,36 +296,83 @@ export const AlertsPage: React.FC = () => {
         </div>
         <div className="divide-y divide-brand-border/60">
           {avisos.map((a) => (
-            <div key={a.id} className="p-4 flex justify-between items-start">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium text-brand-text">{a.titulo}</span>
-                  <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 border ${a.ativo ? 'border-green-500/30 text-green-400' : 'border-brand-border text-brand-muted'}`}>
+            <div key={a.id} className="p-4 flex flex-col md:flex-row justify-between items-start gap-4">
+              <div className="flex-1 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-brand-text text-base">{a.titulo}</span>
+                  <span className={`text-[10px] font-mono uppercase px-2 py-0.5 border ${a.ativo ? 'border-green-500/30 text-green-400 bg-green-500/5' : 'border-brand-border text-brand-muted bg-brand-dark'}`}>
                     {a.ativo ? 'Ativo' : 'Inativo'}
                   </span>
+                  {a.midia_tipo && (
+                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 border border-brand-primary/30 text-brand-primary bg-brand-primary/5 flex items-center space-x-1">
+                      {a.midia_tipo === 'video' ? <VideoIcon size={11} /> : <ImageIcon size={11} />}
+                      <span>{a.midia_tipo}</span>
+                    </span>
+                  )}
                 </div>
-                {a.texto && <p className="text-sm text-brand-muted mt-1 m-0">{a.texto}</p>}
+
+                {a.texto && <p className="text-sm text-brand-muted whitespace-pre-wrap">{a.texto}</p>}
+
+                {/* Media Preview in List */}
+                {a.midia_url && (
+                  <div className="pt-2 max-w-md">
+                    {a.midia_tipo === 'video' || a.midia_url.includes('youtube') || a.midia_url.includes('youtu.be') ? (
+                      a.midia_url.includes('youtube.com/watch?v=') || a.midia_url.includes('youtu.be/') ? (
+                        <iframe
+                          src={a.midia_url.includes('youtu.be/')
+                            ? `https://www.youtube.com/embed/${a.midia_url.split('youtu.be/')[1]?.split('?')[0]}`
+                            : `https://www.youtube.com/embed/${new URLSearchParams(a.midia_url.split('?')[1]).get('v')}`}
+                          className="w-full aspect-video rounded border border-brand-border"
+                          title={a.titulo}
+                          allowFullScreen
+                        />
+                      ) : (
+                        <video
+                          src={toApiFileUrl(a.midia_url)}
+                          controls
+                          className="w-full max-h-56 rounded border border-brand-border bg-black"
+                        />
+                      )
+                    ) : (
+                      <img
+                        src={toApiFileUrl(a.midia_url)}
+                        alt={a.titulo}
+                        className="w-full max-h-56 object-cover rounded border border-brand-border"
+                      />
+                    )}
+                  </div>
+                )}
+
                 {a.link_url && (
-                  <a href={a.link_url} target="_blank" rel="noreferrer" className="text-brand-primary text-sm mt-1 inline-block">
-                    {a.link_texto ?? a.link_url}
-                  </a>
+                  <div className="pt-1">
+                    <a
+                      href={a.link_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center space-x-1.5 text-xs text-brand-primary bg-brand-primary/10 border border-brand-primary/30 px-2.5 py-1 rounded hover:bg-brand-primary hover:text-brand-dark transition-all"
+                    >
+                      <span>{a.link_texto || a.link_url}</span>
+                      <ExternalLink size={12} />
+                    </a>
+                  </div>
                 )}
               </div>
+
               {canManageAvisos && (
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 shrink-0">
                   <button onClick={async () => { await alertsApi.toggleAviso(a.id); fetchData(); }}
                     title={a.ativo ? 'Desativar' : 'Ativar'}
-                    className="text-brand-muted border border-brand-border px-2 py-1.5 hover:text-brand-text">
+                    className="text-xs text-brand-muted border border-brand-border px-2.5 py-1.5 hover:text-brand-text hover:bg-brand-card rounded">
                     {a.ativo ? 'Desativar' : 'Ativar'}
                   </button>
-                  <button onClick={() => openAvisoModal(a)} className="text-brand-primary border border-brand-primary/30 px-2 py-1.5">
+                  <button onClick={() => openAvisoModal(a)} className="text-brand-primary border border-brand-primary/30 px-2.5 py-1.5 hover:bg-brand-primary/10 rounded">
                     <Edit2 size={14} />
                   </button>
                   <button onClick={async () => {
                     if (!window.confirm('Excluir aviso?')) return;
                     await alertsApi.deleteAviso(a.id);
                     fetchData();
-                  }} className="text-red-400 border border-red-500/30 px-2 py-1.5">
+                  }} className="text-red-400 border border-red-500/30 px-2.5 py-1.5 hover:bg-red-500/10 rounded">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -287,59 +380,180 @@ export const AlertsPage: React.FC = () => {
             </div>
           ))}
           {avisos.length === 0 && (
-            <div className="p-6 text-center text-brand-muted font-mono text-xs">Nenhum aviso cadastrado.</div>
+            <div className="p-8 text-center text-brand-muted font-mono text-xs">Nenhum aviso cadastrado no sistema.</div>
           )}
         </div>
       </div>
 
       {/* Aviso Modal */}
       {avisoModal && (
-        <div className="fixed inset-0 bg-brand-dark/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg border border-brand-border bg-brand-card p-6 space-y-6">
-            <div className="flex justify-between items-center border-b border-brand-border pb-4">
-              <h3 className="text-lg font-bold font-mono uppercase tracking-wider text-brand-text">
-                {editAvisoId ? 'Editar Aviso' : 'Novo Aviso'}
+        <div className="fixed inset-0 bg-brand-dark/80 backdrop-blur-md z-50 flex items-center justify-center p-3 md:p-6 overflow-y-auto">
+          <div className="w-full max-w-xl border border-brand-border bg-brand-card p-6 space-y-5 my-auto max-h-[92vh] overflow-y-auto shadow-2xl rounded-sm">
+            <div className="flex justify-between items-center border-b border-brand-border pb-3">
+              <h3 className="text-base font-bold font-mono uppercase tracking-wider text-brand-text">
+                {editAvisoId ? 'Editar Aviso' : 'Novo Comunicado / Aviso'}
               </h3>
               <button onClick={() => setAvisoModal(false)} className="text-brand-muted hover:text-brand-text"><X size={20} /></button>
             </div>
             <form onSubmit={submitAviso} className="space-y-4">
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Título *</label>
-                <input type="text" required value={aTitulo} onChange={(e) => setATitulo(e.target.value)}
-                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none" />
+                <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1">Título do Aviso *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Manutenção Programada nos Servidores"
+                  value={aTitulo}
+                  onChange={(e) => setATitulo(e.target.value)}
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                />
               </div>
+
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Texto</label>
-                <textarea value={aTexto} onChange={(e) => setATexto(e.target.value)} rows={3}
-                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none" />
+                <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1">Texto / Mensagem</label>
+                <textarea
+                  value={aTexto}
+                  onChange={(e) => setATexto(e.target.value)}
+                  rows={3}
+                  placeholder="Descreva as instruções ou detalhes do comunicado..."
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              {/* Media Section: Upload or URL */}
+              <div className="p-3 bg-brand-dark/50 border border-brand-border space-y-3 rounded-sm">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-mono uppercase tracking-wider text-brand-text flex items-center space-x-1.5">
+                    <ImageIcon size={14} className="text-brand-primary" />
+                    <span>Mídia (Imagem ou Vídeo)</span>
+                  </label>
+                  {aMidiaUrl && (
+                    <button
+                      type="button"
+                      onClick={() => { setAMidiaUrl(''); setAMidiaTipo(''); }}
+                      className="text-[11px] text-red-400 hover:underline"
+                    >
+                      Remover Mídia
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-brand-muted mb-1">Upload Direto (Arquivo):</label>
+                    <label className="flex items-center justify-center space-x-2 w-full p-2 bg-brand-dark border border-dashed border-brand-border hover:border-brand-primary text-xs text-brand-text cursor-pointer transition-all rounded">
+                      <UploadCloud size={16} className="text-brand-primary" />
+                      <span>{uploadingMedia ? 'Enviando mídia...' : 'Escolher Imagem/Vídeo'}</span>
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        onChange={handleFileUpload}
+                        disabled={uploadingMedia}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-brand-muted mb-1">Ou Link Externo / YouTube:</label>
+                    <input
+                      type="text"
+                      placeholder="https://youtube.com/watch?v=... ou URL de imagem/vídeo"
+                      value={aMidiaUrl}
+                      onChange={(e) => {
+                        setAMidiaUrl(e.target.value);
+                        if (e.target.value.includes('youtube') || e.target.value.includes('youtu.be') || e.target.value.endsWith('.mp4')) {
+                          setAMidiaTipo('video');
+                        }
+                      }}
+                      className="w-full bg-brand-dark border border-brand-border px-2.5 py-2 text-xs text-brand-text focus:outline-none focus:border-brand-primary"
+                    />
+                  </div>
+                </div>
+
+                {/* Media Preview in Modal */}
+                {aMidiaUrl && (
+                  <div className="pt-2">
+                    <div className="text-[10px] text-brand-muted uppercase font-mono mb-1">Prévia da Mídia:</div>
+                    {aMidiaTipo === 'video' || aMidiaUrl.includes('youtube') || aMidiaUrl.includes('youtu.be') ? (
+                      aMidiaUrl.includes('youtube.com/watch?v=') || aMidiaUrl.includes('youtu.be/') ? (
+                        <iframe
+                          src={aMidiaUrl.includes('youtu.be/')
+                            ? `https://www.youtube.com/embed/${aMidiaUrl.split('youtu.be/')[1]?.split('?')[0]}`
+                            : `https://www.youtube.com/embed/${new URLSearchParams(aMidiaUrl.split('?')[1]).get('v')}`}
+                          className="w-full aspect-video rounded border border-brand-border"
+                          title="Prévia do Vídeo"
+                        />
+                      ) : (
+                        <video src={toApiFileUrl(aMidiaUrl)} controls className="w-full max-h-48 rounded bg-black" />
+                      )
+                    ) : (
+                      <img src={toApiFileUrl(aMidiaUrl)} alt="Prévia" className="w-full max-h-48 object-cover rounded border border-brand-border" />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Link / Action Button */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Link (opcional)</label>
-                  <input type="text" value={aLink} onChange={(e) => setALink(e.target.value)}
-                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none" />
+                  <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1">Link de Ação (URL)</label>
+                  <input
+                    type="text"
+                    placeholder="https://exemplo.com ou /servicos"
+                    value={aLink}
+                    onChange={(e) => setALink(e.target.value)}
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs text-brand-text focus:outline-none focus:border-brand-primary"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Texto do botão</label>
-                  <input type="text" value={aLinkTexto} onChange={(e) => setALinkTexto(e.target.value)}
-                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none" />
+                  <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1">Texto do Botão</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Acessar Procedimento"
+                    value={aLinkTexto}
+                    onChange={(e) => setALinkTexto(e.target.value)}
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-xs text-brand-text focus:outline-none focus:border-brand-primary"
+                  />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              {/* Scheduling */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Início programado</label>
-                  <input type="datetime-local" value={aInicio} onChange={(e) => setAInicio(e.target.value)}
-                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none" />
+                  <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1">Início programado (Opcional)</label>
+                  <input
+                    type="datetime-local"
+                    value={aInicio}
+                    onChange={(e) => setAInicio(e.target.value)}
+                    className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1.5">Fim programado</label>
-                  <input type="datetime-local" value={aFim} onChange={(e) => setAFim(e.target.value)}
-                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none" />
+                  <label className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-1">Fim programado (Opcional)</label>
+                  <input
+                    type="datetime-local"
+                    value={aFim}
+                    onChange={(e) => setAFim(e.target.value)}
+                    className="w-full bg-brand-dark border border-brand-border px-2.5 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary"
+                  />
                 </div>
               </div>
+
               <div className="flex justify-end space-x-3 pt-4 border-t border-brand-border">
-                <button type="button" onClick={() => setAvisoModal(false)} className="border border-brand-border px-4 py-2 font-mono text-xs uppercase">Cancelar</button>
-                <button type="submit" className="bg-brand-primary text-brand-dark font-bold font-mono px-4 py-2 uppercase text-xs">Salvar</button>
+                <button
+                  type="button"
+                  onClick={() => setAvisoModal(false)}
+                  className="border border-brand-border px-4 py-2 font-mono text-xs uppercase text-brand-muted hover:text-brand-text"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploadingMedia}
+                  className="bg-brand-primary text-brand-dark font-bold font-mono px-4 py-2 uppercase text-xs hover:bg-brand-primary/90 transition-all disabled:opacity-50"
+                >
+                  Salvar Comunicado
+                </button>
               </div>
             </form>
           </div>

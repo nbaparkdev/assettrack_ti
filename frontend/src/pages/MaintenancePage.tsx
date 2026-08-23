@@ -5,14 +5,14 @@ import { procurementApi } from '../api/procurement';
 import { useAuthStore } from '../stores/authStore';
 import type { SolicitacaoManutencao, Asset } from '../types';
 import { QRHandoverModal } from '../components/qr/QRHandoverModal';
-import { 
-  Plus, 
-  Clock, 
-  Check, 
-  X, 
-  AlertCircle, 
-  Filter, 
-  QrCode, 
+import {
+  Plus,
+  Clock,
+  Check,
+  X,
+  AlertCircle,
+  Filter,
+  QrCode,
   DollarSign,
   User,
   ExternalLink,
@@ -322,31 +322,28 @@ export const MaintenancePage: React.FC = () => {
       <div className="w-full min-w-0 max-w-full overflow-x-auto border-b border-brand-border flex items-center gap-2 pb-0.5 no-scrollbar scroll-smooth">
         <button
           onClick={() => { setActiveTab('requests'); setStatusFilter(''); }}
-          className={`shrink-0 whitespace-nowrap py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer rounded-t-lg ${
-            activeTab === 'requests'
-              ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
-              : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
-          }`}
+          className={`shrink-0 whitespace-nowrap py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer rounded-t-lg ${activeTab === 'requests'
+            ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
+            : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
+            }`}
         >
           Triagem e Solicitações ({totalPending})
         </button>
         <button
           onClick={() => { setActiveTab('active'); setStatusFilter(''); }}
-          className={`shrink-0 whitespace-nowrap py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer rounded-t-lg ${
-            activeTab === 'active'
-              ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
-              : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
-          }`}
+          className={`shrink-0 whitespace-nowrap py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer rounded-t-lg ${activeTab === 'active'
+            ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
+            : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
+            }`}
         >
           Oficina Ativa ({totalInWorkshop})
         </button>
         <button
           onClick={() => { setActiveTab('history'); setStatusFilter(''); }}
-          className={`shrink-0 whitespace-nowrap py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer rounded-t-lg ${
-            activeTab === 'history'
-              ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
-              : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
-          }`}
+          className={`shrink-0 whitespace-nowrap py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer rounded-t-lg ${activeTab === 'history'
+            ? 'border-brand-primary text-brand-primary bg-white font-bold shadow-sm'
+            : 'border-transparent text-brand-text bg-white/40 opacity-70 hover:opacity-100 hover:bg-white/70'
+            }`}
         >
           Histórico de Reparos ({totalConcluded})
         </button>
@@ -404,17 +401,16 @@ export const MaintenancePage: React.FC = () => {
                     <h3 className="font-semibold text-brand-text text-sm">{request.asset?.nome}</h3>
                     <p className="text-xs text-brand-muted font-mono mt-0.5">EP: {request.asset?.e_patrimonio}</p>
                   </div>
-                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 border ${
-                    request.status === 'pendente'
-                      ? 'text-blue-400 bg-blue-400/10 border-blue-400/20'
-                      : request.status === 'aceita'
+                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 border ${request.status === 'pendente'
+                    ? 'text-blue-400 bg-blue-400/10 border-blue-400/20'
+                    : request.status === 'aceita'
                       ? 'text-amber-400 bg-amber-400/10 border-amber-400/20'
                       : request.status === 'aguardando_entrega'
-                      ? 'text-purple-400 bg-purple-400/10 border-purple-400/20'
-                      : request.status === 'concluida'
-                      ? 'text-brand-primary bg-brand-primary/10 border-brand-primary/20'
-                      : 'text-red-400 bg-red-500/10 border-red-500/20'
-                  }`}>
+                        ? 'text-purple-400 bg-purple-400/10 border-purple-400/20'
+                        : request.status === 'concluida'
+                          ? 'text-brand-primary bg-brand-primary/10 border-brand-primary/20'
+                          : 'text-red-400 bg-red-500/10 border-red-500/20'
+                    }`}>
                     {request.status.replace('_', ' ')}
                   </span>
                 </div>
@@ -457,7 +453,7 @@ export const MaintenancePage: React.FC = () => {
                         <span className="font-mono">{formatCurrency(request.manutencao.custo)}</span>
                       )}
                     </div>
-                    
+
                     {request.manutencao?.observacao_conclusao && (
                       <p className="text-xs text-brand-text bg-brand-dark/50 p-2 border border-brand-border/40 font-mono whitespace-pre-wrap">
                         Resolução: "{request.manutencao.observacao_conclusao}"
@@ -520,7 +516,9 @@ export const MaintenancePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleOpenPurchaseModal(request)}
-                        className="py-1.5 px-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center justify-center space-x-1 transition-colors"
+                        className="py-1.5 px-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-semibold flex items-center justify-center space-x-1 transition-colors"
+
+
                         title="Solicitar compra de peça/suprimento"
                       >
                         <ShoppingCart size={13} />
@@ -743,7 +741,7 @@ export const MaintenancePage: React.FC = () => {
             <div className="bg-amber-500/10 border-b border-amber-500/30 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center space-x-2 text-amber-400">
                 <ShoppingCart size={20} />
-                <h3 className="font-bold font-mono text-sm uppercase tracking-wider text-amber-300">
+                <h3 className="font-bold font-mono text-sm uppercase tracking-wider text-blue-400">
                   Solicitação de Compra de Peça
                 </h3>
               </div>

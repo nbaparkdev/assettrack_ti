@@ -80,15 +80,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
     <div className="flex flex-col h-full justify-between overflow-hidden">
       <div className="flex flex-col flex-1 min-h-0">
         {/* Header */}
-        <div className={`h-14 shrink-0 flex items-center border-b border-brand-border ${!isMobileView && collapsed ? 'justify-center px-2' : 'justify-between px-5'}`}>
-          <span className="font-bold text-[#172b4d] tracking-tight text-lg">
-            AssetTrack<span className="text-brand-primary font-light lowercase">.ti</span>
-          </span>
+        <div className={`h-14 shrink-0 flex items-center border-b border-brand-border ${!isMobileView && collapsed ? 'justify-center px-1' : 'justify-between px-5'}`}>
+          {(isMobileView || !collapsed) && (
+            <span className="font-bold text-[#172b4d] tracking-tight text-lg truncate select-none">
+              AssetTrack<span className="text-brand-primary font-light lowercase">.ti</span>
+            </span>
+          )}
           {isMobileView ? (
             <button
               type="button"
               onClick={onCloseMobile}
-              className="grid h-8 w-8 place-items-center rounded-lg text-brand-muted hover:bg-white hover:text-brand-primary cursor-pointer"
+              className="grid h-8 w-8 place-items-center rounded-lg text-brand-muted hover:bg-white hover:text-brand-primary cursor-pointer shrink-0"
               title="Fechar menu"
               aria-label="Fechar menu"
             >
@@ -98,11 +100,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
             <button
               type="button"
               onClick={() => setCollapsed((current) => !current)}
-              className="grid h-8 w-8 place-items-center rounded-lg text-brand-muted hover:bg-white hover:text-brand-primary cursor-pointer"
+              className="grid h-9 w-9 place-items-center rounded-lg text-brand-muted hover:bg-white hover:text-brand-primary cursor-pointer shrink-0 bg-white/50 border border-brand-border/40 shadow-xs transition-all hover:scale-105"
               title={collapsed ? 'Expandir menu' : 'Recolher menu'}
               aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
             >
-              {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+              {collapsed ? <PanelLeftOpen size={20} className="text-brand-primary" /> : <PanelLeftClose size={18} />}
             </button>
           )}
         </div>

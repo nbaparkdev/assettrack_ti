@@ -250,6 +250,46 @@ Atualiza dados de um usuário.
 
 ---
 
+## 📢 Avisos do Sistema (`/avisos`)
+
+### POST `/avisos/upload`
+Realiza o upload de arquivos de imagem (PNG/JPG/WEBP) ou vídeo (MP4/WEBM) de até 100MB para anexar em comunicados do sistema.
+
+**Header:** `Authorization: Bearer <token>` (Requer perfil Admin, Gerente ou Técnico)
+
+**Response (200 OK):**
+```json
+{
+  "url": "/uploads/avisos/1787496015.mp4"
+}
+```
+
+---
+
+## 📱 Aplicativo Android & APK (`/app`)
+
+### GET `/app/version`
+Retorna as informações sobre a versão oficial compilada do APK Android.
+
+**Response (200 OK):**
+```json
+{
+  "version_code": 2,
+  "version_name": "1.2.0",
+  "release_date": "2026-08-23",
+  "download_url": "/api/v1/app/download",
+  "apk_size_bytes": 5885123,
+  "apk_size_formatted": "5.6 MB",
+  "min_android_version": "Android 7.0+",
+  "release_notes": "Novidades da Versão 1.2.0: Suporte a Comunicados..."
+}
+```
+
+### GET `/app/download`
+Transmite o arquivo binário `.apk` (`AssetTrack-TI-v1.2.0.apk`) via HTTP com cabeçalhos para download direto no navegador ou smartphone.
+
+---
+
 # Rotas do Frontend (React Router)
 
 As rotas abaixo representam as páginas atuais da SPA em React. Elas são renderizadas no frontend e consomem a API REST em `/api/v1`.

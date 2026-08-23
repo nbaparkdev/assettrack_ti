@@ -40,4 +40,14 @@ export const alertsApi = {
     const response = await apiClient.delete<{ message: string }>(`/avisos/${id}`);
     return response.data;
   },
+  uploadMedia: async (file: File): Promise<{ url: string; midia_tipo: string; filename: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<{ url: string; midia_tipo: string; filename: string }>(
+      '/avisos/upload',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  },
 };

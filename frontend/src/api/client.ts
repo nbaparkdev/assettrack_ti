@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { offlineStorage } from '../utils/offlineStorage';
 
 const getApiBaseUrl = () => {
   // Check if there is a custom API URL configured (useful for mobile local testing)
@@ -52,10 +53,96 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle token expiry
+// Response interceptor to handle caching, offline queueing and token expiry
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response) => {
+    // Automatically cache GET responses for offline read-access
+    if (response.config.method?.toLowerCase() === 'get' && response.config.url) {
+      offlineStorage.setCache(response.config.url, response.data);
+    }
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+    const isNetworkError = !error.response || error.code === 'ERR_NETWORK' || !navigator.onLine;
+
+    // Handle offline scenario
+    if (isNetworkError && originalRequest) {
+      const method = (originalRequest.method || 'get').toLowerCase();
+      const url = originalRequest.url || '';
+
+      // Emergency alerts are strictly blocked offline
+      if (url.includes('/alertas/alertar') || url.includes('/emergencia/alertar')) {
+        return Promise.reject(new Error('Os alertas de emergência são em tempo real e exigem conexão ativa com a internet.'));
+      }
+
+      // 1. If GET, serve from offline cache if available
+      if (method === 'get') {
+        const cached = offlineStorage.getCache(url);
+        if (cached !== null) {
+          return Promise.resolve({
+            data: cached,
+            status: 200,
+            statusText: 'OK (Offline Cache)',
+            headers: {},
+            config: originalRequest,
+          });
+        }
+      }
+
+      // 2. If mutating request (POST, PUT, DELETE, PATCH), enqueue for auto-sync
+      if (['post', 'put', 'delete', 'patch'].includes(method)) {
+        let payload = originalRequest.data;
+        try {
+          if (typeof payload === 'string') {
+            payload = JSON.parse(payload);
+          }
+        } catch {
+          // keep as is
+        }
+
+        // Determine friendly description
+        let description = 'Operação em lote';
+        let category: 'chamado' | 'interacao' | 'ativo' | 'movimentacao' | 'geral' = 'geral';
+        if (url.includes('/servicos/chamados')) {
+          description = 'Abertura/atualização de chamado';
+          category = 'chamado';
+        } else if (url.includes('/servicos/interacoes')) {
+          description = 'Comentário em chamado';
+          category = 'interacao';
+        } else if (url.includes('/assets')) {
+          description = 'Atualização de ativo';
+          category = 'ativo';
+        } else if (url.includes('/transacoes') || url.includes('/movimentacoes')) {
+          description = 'Movimentação / Empréstimo';
+          category = 'movimentacao';
+        }
+
+        const queueItem = offlineStorage.enqueue({
+          endpoint: url,
+          method: method.toUpperCase() as any,
+          payload,
+          description,
+          category,
+        });
+
+        // Return simulated accepted response so UI continues seamlessly
+        return Promise.resolve({
+          data: {
+            id: `temp_${Date.now()}`,
+            ...payload,
+            _offline_queued: true,
+            _queue_id: queueItem.id,
+            message: 'Ação salva localmente no dispositivo. Será sincronizada automaticamente ao restabelecer a conexão.',
+          },
+          status: 202,
+          statusText: 'Accepted (Enqueued Offline)',
+          headers: {},
+          config: originalRequest,
+        });
+      }
+    }
+
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       // Redirect to login if on protected page
@@ -66,3 +153,4 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
