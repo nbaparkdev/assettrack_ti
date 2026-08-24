@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { transactionApi } from '../api/transaction';
 import { assetsApi } from '../api/assets';
 import { maintenanceApi } from '../api/maintenance';
@@ -29,6 +30,7 @@ import {
 } from 'lucide-react';
 
 export const BorrowingsPage: React.FC = () => {
+  const location = useLocation();
   const { user: currentUser } = useAuthStore();
   const isManagerOrAbove = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'].includes(currentUser?.role?.toLowerCase() || '');
   const canProcessReturn = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'rh'].includes(currentUser?.role?.toLowerCase() || '');
@@ -69,6 +71,14 @@ export const BorrowingsPage: React.FC = () => {
       fetchAssets();
     }
   }, [showCreateModal]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const statusParam = params.get('status');
+    if (statusParam) {
+      setStatusFilter(statusParam.toLowerCase());
+    }
+  }, [location.search]);
 
   const fetchSolicitacoes = async () => {
     setLoading(true);

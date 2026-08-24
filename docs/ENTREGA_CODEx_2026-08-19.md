@@ -46,6 +46,31 @@ Foram aplicados ajustes de interface para tornar a aplicação mais coesa, leve 
 - adequação de cor, transparência e raio de borda em avisos globais;
 - melhoria na percepção visual de ações concluídas.
 
+### 2.5. Atalhos de origem nos indicadores do dashboard
+
+- criação de atalhos clicáveis nos cards principais do dashboard;
+- vínculo dos indicadores com seus módulos de origem:
+  - Ativos & Inventário;
+  - Service Desk;
+  - Empréstimos;
+  - Manutenções;
+  - Compras;
+  - Central de Alertas;
+- inclusão de atalhos também nos indicadores resumidos de chamados e alertas para acelerar a navegação até a fonte do dado.
+- abertura dos módulos já com contexto de filtro/aba quando aplicável, reduzindo cliques e levando direto ao recorte certo da informação.
+- extensão dos atalhos para blocos analíticos menores do dashboard, incluindo:
+  - distribuição por categoria;
+  - status consolidado dos ativos;
+  - prioridades do Service Desk;
+  - feed de atividades recentes;
+  - cartões de alertas ativos.
+
+### 2.6. Visualização de anexos em chamados
+
+- a miniatura de imagem do chamado no Service Desk passou a abrir um modal de visualização ao clicar;
+- o mesmo padrão foi aplicado também às imagens das interações do chamado;
+- arquivos não-imagem continuam disponíveis por link direto, sem alterar o fluxo atual.
+
 ---
 
 ## 3. Ativos & Inventário
@@ -886,3 +911,76 @@ As melhorias acima foram validadas com:
 ### 11.17. Regra operacional adotada daqui para frente
 
 A partir desta solicitação, toda mudança relevante implementada nesta frente deverá ser acompanhada de atualização documental correspondente, para manter histórico funcional e técnico do que foi entregue.
+
+### 11.18. Compatibilidade de rota antiga para Ativos
+
+Foi adicionada uma rota de compatibilidade no frontend para manter links antigos funcionando.
+
+#### Evolução aplicada
+
+As URLs:
+
+- `/ativos`
+- `/ativos/*`
+
+passaram a redirecionar para:
+
+- `/assets`
+
+#### Benefício operacional
+
+Isso evita quebra de navegação para favoritos, bookmarks ou links antigos que ainda apontem para o caminho anterior.
+
+### 11.19. Automação de publicação do APK do AssetTrack TI Mobile
+
+Foi estruturado um fluxo de publicação automática do APK para que cada nova atualização gere um artefato versionado e disponível para download.
+
+#### O que foi implementado
+
+- criação do script [scripts/publish_mobile_apk.sh](/home/humberto/Aplicativos/assettrack_ti/scripts/publish_mobile_apk.sh);
+- build do app Android via Gradle com versão injetada no momento da publicação;
+- cópia do APK gerado para [backend/uploads](/home/humberto/Aplicativos/assettrack_ti/backend/uploads);
+- geração do manifest `mobile-release.json` com metadados da release;
+- leitura desse manifest pelo backend para expor versão, tamanho e nome real do arquivo;
+- atualização do modal de download para usar o nome do arquivo publicado;
+- bind mount do diretório `backend/uploads` no Docker para que o backend veja o APK recém-publicado;
+- execução best effort da publicação automática nos scripts de inicialização e atualização do ambiente.
+
+#### Resultado prático
+
+Agora o fluxo fica assim:
+
+1. a versão do app Android é publicada;
+2. o APK é gerado e salvo com nome versionado;
+3. o backend passa a servir o arquivo mais recente;
+4. a interface de download mostra o artefato correto da release;
+5. a publicação é acionada automaticamente nos scripts de subida/atualização do ambiente, quando o toolchain Android estiver disponível.
+
+### 11.20. Publicação do APK pelo painel administrativo
+
+Além da automação em scripts de ambiente, foi adicionada uma ação dentro do próprio portal para disparar a publicação do APK.
+
+#### O que foi entregue
+
+- botão de publicação na tela [frontend/src/pages/BackupPage.tsx](/home/humberto/Aplicativos/assettrack_ti/frontend/src/pages/BackupPage.tsx);
+- novo endpoint administrativo em [backend/internal/router/router.go](/home/humberto/Aplicativos/assettrack_ti/backend/internal/router/router.go);
+- rotina assíncrona de geração com feedback de progresso e erro;
+- leitura da versão publicada para mostrar ao usuário o estado atual da APK.
+
+#### Resultado prático
+
+O administrador agora pode abrir `Backup & Restore` e publicar a APK sem sair do navegador, mantendo o fluxo de gestão centralizado no próprio AssetTrack TI.
+
+### 11.21. Avatar do usuário no crachá digital
+
+A seção de crachá digital passou a exibir a foto de avatar cadastrada pelo usuário no próprio bloco de identidade funcional.
+
+#### Evolução aplicada
+
+- uso do campo `avatar_url` já exposto pela API do crachá;
+- fallback visual para as iniciais do nome quando o usuário ainda não tiver foto;
+- reaproveitamento do mesmo arquivo de mídia salvo no perfil.
+
+#### Resultado prático
+
+O crachá agora reflete melhor a identidade do colaborador e evita duplicação de dados visuais entre perfil e crachá.

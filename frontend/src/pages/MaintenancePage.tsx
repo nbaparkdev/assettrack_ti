@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { maintenanceApi } from '../api/maintenance';
 import { assetsApi } from '../api/assets';
 import { procurementApi } from '../api/procurement';
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 
 export const MaintenancePage: React.FC = () => {
+  const location = useLocation();
   const { user: currentUser } = useAuthStore();
   const isTechnicianOrAbove = currentUser?.role === 'admin' || currentUser?.role === 'gerente_ti' || currentUser?.role === 'tecnico';
 
@@ -118,6 +120,19 @@ export const MaintenancePage: React.FC = () => {
       fetchAssets();
     }
   }, [showCreateModal]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    if (tabParam === 'requests' || tabParam === 'active' || tabParam === 'history') {
+      setActiveTab(tabParam);
+    }
+
+    const statusParam = params.get('status');
+    if (statusParam) {
+      setStatusFilter(statusParam);
+    }
+  }, [location.search]);
 
   const fetchRequests = async () => {
     setLoading(true);

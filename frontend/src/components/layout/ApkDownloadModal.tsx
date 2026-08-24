@@ -29,6 +29,7 @@ export const ApkDownloadModal: React.FC<ApkDownloadModalProps> = ({ isOpen, onCl
   const rawDownloadUrl = appVersionApi.getDownloadUrl();
   const versionName = versionInfo?.version_name || APP_CONFIG.CURRENT_VERSION_NAME;
   const apkSize = versionInfo?.apk_size_formatted || '5.6 MB';
+  const downloadFilename = versionInfo?.apk_filename || `AssetTrack-TI-v${versionName}.apk`;
 
   // Ensure absolute URL without duplicating origin
   const downloadUrl = rawDownloadUrl.startsWith('http://') || rawDownloadUrl.startsWith('https://')
@@ -41,7 +42,7 @@ export const ApkDownloadModal: React.FC<ApkDownloadModalProps> = ({ isOpen, onCl
     setDownloading(true);
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.setAttribute('download', `AssetTrack-TI-v${versionName}.apk`);
+    link.setAttribute('download', downloadFilename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

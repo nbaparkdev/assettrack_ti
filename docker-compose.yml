@@ -54,7 +54,10 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - uploads_data:/app/uploads
+      - ./frontend:/workspace/frontend
+      - ./scripts:/workspace/scripts
+      - ./backend/uploads:/app/uploads
+      - ./backend/uploads:/workspace/backend/uploads
       - backups_data:/app/backups
 
   web:
@@ -63,6 +66,9 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8080/api/v1}
+        VITE_APP_VERSION_CODE: ${VITE_APP_VERSION_CODE:-2}
+        VITE_APP_VERSION_NAME: ${VITE_APP_VERSION_NAME:-1.2.0}
+        VITE_APP_BUILD_TIMESTAMP: ${VITE_APP_BUILD_TIMESTAMP:-}
     restart: unless-stopped
     ports:
       - "8000:80"
@@ -74,5 +80,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  uploads_data:
   backups_data:

@@ -165,6 +165,21 @@ export const ProcurementPage: React.FC = () => {
     }
   }, [location.pathname]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    const allowedTabs = ['dashboard', 'solicitacoes', 'ordens', 'estoque', 'cotacoes', 'cadastros', 'fornecedores'] as const;
+    if (tabParam && allowedTabs.includes(tabParam as any)) {
+      const nextTab = tabParam as typeof allowedTabs[number];
+      setTab(nextTab);
+      if (nextTab === 'fornecedores') {
+        navigate('/compras/fornecedores', { replace: true });
+      } else if (location.pathname === '/compras/fornecedores') {
+        navigate('/compras', { replace: true });
+      }
+    }
+  }, [location.search]);
+
   const handleTabChange = (nextTab: 'dashboard' | 'solicitacoes' | 'ordens' | 'estoque' | 'cotacoes' | 'cadastros' | 'fornecedores') => {
     setTab(nextTab);
     navigate(nextTab === 'fornecedores' ? '/compras/fornecedores' : '/compras');

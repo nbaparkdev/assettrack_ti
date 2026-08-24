@@ -82,11 +82,12 @@ Módulo de transmissão de comunicados e comunicados institucionais para toda a 
 - **Arquitetura Offline-First:** Fila de mutações persistida no armazenamento local (`localStorage`), permitindo que técnicos registrem ações (chamados, manutenções e verificações de ativos) mesmo totalmente sem sinal de internet.
 - **Sincronização Automática:** Reconexão transparente ao sinal de rede com indicador visual de status e contagem de itens sincronizados.
 - **Botão e Modal de Download do APK na Web:** Botão em destaque no cabeçalho da versão web com modal interativo que exibe:
-  - Download direto do arquivo `AssetTrack-TI-v1.2.0.apk` (5.6 MB).
+  - Download direto do arquivo APK versionado mais recente, publicado automaticamente e refletido pelo manifest do backend.
   - QR Code apontando diretamente para a URL da API para leitura e download imediato no celular.
   - Notas da versão e changelog.
   - Guia de 3 passos simples para instalação no Android.
-- **Notificador de Novas Versões:** Verificação em segundo plano informando a disponibilidade de atualizações do aplicativo com 1 clique.
+- **Notificador de Novas Versões:** Verificação em segundo plano informando a disponibilidade de atualizações do aplicativo com 1 clique, comparando a versão atual do portal com a versão publicada do APK.
+- **Publicação do APK pelo Portal Admin:** A tela de Backup & Restore ganhou uma ação administrativa para disparar a geração/publicação da APK sem sair da interface, exibindo progresso e status da publicação.
 
 ---
 

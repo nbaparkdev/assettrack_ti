@@ -274,19 +274,26 @@ Retorna as informações sobre a versão oficial compilada do APK Android.
 **Response (200 OK):**
 ```json
 {
-  "version_code": 2,
-  "version_name": "1.2.0",
-  "release_date": "2026-08-23",
+  "version_code": 20260824103045,
+  "version_name": "2026.08.24.1030",
+  "release_date": "2026-08-24T13:30:45Z",
   "download_url": "/api/v1/app/download",
+  "apk_filename": "AssetTrack-TI-v2026.08.24.1030.apk",
   "apk_size_bytes": 5885123,
   "apk_size_formatted": "5.6 MB",
-  "min_android_version": "Android 7.0+",
-  "release_notes": "Novidades da Versão 1.2.0: Suporte a Comunicados..."
+  "min_android_version": "Android 7.0 (Nougat) ou superior",
+  "release_notes": "• APK gerado automaticamente a partir da versão mais recente da aplicação..."
 }
 ```
 
 ### GET `/app/download`
-Transmite o arquivo binário `.apk` (`AssetTrack-TI-v1.2.0.apk`) via HTTP com cabeçalhos para download direto no navegador ou smartphone.
+Transmite o arquivo binário `.apk` versionado mais recente via HTTP com cabeçalhos para download direto no navegador ou smartphone. O nome do arquivo é derivado do manifest gerado na publicação.
+
+### POST `/admin/mobile/publish-apk`
+Dispara, em background, a geração e publicação do APK Android mais recente. Requer autenticação e perfil de administrador.
+
+### GET `/admin/mobile/publish-apk/status`
+Retorna o estado atual da publicação do APK em andamento, incluindo progresso e erro eventual.
 
 ---
 

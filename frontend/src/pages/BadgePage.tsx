@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usersApi } from '../api/users';
+import { toApiFileUrl } from '../api/client';
 import type { BadgeInfo, QRTokenInfo } from '../types';
 import { QrCode, RefreshCw, KeyRound, CheckCircle, AlertCircle, Copy } from 'lucide-react';
 
@@ -81,8 +82,16 @@ export const BadgePage: React.FC = () => {
           </span>
 
           <div className="w-full max-w-xs border border-brand-border bg-brand-dark p-6 text-center flex flex-col items-center space-y-4">
-            <div className="w-20 h-20 border border-brand-primary/30 flex items-center justify-center font-mono text-brand-primary text-3xl bg-brand-primary/5 uppercase">
-              {badge?.nome.substring(0, 2)}
+            <div className="w-20 h-20 border border-brand-primary/30 overflow-hidden flex items-center justify-center font-mono text-brand-primary text-3xl bg-brand-primary/5 uppercase shadow-sm">
+              {badge?.avatar_url ? (
+                <img
+                  src={toApiFileUrl(badge.avatar_url)}
+                  alt={`Avatar de ${badge.nome}`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                badge?.nome.substring(0, 2)
+              )}
             </div>
 
             <div>

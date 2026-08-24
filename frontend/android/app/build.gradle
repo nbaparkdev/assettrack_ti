@@ -1,5 +1,13 @@
 apply plugin: 'com.android.application'
 
+def appVersionCode = (project.findProperty("appVersionCode") ?: "1").toString().toInteger()
+def appVersionName = (project.findProperty("appVersionName") ?: "1.0").toString()
+def appKeystoreFile = project.findProperty("appKeystoreFile")
+def appKeystorePassword = project.findProperty("appKeystorePassword")
+def appKeyAlias = project.findProperty("appKeyAlias")
+def appKeyPassword = project.findProperty("appKeyPassword")
+def hasReleaseSigningConfig = appKeystoreFile && appKeystorePassword && appKeyAlias && appKeyPassword
+
 android {
     namespace = "com.assettrack.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +15,8 @@ android {
         applicationId "com.assettrack.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +24,24 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasReleaseSigningConfig) {
+                storeFile file(appKeystoreFile)
+                storePassword appKeystorePassword
+                keyAlias appKeyAlias
+                keyPassword appKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigningConfig) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

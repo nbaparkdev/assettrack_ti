@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import { assetsApi } from '../api/assets';
 import { usersApi } from '../api/users';
@@ -51,6 +52,7 @@ import {
 } from 'lucide-react';
 
 export const AssetsPage: React.FC = () => {
+  const location = useLocation();
   const currentAuthUser = useAuthStore().user;
   const isManagerOrAbove = currentAuthUser?.role === 'admin' || 
                            currentAuthUser?.role === 'gerente_ti' || 
@@ -231,6 +233,31 @@ export const AssetsPage: React.FC = () => {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const nextTab = params.get('tab');
+    if (nextTab === 'table' || nextTab === 'kanban' || nextTab === 'reports' || nextTab === 'references') {
+      setActiveTab(nextTab);
+    }
+
+    const statusParam = params.get('status');
+    if (statusParam !== null) {
+      setFilterStatus(statusParam);
+    }
+
+    const categoryParam = params.get('category');
+    if (categoryParam) {
+      if (!Number.isNaN(Number(categoryParam))) {
+        setFilterCategory(Number(categoryParam));
+      } else if (references?.categorias?.length) {
+        const match = references.categorias.find((cat) => cat.nome.toLowerCase() === categoryParam.toLowerCase());
+        if (match) {
+          setFilterCategory(match.id);
+        }
+      }
+    }
+  }, [location.search, references]);
 
   const fetchReportAssets = async () => {
     setReportLoading(true);

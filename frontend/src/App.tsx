@@ -68,6 +68,8 @@ const App: React.FC = () => {
               </MainLayout>
             }
           />
+          <Route path="/ativos" element={<Navigate to="/assets" replace />} />
+          <Route path="/ativos/*" element={<Navigate to="/assets" replace />} />
           <Route
             path="/badge"
             element={

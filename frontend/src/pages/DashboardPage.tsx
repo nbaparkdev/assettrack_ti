@@ -75,6 +75,52 @@ export const DashboardPage: React.FC = () => {
   const [dashboardFeedbackComment, setDashboardFeedbackComment] = useState<string>('');
   const [submittingEmergency, setSubmittingEmergency] = useState<boolean>(false);
 
+  const dashboardSourceLinks = {
+    assets: '/assets?tab=table',
+    serviceDesk: '/servicos?status=aberto',
+    serviceDeskResolved: '/servicos?status=resolvido',
+    serviceDeskClosed: '/servicos?status=fechado',
+    loans: '/emprestimos?status=pendente',
+    maintenance: '/manutencoes?tab=active',
+    purchases: '/compras?tab=ordens',
+    alerts: '/alertas',
+  } as const;
+
+  const assetStatusSourceLinks: Record<string, string> = {
+    Disponível: '/assets?tab=table&status=Disponível',
+    'Em Uso': '/assets?tab=table&status=Em%20uso',
+    Manutenção: '/assets?tab=table&status=Manutenção',
+    Armazenado: '/assets?tab=table&status=Armazenado',
+    Baixado: '/assets?tab=table&status=Baixado',
+  };
+
+  const getRecentActivityLink = (act: { type: string; status: string }) => {
+    if (act.type === 'movimentacao') return dashboardSourceLinks.assets;
+    if (act.type === 'solicitacao') {
+      const status = act.status?.toLowerCase() || '';
+      if (status === 'entregue') return '/emprestimos?status=entregue';
+      if (status === 'pendente') return '/emprestimos?status=pendente';
+      return dashboardSourceLinks.loans;
+    }
+    return dashboardSourceLinks.assets;
+  };
+
+  const getCategorySourceLink = (category: string) =>
+    `/assets?tab=table&category=${encodeURIComponent(category)}`;
+
+  const getPrioritySourceLink = (priority: 'urgente' | 'alta' | 'media' | 'baixa') =>
+    `/servicos?priority=${priority}`;
+
+  const renderSourceFooter = (label: string) => (
+    <div className="mt-3 pt-2 border-t border-brand-border/50 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-brand-muted group-hover:text-brand-primary transition-colors">
+      <span>Atalho</span>
+      <span className="inline-flex items-center space-x-1">
+        <span>{label}</span>
+        <ExternalLink size={11} />
+      </span>
+    </div>
+  );
+
   const fetchStats = async () => {
     try {
       setLoading(true);
@@ -1133,110 +1179,152 @@ export const DashboardPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
 
             {/* Total Assets */}
-            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Total de Ativos</span>
-                <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg">
-                  <Layers size={18} />
+            <Link
+              to={dashboardSourceLinks.assets}
+              title="Abrir origem dos dados em Ativos & Inventário"
+              className="group block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0"
+            >
+              <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group-hover:border-brand-primary/40 transition-all flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Total de Ativos</span>
+                  <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg">
+                    <Layers size={18} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-3xl font-black font-mono text-brand-text">{totalAssetsCount}</div>
-                <div className="text-[11px] text-emerald-600 font-mono font-semibold mt-1 flex items-center space-x-1">
-                  <span>●</span>
-                  <span>{stats.total_assets_disponivel} disponíveis ({totalAssetsCount > 0 ? ((stats.total_assets_disponivel / totalAssetsCount) * 100).toFixed(0) : 0}%)</span>
+                <div>
+                  <div className="text-3xl font-black font-mono text-brand-text">{totalAssetsCount}</div>
+                  <div className="text-[11px] text-emerald-600 font-mono font-semibold mt-1 flex items-center space-x-1">
+                    <span>●</span>
+                    <span>{stats.total_assets_disponivel} disponíveis ({totalAssetsCount > 0 ? ((stats.total_assets_disponivel / totalAssetsCount) * 100).toFixed(0) : 0}%)</span>
+                  </div>
                 </div>
+                {renderSourceFooter('Abrir ativos')}
               </div>
-            </div>
+            </Link>
 
             {/* Total Value in R$ */}
-            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Patrimônio Total</span>
-                <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
-                  <TrendingUp size={18} />
+            <Link
+              to={dashboardSourceLinks.assets}
+              title="Abrir origem do patrimônio total em Ativos & Inventário"
+              className="group block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0"
+            >
+              <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group-hover:border-brand-primary/40 transition-all flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Patrimônio Total</span>
+                  <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
+                    <TrendingUp size={18} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-2xl font-black font-mono text-emerald-600 truncate" title={formatCurrency(stats.total_assets_value || 0)}>
-                  {formatCurrency(stats.total_assets_value || 0)}
+                <div>
+                  <div className="text-2xl font-black font-mono text-emerald-600 truncate" title={formatCurrency(stats.total_assets_value || 0)}>
+                    {formatCurrency(stats.total_assets_value || 0)}
+                  </div>
+                  <div className="text-[11px] text-brand-muted mt-1">Valor de aquisição / inventário</div>
                 </div>
-                <div className="text-[11px] text-brand-muted mt-1">Valor de aquisição / inventário</div>
+                {renderSourceFooter('Abrir inventário')}
               </div>
-            </div>
+            </Link>
 
             {/* Service Desk Tickets */}
-            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Service Desk</span>
-                <div className="p-2 bg-indigo-500/10 text-indigo-500 rounded-lg">
-                  <MessageSquare size={18} />
+            <Link
+              to={dashboardSourceLinks.serviceDesk}
+              title="Abrir origem dos chamados em Service Desk"
+              className="group block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0"
+            >
+              <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group-hover:border-brand-primary/40 transition-all flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Service Desk</span>
+                  <div className="p-2 bg-indigo-500/10 text-indigo-500 rounded-lg">
+                    <MessageSquare size={18} />
+                  </div>
                 </div>
+                <div>
+                  <div className="flex items-baseline space-x-1.5">
+                    <span className="text-3xl font-black font-mono text-brand-text">{stats.tickets_open}</span>
+                    <span className="text-xs font-mono text-brand-muted">abertos</span>
+                  </div>
+                  <div className="text-[11px] text-brand-muted mt-1 flex items-center justify-between">
+                    <span>{stats.tickets_closed} fechados</span>
+                    {stats.tickets_avg_rating && stats.tickets_avg_rating > 0 ? (
+                      <span className="text-amber-500 font-bold font-mono flex items-center">
+                        <Star size={11} className="fill-amber-400 mr-0.5 inline" />
+                        {stats.tickets_avg_rating.toFixed(1)}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                {renderSourceFooter('Abrir chamados')}
               </div>
-              <div>
-                <div className="flex items-baseline space-x-1.5">
-                  <span className="text-3xl font-black font-mono text-brand-text">{stats.tickets_open}</span>
-                  <span className="text-xs font-mono text-brand-muted">abertos</span>
-                </div>
-                <div className="text-[11px] text-brand-muted mt-1 flex items-center justify-between">
-                  <span>{stats.tickets_closed} fechados</span>
-                  {stats.tickets_avg_rating && stats.tickets_avg_rating > 0 ? (
-                    <span className="text-amber-500 font-bold font-mono flex items-center">
-                      <Star size={11} className="fill-amber-400 mr-0.5 inline" />
-                      {stats.tickets_avg_rating.toFixed(1)}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            </div>
+            </Link>
 
             {/* Pending Asset Requests */}
-            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Empréstimos</span>
-                <div className="p-2 bg-purple-500/10 text-purple-500 rounded-lg">
-                  <ArrowLeftRight size={18} />
+            <Link
+              to={dashboardSourceLinks.loans}
+              title="Abrir origem dos empréstimos e devoluções"
+              className="group block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0"
+            >
+              <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group-hover:border-brand-primary/40 transition-all flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Empréstimos</span>
+                  <div className="p-2 bg-purple-500/10 text-purple-500 rounded-lg">
+                    <ArrowLeftRight size={18} />
+                  </div>
                 </div>
+                <div>
+                  <div className="text-3xl font-black font-mono text-brand-text">{stats.pending_asset_requests}</div>
+                  <div className="text-[11px] text-brand-muted mt-1">Pendentes de aprovação/entrega</div>
+                </div>
+                {renderSourceFooter('Abrir empréstimos')}
               </div>
-              <div>
-                <div className="text-3xl font-black font-mono text-brand-text">{stats.pending_asset_requests}</div>
-                <div className="text-[11px] text-brand-muted mt-1">Pendentes de aprovação/entrega</div>
-              </div>
-            </div>
+            </Link>
 
             {/* Assets in Maintenance */}
-            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Em Manutenção</span>
-                <div className="p-2 bg-amber-500/10 text-amber-500 rounded-lg">
-                  <Wrench size={18} />
+            <Link
+              to={dashboardSourceLinks.maintenance}
+              title="Abrir origem de manutenção e oficina"
+              className="group block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0"
+            >
+              <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group-hover:border-brand-primary/40 transition-all flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Em Manutenção</span>
+                  <div className="p-2 bg-amber-500/10 text-amber-500 rounded-lg">
+                    <Wrench size={18} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-3xl font-black font-mono text-brand-text">{stats.total_assets_maintenance}</div>
-                <div className="text-[11px] text-brand-muted mt-1">
-                  {stats.pending_maintenance_requests > 0
-                    ? `${stats.pending_maintenance_requests} solicitações pendentes`
-                    : 'Na oficina / laboratório'}
+                <div>
+                  <div className="text-3xl font-black font-mono text-brand-text">{stats.total_assets_maintenance}</div>
+                  <div className="text-[11px] text-brand-muted mt-1">
+                    {stats.pending_maintenance_requests > 0
+                      ? `${stats.pending_maintenance_requests} solicitações pendentes`
+                      : 'Na oficina / laboratório'}
+                  </div>
                 </div>
+                {renderSourceFooter('Abrir manutenção')}
               </div>
-            </div>
+            </Link>
 
             {/* Monthly Cost (Procurement) */}
-            <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group hover:border-brand-primary/40 transition-all flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Compras no Mês</span>
-                <div className="p-2 bg-teal-500/10 text-teal-500 rounded-lg">
-                  <Briefcase size={18} />
+            <Link
+              to={dashboardSourceLinks.purchases}
+              title="Abrir origem das compras aprovadas no mês"
+              className="group block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0"
+            >
+              <div className="bg-brand-card border border-brand-border p-4 relative overflow-hidden group-hover:border-brand-primary/40 transition-all flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold font-mono uppercase tracking-wider text-brand-muted">Compras no Mês</span>
+                  <div className="p-2 bg-teal-500/10 text-teal-500 rounded-lg">
+                    <Briefcase size={18} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-xl font-black font-mono text-brand-text truncate" title={formatCurrency(stats.supplier_cost_monthly)}>
-                  {formatCurrency(stats.supplier_cost_monthly)}
+                <div>
+                  <div className="text-xl font-black font-mono text-brand-text truncate" title={formatCurrency(stats.supplier_cost_monthly)}>
+                    {formatCurrency(stats.supplier_cost_monthly)}
+                  </div>
+                  <div className="text-[11px] text-brand-muted mt-1">Ordens aprovadas no mês</div>
                 </div>
-                <div className="text-[11px] text-brand-muted mt-1">Ordens aprovadas no mês</div>
+                {renderSourceFooter('Abrir compras')}
               </div>
-            </div>
+            </Link>
 
           </div>
 
@@ -1293,27 +1381,33 @@ export const DashboardPage: React.FC = () => {
 
               {/* Legend with exact counts and colors */}
               <div className="grid grid-cols-3 gap-2 pt-3 border-t border-brand-border/60 text-center">
-                <div className="p-2 bg-red-500/5 border border-red-500/20 rounded-lg">
+                <Link to={dashboardSourceLinks.serviceDesk} title="Abrir Service Desk — chamados em aberto" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0">
+                  <div className="p-2 bg-red-500/5 border border-red-500/20 rounded-lg transition-all hover:border-red-500/40 hover:bg-red-500/10">
                   <div className="text-[10px] font-mono text-red-600 font-bold uppercase">Abertos</div>
                   <div className="text-base font-black font-mono text-red-600">{stats.tickets_open}</div>
                   <div className="text-[9px] text-brand-muted font-mono">
                     {totalTicketsCount > 0 ? ((stats.tickets_open / totalTicketsCount) * 100).toFixed(0) : 0}%
                   </div>
-                </div>
-                <div className="p-2 bg-amber-500/5 border border-amber-500/20 rounded-lg">
+                  </div>
+                </Link>
+                <Link to={dashboardSourceLinks.serviceDeskResolved} title="Abrir Service Desk — chamados resolvidos" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0">
+                  <div className="p-2 bg-amber-500/5 border border-amber-500/20 rounded-lg transition-all hover:border-amber-500/40 hover:bg-amber-500/10">
                   <div className="text-[10px] font-mono text-amber-600 font-bold uppercase">Resolvidos</div>
                   <div className="text-base font-black font-mono text-amber-600">{stats.tickets_resolved}</div>
                   <div className="text-[9px] text-brand-muted font-mono">
                     {totalTicketsCount > 0 ? ((stats.tickets_resolved / totalTicketsCount) * 100).toFixed(0) : 0}%
                   </div>
-                </div>
-                <div className="p-2 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
+                  </div>
+                </Link>
+                <Link to={dashboardSourceLinks.serviceDeskClosed} title="Abrir Service Desk — chamados fechados" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0">
+                  <div className="p-2 bg-emerald-500/5 border border-emerald-500/20 rounded-lg transition-all hover:border-emerald-500/40 hover:bg-emerald-500/10">
                   <div className="text-[10px] font-mono text-emerald-600 font-bold uppercase">Fechados</div>
                   <div className="text-base font-black font-mono text-emerald-600">{stats.tickets_closed}</div>
                   <div className="text-[9px] text-brand-muted font-mono">
                     {totalTicketsCount > 0 ? ((stats.tickets_closed / totalTicketsCount) * 100).toFixed(0) : 0}%
                   </div>
-                </div>
+                  </div>
+                </Link>
               </div>
             </div>
 
@@ -1363,26 +1457,26 @@ export const DashboardPage: React.FC = () => {
 
               {/* Status footer stats pills */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-brand-border/60 text-xs font-mono">
-                <div className="flex items-center space-x-1.5">
+                <Link to={assetStatusSourceLinks['Disponível']} className="flex items-center space-x-1.5 hover:text-brand-primary" title="Ver ativos disponíveis">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
                   <span className="text-brand-muted">Disponível: <strong className="text-brand-text">{stats.total_assets_disponivel}</strong></span>
-                </div>
-                <div className="flex items-center space-x-1.5">
+                </Link>
+                <Link to={assetStatusSourceLinks['Em Uso']} className="flex items-center space-x-1.5 hover:text-brand-primary" title="Ver ativos em uso">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
                   <span className="text-brand-muted">Em Uso: <strong className="text-brand-text">{stats.total_assets_em_uso}</strong></span>
-                </div>
-                <div className="flex items-center space-x-1.5">
+                </Link>
+                <Link to={assetStatusSourceLinks.Manutenção} className="flex items-center space-x-1.5 hover:text-brand-primary" title="Ver ativos em manutenção">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
                   <span className="text-brand-muted">Manutenção: <strong className="text-brand-text">{stats.total_assets_maintenance}</strong></span>
-                </div>
-                <div className="flex items-center space-x-1.5">
+                </Link>
+                <Link to={assetStatusSourceLinks.Armazenado} className="flex items-center space-x-1.5 hover:text-brand-primary" title="Ver ativos armazenados">
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block" />
                   <span className="text-brand-muted">Armazenado: <strong className="text-brand-text">{stats.total_assets_armazenado}</strong></span>
-                </div>
-                <div className="flex items-center space-x-1.5">
+                </Link>
+                <Link to={assetStatusSourceLinks.Baixado} className="flex items-center space-x-1.5 hover:text-brand-primary" title="Ver ativos baixados">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
                   <span className="text-brand-muted">Baixado: <strong className="text-brand-text">{stats.total_assets_baixado}</strong></span>
-                </div>
+                </Link>
               </div>
             </div>
 
@@ -1398,7 +1492,7 @@ export const DashboardPage: React.FC = () => {
                   <Package size={18} className="text-brand-primary" />
                   <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-brand-text">Distribuição por Categoria</h3>
                 </div>
-                <Link to="/ativos" className="text-xs font-mono text-brand-primary hover:underline flex items-center">
+                <Link to="/assets" className="text-xs font-mono text-brand-primary hover:underline flex items-center">
                   <span>Ver todos</span>
                   <ChevronRight size={14} />
                 </Link>
@@ -1409,7 +1503,7 @@ export const DashboardPage: React.FC = () => {
                   stats.assets_by_category.map((cat, idx) => {
                     const percentage = totalAssetsCount > 0 ? ((cat.count / totalAssetsCount) * 100).toFixed(1) : '0';
                     return (
-                      <div key={idx} className="space-y-1">
+                      <Link key={idx} to={getCategorySourceLink(cat.category)} className="block space-y-1 group" title={`Abrir ativos da categoria ${cat.category}`}>
                         <div className="flex justify-between items-center text-xs font-mono">
                           <span className="font-semibold text-brand-text truncate max-w-[200px]" title={cat.category}>
                             {cat.category}
@@ -1424,7 +1518,7 @@ export const DashboardPage: React.FC = () => {
                             style={{ width: `${Math.min(100, Math.max(5, Number(percentage)))}%` }}
                           />
                         </div>
-                      </div>
+                      </Link>
                     );
                   })
                 ) : (
@@ -1436,27 +1530,27 @@ export const DashboardPage: React.FC = () => {
 
               {/* Service Desk Priority Summary */}
               {stats.tickets_by_priority && (
-                <div className="pt-3 border-t border-brand-border/60 space-y-2">
+                  <div className="pt-3 border-t border-brand-border/60 space-y-2">
                   <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-brand-muted">
                     Chamados por Prioridade
                   </div>
                   <div className="grid grid-cols-4 gap-1.5 text-center font-mono">
-                    <div className="p-1.5 bg-red-500/10 border border-red-500/20 rounded">
+                    <Link to={getPrioritySourceLink('urgente')} title="Abrir chamados urgentes" className="block p-1.5 bg-red-500/10 border border-red-500/20 rounded hover:border-red-500/40 hover:bg-red-500/15 transition-all">
                       <div className="text-[9px] text-red-600 font-bold uppercase">Urgente</div>
                       <div className="text-xs font-black text-red-600">{stats.tickets_by_priority.urgente || 0}</div>
-                    </div>
-                    <div className="p-1.5 bg-amber-500/10 border border-amber-500/20 rounded">
+                    </Link>
+                    <Link to={getPrioritySourceLink('alta')} title="Abrir chamados de prioridade alta" className="block p-1.5 bg-amber-500/10 border border-amber-500/20 rounded hover:border-amber-500/40 hover:bg-amber-500/15 transition-all">
                       <div className="text-[9px] text-amber-600 font-bold uppercase">Alta</div>
                       <div className="text-xs font-black text-amber-600">{stats.tickets_by_priority.alta || 0}</div>
-                    </div>
-                    <div className="p-1.5 bg-blue-500/10 border border-blue-500/20 rounded">
+                    </Link>
+                    <Link to={getPrioritySourceLink('media')} title="Abrir chamados de prioridade média" className="block p-1.5 bg-blue-500/10 border border-blue-500/20 rounded hover:border-blue-500/40 hover:bg-blue-500/15 transition-all">
                       <div className="text-[9px] text-blue-600 font-bold uppercase">Média</div>
                       <div className="text-xs font-black text-blue-600">{stats.tickets_by_priority.media || 0}</div>
-                    </div>
-                    <div className="p-1.5 bg-slate-500/10 border border-slate-500/20 rounded">
+                    </Link>
+                    <Link to={getPrioritySourceLink('baixa')} title="Abrir chamados de prioridade baixa" className="block p-1.5 bg-slate-500/10 border border-slate-500/20 rounded hover:border-slate-500/40 hover:bg-slate-500/15 transition-all">
                       <div className="text-[9px] text-slate-600 font-bold uppercase">Baixa</div>
                       <div className="text-xs font-black text-slate-600">{stats.tickets_by_priority.baixa || 0}</div>
-                    </div>
+                    </Link>
                   </div>
                 </div>
               )}
@@ -1475,7 +1569,12 @@ export const DashboardPage: React.FC = () => {
               <div className="space-y-3 flex-1 overflow-y-auto max-h-[380px] pr-1">
                 {stats.recent_activities && stats.recent_activities.length > 0 ? (
                   stats.recent_activities.map((act) => (
-                    <div key={`${act.type}-${act.id}`} className="p-3 bg-brand-dark/20 border border-brand-border/60 flex items-start space-x-3 hover:border-brand-primary/40 transition-colors">
+                    <Link
+                      key={`${act.type}-${act.id}`}
+                      to={getRecentActivityLink(act)}
+                      title="Abrir origem desta atividade"
+                      className="block p-3 bg-brand-dark/20 border border-brand-border/60 flex items-start space-x-3 hover:border-brand-primary/40 hover:bg-brand-dark/30 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0"
+                    >
                       <div className="p-1.5 bg-brand-primary/10 text-brand-primary rounded mt-0.5 shrink-0">
                         {act.type === 'movimentacao' ? <ArrowLeftRight size={14} /> : <Laptop size={14} />}
                       </div>
@@ -1493,7 +1592,7 @@ export const DashboardPage: React.FC = () => {
                           </span>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   ))
                 ) : (
                   <div className="text-xs text-brand-muted font-mono text-center py-10">
@@ -1526,7 +1625,8 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 ) : (
                   stats.active_alerts.map((alert) => (
-                    <div key={alert.id} className="border-l-4 border-red-500 bg-red-500/5 p-3 flex items-start space-x-2.5">
+                    <Link key={alert.id} to={dashboardSourceLinks.alerts} title="Abrir central de alertas" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0">
+                      <div className="border-l-4 border-red-500 bg-red-500/5 p-3 flex items-start space-x-2.5 transition-all hover:bg-red-500/10 hover:border-red-500/60">
                       {alert.severity === 'CRITICAL' ? (
                         <AlertTriangle className="text-red-500 mt-0.5 shrink-0" size={16} />
                       ) : (
@@ -1538,7 +1638,8 @@ export const DashboardPage: React.FC = () => {
                           {new Date(alert.created_at).toLocaleString('pt-BR')}
                         </p>
                       </div>
-                    </div>
+                      </div>
+                    </Link>
                   ))
                 )}
               </div>

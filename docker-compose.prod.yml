@@ -38,7 +38,10 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - uploads_data:/app/uploads
+      - ./frontend:/workspace/frontend
+      - ./scripts:/workspace/scripts
+      - ./backend/uploads:/app/uploads
+      - ./backend/uploads:/workspace/backend/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -57,6 +60,9 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8080/api/v1}
+        VITE_APP_VERSION_CODE: ${VITE_APP_VERSION_CODE:-2}
+        VITE_APP_VERSION_NAME: ${VITE_APP_VERSION_NAME:-1.2.0}
+        VITE_APP_BUILD_TIMESTAMP: ${VITE_APP_BUILD_TIMESTAMP:-}
     restart: always
     ports:
       - "8000:80"
@@ -67,4 +73,3 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  uploads_data:

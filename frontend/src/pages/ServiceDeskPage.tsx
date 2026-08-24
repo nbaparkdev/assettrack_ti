@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useLocation } from 'react-router-dom';
 import { serviceDeskApi } from '../api/serviceDesk';
 import { usersApi } from '../api/users';
 import { useAuthStore } from '../stores/authStore';
@@ -20,6 +22,7 @@ import {
 } from 'lucide-react';
 
 export const ServiceDeskPage: React.FC = () => {
+  const location = useLocation();
   const { user: currentUser } = useAuthStore();
   const isTechnicianOrAbove = currentUser?.role === 'admin' || currentUser?.role === 'gerente_ti' || currentUser?.role === 'tecnico';
 
@@ -118,6 +121,7 @@ export const ServiceDeskPage: React.FC = () => {
 
   // Detail panel state (Layout Diversification)
   const [selectedTicket, setSelectedTicket] = useState<ServiceTicket | null>(null);
+  const [previewImage, setPreviewImage] = useState<{ src: string; title: string } | null>(null);
   const [commentMessage, setCommentMessage] = useState('');
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [showResolutionForm, setShowResolutionForm] = useState(false);
@@ -136,6 +140,11 @@ export const ServiceDeskPage: React.FC = () => {
     if (e.target.files && e.target.files[0]) {
       setAttachedFile(e.target.files[0]);
     }
+  };
+
+  const openPreviewImage = (src: string, title: string) => {
+    if (!src) return;
+    setPreviewImage({ src, title });
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
@@ -157,6 +166,19 @@ export const ServiceDeskPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+    if (status) {
+      setStatusFilter(status.toLowerCase());
+    }
+
+    const priority = params.get('priority');
+    if (priority) {
+      setPriorityFilter(priority.toLowerCase());
+    }
+  }, [location.search]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -465,11 +487,21 @@ export const ServiceDeskPage: React.FC = () => {
                 <div className="flex-1 flex items-start space-x-3 pr-4 font-sans">
                   {ticket.foto && isImageFile(ticket.foto) && (
                     <div className="shrink-0 mt-1">
-                      <img
-                        src={toApiFileUrl(ticket.foto)}
-                        alt="Thumbnail"
-                        className="w-12 h-12 object-cover border border-brand-border/60 rounded"
-                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openPreviewImage(toApiFileUrl(ticket.foto), `Anexo do chamado ${ticket.codigo}`);
+                        }}
+                        className="block rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0"
+                        title="Visualizar imagem"
+                      >
+                        <img
+                          src={toApiFileUrl(ticket.foto)}
+                          alt="Thumbnail"
+                          className="w-12 h-12 object-cover border border-brand-border/60 rounded cursor-zoom-in hover:border-brand-primary/60 transition-colors"
+                        />
+                      </button>
                     </div>
                   )}
                   <div className="space-y-2 flex-1">
@@ -729,13 +761,18 @@ export const ServiceDeskPage: React.FC = () => {
                       {item.foto && (
                         <div className="mt-2 pt-2 border-t border-brand-border/20">
                           {isImageFile(item.foto) ? (
-                            <a href={toApiFileUrl(item.foto)} target="_blank" rel="noreferrer" className="block max-w-max">
+                            <button
+                              type="button"
+                              onClick={() => openPreviewImage(toApiFileUrl(item.foto), `Anexo de ${author?.nome || 'Usuário'}`)}
+                              className="block max-w-max rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0"
+                              title="Visualizar imagem"
+                            >
                               <img
                                 src={toApiFileUrl(item.foto)}
                                 alt="Anexo"
-                                className="max-h-40 max-w-full rounded border border-brand-border/60 hover:border-brand-primary/60 transition-colors"
+                                className="max-h-40 max-w-full rounded border border-brand-border/60 hover:border-brand-primary/60 transition-colors cursor-zoom-in"
                               />
-                            </a>
+                            </button>
                           ) : (
                             <a
                               href={toApiFileUrl(item.foto)}
@@ -1066,6 +1103,41 @@ export const ServiceDeskPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {previewImage && createPortal(
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-brand-dark/80 backdrop-blur-md p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="w-full max-w-4xl bg-brand-card border border-brand-border shadow-2xl rounded-sm overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-brand-border bg-brand-dark/50">
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-brand-text truncate">{previewImage.title}</h3>
+                <p className="text-[10px] font-mono text-brand-muted">Clique fora ou no X para fechar</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="text-brand-muted hover:text-brand-text transition-colors p-1.5 hover:bg-brand-dark rounded"
+                aria-label="Fechar visualização"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="bg-black/60 p-4 flex items-center justify-center max-h-[82vh] overflow-auto">
+              <img
+                src={previewImage.src}
+                alt={previewImage.title}
+                className="max-w-full max-h-[78vh] object-contain rounded border border-brand-border/60 shadow-lg"
+              />
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
       {/* Configuration Modal */}
       {showConfigModal && isTechnicianOrAbove && (

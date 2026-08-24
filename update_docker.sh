@@ -21,6 +21,11 @@ fi
 
 COMPOSE_CMD="docker compose"
 
+# Gerar identificador único para a release atual e compartilhar com o build web + APK
+export VITE_APP_VERSION_CODE="$(date -u +%s)"
+export VITE_APP_VERSION_NAME="$(date -u +%Y.%m.%d.%H%M)"
+export VITE_APP_BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
 # Atualizar Git
 if [ -d ".git" ]; then
     echo "📥 Atualizando repositório Git..."
@@ -43,6 +48,16 @@ while [ $WAITED -lt $MAX_WAIT ]; do
     sleep 2
     WAITED=$((WAITED + 2))
 done
+
+# Gerar e publicar APK da versão mais recente, se o ambiente Android estiver disponível
+if [ -x "./scripts/publish_mobile_apk.sh" ]; then
+    echo "📱 Publicando APK da versão atual..."
+    if ./scripts/publish_mobile_apk.sh; then
+        echo "✅ APK publicado e disponível para download."
+    else
+        echo "⚠️ Não foi possível gerar o APK agora. A aplicação continua funcionando normalmente."
+    fi
+fi
 
 # Limpeza de imagens suspensas/antigas
 echo "🧹 Removendo imagens antigas não utilizadas..."

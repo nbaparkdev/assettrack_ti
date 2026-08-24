@@ -1,14 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { backupApi } from '../api/backup';
+import { appVersionApi } from '../api/appVersion';
 import type { BackupFile, BackupStatus } from '../api/backup';
-import { Database, Download, Trash2, RefreshCw, Upload, AlertTriangle } from 'lucide-react';
+import type { AppPublishStatus, AppVersionInfo } from '../api/appVersion';
+import { Database, Download, Trash2, RefreshCw, Upload, AlertTriangle, Smartphone } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 export const BackupPage: React.FC = () => {
   const { token } = useAuthStore();
   const [backups, setBackups] = useState<BackupFile[]>([]);
   const [status, setStatus] = useState<BackupStatus>({ is_running: false, progress: '' });
+  const [apkStatus, setApkStatus] = useState<AppPublishStatus>({ is_running: false, progress: '' });
+  const [apkVersion, setApkVersion] = useState<AppVersionInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [publishing, setPublishing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreText, setRestoreText] = useState('');
@@ -41,9 +46,36 @@ export const BackupPage: React.FC = () => {
     }
   };
 
+  const fetchAppVersion = async () => {
+    try {
+      const info = await appVersionApi.getVersion();
+      setApkVersion(info);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const checkApkStatus = async () => {
+    try {
+      const st = await appVersionApi.getPublishStatus();
+      setApkStatus(st);
+      if (st.is_running) {
+        setTimeout(checkApkStatus, 3000);
+      } else {
+        fetchAppVersion();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   useEffect(() => {
     fetchBackups();
     checkStatus();
+    fetchAppVersion();
+    checkApkStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -54,6 +86,19 @@ export const BackupPage: React.FC = () => {
       setTimeout(checkStatus, 2000);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Erro ao gerar backup');
+    }
+  };
+
+  const handlePublishMobileApk = async () => {
+    if (publishing || apkStatus.is_running) return;
+    setPublishing(true);
+    try {
+      await appVersionApi.publishMobileApk();
+      setApkStatus({ is_running: true, progress: 'Iniciando publicação do APK...' });
+      setTimeout(checkApkStatus, 2000);
+    } catch (err: any) {
+      setPublishing(false);
+      alert(err.response?.data?.error || 'Erro ao publicar APK');
     }
   };
 
@@ -124,6 +169,14 @@ export const BackupPage: React.FC = () => {
           <p className="text-brand-muted text-sm mt-1">Gerencie cópias de segurança do banco de dados e arquivos de mídia</p>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={handlePublishMobileApk}
+            disabled={status.is_running || uploading || publishing || apkStatus.is_running}
+            className="border border-brand-primary/40 text-brand-primary font-bold font-mono px-4 py-2 uppercase tracking-wider text-sm flex items-center hover:bg-brand-primary/10 disabled:opacity-50"
+          >
+            <Smartphone size={16} className={`mr-2 ${publishing || apkStatus.is_running ? 'animate-pulse' : ''}`} />
+            {publishing || apkStatus.is_running ? 'Publicando APK...' : 'Publicar APK Mobile'}
+          </button>
           <input
             type="file"
             ref={fileInputRef}
@@ -158,6 +211,22 @@ export const BackupPage: React.FC = () => {
         <div className="border border-yellow-500/30 bg-yellow-500/10 p-4 text-yellow-400 font-mono text-sm flex items-center">
           <RefreshCw size={16} className="mr-3 animate-spin" />
           <span><strong>Processando Backup:</strong> {status.progress}</span>
+        </div>
+      )}
+
+      {(publishing || apkStatus.is_running || apkStatus.progress || apkStatus.error) && (
+        <div className={`border p-4 font-mono text-sm flex items-center ${apkStatus.error ? 'border-red-500/30 bg-red-500/10 text-red-400' : 'border-blue-500/30 bg-blue-500/10 text-blue-300'}`}>
+          <Smartphone size={16} className={`mr-3 ${apkStatus.is_running ? 'animate-pulse' : ''}`} />
+          <div className="space-y-1">
+            <div>
+              <strong>Publicação APK:</strong> {apkStatus.error || apkStatus.progress || (publishing ? 'Iniciando...' : 'Pronto para publicar')}
+            </div>
+            {apkVersion && (
+              <div className="text-xs opacity-80">
+                Versão atual: v{apkVersion.version_name} • {apkVersion.apk_size_formatted}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

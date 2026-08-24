@@ -30,6 +30,11 @@ COMPOSE_CMD="docker compose"
 echo "✅ Docker OK"
 echo "✅ Docker Compose OK"
 
+# Gerar identificador único para a release atual e compartilhar com o build web + APK
+export VITE_APP_VERSION_CODE="$(date -u +%s)"
+export VITE_APP_VERSION_NAME="$(date -u +%Y.%m.%d.%H%M)"
+export VITE_APP_BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
 # Derrubar ambiente antigo se estiver ativo
 echo "🛑 Parando containers antigos..."
 $COMPOSE_CMD down --remove-orphans 2>/dev/null || true
@@ -62,6 +67,16 @@ done
 
 if [ $WAITED -ge $MAX_WAIT ]; then
     echo "⚠️ Timeout aguardando API. Verifique os logs com: docker compose logs api"
+fi
+
+# Gerar e publicar APK da versão mais recente, se o ambiente Android estiver disponível
+if [ -x "./scripts/publish_mobile_apk.sh" ]; then
+    echo "📱 Publicando APK da versão atual..."
+    if ./scripts/publish_mobile_apk.sh; then
+        echo "✅ APK publicado e disponível para download."
+    else
+        echo "⚠️ Não foi possível gerar o APK agora. A aplicação continua funcionando normalmente."
+    fi
 fi
 
 # Status
