@@ -6,6 +6,9 @@ import { usersApi } from '../api/users';
 import { assetsApi } from '../api/assets';
 import { toApiFileUrl } from '../api/client';
 import { useAuthStore } from '../stores/authStore';
+import type { User } from '../types';
+import type { PurchaseRequest } from '../types/procurement';
+import { requestStatusColor } from '../types/procurement';
 import type {
   KanbanProject,
   KanbanCard,
@@ -20,6 +23,7 @@ import {
   CalendarDays,
   Copy,
   Columns3,
+  Archive,
   Home,
   Info,
   MessageSquare,
@@ -37,7 +41,9 @@ import {
   Link as LinkIcon,
   CheckCircle2,
   ExternalLink,
-  Globe
+  Globe,
+  Play,
+  PencilLine,
 } from 'lucide-react';
 
 const columnPalette = ['#60A5FA', '#F59E0B', '#A78BFA', '#34D399', '#F87171', '#22D3EE'];
@@ -50,6 +56,8 @@ const boardPatternOptions = [
   { value: 'clean', label: 'Clean' },
 ] as const;
 const defaultBoardPattern = 'glow';
+const cardColorPalette = ['#0079BF', '#61BD4F', '#F2D600', '#FF8C00', '#EB5A46', '#A259FF', '#00B8D9', '#172B4D'];
+const defaultCardColor = '#0079BF';
 const preventiveOrderIntentStorageKey = 'assettrack:preventive-order-intent';
 const preventiveOrderDetailIntentStorageKey = 'assettrack:preventive-order-detail-intent';
 const kanbanReturnIntentStorageKey = 'assettrack:kanban-return-intent';
@@ -68,6 +76,189 @@ const getDomainName = (url: string) => {
   }
 };
 
+const PRIMARY_LINK_PREFIX = 'Link principal:';
+
+const normalizeExternalUrl = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
+const normalizeCardColor = (value: string) => {
+  const trimmed = value.trim().toUpperCase();
+  return /^#[0-9A-F]{6}$/.test(trimmed) ? trimmed : defaultCardColor;
+};
+
+const extractFirstUrl = (text?: string | null) => {
+  if (!text) return null;
+  const match = text.match(/https?:\/\/[^\s]+/i);
+  return match ? normalizeExternalUrl(match[0]) : null;
+};
+
+const getYouTubeVideoId = (url: URL) => {
+  const host = url.hostname.replace(/^www\./, '').toLowerCase();
+  if (host === 'youtu.be') {
+    const id = url.pathname.replace(/^\/+/, '').split('/')[0];
+    return id || null;
+  }
+  if (host.includes('youtube.com')) {
+    const direct = url.searchParams.get('v');
+    if (direct) return direct;
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'shorts' || parts[0] === 'embed') {
+      return parts[1] || null;
+    }
+  }
+  return null;
+};
+
+type LinkPreviewData = {
+  url: string;
+  host: string;
+  title: string;
+  image?: string;
+  icon: string;
+  kind: 'youtube' | 'site';
+};
+
+const getLinkPreviewData = (value?: string | null, label?: string | null): LinkPreviewData | null => {
+  const url = normalizeExternalUrl(value ?? '');
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '');
+    const youtubeId = getYouTubeVideoId(parsed);
+    const isYoutube = Boolean(youtubeId);
+    return {
+      url,
+      host,
+      title: (label ?? '').trim() || (isYoutube ? 'Vídeo do YouTube' : getDomainName(url)),
+      image: isYoutube ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : undefined,
+      icon: `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(url)}`,
+      kind: isYoutube ? 'youtube' : 'site',
+    };
+  } catch {
+    return null;
+  }
+};
+
+const buildLinkAttachmentName = (url: string, label?: string) => {
+  const normalizedLabel = label?.trim();
+  const preview = getLinkPreviewData(url, normalizedLabel);
+  const suffix = normalizedLabel || preview?.title || getDomainName(url);
+  return `${PRIMARY_LINK_PREFIX} ${suffix}`;
+};
+
+const CardLinkPreview: React.FC<{
+  preview: LinkPreviewData;
+  compact?: boolean;
+  onOpen?: (url: string) => void;
+  onEdit?: () => void;
+}> = ({ preview, compact = false, onOpen, onEdit }) => {
+  const isYoutube = preview.kind === 'youtube';
+  const shellGrid = compact
+    ? isYoutube ? 'sm:grid-cols-[124px_minmax(0,1fr)]' : 'sm:grid-cols-[104px_minmax(0,1fr)]'
+    : isYoutube ? 'sm:grid-cols-[184px_minmax(0,1fr)]' : 'sm:grid-cols-[148px_minmax(0,1fr)]';
+
+  return (
+    <div
+      className={`overflow-hidden rounded-[14px] border-l-4 ${isYoutube ? 'border-l-red-500' : 'border-l-amber-500'} border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/90 shadow-sm ${compact ? '' : 'shadow-[0_1px_0_rgba(9,30,66,0.08)]'}`}
+    >
+      <div className="flex items-start justify-between gap-2 border-b border-amber-200/80 px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          {isYoutube ? (
+            <Play size={14} className="shrink-0 text-red-500" />
+          ) : (
+            <Globe size={14} className="shrink-0 text-amber-700" />
+          )}
+          <span className="truncate text-[11px] font-bold uppercase tracking-[0.12em] text-amber-900">
+            {preview.host}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-900">
+            {isYoutube ? 'YouTube' : 'Link'}
+          </span>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#172b4d] shadow-sm transition hover:bg-white"
+              title="Editar link"
+            >
+              <PencilLine size={11} />
+              Editar
+            </button>
+          )}
+        </div>
+      </div>
+      <div className={`grid gap-3 p-3 ${shellGrid}`}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen?.(preview.url);
+          }}
+          className="group relative overflow-hidden rounded-[12px] border border-amber-100 bg-white text-left"
+          title="Abrir link"
+        >
+          {preview.image ? (
+            <img
+              src={preview.image}
+              alt={preview.title}
+              className={`w-full object-cover ${isYoutube ? (compact ? 'aspect-[16/9]' : 'aspect-[16/9]') : (compact ? 'aspect-[16/10]' : 'aspect-[16/9]')}`}
+            />
+          ) : (
+            <div className={`flex items-center justify-center bg-gradient-to-br from-white to-amber-50 ${isYoutube ? 'aspect-[16/9]' : (compact ? 'aspect-[16/10]' : 'aspect-[16/9]')}`}>
+              <img
+                src={preview.icon}
+                alt={preview.host}
+                className={`rounded-xl border border-amber-100 bg-white p-1.5 shadow-sm ${compact ? 'h-10 w-10' : 'h-12 w-12'}`}
+              />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-black/0 to-transparent opacity-100" />
+          <div className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">
+            Abrir
+          </div>
+        </button>
+
+        <div className="min-w-0">
+          <div className="truncate text-sm font-bold text-[#172b4d]">
+            {preview.title}
+          </div>
+          <div className="mt-1 line-clamp-2 text-xs text-[#5e6c84]">
+            {preview.url}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen?.(preview.url);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full bg-amber-600 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white transition hover:bg-amber-700"
+            >
+              <ExternalLink size={12} />
+              Abrir
+            </button>
+            {preview.kind === 'youtube' && (
+              <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-red-700">
+                Vídeo
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const priorityBadgeClass: Record<string, string> = {
   baixa: 'bg-[#61bd4f] text-white',
   media: 'bg-[#0079bf] text-white',
@@ -79,9 +270,11 @@ export const KanbanPage: React.FC = () => {
   const currentUser = useAuthStore((state) => state.user);
   const userRole = currentUser?.role?.toLowerCase() || '';
   const isStaff = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'].includes(userRole);
+  const canCreatePreventiveOrder = isStaff;
   const [projects, setProjects] = useState<KanbanProject[]>([]);
   const [board, setBoard] = useState<{ project: KanbanProject; board_progress: number; total_cards: number } | null>(null);
   const [cardDetail, setCardDetail] = useState<KanbanCard | null>(null);
+  const [purchaseRequestDetail, setPurchaseRequestDetail] = useState<PurchaseRequest | null>(null);
   const [notifs, setNotifs] = useState<KanbanNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const [notifFilter, setNotifFilter] = useState<'todas' | 'nao_lidas'>('todas');
@@ -90,7 +283,7 @@ export const KanbanPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [users, setUsers] = useState<{ id: number; nome: string }[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [_assets, setAssets] = useState<{ id: number; nome: string }[]>([]);
 
   const [projModal, setProjModal] = useState(false);
@@ -103,18 +296,23 @@ export const KanbanPage: React.FC = () => {
   const [pRelatedToMaintenance, setPRelatedToMaintenance] = useState(false);
   const [pRelatedToPreventive, setPRelatedToPreventive] = useState(false);
   const [pPreventivePlanId, setPPreventivePlanId] = useState<number | null>(null);
+  const [pParticipantQuery, setPParticipantQuery] = useState('');
   const [boardInfoOpen, setBoardInfoOpen] = useState(false);
   const [boardSearchQuery, setBoardSearchQuery] = useState('');
   const [boardPriorityFilter, setBoardPriorityFilter] = useState<string>('todos');
   const [boardResponsibleFilter, setBoardResponsibleFilter] = useState<string>('todos');
 
   const [cardModal, setCardModal] = useState(false);
+  const [editingCard, setEditingCard] = useState<KanbanCard | null>(null);
   const [cTitle, setCTitle] = useState('');
   const [cDesc, setCDesc] = useState('');
   const [cColumn, setCColumn] = useState<number | null>(null);
   const [cPriority, setCPriority] = useState('media');
   const [cResponsavel, setCResponsavel] = useState<number | null>(null);
   const [cDue, setCDue] = useState('');
+  const [cLink, setCLink] = useState('');
+  const [cLinkName, setCLinkName] = useState('');
+  const [cColor, setCColor] = useState(defaultCardColor);
   const [cParticipants, setCParticipants] = useState<number[]>([]);
   const [cAssets, setCAssets] = useState<number[]>([]);
   const [cChecklistItems, setCChecklistItems] = useState<KanbanChecklistItem[]>([]);
@@ -151,6 +349,7 @@ export const KanbanPage: React.FC = () => {
   const eventSourceRef = useRef<EventSource | null>(null);
   const notificationsRef = useRef<KanbanNotification[]>([]);
   const boardRef = useRef<{ project: KanbanProject; board_progress: number; total_cards: number } | null>(null);
+  const cardDetailRef = useRef<KanbanCard | null>(null);
 
   const showError = (err: any) => {
     setError(err.response?.data?.error || 'Erro na operação');
@@ -214,6 +413,62 @@ export const KanbanPage: React.FC = () => {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase())
       .join('');
+  };
+
+  const getDepartmentName = (user: User) => user.departamento?.nome?.trim() || 'Sem departamento';
+
+  const groupUsersByDepartment = (items: User[]) => {
+    const grouped = new Map<string, User[]>();
+    items
+      .slice()
+      .sort((a, b) => {
+        const departmentCompare = getDepartmentName(a).localeCompare(getDepartmentName(b), 'pt-BR', { sensitivity: 'base' });
+        if (departmentCompare !== 0) return departmentCompare;
+        return a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
+      })
+      .forEach((user) => {
+        const key = getDepartmentName(user);
+        const list = grouped.get(key) ?? [];
+        list.push(user);
+        grouped.set(key, list);
+      });
+
+    return Array.from(grouped.entries());
+  };
+
+  const filteredParticipantUsers = users.filter((user) => {
+    const query = pParticipantQuery.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      user.nome.toLowerCase().includes(query)
+      || user.email.toLowerCase().includes(query)
+      || getDepartmentName(user).toLowerCase().includes(query)
+      || (user.cargo ?? '').toLowerCase().includes(query)
+      || (user.matricula ?? '').toLowerCase().includes(query)
+    );
+  });
+
+  const getCardPrimaryLinkAttachment = (card?: KanbanCard | null) => {
+    const attachments = card?.anexos ?? [];
+    return attachments.find((attachment) => attachment.tipo === 'link' && attachment.nome?.toLowerCase().startsWith(PRIMARY_LINK_PREFIX.toLowerCase())) ?? null;
+  };
+
+  const getCardPrimaryLinkUrl = (card?: KanbanCard | null) => {
+    const attachment = getCardPrimaryLinkAttachment(card);
+    if (attachment?.url) return attachment.url;
+    const match = (card?.descricao || '').match(/https?:\/\/[^\s]+/i);
+    return match ? match[0] : null;
+  };
+
+  const getPurchaseRequestLink = (request?: PurchaseRequest | null) => {
+    if (!request) return null;
+
+    for (const item of request.itens ?? []) {
+      const link = extractFirstUrl(item.observacao);
+      if (link) return link;
+    }
+
+    return extractFirstUrl(request.justificativa);
   };
 
   const createChecklistItem = (titulo = ''): KanbanChecklistItem => ({
@@ -338,6 +593,7 @@ export const KanbanPage: React.FC = () => {
     setPTitle('');
     setPDesc('');
     setPParticipants([]);
+    setPParticipantQuery('');
     setPBoardColor(defaultBoardBackgroundColor);
     setPBoardPattern(defaultBoardPattern);
     setPRelatedToMaintenance(false);
@@ -355,17 +611,57 @@ export const KanbanPage: React.FC = () => {
     setProjModal(true);
   };
 
+  const resetCardForm = () => {
+    setEditingCard(null);
+    setCTitle('');
+    setCDesc('');
+    setCColumn(null);
+    setCPriority('media');
+    setCResponsavel(null);
+    setCDue('');
+    setCLink('');
+    setCLinkName('');
+    setCColor(defaultCardColor);
+    setCParticipants([]);
+    setCAssets([]);
+    setCChecklistItems([]);
+  };
+
+  const openCreateCardModal = (columnId: number) => {
+    resetCardForm();
+    setCColumn(columnId);
+    setCardModal(true);
+  };
+
   const openEditProjectModal = (project: KanbanProject) => {
     setEditingProject(project);
     setPTitle(project.titulo || '');
     setPDesc(project.descricao || '');
     setPParticipants(project.participantes?.map((participant) => participant.id) ?? []);
+    setPParticipantQuery('');
     setPBoardColor(normalizeBoardColor(project.board_background_color));
     setPBoardPattern(normalizeBoardPattern(project.board_pattern));
     setPRelatedToMaintenance(Boolean(project.related_to_maintenance));
     setPRelatedToPreventive(Boolean(project.related_to_preventive));
     setPPreventivePlanId(project.preventive_plan_id ?? null);
     setProjModal(true);
+  };
+
+  const openEditCardModal = (card: KanbanCard) => {
+    setEditingCard(card);
+    setCTitle(card.titulo || '');
+    setCDesc(card.descricao || '');
+    setCColumn(card.column_id);
+    setCPriority(card.prioridade || 'media');
+    setCResponsavel(card.responsavel_id ?? null);
+    setCDue(card.data_entrega ? new Date(card.data_entrega).toISOString().slice(0, 10) : '');
+    setCLink(getCardPrimaryLinkUrl(card) || '');
+    setCLinkName(getCardPrimaryLinkAttachment(card)?.nome?.replace(new RegExp(`^${PRIMARY_LINK_PREFIX}\\s*`, 'i'), '') || '');
+    setCColor(normalizeCardColor(card.cor || defaultCardColor));
+    setCParticipants(card.participantes?.map((participant) => participant.id) ?? []);
+    setCAssets(card.ativos?.map((asset) => asset.id) ?? []);
+    setCChecklistItems(parseChecklistItems(card));
+    setCardModal(true);
   };
 
   const fetchProjects = async () => {
@@ -413,7 +709,7 @@ export const KanbanPage: React.FC = () => {
 
   useEffect(() => {
     fetchProjects();
-    usersApi.list(0, 200).then((u) => setUsers(u.map((x) => ({ id: x.id, nome: x.nome })))).catch(() => {});
+    usersApi.list(0, 200).then(setUsers).catch(() => {});
     assetsApi.list(0, 300).then((a) => setAssets(a.map((x) => ({ id: x.id, nome: x.nome })))).catch(() => {});
     preventiveApi.listPlans().then(setPreventivePlans).catch(() => {});
     return () => {
@@ -429,6 +725,10 @@ export const KanbanPage: React.FC = () => {
     boardRef.current = board;
   }, [board]);
 
+  useEffect(() => {
+    cardDetailRef.current = cardDetail;
+  }, [cardDetail]);
+
   const connectSSE = () => {
     if (eventSourceRef.current) return;
     const token = localStorage.getItem('token');
@@ -438,10 +738,15 @@ export const KanbanPage: React.FC = () => {
       try {
         const data = JSON.parse(e.data);
         if (data && data.tipo) {
-          void refreshNotificationsState({
-            highlightNew: true,
-            statusMessage: data.mensagem ? `Atualização recebida: ${data.mensagem}` : undefined,
-          });
+          void (async () => {
+            await refreshNotificationsState({
+              highlightNew: true,
+              statusMessage: data.mensagem ? `Atualização recebida: ${data.mensagem}` : undefined,
+            });
+            if (cardDetailRef.current?.id) {
+              await openCard(cardDetailRef.current.id);
+            }
+          })();
         }
       } catch {
         // ping
@@ -461,6 +766,29 @@ export const KanbanPage: React.FC = () => {
   useEffect(() => {
     connectSSE();
   }, [board]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!cardDetail?.purchase_request_id) {
+      setPurchaseRequestDetail(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    procurementApi.getRequest(cardDetail.purchase_request_id)
+      .then((request) => {
+        if (!cancelled) setPurchaseRequestDetail(request);
+      })
+      .catch(() => {
+        if (!cancelled) setPurchaseRequestDetail(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cardDetail]);
 
   useEffect(() => {
     if (!notifStatusMessage) return;
@@ -651,7 +979,7 @@ export const KanbanPage: React.FC = () => {
         related_to_maintenance: pRelatedToMaintenance,
         related_to_preventive: pRelatedToPreventive,
         preventive_plan_id: pRelatedToPreventive ? (pPreventivePlanId ?? undefined) : undefined,
-        participante_ids: pParticipants,
+        participante_ids: !editingProject || canManageProjectParticipants(editingProject) ? pParticipants : undefined,
       };
       if (editingProject) {
         await kanbanApi.updateProject(editingProject.id, payload);
@@ -667,6 +995,34 @@ export const KanbanPage: React.FC = () => {
     } catch (err) {
       showError(err);
     }
+  };
+
+  const persistCardPrimaryLink = async (
+    card: KanbanCard,
+    linkValue: string,
+    linkLabel?: string,
+    existingCard?: KanbanCard | null,
+  ) => {
+    const normalizedLink = normalizeExternalUrl(linkValue);
+    const currentPrimary = getCardPrimaryLinkAttachment(existingCard ?? card);
+    const nextLabel = buildLinkAttachmentName(normalizedLink, linkLabel);
+
+    if (!normalizedLink) {
+      if (currentPrimary) {
+        await kanbanApi.deleteAttachment(currentPrimary.id);
+      }
+      return;
+    }
+
+    if (currentPrimary && currentPrimary.url === normalizedLink && currentPrimary.nome === nextLabel) {
+      return;
+    }
+
+    if (currentPrimary) {
+      await kanbanApi.deleteAttachment(currentPrimary.id);
+    }
+
+    await kanbanApi.uploadAttachment(card.id, undefined, normalizedLink, nextLabel);
   };
 
   const duplicateProject = async (project: KanbanProject, openDuplicatedBoard = false) => {
@@ -686,27 +1042,72 @@ export const KanbanPage: React.FC = () => {
     }
   };
 
+  const canDeleteProject = (project: KanbanProject) => {
+    return currentUser?.role?.toLowerCase() === 'admin' || project.criador_id === currentUser?.id;
+  };
+
+  const canEditProject = (project: KanbanProject) => {
+    return currentUser?.role?.toLowerCase() === 'admin' || project.criador_id === currentUser?.id;
+  };
+
+  const canManageProjectParticipants = (project?: KanbanProject | null) => {
+    if (!project) return true;
+    return currentUser?.role?.toLowerCase() === 'admin' || project.criador_id === currentUser?.id;
+  };
+
+  const deleteProject = async (project: KanbanProject) => {
+    const ok = window.confirm(
+      `Excluir o projeto "${project.titulo}"?\n\n` +
+      'Essa ação remove listas, cartões, anexos e comentários de forma permanente.',
+    );
+    if (!ok) return;
+
+    try {
+      await kanbanApi.deleteProject(project.id);
+      if (board?.project.id === project.id) {
+        setBoard(null);
+      }
+      await fetchProjects();
+    } catch (err) {
+      showError(err);
+    }
+  };
+
+  const toggleArchiveProject = async (project: KanbanProject) => {
+    const action = project.is_archived ? 'unarchive' : 'archive';
+    const confirmMessage = project.is_archived
+      ? `Restaurar o projeto "${project.titulo}"?`
+      : `Arquivar o projeto "${project.titulo}"?`;
+
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      await kanbanApi.toggleProject(project.id, action);
+      if (board?.project.id === project.id) {
+        await openBoard(project.id);
+      } else {
+        await fetchProjects();
+      }
+    } catch (err) {
+      showError(err);
+    }
+  };
+
   const openCardModal = (columnId: number) => {
-    setCTitle('');
-    setCDesc('');
-    setCColumn(columnId);
-    setCPriority('media');
-    setCResponsavel(null);
-    setCDue('');
-    setCParticipants([]);
-    setCAssets([]);
-    setCChecklistItems([]);
-    setCardModal(true);
+    openCreateCardModal(columnId);
   };
 
   const submitCard = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!board || !cColumn) return;
     try {
-      await kanbanApi.createCard({
+      const wasEditing = Boolean(editingCard);
+      const normalizedLink = normalizeExternalUrl(cLink);
+      const payload = {
         project_id: board.project.id,
         column_id: cColumn,
         titulo: cTitle,
+        cor: normalizeCardColor(cColor),
         descricao: cDesc || undefined,
         checklist_items: cChecklistItems
           .map((item) => ({ ...item, titulo: item.titulo.trim() }))
@@ -716,9 +1117,20 @@ export const KanbanPage: React.FC = () => {
         data_entrega: cDue || undefined,
         participante_ids: cParticipants,
         ativo_ids: cAssets,
-      });
+      };
+
+      const savedCard = editingCard
+        ? await kanbanApi.updateCard(editingCard.id, payload)
+        : await kanbanApi.createCard(payload);
+
+      await persistCardPrimaryLink(savedCard, normalizedLink, cLinkName, editingCard);
+
       setCardModal(false);
-      openBoard(board.project.id);
+      resetCardForm();
+      await openBoard(board.project.id);
+      if (wasEditing) {
+        await openCard(savedCard.id);
+      }
     } catch (err) {
       showError(err);
     }
@@ -926,7 +1338,10 @@ export const KanbanPage: React.FC = () => {
   const uploadFile = async (cardId: number, file: File) => {
     try {
       await kanbanApi.uploadAttachment(cardId, file);
-      openCard(cardId);
+      if (board) {
+        await openBoard(board.project.id);
+      }
+      await openCard(cardId);
     } catch (err) {
       showError(err);
     }
@@ -938,7 +1353,10 @@ export const KanbanPage: React.FC = () => {
     const nome = window.prompt('Nome do link:') ?? url;
     try {
       await kanbanApi.uploadAttachment(cardId, undefined, url, nome);
-      openCard(cardId);
+      if (board) {
+        await openBoard(board.project.id);
+      }
+      await openCard(cardId);
     } catch (err) {
       showError(err);
     }
@@ -1021,6 +1439,7 @@ export const KanbanPage: React.FC = () => {
   const visibleNotifications = notifs.filter((notification) => notifFilter === 'todas' || !notification.lida);
   const groupedNotifications = groupNotificationsByDate(visibleNotifications);
   const cardDetailChecklistItems = parseChecklistItems(cardDetail);
+  const cardDetailAccent = cardDetail ? normalizeCardColor(cardDetail.cor || defaultCardColor) : defaultCardColor;
   const boardRecentActivity = [...(board?.project.colunas?.flatMap((column) => column.cards ?? []) ?? [])]
     .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
     .slice(0, 6);
@@ -1169,13 +1588,35 @@ export const KanbanPage: React.FC = () => {
               >
                 <Info size={16} />
               </button>
+              {canEditProject(board.project) && (
+                <button
+                  onClick={() => openEditProjectModal(board.project)}
+                  className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28 transition-colors"
+                  title="Configurações"
+                >
+                  <Settings size={16} />
+                </button>
+              )}
               <button
-                onClick={() => openEditProjectModal(board.project)}
-                className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28 transition-colors"
-                title="Configurações"
+                onClick={() => toggleArchiveProject(board.project)}
+                className={`grid h-8 w-8 place-items-center rounded transition-colors ${
+                  board.project.is_archived
+                    ? 'bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20 hover:text-white'
+                    : 'bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 hover:text-white'
+                }`}
+                title={board.project.is_archived ? 'Desarquivar projeto' : 'Arquivar projeto'}
               >
-                <Settings size={16} />
+                <Archive size={16} />
               </button>
+              {canDeleteProject(board.project) && (
+                <button
+                  onClick={() => deleteProject(board.project)}
+                  className="grid h-8 w-8 place-items-center rounded bg-red-500/10 text-red-200 hover:bg-red-500/20 hover:text-white transition-colors"
+                  title="Excluir projeto"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -1193,6 +1634,11 @@ export const KanbanPage: React.FC = () => {
                 {board.board_progress}% progresso
               </span>
             </div>
+            <div className="hidden items-center gap-2 text-[10px] font-medium text-[#475569] md:flex">
+              <span className="rounded-full border border-white/35 bg-white/18 px-2 py-0.5">
+                Criado por {board.project.criador?.nome ?? 'não identificado'}
+              </span>
+            </div>
 
             <div className="flex items-center gap-2 shrink-0">
               <div className="hidden -space-x-2 md:flex">
@@ -1206,12 +1652,14 @@ export const KanbanPage: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <button
-                onClick={() => openEditProjectModal(board.project)}
-                className="hidden h-7.5 rounded bg-white/28 px-2.5 text-xs font-medium hover:bg-white/45 md:block"
-              >
-                Personalizar
-              </button>
+              {canEditProject(board.project) && (
+                <button
+                  onClick={() => openEditProjectModal(board.project)}
+                  className="hidden h-7.5 rounded bg-white/28 px-2.5 text-xs font-medium hover:bg-white/45 md:block"
+                >
+                  Personalizar
+                </button>
+              )}
               <button
                 onClick={openCreateColumnModal}
                 className="inline-flex h-7.5 items-center gap-1.5 rounded bg-white/28 px-2.5 text-xs font-medium hover:bg-white/45 transition-colors"
@@ -1272,9 +1720,10 @@ export const KanbanPage: React.FC = () => {
 
                     {(col.cards ?? []).filter(cardMatchesBoardFilters).map((card, index, visibleCards) => {
                       const coverImage = card.anexos?.find((attachment) => attachment.tipo === 'imagem');
-                      const linkAttachment = card.anexos?.find((attachment) => attachment.tipo === 'link' || attachment.url?.startsWith('http://') || attachment.url?.startsWith('https://'));
-                      const descLinkMatch = (card.descricao || '').match(/https?:\/\/[^\s]+/i);
-                      const productUrl = linkAttachment?.url || (descLinkMatch ? descLinkMatch[0] : null);
+                      const linkAttachment = getCardPrimaryLinkAttachment(card);
+                      const productUrl = getCardPrimaryLinkUrl(card);
+                      const linkPreview = getLinkPreviewData(productUrl, linkAttachment?.nome?.replace(new RegExp(`^${PRIMARY_LINK_PREFIX}\\s*`, 'i'), '') || '');
+                      const cardAccent = normalizeCardColor(card.cor || defaultCardColor);
 
                       return (
                         <React.Fragment key={card.id}>
@@ -1311,9 +1760,16 @@ export const KanbanPage: React.FC = () => {
                             className={`cursor-pointer overflow-hidden rounded-[12px] border border-white/80 bg-white text-[#172b4d] shadow-[0_2px_8px_rgba(9,30,66,0.16)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_18px_rgba(9,30,66,0.18)] ${
                               activeDragCardId === card.id ? 'rotate-[1deg] opacity-60 ring-2 ring-[#0079bf]/35' : ''
                             }`}
-                            style={{ backgroundColor: '#ffffff', color: '#172b4d' }}
+                            style={{
+                              backgroundColor: '#ffffff',
+                              backgroundImage: `linear-gradient(180deg, ${hexToRgba(cardAccent, 0.08)} 0%, rgba(255,255,255,0.98) 22%)`,
+                              color: '#172b4d',
+                              borderLeftColor: cardAccent,
+                              borderLeftWidth: 6,
+                            }}
                             onClick={() => openCard(card.id)}
                           >
+                            <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${cardAccent}, ${hexToRgba(cardAccent, 0.25)})` }} />
                             {coverImage && (
                               <div className="h-36 w-full overflow-hidden border-b border-[#e5e7eb] bg-[#dbeafe]">
                                 <img
@@ -1344,33 +1800,14 @@ export const KanbanPage: React.FC = () => {
                               <p className="mt-2 line-clamp-3 text-sm font-medium text-[#334155]" style={{ color: '#334155' }}>{card.descricao}</p>
                             )}
 
-                            {/* Link / Product Preview on Kanban card */}
-                            {productUrl && (
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.open(productUrl, '_blank', 'noopener,noreferrer');
-                                }}
-                                className="mt-2.5 rounded-lg border border-amber-300/90 bg-gradient-to-r from-amber-50 to-orange-50/90 p-2 shadow-xs transition-all hover:border-amber-500 hover:shadow-md hover:from-amber-100 hover:to-orange-100 group cursor-pointer"
-                                title="Abrir link do produto em nova aba"
-                              >
-                                <div className="flex items-center justify-between gap-1 text-[11px] font-bold text-amber-900 border-b border-amber-200/80 pb-1 mb-1">
-                                  <div className="flex items-center space-x-1.5 truncate">
-                                    <ShoppingCart size={12} className="text-amber-600 shrink-0" />
-                                    <span className="truncate font-mono">{getDomainName(productUrl)}</span>
-                                  </div>
-                                  <span className="inline-flex items-center space-x-0.5 text-[10px] font-bold text-amber-800 bg-amber-200/80 px-1.5 py-0.5 rounded font-mono group-hover:bg-amber-600 group-hover:text-white transition-colors shrink-0">
-                                    <span>Ver Loja</span>
-                                    <ExternalLink size={9} />
-                                  </span>
-                                </div>
-                                <div className="text-xs font-semibold text-[#172b4d] line-clamp-1">
-                                  {linkAttachment?.nome ? linkAttachment.nome.replace(/^Link de Compra:\s*/i, '') : card.titulo}
-                                </div>
-                                <div className="mt-0.5 text-[10px] text-amber-700 truncate font-mono flex items-center space-x-1">
-                                  <Globe size={10} className="shrink-0 text-amber-600" />
-                                  <span className="truncate">{productUrl}</span>
-                                </div>
+                            {linkPreview && (
+                              <div className="mt-2.5">
+                                <CardLinkPreview
+                                  preview={linkPreview}
+                                  compact
+                                  onOpen={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
+                                  onEdit={() => openEditCardModal(card)}
+                                />
                               </div>
                             )}
 
@@ -1465,6 +1902,9 @@ export const KanbanPage: React.FC = () => {
                   />
                   <div>
                     <h3 className="text-lg font-bold text-white m-0">{p.titulo}</h3>
+                    <div className="mt-1 text-[10px] font-medium text-slate-400">
+                      Criado por <span className="font-semibold text-white">{p.criador?.nome ?? 'não identificado'}</span>
+                    </div>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {p.related_to_maintenance && (
                         <span className="inline-flex rounded-full border border-emerald-400/25 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-200">
@@ -1487,6 +1927,21 @@ export const KanbanPage: React.FC = () => {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
+                      toggleArchiveProject(p);
+                    }}
+                    className={`grid h-9 w-9 place-items-center rounded-full border transition ${
+                      p.is_archived
+                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20 hover:text-white'
+                        : 'border-amber-500/20 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 hover:text-white'
+                    }`}
+                    title={p.is_archived ? 'Desarquivar projeto' : 'Arquivar projeto'}
+                  >
+                    <Archive size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
                       duplicateProject(p);
                     }}
                     className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/12 hover:text-white"
@@ -1494,17 +1949,32 @@ export const KanbanPage: React.FC = () => {
                   >
                     <Copy size={15} />
                   </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEditProjectModal(p);
-                    }}
-                    className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/12 hover:text-white"
-                    title="Editar projeto"
-                  >
-                    <Settings size={16} />
-                  </button>
+                  {canEditProject(p) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditProjectModal(p);
+                      }}
+                      className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/12 hover:text-white"
+                      title="Editar projeto"
+                    >
+                      <Settings size={16} />
+                    </button>
+                  )}
+                  {canDeleteProject(p) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteProject(p);
+                      }}
+                      className="grid h-9 w-9 place-items-center rounded-full border border-red-500/20 bg-red-500/10 text-red-200 transition hover:bg-red-500/20 hover:text-white"
+                      title="Excluir projeto"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
               <p className="mt-3 text-sm text-slate-300">{p.descricao ?? 'Sem descrição informada.'}</p>
@@ -1717,19 +2187,77 @@ export const KanbanPage: React.FC = () => {
                   </div>
                   <div>
                     <label className="mb-1.5 block text-xs font-bold uppercase text-[#5e6c84]">Participantes</label>
-                    <div className="flex max-h-56 flex-wrap gap-2 overflow-y-auto rounded border border-[#dfe1e6] bg-white p-3">
-                      {users.map((u) => (
-                        <label key={u.id} className="flex cursor-pointer items-center gap-1 rounded bg-[#f8fafc] px-2 py-1 text-xs text-[#5e6c84]">
+                    {canManageProjectParticipants(editingProject) ? (
+                      <>
+                        <div className="mb-2 text-xs text-[#5e6c84]">
+                          {editingProject
+                            ? 'Apenas o criador do projeto ou administradores podem alterar os participantes.'
+                            : 'Escolha um ou mais participantes. A lista está separada por departamento para facilitar a colaboração entre pessoas da mesma empresa.'}
+                        </div>
+                        <div className="mb-3">
                           <input
-                            type="checkbox"
-                            checked={pParticipants.includes(u.id)}
-                            onChange={(e) => setPParticipants(e.target.checked ? [...pParticipants, u.id] : pParticipants.filter((x) => x !== u.id))}
-                            className="accent-brand-primary"
+                            type="text"
+                            value={pParticipantQuery}
+                            onChange={(e) => setPParticipantQuery(e.target.value)}
+                            placeholder="Buscar por nome, cargo, matrícula ou departamento"
+                            className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] shadow-inner focus:border-[#0079bf] focus:outline-none"
                           />
-                          <span>{u.nome}</span>
-                        </label>
-                      ))}
-                    </div>
+                        </div>
+                        <div className="max-h-56 space-y-3 overflow-y-auto rounded border border-[#dfe1e6] bg-white p-3">
+                          {groupUsersByDepartment(filteredParticipantUsers).map(([department, departmentUsers]) => (
+                            <div key={department} className="space-y-2">
+                              <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">
+                                {department}
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {departmentUsers.map((u) => (
+                                  <label key={u.id} className="flex cursor-pointer items-center gap-1 rounded bg-[#f8fafc] px-2 py-1 text-xs text-[#5e6c84]">
+                                    <input
+                                      type="checkbox"
+                                      checked={pParticipants.includes(u.id)}
+                                      onChange={(e) => setPParticipants(e.target.checked ? [...pParticipants, u.id] : pParticipants.filter((x) => x !== u.id))}
+                                      className="accent-brand-primary"
+                                    />
+                                    <span>{u.nome}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                          {filteredParticipantUsers.length === 0 && users.length > 0 && (
+                            <div className="rounded-[12px] bg-[#f8fafc] px-3 py-3 text-sm text-[#5e6c84]">
+                              Nenhum usuário encontrado com esse filtro.
+                            </div>
+                          )}
+                          {users.length === 0 && (
+                            <div className="rounded-[12px] bg-[#f8fafc] px-3 py-3 text-sm text-[#5e6c84]">
+                              Nenhum usuário encontrado para seleção.
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="mb-2 text-xs text-[#5e6c84]">
+                          Somente o criador do projeto ou administradores podem remover ou adicionar participantes.
+                        </div>
+                        <div className="max-h-56 space-y-2 overflow-y-auto rounded border border-[#dfe1e6] bg-white p-3">
+                          {(editingProject?.participantes ?? []).map((participant) => (
+                            <div key={participant.id} className="flex items-center justify-between rounded bg-[#f8fafc] px-3 py-2 text-xs text-[#5e6c84]">
+                              <span className="font-medium text-[#172b4d]">{participant.nome}</span>
+                              <span className="rounded-full bg-[#e0f2fe] px-2 py-0.5 font-semibold uppercase tracking-[0.12em] text-[#0369a1]">
+                                Participante
+                              </span>
+                            </div>
+                          ))}
+                          {(editingProject?.participantes ?? []).length === 0 && (
+                            <div className="rounded-[12px] bg-[#f8fafc] px-3 py-3 text-sm text-[#5e6c84]">
+                              Nenhum participante adicional foi vinculado a este projeto.
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {isStaff && (
@@ -2065,14 +2593,16 @@ export const KanbanPage: React.FC = () => {
                       </div>
                       {boardRelatedToPreventive && (
                         <div className="flex flex-col gap-2">
-                          <button
-                            type="button"
-                            onClick={() => window.location.assign('/manutencao-preventiva')}
-                            className="rounded-full border border-cyan-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-cyan-700 hover:bg-cyan-100"
-                          >
-                            Abrir preventiva
-                          </button>
-                          {board?.project.preventive_plan_id && (
+                          {canCreatePreventiveOrder && (
+                            <button
+                              type="button"
+                              onClick={() => window.location.assign('/manutencao-preventiva')}
+                              className="rounded-full border border-cyan-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-cyan-700 hover:bg-cyan-100"
+                            >
+                              Abrir preventiva
+                            </button>
+                          )}
+                          {canCreatePreventiveOrder && board?.project.preventive_plan_id && (
                             <button
                               type="button"
                               onClick={() => openPreventiveOrder({ planId: board.project.preventive_plan_id ?? null })}
@@ -2206,6 +2736,10 @@ export const KanbanPage: React.FC = () => {
                   <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#5e6c84]">Detalhes</div>
                   <div className="mt-3 space-y-3 text-sm text-[#334155]">
                     <div className="flex items-center justify-between gap-3 rounded-[12px] bg-[#f8fafc] px-3 py-2">
+                      <span className="font-semibold text-[#5e6c84]">Criado por</span>
+                      <span className="font-semibold text-[#172b4d]">{board.project.criador?.nome ?? '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-[12px] bg-[#f8fafc] px-3 py-2">
                       <span className="font-semibold text-[#5e6c84]">Criado em</span>
                       <span className="font-semibold text-[#172b4d]">{formatDate(board.project.created_at) || '—'}</span>
                     </div>
@@ -2279,16 +2813,18 @@ export const KanbanPage: React.FC = () => {
             </div>
 
             <div className="flex justify-end gap-3 border-t border-[#dfe1e6] bg-[#f4f5f7] px-5 py-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setBoardInfoOpen(false);
-                  openEditProjectModal(board.project);
-                }}
-                className="rounded border border-[#d0d7de] bg-white px-4 py-2 text-sm font-semibold text-[#334155] hover:bg-[#e2e8f0]"
-              >
-                Personalizar board
-              </button>
+              {canEditProject(board.project) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBoardInfoOpen(false);
+                    openEditProjectModal(board.project);
+                  }}
+                  className="rounded border border-[#d0d7de] bg-white px-4 py-2 text-sm font-semibold text-[#334155] hover:bg-[#e2e8f0]"
+                >
+                  Personalizar board
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -2404,9 +2940,11 @@ export const KanbanPage: React.FC = () => {
             <div className="border-b border-[#dfe1e6] bg-white px-5 py-4" style={{ backgroundColor: '#ffffff' }}>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#5e6c84]">Novo cartao</div>
+                  <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#5e6c84]">
+                    {editingCard ? 'Editar cartão' : 'Novo cartão'}
+                  </div>
                   <h3 className="mt-1 text-xl font-bold text-[#172b4d]">
-                    {selectedColumn ? `Adicionar em ${selectedColumn.nome}` : 'Criar cartao'}
+                    {selectedColumn ? (editingCard ? `Editar em ${selectedColumn.nome}` : `Adicionar em ${selectedColumn.nome}`) : (editingCard ? 'Editar cartão' : 'Criar cartão')}
                   </h3>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="rounded bg-[#ebecf0] px-2.5 py-1 text-xs font-semibold text-[#44546f]">
@@ -2423,7 +2961,15 @@ export const KanbanPage: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <button onClick={() => setCardModal(false)} className="grid h-8 w-8 place-items-center rounded text-[#5e6c84] hover:bg-[#dfe1e6] hover:text-[#172b4d]"><X size={20} /></button>
+                <button
+                  onClick={() => {
+                    setCardModal(false);
+                    resetCardForm();
+                  }}
+                  className="grid h-8 w-8 place-items-center rounded text-[#5e6c84] hover:bg-[#dfe1e6] hover:text-[#172b4d]"
+                >
+                  <X size={20} />
+                </button>
               </div>
             </div>
             <form onSubmit={submitCard} className="space-y-4 p-5">
@@ -2448,6 +2994,86 @@ export const KanbanPage: React.FC = () => {
                   className="w-full rounded border border-[#dfe1e6] bg-[#fafbfc] px-3 py-3 text-sm text-[#172b4d] placeholder:text-[#8c9bab] focus:border-[#0079bf] focus:bg-white focus:outline-none"
                   style={{ color: '#172b4d', backgroundColor: '#fafbfc' }}
                 />
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-[1.3fr_0.7fr]">
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-[#5e6c84]">
+                      Link principal
+                    </label>
+                    <input
+                      type="url"
+                      value={cLink}
+                      onChange={(e) => setCLink(e.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className="w-full rounded border border-[#dfe1e6] bg-[#fafbfc] px-3 py-2.5 text-sm text-[#172b4d] placeholder:text-[#8c9bab] focus:border-[#0079bf] focus:bg-white focus:outline-none"
+                      style={{ color: '#172b4d', backgroundColor: '#fafbfc' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-[#5e6c84]">
+                      Nome do link
+                    </label>
+                    <input
+                      type="text"
+                      value={cLinkName}
+                      onChange={(e) => setCLinkName(e.target.value)}
+                      placeholder="Ex: vídeo tutorial"
+                      className="w-full rounded border border-[#dfe1e6] bg-[#fafbfc] px-3 py-2.5 text-sm text-[#172b4d] placeholder:text-[#8c9bab] focus:border-[#0079bf] focus:bg-white focus:outline-none"
+                      style={{ color: '#172b4d', backgroundColor: '#fafbfc' }}
+                    />
+                  </div>
+                </div>
+
+                {getLinkPreviewData(cLink, cLinkName) && (
+                  <div className="mt-4">
+                    <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">
+                      Pré-visualização do link principal
+                    </div>
+                    <CardLinkPreview
+                      preview={getLinkPreviewData(cLink, cLinkName)!}
+                      compact
+                      onOpen={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
+                    />
+                  </div>
+                )}
+
+                <div className="mt-5">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <label className="block text-xs font-bold uppercase tracking-[0.14em] text-[#5e6c84]">Cor do card</label>
+                    <span className="text-[11px] font-semibold text-[#64748b]">Escolha um destaque visual</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                    {cardColorPalette.map((color) => {
+                      const normalized = normalizeCardColor(color);
+                      const active = normalizeCardColor(cColor) === normalized;
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setCColor(normalized)}
+                          className={`h-9 rounded border-2 transition ${
+                            active ? 'border-[#172b4d] shadow-[0_0_0_2px_rgba(23,43,77,0.15)]' : 'border-transparent hover:border-[#94a3b8]'
+                          }`}
+                          style={{ backgroundColor: normalized }}
+                          aria-label={`Selecionar cor ${normalized}`}
+                          title={normalized}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={normalizeCardColor(cColor)}
+                      onChange={(e) => setCColor(normalizeCardColor(e.target.value))}
+                      className="h-10 w-12 cursor-pointer rounded border border-[#dfe1e6] bg-white p-1"
+                      aria-label="Selecionar cor personalizada"
+                    />
+                    <div className="text-xs text-[#64748b]">
+                      Cor atual: <span className="font-semibold text-[#172b4d]">{normalizeCardColor(cColor)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_0.8fr]">
@@ -2578,7 +3204,10 @@ export const KanbanPage: React.FC = () => {
                 <div className="flex justify-end space-x-3">
                   <button
                     type="button"
-                    onClick={() => setCardModal(false)}
+                    onClick={() => {
+                      setCardModal(false);
+                      resetCardForm();
+                    }}
                     className="rounded border border-[#94a3b8] px-4 py-2 text-sm font-medium text-[#334155] hover:bg-[#dfe1e6]"
                   >
                     Cancelar
@@ -2601,10 +3230,10 @@ export const KanbanPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
           <div
             className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded bg-[#f4f5f7] p-5 text-[#172b4d] shadow-[0_18px_64px_rgba(9,30,66,0.38)]"
-            style={{ backgroundColor: '#f4f5f7', color: '#172b4d' }}
+            style={{ backgroundColor: '#f4f5f7', color: '#172b4d', borderTop: `6px solid ${cardDetailAccent}` }}
           >
             <div className="flex justify-between items-center border-b border-[#dfe1e6] pb-3" style={{ color: '#172b4d' }}>
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-xl font-bold text-[#172b4d]" style={{ color: '#172b4d' }}>{cardDetail.titulo}</h3>
                 <div className="flex items-center space-x-2 mt-1">
                   <span className={`rounded px-2 py-0.5 text-xs font-bold ${priorityBadgeClass[cardDetail.prioridade] ?? 'bg-[#b3bac5] text-white'}`}>
@@ -2614,9 +3243,29 @@ export const KanbanPage: React.FC = () => {
                   {cardDetail.responsavel && (
                     <span className="text-xs font-semibold text-[#475569]" style={{ color: '#475569' }}>· {cardDetail.responsavel.nome}</span>
                   )}
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
+                    style={{ backgroundColor: hexToRgba(cardDetailAccent, 0.12), color: cardDetailAccent }}
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: cardDetailAccent }} />
+                    Tema
+                  </span>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentCard = cardDetail;
+                    if (!currentCard) return;
+                    setCardDetail(null);
+                    openEditCardModal(currentCard);
+                  }}
+                  className="text-[#475569] border border-[#cbd5e1] bg-white px-2 py-1.5 hover:bg-[#f8fafc]"
+                  title="Editar cartão"
+                >
+                  <PencilLine size={14} />
+                </button>
                 <button onClick={() => deleteCard(cardDetail)} className="text-red-400 border border-red-500/30 px-2 py-1.5">
                   <Trash2 size={14} />
                 </button>
@@ -2666,19 +3315,21 @@ export const KanbanPage: React.FC = () => {
                         : 'Abrir OS preventiva a partir deste cartão.'}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      openPreventiveOrder({
-                        planId: board.project.preventive_plan_id ?? null,
-                        assetId: cardDetail.ativos?.[0]?.id ?? null,
-                        sourceCardId: cardDetail.id,
-                      });
-                    }}
-                    className="rounded bg-cyan-600 px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white hover:bg-cyan-700"
-                  >
-                    Nova OS preventiva
-                  </button>
+                  {canCreatePreventiveOrder && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openPreventiveOrder({
+                          planId: board.project.preventive_plan_id ?? null,
+                          assetId: cardDetail.ativos?.[0]?.id ?? null,
+                          sourceCardId: cardDetail.id,
+                        });
+                      }}
+                      className="rounded bg-cyan-600 px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white hover:bg-cyan-700"
+                    >
+                      Nova OS preventiva
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -2699,62 +3350,97 @@ export const KanbanPage: React.FC = () => {
                       {cardDetail.preventive_order.data_agendada ? ` · Agendada para ${formatDate(cardDetail.preventive_order.data_agendada)}` : ''}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => openPreventiveOrderDetail(cardDetail.preventive_order!.id)}
-                    className="rounded border border-cyan-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-cyan-700 hover:bg-cyan-100"
-                  >
-                    Abrir preventiva
-                  </button>
+                  {canCreatePreventiveOrder && (
+                    <button
+                      type="button"
+                      onClick={() => openPreventiveOrderDetail(cardDetail.preventive_order!.id)}
+                      className="rounded border border-cyan-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-cyan-700 hover:bg-cyan-100"
+                    >
+                      Abrir preventiva
+                    </button>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Procurement / Purchase action on Card */}
+            {/* Link principal do card e solicitação de compra ficam separados por regra */}
             {(() => {
-              const detailLinkAttachment = cardDetail.anexos?.find((attachment) => attachment.tipo === 'link' || attachment.url?.startsWith('http://') || attachment.url?.startsWith('https://'));
-              const detailDescLinkMatch = (cardDetail.descricao || '').match(/https?:\/\/[^\s]+/i);
-              const detailProductUrl = detailLinkAttachment?.url || (detailDescLinkMatch ? detailDescLinkMatch[0] : null);
+              const detailPrimaryLink = getCardPrimaryLinkUrl(cardDetail);
+              const detailPrimaryLinkPreview = getLinkPreviewData(
+                detailPrimaryLink,
+                getCardPrimaryLinkAttachment(cardDetail)?.nome?.replace(new RegExp(`^${PRIMARY_LINK_PREFIX}\\s*`, 'i'), '') || '',
+              );
+              const detailPurchaseLink = getPurchaseRequestLink(purchaseRequestDetail);
+              const detailPurchaseLinkPreview = getLinkPreviewData(
+                detailPurchaseLink,
+                purchaseRequestDetail?.itens?.[0]?.product?.nome
+                  || purchaseRequestDetail?.numero
+                  || 'Solicitação de compra',
+              );
 
               return (
                 <>
-                  {detailProductUrl && (
+                  {detailPrimaryLinkPreview && (
+                    <div className="rounded-lg border border-sky-200 bg-gradient-to-br from-sky-50 to-cyan-50/80 p-4 shadow-sm space-y-3">
+                      <div className="flex items-center justify-between border-b border-sky-200/80 pb-2">
+                        <div className="flex items-center space-x-2">
+                          <LinkIcon size={16} className="text-sky-600" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-sky-900 font-mono">
+                            Link principal do card
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded bg-sky-200 text-sky-900">
+                          Card
+                        </span>
+                      </div>
+
+                      <CardLinkPreview
+                        preview={detailPrimaryLinkPreview}
+                        onOpen={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
+                        onEdit={() => {
+                          if (!cardDetail) return;
+                          setCardDetail(null);
+                          openEditCardModal(cardDetail);
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {purchaseRequestDetail && (
                     <div className="rounded-lg border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50/90 p-4 shadow-sm space-y-3">
                       <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
                         <div className="flex items-center space-x-2">
                           <ShoppingCart size={16} className="text-amber-600" />
                           <span className="text-xs font-bold uppercase tracking-wider text-amber-900 font-mono">
-                            Preview do Link do Produto ({getDomainName(detailProductUrl)})
+                            Solicitação de compra vinculada
                           </span>
                         </div>
-                        <span className="text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded bg-amber-200 text-amber-900">
-                          Aguardando Compras
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded border border-amber-200 shadow-inner">
-                        <div className="min-w-0 space-y-1">
-                          <div className="text-sm font-bold text-[#172b4d] truncate">
-                            {detailLinkAttachment?.nome ? detailLinkAttachment.nome.replace(/^Link de Compra:\s*/i, '') : cardDetail.titulo}
-                          </div>
-                          <div className="text-xs text-[#5e6c84] truncate font-mono flex items-center space-x-1.5">
-                            <Globe size={13} className="text-amber-600 shrink-0" />
-                            <span className="truncate">{detailProductUrl}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-2 shrink-0">
-                          <a
-                            href={detailProductUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs font-mono uppercase rounded shadow-sm flex items-center space-x-1.5 transition-colors"
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded border ${requestStatusColor[purchaseRequestDetail.status] ?? 'border-amber-300 text-amber-900'}`}
                           >
-                            <span>Abrir no Site</span>
-                            <ExternalLink size={13} />
-                          </a>
+                            {purchaseRequestDetail.status}
+                          </span>
+                          <span className="text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded bg-amber-200 text-amber-900">
+                            {purchaseRequestDetail.numero}
+                          </span>
                         </div>
                       </div>
+
+                      <div className="rounded border border-amber-200 bg-white/80 px-3 py-2 text-xs text-[#334155]">
+                        Status atual da solicitação de compra: <strong>{purchaseRequestDetail.status}</strong>
+                      </div>
+
+                      {detailPurchaseLinkPreview ? (
+                        <CardLinkPreview
+                          preview={detailPurchaseLinkPreview}
+                          onOpen={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
+                        />
+                      ) : (
+                        <div className="rounded border border-dashed border-amber-200 bg-white/80 px-3 py-3 text-xs text-[#6b7280]">
+                          Esta solicitação não possui link externo registrado.
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -2766,14 +3452,14 @@ export const KanbanPage: React.FC = () => {
                           <span>Setor de Compras & Suprimentos</span>
                         </div>
                         <div className="mt-1 text-xs text-amber-900">
-                          Solicitar aquisição de peça/produto com link do site para o Comprador no Kanban.
+                          A solicitação de compra usa um link separado do link principal do card.
                         </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => {
                           setKProductName(cardDetail.titulo || '');
-                          setKProductLink(detailProductUrl || '');
+                          setKProductLink('');
                           setKProductQty(1);
                           setKProductEstimatedCost('');
                           setKProductJustification(`Solicitação de compra via Kanban Card #${cardDetail.id} - ${cardDetail.titulo}`);
@@ -2849,7 +3535,7 @@ export const KanbanPage: React.FC = () => {
                       }}
                     />
                   </label>
-                  <button onClick={() => addLink(cardDetail.id)} className="text-[#0079bf]" style={{ color: '#0079bf' }}>Link</button>
+                  <button onClick={() => addLink(cardDetail.id)} className="text-[#0079bf]" style={{ color: '#0079bf' }}>Link adicional</button>
                 </span>
               </div>
               <div className="divide-y divide-[#dfe1e6]" style={{ color: '#172b4d' }}>
@@ -2864,7 +3550,10 @@ export const KanbanPage: React.FC = () => {
                       onClick={async () => {
                         if (!window.confirm('Excluir anexo?')) return;
                         await kanbanApi.deleteAttachment(a.id);
-                        openCard(cardDetail.id);
+                        if (board) {
+                          await openBoard(board.project.id);
+                        }
+                        await openCard(cardDetail.id);
                       }}
                       className="text-red-400 border border-red-500/30 px-2 py-1"
                     >
@@ -2988,7 +3677,7 @@ export const KanbanPage: React.FC = () => {
               <div>
                 <label className="mb-1 flex items-center space-x-1 text-xs font-bold uppercase text-[#5e6c84]">
                   <LinkIcon size={12} className="text-amber-600" />
-                  <span>Link do Site do Produto (URL da Loja/Fornecedor)</span>
+                  <span>Link da compra / fornecedor (opcional)</span>
                 </label>
                 <input
                   type="url"
@@ -2997,6 +3686,9 @@ export const KanbanPage: React.FC = () => {
                   placeholder="https://www.mercadolivre.com.br/... ou https://kabum.com.br/..."
                   className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] shadow-inner focus:border-amber-500 focus:outline-none"
                 />
+                <p className="mt-1 text-[11px] text-[#6b7280]">
+                  Esse campo é independente do link principal do card.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

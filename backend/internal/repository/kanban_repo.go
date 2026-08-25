@@ -53,6 +53,44 @@ func (r *KanbanProjectRepository) Update(project *models.KanbanProject) error {
 	return r.db.Save(project).Error
 }
 
+func (r *KanbanProjectRepository) Delete(project *models.KanbanProject) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var columns []models.KanbanColumn
+		if err := tx.Where("project_id = ?", project.ID).Find(&columns).Error; err != nil {
+			return err
+		}
+
+		var cards []models.KanbanCard
+		if err := tx.Where("project_id = ?", project.ID).Find(&cards).Error; err != nil {
+			return err
+		}
+
+		for _, card := range cards {
+			if err := tx.Model(&card).Association("Participantes").Clear(); err != nil {
+				return err
+			}
+			if err := tx.Model(&card).Association("Ativos").Clear(); err != nil {
+				return err
+			}
+			if err := tx.Select("Interacoes", "Anexos").Delete(&card).Error; err != nil {
+				return err
+			}
+		}
+
+		for _, col := range columns {
+			if err := tx.Delete(&col).Error; err != nil {
+				return err
+			}
+		}
+
+		if err := tx.Model(project).Association("Participantes").Clear(); err != nil {
+			return err
+		}
+
+		return tx.Delete(project).Error
+	})
+}
+
 // ReplaceParticipantes syncs the many2many participants of a project.
 func (r *KanbanProjectRepository) ReplaceParticipantes(project *models.KanbanProject, userIDs []uint) error {
 	var users []models.User
@@ -116,6 +154,26 @@ func (r *KanbanCardRepository) GetByID(id uint) (*models.KanbanCard, error) {
 		Preload("Interacoes.Usuario").
 		Preload("Column").
 		First(&card, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &card, nil
+}
+
+func (r *KanbanCardRepository) GetByPurchaseRequestID(purchaseRequestID uint) (*models.KanbanCard, error) {
+	var card models.KanbanCard
+	err := r.db.Preload("Criador").Preload("Responsavel").
+		Preload("PreventiveOrder").
+		Preload("PreventiveOrder.Asset").
+		Preload("PreventiveOrder.Plan").
+		Preload("PreventiveOrder.Tecnico").
+		Preload("Participantes").Preload("Ativos").
+		Preload("Anexos").
+		Preload("Interacoes", func(db *gorm.DB) *gorm.DB { return db.Order("created_at asc") }).
+		Preload("Interacoes.Usuario").
+		Preload("Column").
+		Where("purchase_request_id = ?", purchaseRequestID).
+		First(&card).Error
 	if err != nil {
 		return nil, err
 	}

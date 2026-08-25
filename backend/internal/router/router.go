@@ -107,7 +107,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		procCategoryRepo, procProductRepo, procCCRepo, procRequestRepo, procApprovalRepo,
 		procQuotationRepo, procOrderRepo, procReceivingRepo, procStockRepo,
 		procContractRepo, procContractTypeRepo, procHistoryRepo, procNotifRepo,
-		procResearchRepo, assetRepo, userRepo, kanbanCardRepo, kanbanInteractionRepo, systemSettingsRepo,
+		procResearchRepo, assetRepo, userRepo, kanbanProjectRepo, kanbanCardRepo, kanbanInteractionRepo, kanbanBroker, systemSettingsRepo,
 	)
 	rhHandler := handler.NewRHHandler(rhRepo, userRepo, assetRepo, alertRepo, alertBroker)
 	webhookHandler := handler.NewWebhookHandler(webhookRepo, webhookDispatcher)
@@ -299,6 +299,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			kanban.POST("/projetos", kanbanHandler.CreateProject)
 			kanban.GET("/projetos/:id", kanbanHandler.GetProjectBoard)
 			kanban.PUT("/projetos/:id", kanbanHandler.UpdateProject)
+			kanban.DELETE("/projetos/:id", kanbanHandler.DeleteProject)
 			kanban.POST("/projetos/:id/duplicar", kanbanHandler.DuplicateProject)
 			kanban.POST("/projetos/:id/status", kanbanHandler.ToggleProjectStatus)
 			kanban.POST("/projetos/:id/colunas", kanbanHandler.AddColumn)

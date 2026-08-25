@@ -975,7 +975,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
-            {canEditStructure && (
+            {canWorkOrder && (
               <button
                 onClick={() => {
                   void openOrderModal();

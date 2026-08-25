@@ -75,6 +75,13 @@ export const DashboardPage: React.FC = () => {
   const [dashboardFeedbackComment, setDashboardFeedbackComment] = useState<string>('');
   const [submittingEmergency, setSubmittingEmergency] = useState<boolean>(false);
 
+  const summarizeServiceTicket = (description: string | undefined, maxLength = 72): string => {
+    const normalized = (description || '').replace(/\s+/g, ' ').trim();
+    if (!normalized) return 'Sem descrição';
+    if (normalized.length <= maxLength) return normalized;
+    return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
+  };
+
   const dashboardSourceLinks = {
     assets: '/assets?tab=table',
     serviceDesk: '/servicos?status=aberto',
@@ -499,6 +506,16 @@ export const DashboardPage: React.FC = () => {
   );
 
   const totalTicketsCount = (stats.tickets_open || 0) + (stats.tickets_resolved || 0) + (stats.tickets_closed || 0);
+  const maintenanceRequestsOpenCount = myMaintenanceRequests.filter((req) => {
+    const status = req.status?.toLowerCase() || '';
+    return ['pendente', 'aceita', 'em_andamento', 'aguardando_entrega'].includes(status);
+  }).length;
+  const maintenanceRequestsClosedCount = myMaintenanceRequests.filter((req) => {
+    const status = req.status?.toLowerCase() || '';
+    return ['concluida', 'entregue', 'rejeitada'].includes(status);
+  }).length;
+  const maintenanceRequestsTotalCount = myMaintenanceRequests.length;
+  const formatPercent = (value: number, total: number) => `${total > 0 ? ((value / total) * 100).toFixed(0) : 0}%`;
 
   // Tickets Doughnut Chart Data
   const ticketsChartData = {
@@ -853,22 +870,34 @@ export const DashboardPage: React.FC = () => {
               </div>
             </Link>
 
-            <button
-              type="button"
-              onClick={triggerEmergencyAlertModal}
-              className="p-5 bg-red-950/20 border border-red-500/40 hover:border-red-500 hover:bg-red-950/30 transition-all text-left group flex flex-col justify-between space-y-4 rounded-xl shadow-lg shadow-red-900/10"
+            <Link
+              to="/servicos"
+              className="p-5 bg-brand-card border border-brand-border hover:border-brand-primary/50 transition-all group flex flex-col justify-between space-y-4 rounded-xl"
             >
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg animate-pulse">
-                  <ShieldAlert size={26} />
+                <div className="p-3 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-lg">
+                  <MessageSquare size={26} />
                 </div>
-                <span className="text-xs font-mono text-red-400 group-hover:text-red-300 font-bold">Acionar →</span>
+                <span className="text-xs font-mono text-brand-muted group-hover:text-brand-primary transition-colors">Acessar →</span>
               </div>
               <div>
-                <h3 className="font-bold text-red-400 text-base group-hover:text-red-300">Alerta Emergencial</h3>
-                <p className="text-xs text-brand-muted mt-1">Paralisação geral, incidente crítico de segurança ou emergência física.</p>
+                <h3 className="font-bold text-brand-text text-base group-hover:text-brand-primary transition-colors">Tickets de Suporte</h3>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[10px] font-mono">
+                  <div className="bg-brand-dark/40 border border-brand-border/50 p-2">
+                    <div className="text-red-500 font-bold text-sm">{stats.tickets_open}</div>
+                    <div className="text-brand-muted uppercase">Abertos</div>
+                  </div>
+                  <div className="bg-brand-dark/40 border border-brand-border/50 p-2">
+                    <div className="text-amber-500 font-bold text-sm">{stats.tickets_resolved}</div>
+                    <div className="text-brand-muted uppercase">Resolvidos</div>
+                  </div>
+                  <div className="bg-brand-dark/40 border border-brand-border/50 p-2">
+                    <div className="text-emerald-500 font-bold text-sm">{stats.tickets_closed}</div>
+                    <div className="text-brand-muted uppercase">Fechados</div>
+                  </div>
+                </div>
               </div>
-            </button>
+            </Link>
           </div>
 
           {/* Real-time Support reply notification banner */}
@@ -927,10 +956,10 @@ export const DashboardPage: React.FC = () => {
                         {!hasActiveMaint ? (
                           <Link
                             to="/emprestimos"
-                            className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-brand-dark font-bold text-xs uppercase tracking-wider font-mono flex items-center space-x-1 transition-all"
+                            className="px-3 py-1 bg-amber-500/15 hover:bg-amber-500/25 text-black/80 border border-amber-500/30 font-medium text-[11px] uppercase tracking-wide font-mono flex items-center space-x-1 transition-colors"
                           >
-                            <Wrench size={12} />
-                            <span>Manutenção</span>
+                            <Wrench size={11} />
+                            <span>Solicitar Manutenção</span>
                           </Link>
                         ) : (
                           <div className="px-3 py-1 border border-amber-500/30 text-amber-500 font-bold text-xs uppercase tracking-wider font-mono flex items-center space-x-1 opacity-60">
@@ -947,16 +976,32 @@ export const DashboardPage: React.FC = () => {
 
             {/* Maintenance Requests Block */}
             <div className="bg-brand-card border border-brand-border p-6 space-y-4">
-              <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-muted flex items-center space-x-2">
-                <Wrench size={18} className="text-amber-500" />
-                <span>Solicitações de Manutenção</span>
-              </h3>
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-muted flex items-center space-x-2">
+                  <Wrench size={18} className="text-amber-500" />
+                  <span>Solicitações de Manutenção</span>
+                </h3>
+                <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
+                  <div className="bg-brand-dark/40 border border-blue-500/15 px-2 py-1">
+                    <div className="text-blue-500 font-bold">{maintenanceRequestsOpenCount}</div>
+                    <div className="text-brand-muted uppercase">{formatPercent(maintenanceRequestsOpenCount, maintenanceRequestsTotalCount)}</div>
+                  </div>
+                  <div className="bg-brand-dark/40 border border-emerald-500/15 px-2 py-1">
+                    <div className="text-emerald-500 font-bold">{maintenanceRequestsClosedCount}</div>
+                    <div className="text-brand-muted uppercase">{formatPercent(maintenanceRequestsClosedCount, maintenanceRequestsTotalCount)}</div>
+                  </div>
+                  <div className="bg-brand-dark/40 border border-brand-border px-2 py-1">
+                    <div className="text-brand-text font-bold">{maintenanceRequestsTotalCount}</div>
+                    <div className="text-brand-muted uppercase">total</div>
+                  </div>
+                </div>
+              </div>
 
               {extraLoading ? (
                 <div className="text-xs text-brand-muted font-mono">Carregando solicitações...</div>
               ) : myMaintenanceRequests.length === 0 ? (
                 <div className="text-xs text-brand-muted bg-brand-dark/20 p-4 border border-brand-border/40 text-center">
-                  Nenhuma solicitação de manutenção em aberto ou concluída.
+                  Nenhuma solicitação de manutenção registrada.
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
@@ -1075,7 +1120,7 @@ export const DashboardPage: React.FC = () => {
                               <span className="text-[9px] font-mono font-bold text-brand-primary px-1 py-0.2 bg-brand-primary/10 border border-brand-primary/20 shrink-0">
                                 {ticket.codigo}
                               </span>
-                              <h4 className="font-semibold text-brand-text text-xs line-clamp-1">{ticket.titulo}</h4>
+                              <h4 className="font-semibold text-brand-text text-xs line-clamp-1">{summarizeServiceTicket(ticket.descricao)}</h4>
                             </div>
                             <p className="text-[10px] text-brand-muted font-mono mt-1 flex items-center space-x-1">
                               <Clock size={10} />
@@ -1243,8 +1288,22 @@ export const DashboardPage: React.FC = () => {
                     <span className="text-3xl font-black font-mono text-brand-text">{stats.tickets_open}</span>
                     <span className="text-xs font-mono text-brand-muted">abertos</span>
                   </div>
-                  <div className="text-[11px] text-brand-muted mt-1 flex items-center justify-between">
-                    <span>{stats.tickets_closed} fechados</span>
+                  <div className="mt-2 grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
+                    <div className="bg-brand-dark/40 border border-red-500/15 px-2 py-1">
+                      <div className="text-red-500 font-bold">{stats.tickets_open}</div>
+                      <div className="text-brand-muted uppercase">{formatPercent(stats.tickets_open, totalTicketsCount)}</div>
+                    </div>
+                    <div className="bg-brand-dark/40 border border-amber-500/15 px-2 py-1">
+                      <div className="text-amber-500 font-bold">{stats.tickets_resolved}</div>
+                      <div className="text-brand-muted uppercase">{formatPercent(stats.tickets_resolved, totalTicketsCount)}</div>
+                    </div>
+                    <div className="bg-brand-dark/40 border border-emerald-500/15 px-2 py-1">
+                      <div className="text-emerald-500 font-bold">{stats.tickets_closed}</div>
+                      <div className="text-brand-muted uppercase">{formatPercent(stats.tickets_closed, totalTicketsCount)}</div>
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-brand-muted mt-2 flex items-center justify-between">
+                    <span>{totalTicketsCount} total</span>
                     {stats.tickets_avg_rating && stats.tickets_avg_rating > 0 ? (
                       <span className="text-amber-500 font-bold font-mono flex items-center">
                         <Star size={11} className="fill-amber-400 mr-0.5 inline" />
@@ -1660,7 +1719,7 @@ export const DashboardPage: React.FC = () => {
                   {selectedDashboardTicket.codigo}
                 </span>
                 <h3 className="font-semibold text-sm text-brand-text truncate max-w-md">
-                  {selectedDashboardTicket.titulo}
+                  {summarizeServiceTicket(selectedDashboardTicket.descricao, 96)}
                 </h3>
               </div>
               <button
@@ -1835,7 +1894,7 @@ export const DashboardPage: React.FC = () => {
                     {resolvedTickets[0].codigo}
                   </span>
                   <span>—</span>
-                  <span className="text-slate-200 font-bold truncate max-w-[200px]">{resolvedTickets[0].titulo}</span>
+                  <span className="text-slate-200 font-bold truncate max-w-[200px]">{summarizeServiceTicket(resolvedTickets[0].descricao, 80)}</span>
                 </div>
               </div>
 

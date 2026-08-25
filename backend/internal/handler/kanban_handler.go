@@ -22,6 +22,7 @@ import (
 const kanbanUploadDir = "uploads/kanban"
 const defaultKanbanBoardBackgroundColor = "#212121"
 const defaultKanbanBoardPattern = "glow"
+const defaultKanbanCardColor = "#0079BF"
 
 // KanbanEvent is a server-sent event payload.
 type KanbanEvent struct {
@@ -168,7 +169,14 @@ func (h *KanbanHandler) notify(userIDs []uint, autorID uint, tipo, titulo, mensa
 			Lida:      uid == autorID,
 		})
 	}
-	h.broker.BroadcastToUsers(userIDs, KanbanEvent{Type: "kanban_update", Payload: gin.H{"tipo": tipo, "mensagem": mensagem}})
+	payload := gin.H{"tipo": tipo, "mensagem": mensagem}
+	if projectID != nil {
+		payload["project_id"] = *projectID
+	}
+	if cardID != nil {
+		payload["card_id"] = *cardID
+	}
+	h.broker.BroadcastToUsers(userIDs, KanbanEvent{Type: "kanban_update", Payload: payload})
 }
 
 // ---------- Projects ----------
@@ -354,6 +362,11 @@ func (h *KanbanHandler) UpdateProject(c *gin.Context) {
 		return
 	}
 
+	if in.ParticipanteIDs != nil && user.Role != models.RoleAdmin && project.CriadorID != user.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas o criador ou administradores podem alterar os participantes do projeto"})
+		return
+	}
+
 	project.Titulo = strings.TrimSpace(in.Titulo)
 	if strings.TrimSpace(in.Descricao) != "" {
 		d := strings.TrimSpace(in.Descricao)
@@ -407,6 +420,42 @@ func (h *KanbanHandler) UpdateProject(c *gin.Context) {
 		&project.ID, nil)
 
 	c.JSON(http.StatusOK, project)
+}
+
+func (h *KanbanHandler) DeleteProject(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	project, err := h.projectRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Projeto não encontrado"})
+		return
+	}
+
+	if user.Role != models.RoleAdmin && project.CriadorID != user.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas o criador ou administradores podem excluir este projeto"})
+		return
+	}
+
+	participantIDs := h.projectParticipantIDs(project)
+	if err := h.projectRepo.Delete(project); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.broker.BroadcastToUsers(participantIDs, KanbanEvent{
+		Type: "kanban_update",
+		Payload: gin.H{
+			"tipo":     "PROJETO_EXCLUIDO",
+			"mensagem": fmt.Sprintf("%s excluiu o projeto '%s'.", user.Nome, project.Titulo),
+		},
+	})
+
+	c.JSON(http.StatusOK, gin.H{"message": "Projeto excluído com sucesso"})
 }
 
 func (h *KanbanHandler) DuplicateProject(c *gin.Context) {
@@ -487,13 +536,14 @@ func (h *KanbanHandler) DuplicateProject(c *gin.Context) {
 					continue
 				}
 
-				duplicateCard := &models.KanbanCard{
-					ProjectID:     duplicate.ID,
-					ColumnID:      newColumnID,
-					Titulo:        card.Titulo,
-					Descricao:     card.Descricao,
-					ChecklistJSON: card.ChecklistJSON,
-					CriadorID:     user.ID,
+		duplicateCard := &models.KanbanCard{
+			ProjectID:     duplicate.ID,
+			ColumnID:      newColumnID,
+			Titulo:        card.Titulo,
+			Cor:           card.Cor,
+			Descricao:     card.Descricao,
+			ChecklistJSON: card.ChecklistJSON,
+			CriadorID:     user.ID,
 					ResponsavelID: card.ResponsavelID,
 					Prioridade:    card.Prioridade,
 					DataEntrega:   card.DataEntrega,
@@ -716,6 +766,7 @@ func (h *KanbanHandler) CreateCard(c *gin.Context) {
 		ResponsavelID   *uint                        `json:"responsavel_id"`
 		Prioridade      string                       `json:"prioridade"`
 		DataEntrega     *string                      `json:"data_entrega"`
+		Cor             string                       `json:"cor"`
 		ParticipanteIDs []uint                       `json:"participante_ids"`
 		AtivoIDs        []uint                       `json:"ativo_ids"`
 	}
@@ -745,6 +796,7 @@ func (h *KanbanHandler) CreateCard(c *gin.Context) {
 		ProjectID:     in.ProjectID,
 		ColumnID:      in.ColumnID,
 		Titulo:        strings.TrimSpace(in.Titulo),
+		Cor:           normalizeHexColor(in.Cor, defaultKanbanCardColor),
 		CriadorID:     user.ID,
 		ResponsavelID: in.ResponsavelID,
 		Prioridade:    prioridade,
@@ -850,6 +902,7 @@ func (h *KanbanHandler) UpdateCard(c *gin.Context) {
 		ResponsavelID   *uint                        `json:"responsavel_id"`
 		Prioridade      string                       `json:"prioridade"`
 		DataEntrega     *string                      `json:"data_entrega"`
+		Cor             *string                      `json:"cor"`
 		ParticipanteIDs []uint                       `json:"participante_ids"`
 		AtivoIDs        []uint                       `json:"ativo_ids"`
 	}
@@ -859,6 +912,11 @@ func (h *KanbanHandler) UpdateCard(c *gin.Context) {
 	}
 
 	card.Titulo = strings.TrimSpace(in.Titulo)
+	if in.Cor != nil {
+		card.Cor = normalizeHexColor(*in.Cor, defaultKanbanCardColor)
+	} else if strings.TrimSpace(card.Cor) == "" {
+		card.Cor = defaultKanbanCardColor
+	}
 	if strings.TrimSpace(in.Descricao) != "" {
 		d := strings.TrimSpace(in.Descricao)
 		card.Descricao = &d
@@ -1137,6 +1195,15 @@ func (h *KanbanHandler) DeleteAttachment(c *gin.Context) {
 		Mensagem:  fmt.Sprintf("Removeu o anexo '%s'.", att.Nome),
 		Tipo:      models.InteractionSistemaAnexo,
 	})
+
+	if card, err := h.cardRepo.GetByID(att.CardID); err == nil {
+		if project, err := h.projectRepo.GetByID(card.ProjectID); err == nil && project != nil {
+			h.notify(h.projectParticipantIDs(project), user.ID, models.NotifAnexoAdicionado,
+				"Anexo removido",
+				fmt.Sprintf("%s removeu o anexo '%s' do cartão '%s'.", user.Nome, att.Nome, card.Titulo),
+				&card.ProjectID, &card.ID)
+		}
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Anexo excluído"})
 }

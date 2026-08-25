@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { Link } from 'react-router-dom';
-import { Bell, CircleHelp, Home, Plus, Search, Settings, ShieldCheck, ShieldAlert, User as UserIcon, Menu } from 'lucide-react';
+import { Bell, CircleHelp, Home, Search, Settings, ShieldCheck, ShieldAlert, User as UserIcon, Menu } from 'lucide-react';
 import { triggerEmergencyAlertModal } from '../emergency/EmergencyGlobalHandler';
 import { OfflineStatusIndicator } from './OfflineStatusIndicator';
 import { ApkDownloadButton } from './ApkDownloadButton';
@@ -38,9 +38,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         <Link to="/" className="grid h-8 w-8 place-items-center rounded bg-white/16 hover:bg-white/28" title="Início" aria-label="Início">
           <Home size={17} />
         </Link>
-        <Link to="/kanban" className="hidden sm:inline-flex h-8 items-center gap-2 rounded bg-white/16 px-3 text-sm font-semibold hover:bg-white/28">
-          <span className="text-base leading-none">▥</span> Projetos
-        </Link>
         <label className="hidden md:flex h-8 w-52 lg:w-64 items-center gap-2 rounded bg-white/16 px-3 text-white/85 focus-within:bg-white/24" title="Busca global">
           <Search size={15} />
           <input className="w-full bg-transparent text-sm outline-none placeholder:text-white/65" placeholder="Buscar no AssetTrack" aria-label="Busca global" />
@@ -70,9 +67,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             <span>ROOT</span>
           </div>
         )}
-        <Link to="/kanban" className="grid h-8 w-8 place-items-center rounded bg-white/16 hover:bg-white/28" title="Criar ou abrir projetos" aria-label="Projetos">
-          <Plus size={18} />
-        </Link>
         <Link to="/alertas" className="grid h-8 w-8 place-items-center rounded bg-white/16 hover:bg-white/28" title="Notificações" aria-label="Notificações">
           <Bell size={16} />
         </Link>

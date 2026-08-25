@@ -40,7 +40,6 @@ export const ServiceDeskPage: React.FC = () => {
 
   // Ticket creation form
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newPriority, setNewPriority] = useState<'baixa' | 'media' | 'alta' | 'urgente'>('media');
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<number | ''>('');
@@ -76,6 +75,13 @@ export const ServiceDeskPage: React.FC = () => {
     if (!url) return '';
     const parts = url.split('/');
     return parts[parts.length - 1];
+  };
+
+  const getDescriptionSummary = (description: string | undefined, maxLength = 92): string => {
+    const normalized = (description || '').replace(/\s+/g, ' ').trim();
+    if (!normalized) return 'Sem descrição';
+    if (normalized.length <= maxLength) return normalized;
+    return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
   };
 
   const handleNewTicketUpload = async (file: File) => {
@@ -208,14 +214,13 @@ export const ServiceDeskPage: React.FC = () => {
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle || !newDescription || !selectedDefinitionId) {
+    if (!newDescription || !selectedDefinitionId) {
       setError('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
     try {
       const ticket = await serviceDeskApi.createTicket({
-        titulo: newTitle,
         descricao: newDescription,
         prioridade: newPriority,
         servico_id: Number(selectedDefinitionId),
@@ -225,7 +230,6 @@ export const ServiceDeskPage: React.FC = () => {
       setTickets([ticket, ...tickets]);
       setShowCreateModal(false);
       // Reset form
-      setNewTitle('');
       setNewDescription('');
       setNewPriority('media');
       setSelectedDefinitionId('');
@@ -506,10 +510,10 @@ export const ServiceDeskPage: React.FC = () => {
                   )}
                   <div className="space-y-2 flex-1">
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs font-mono font-bold text-brand-primary px-1.5 py-0.5 bg-brand-primary/10 border border-brand-primary/20">
+                    <span className="text-xs font-mono font-bold text-brand-primary px-1.5 py-0.5 bg-brand-primary/10 border border-brand-primary/20">
                         {ticket.codigo}
                       </span>
-                      <span className="text-sm font-semibold text-brand-text">{ticket.titulo}</span>
+                      <span className="text-sm font-semibold text-brand-text">{getDescriptionSummary(ticket.descricao)}</span>
                     </div>
                     <p className="text-xs text-brand-muted line-clamp-2">{ticket.descricao}</p>
                     <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-brand-muted">
@@ -595,7 +599,7 @@ export const ServiceDeskPage: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
               {/* Ticket Info */}
               <div className="space-y-3">
-                <h4 className="font-semibold text-brand-text text-base">{selectedTicket.titulo}</h4>
+                <h4 className="font-semibold text-brand-text text-base">{getDescriptionSummary(selectedTicket.descricao, 120)}</h4>
                 <p className="text-xs text-brand-muted bg-brand-dark p-3 border border-brand-border/60 rounded-sm whitespace-pre-wrap">
                   {selectedTicket.descricao}
                 </p>
@@ -884,18 +888,6 @@ export const ServiceDeskPage: React.FC = () => {
                     </optgroup>
                   ))}
                 </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs text-brand-muted">Título Resumido</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Monitor piscando ou sem imagem"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm focus:outline-none focus:border-brand-primary text-brand-text placeholder-brand-muted/30"
-                />
               </div>
 
               <div className="space-y-1">

@@ -96,6 +96,14 @@ func main() {
 	); err != nil {
 		log.Printf("⚠️ Auto-migration warning: %v", err)
 	}
+
+	if db.Migrator().HasColumn(&models.ServiceTicket{}, "titulo") {
+		log.Println("🧹 Removing legacy service_tickets.titulo column...")
+		if err := db.Migrator().DropColumn(&models.ServiceTicket{}, "titulo"); err != nil {
+			log.Printf("⚠️ Failed to remove legacy service_tickets.titulo column: %v", err)
+		}
+	}
+
 	log.Println("✅ Migration complete")
 
 	// Seed Admin user

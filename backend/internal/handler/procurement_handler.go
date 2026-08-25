@@ -63,8 +63,10 @@ type ProcurementHandler struct {
 	researchRepo     *repository.ProcurementResearchRepository
 	assetRepo        *repository.AssetRepository
 	userRepo         *repository.UserRepository
+	projectRepo      *repository.KanbanProjectRepository
 	cardRepo         *repository.KanbanCardRepository
 	interactionRepo  *repository.KanbanInteractionRepository
+	kanbanBroker     *KanbanSSEBroker
 	settingsRepo     repository.SystemSettingsRepository
 }
 
@@ -85,8 +87,10 @@ func NewProcurementHandler(
 	researchRepo *repository.ProcurementResearchRepository,
 	assetRepo *repository.AssetRepository,
 	userRepo *repository.UserRepository,
+	projectRepo *repository.KanbanProjectRepository,
 	cardRepo *repository.KanbanCardRepository,
 	interactionRepo *repository.KanbanInteractionRepository,
+	kanbanBroker *KanbanSSEBroker,
 	settingsRepo repository.SystemSettingsRepository,
 ) *ProcurementHandler {
 	return &ProcurementHandler{
@@ -106,8 +110,10 @@ func NewProcurementHandler(
 		researchRepo:     researchRepo,
 		assetRepo:        assetRepo,
 		userRepo:         userRepo,
+		projectRepo:      projectRepo,
 		cardRepo:         cardRepo,
 		interactionRepo:  interactionRepo,
+		kanbanBroker:     kanbanBroker,
 		settingsRepo:     settingsRepo,
 	}
 }
@@ -119,6 +125,52 @@ func (h *ProcurementHandler) logHistory(tabela string, registroID, userID uint, 
 		UserID:       userID,
 		Acao:         acao,
 	})
+}
+
+func (h *ProcurementHandler) broadcastKanbanRequestUpdate(req *models.PurchaseRequest, cardHint *models.KanbanCard, mensagem string) {
+	if h.kanbanBroker == nil || req == nil {
+		return
+	}
+
+	var card *models.KanbanCard
+	if cardHint != nil {
+		card = cardHint
+	} else if linked, err := h.cardRepo.GetByPurchaseRequestID(req.ID); err == nil {
+		card = linked
+	}
+	if card == nil {
+		return
+	}
+
+	project, err := h.projectRepo.GetByID(card.ProjectID)
+	if err != nil || project == nil {
+		return
+	}
+
+	ids := h.projectParticipantIDs(project)
+	h.kanbanBroker.BroadcastToUsers(ids, KanbanEvent{
+		Type: "kanban_update",
+		Payload: gin.H{
+			"tipo":        "SOLICITACAO_COMPRA_ATUALIZADA",
+			"mensagem":    mensagem,
+			"project_id":  card.ProjectID,
+			"card_id":     card.ID,
+			"request_id":  req.ID,
+			"status":      req.Status,
+		},
+	})
+}
+
+func (h *ProcurementHandler) projectParticipantIDs(project *models.KanbanProject) []uint {
+	ids := map[uint]bool{project.CriadorID: true}
+	for _, p := range project.Participantes {
+		ids[p.ID] = true
+	}
+	result := make([]uint, 0, len(ids))
+	for id := range ids {
+		result = append(result, id)
+	}
+	return result
 }
 
 // notifyStaff creates in-DB notifications for manager/comprador roles.
@@ -1331,6 +1383,7 @@ func (h *ProcurementHandler) DecideRequest(c *gin.Context) {
 		return
 	}
 	h.logHistory("purchase_requests", req.ID, user.ID, fmt.Sprintf("Decisão de %s: %s", in.Nivel, in.Decisao))
+	h.broadcastKanbanRequestUpdate(req, nil, fmt.Sprintf("Solicitação de compra %s atualizada para %s.", req.Numero, req.Status))
 	c.JSON(http.StatusOK, req)
 }
 
@@ -1373,6 +1426,7 @@ func (h *ProcurementHandler) ReleaseBudget(c *gin.Context) {
 		return
 	}
 	h.logHistory("purchase_requests", req.ID, user.ID, "Orçamento Liberado pelo Administrador")
+	h.broadcastKanbanRequestUpdate(req, nil, fmt.Sprintf("Solicitação de compra %s atualizada para %s.", req.Numero, req.Status))
 	c.JSON(http.StatusOK, req)
 }
 
@@ -1467,6 +1521,7 @@ func (h *ProcurementHandler) CreateQuotation(c *gin.Context) {
 	// Update request status to "Convertida em cotação"
 	req.Status = models.PRStatusConvertidaCotacao
 	_ = h.requestRepo.Update(req)
+	h.broadcastKanbanRequestUpdate(req, nil, fmt.Sprintf("Solicitação de compra %s atualizada para %s.", req.Numero, req.Status))
 
 	c.JSON(http.StatusCreated, quotation)
 }
@@ -2656,18 +2711,7 @@ func (h *ProcurementHandler) KanbanPurchaseRequest(c *gin.Context) {
 	}
 	card.TipoItemNecessario = &tipoItem
 	_ = h.cardRepo.Update(card)
-
-	// If a product link is provided, create a link attachment in the card
-	if in.LinkProduto != "" {
-		attachment := &models.KanbanAttachment{
-			CardID:   card.ID,
-			Nome:     fmt.Sprintf("Link de Compra: %s", in.NomeProduto),
-			Tipo:     "link",
-			URL:      in.LinkProduto,
-			CriadoEm: time.Now(),
-		}
-		_ = h.userRepo.DB().Create(attachment).Error
-	}
+	h.broadcastKanbanRequestUpdate(req, card, fmt.Sprintf("Solicitação de compra %s vinculada ao cartão '%s'.", req.Numero, card.Titulo))
 
 	_ = h.interactionRepo.Create(&models.KanbanCardInteraction{
 		CardID:    card.ID,

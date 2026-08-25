@@ -54,7 +54,6 @@ type ServiceTicket struct {
 	ServicoID       uint            `gorm:"not null" json:"servico_id"`
 	SolicitanteID   uint            `gorm:"not null" json:"solicitante_id"`
 	TecnicoID       *uint           `json:"tecnico_id"`
-	Titulo          string          `gorm:"not null;type:varchar(200)" json:"titulo"`
 	Descricao       string          `gorm:"not null;type:text" json:"descricao"`
 	Status          ServiceStatus   `gorm:"type:varchar(30);default:'Aberto'" json:"status"`
 	Prioridade      ServicePriority `gorm:"type:varchar(20);not null" json:"prioridade"`

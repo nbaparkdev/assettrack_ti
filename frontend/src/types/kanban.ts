@@ -40,6 +40,7 @@ export interface KanbanCard {
   project_id: number;
   column_id: number;
   titulo: string;
+  cor?: string;
   descricao?: string;
   checklist_json?: string;
   checklist_items?: KanbanChecklistItem[];

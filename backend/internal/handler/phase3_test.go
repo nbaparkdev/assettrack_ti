@@ -148,7 +148,6 @@ func TestServiceDeskTicketAutocode(t *testing.T) {
 	ticket1 := models.ServiceTicket{
 		SolicitanteID: user.ID,
 		ServicoID:     def.ID,
-		Titulo:        "Sem internet na sala 10",
 		Descricao:     "Cabo desconectado",
 		Prioridade:    models.ServicePriorityMedia,
 		Status:        models.ServiceStatusAberto,
@@ -168,7 +167,6 @@ func TestServiceDeskTicketAutocode(t *testing.T) {
 	ticket2 := models.ServiceTicket{
 		SolicitanteID: user.ID,
 		ServicoID:     def.ID,
-		Titulo:        "Mouse quebrado",
 		Descricao:     "Sem pilhas",
 		Prioridade:    models.ServicePriorityBaixa,
 		Status:        models.ServiceStatusAberto,

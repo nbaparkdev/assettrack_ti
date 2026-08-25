@@ -25,6 +25,10 @@ export const kanbanApi = {
     const response = await apiClient.put(`/kanban/projetos/${id}`, data);
     return response.data;
   },
+  deleteProject: async (id: number): Promise<{ message: string }> => {
+    const response = await apiClient.delete(`/kanban/projetos/${id}`);
+    return response.data;
+  },
   duplicateProject: async (id: number, incluir_cartoes = false): Promise<KanbanProject> => {
     const response = await apiClient.post<KanbanProject>(`/kanban/projetos/${id}/duplicar`, { incluir_cartoes });
     return response.data;

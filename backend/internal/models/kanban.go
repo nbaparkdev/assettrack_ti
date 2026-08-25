@@ -62,6 +62,7 @@ type KanbanCard struct {
 	ProjectID         uint       `gorm:"column:project_id;not null" json:"project_id"`
 	ColumnID          uint       `gorm:"column:column_id;not null" json:"column_id"`
 	Titulo            string     `gorm:"size:255;not null" json:"titulo"`
+	Cor               string     `gorm:"column:cor;size:20;default:'#0079BF'" json:"cor"`
 	Descricao         *string    `gorm:"type:text" json:"descricao"`
 	ChecklistJSON     *string    `gorm:"column:checklist_json;type:text" json:"checklist_json"`
 	PreventiveOrderID *uint      `gorm:"column:preventive_order_id" json:"preventive_order_id"`

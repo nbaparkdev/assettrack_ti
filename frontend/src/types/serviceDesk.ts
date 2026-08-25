@@ -34,7 +34,6 @@ export interface ServiceTicketInteraction {
 export interface ServiceTicket {
   id: number;
   codigo: string;
-  titulo: string;
   descricao: string;
   prioridade: 'baixa' | 'media' | 'alta' | 'urgente';
   status: 'aberto' | 'em_atendimento' | 'resolvido' | 'fechado';

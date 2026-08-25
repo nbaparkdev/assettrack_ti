@@ -244,7 +244,7 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 			}
 			response.ActiveAlerts = append(response.ActiveAlerts, dto.AlertSummary{
 				ID:        t.ID,
-				Title:     "Chamado Aberto: " + t.Titulo + " (por " + solicitanteName + ")",
+				Title:     "Chamado Aberto: " + summarizeTicketDescription(t.Descricao) + " (por " + solicitanteName + ")",
 				Severity:  "WARNING",
 				CreatedAt: t.DataAbertura.Format(time.RFC3339),
 			})
@@ -252,5 +252,17 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+func summarizeTicketDescription(description string) string {
+	normalized := strings.Join(strings.Fields(description), " ")
+	if normalized == "" {
+		return "Sem descrição"
+	}
+	const maxLength = 72
+	if len(normalized) <= maxLength {
+		return normalized
+	}
+	return strings.TrimSpace(normalized[:maxLength-1]) + "…"
 }
 
