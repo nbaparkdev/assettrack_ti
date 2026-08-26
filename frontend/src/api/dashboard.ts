@@ -5,6 +5,7 @@ export interface AlertSummary {
   title: string;
   severity: string;
   created_at: string;
+  link?: string;
 }
 
 export interface CategoryStat {

@@ -48,5 +48,5 @@ type AlertSummary struct {
 	Title     string `json:"title"`
 	Severity  string `json:"severity"`
 	CreatedAt string `json:"created_at"`
+	Link      string `json:"link,omitempty"`
 }
-

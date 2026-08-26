@@ -56,7 +56,7 @@ Para solicitações de suporte que não envolvem reparo físico de hardware (ex:
 
 ### Painel Gerencial (Apenas Administradores e Gerentes)
 * Administradores e Gerentes contam com um **Dashboard Gerencial Analítico** moderno no topo da página.
-* O painel apresenta **gráficos dinâmicos (ApexCharts)** da distribuição dos chamados por estágio, prioridades, principais categorias e ranking de usuários atendidos.
+* O painel apresenta **gráficos dinâmicos (Chart.js)** da distribuição dos chamados por estágio, prioridades, principais categorias e ranking de usuários atendidos.
 * **Filtros Avançados:** Posicionados de forma inteligente logo abaixo dos gráficos, permitem pesquisar e filtrar a lista de chamados instantaneamente por código, categoria, status, prioridade e intervalo de datas.
 
 ---
@@ -167,3 +167,34 @@ Para controle legal, o sistema oferece um módulo dedicado à emissão de **Term
 2. **Assinatura e Controle:** O colaborador assina o documento.
 3. **Armazenamento Seguro:** O usuário de RH faz o upload do arquivo digitalizado (PDF ou Imagem) e altera o status para "Assinado", garantindo o histórico digital do aceite.
 4. **Simplificação de Tela:** Usuários com o perfil `RH` acessam uma interface enxuta e objetiva, focando na sua atividade principal sem a complexidade dos módulos de Tecnologia da Informação.
+
+---
+
+## 🆕 14. Manual visual e sala de monitoramento
+
+O sistema possui uma central de manual visual em **Ajuda > Manual do Sistema** ou na rota `/manual`. O conteúdo é separado automaticamente conforme o perfil autenticado:
+
+| Perfil | Conteúdo principal |
+|---|---|
+| Usuário comum | Dashboard, ativos sob sua guarda, chamados, manutenções e alertas emergenciais |
+| Técnico | Operação do Service Desk, manutenções, ativos, alertas e sala de monitoramento |
+| Gerente de TI / Infraestrutura | Todos os recursos operacionais, gestão, compras e monitoramento |
+| Administrador | Todos os módulos, configurações, usuários, permissões, backups e integrações |
+| Comprador | Ativos, solicitações, compras, fornecedores e recebimentos |
+| RH | Portal RH, termos de responsabilidade e entregas |
+
+### Sala de monitoramento para TV
+
+Administradores, gerentes e técnicos podem acessar `/monitoramento` para acompanhar a operação em uma tela dedicada. O painel apresenta chamados ativos, prioridade, status, técnico/responsável atribuído, solicitações de ativos, manutenções e alertas.
+
+- Os dados operacionais são atualizados automaticamente a cada 5 segundos.
+- Alertas emergenciais chegam por transmissão ao vivo, tocam `notificacao_alerta.mp3` e abrem o modal emergencial padrão.
+- A tela possui relógio, conexão ao vivo, logo centralizada e modo tela cheia para uso em TV.
+- O campo de equipamentos do alerta usa os ativos vinculados ao usuário e também complementa alertas antigos que não tinham essa informação.
+
+### Atualizações recentes
+
+- Chamados relacionados em alertas abrem diretamente o ticket correspondente.
+- O Kanban mantém seus comandos funcionais em tela cheia, incluindo modais.
+- A logo oficial está presente no menu, no login e na sala de monitoramento.
+- O APK Android é atualizado pelo fluxo de publicação e disponibilizado pelo botão **App Android**.

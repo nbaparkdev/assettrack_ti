@@ -269,11 +269,11 @@ func (h *AssetHandler) Create(c *gin.Context) {
 }
 
 type AssetImportRowResult struct {
-	Linha        int    `json:"linha"`
-	EPatrimonio  string `json:"e_patrimonio"`
-	Nome         string `json:"nome"`
-	Acao         string `json:"acao,omitempty"`
-	Erro         string `json:"erro,omitempty"`
+	Linha       int    `json:"linha"`
+	EPatrimonio string `json:"e_patrimonio"`
+	Nome        string `json:"nome"`
+	Acao        string `json:"acao,omitempty"`
+	Erro        string `json:"erro,omitempty"`
 }
 
 type AssetImportResponse struct {
@@ -284,20 +284,20 @@ type AssetImportResponse struct {
 }
 
 type assetCSVHeaderIndex struct {
-	ePatrimonio int
-	nome         int
-	modelo       int
-	numeroSerie  int
-	status       int
-	categoria    int
-	localizacao  int
+	ePatrimonio   int
+	nome          int
+	modelo        int
+	numeroSerie   int
+	status        int
+	categoria     int
+	localizacao   int
 	armazenamento int
-	fornecedor   int
+	fornecedor    int
 	dataAquisicao int
-	valor        int
-	ativoFixo    int
-	emPosseDe    int
-	setor        int
+	valor         int
+	ativoFixo     int
+	emPosseDe     int
+	setor         int
 	requerTermoRH int
 }
 
@@ -419,20 +419,20 @@ func normalizeCSVHeader(value string) string {
 
 func parseAssetCSVHeaders(headers []string) (assetCSVHeaderIndex, error) {
 	index := assetCSVHeaderIndex{
-		ePatrimonio:  -1,
-		nome:         -1,
-		modelo:       -1,
-		numeroSerie:  -1,
-		status:       -1,
-		categoria:    -1,
-		localizacao:  -1,
+		ePatrimonio:   -1,
+		nome:          -1,
+		modelo:        -1,
+		numeroSerie:   -1,
+		status:        -1,
+		categoria:     -1,
+		localizacao:   -1,
 		armazenamento: -1,
-		fornecedor:   -1,
+		fornecedor:    -1,
 		dataAquisicao: -1,
-		valor:        -1,
-		ativoFixo:    -1,
-		emPosseDe:    -1,
-		setor:        -1,
+		valor:         -1,
+		ativoFixo:     -1,
+		emPosseDe:     -1,
+		setor:         -1,
 		requerTermoRH: -1,
 	}
 
@@ -706,6 +706,18 @@ func (h *AssetHandler) Update(c *gin.Context) {
 	// Ensure ID stays the same
 	asset.ID = uint(id)
 
+	// Keep the legacy display field in sync with the canonical user relation.
+	// This prevents an old free-text value in `em_posse_de` from diverging from
+	// the user actually linked to the asset whenever it is marked as in use.
+	if asset.Status == models.AssetStatusEmUso && asset.CurrentUserID != nil {
+		var currentUser models.User
+		if err := h.repo.DB().First(&currentUser, *asset.CurrentUserID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário responsável pelo ativo não encontrado"})
+			return
+		}
+		asset.EmPosseDe = &currentUser.Nome
+	}
+
 	if err := h.repo.Update(asset); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -757,22 +769,22 @@ func (h *AssetHandler) Update(c *gin.Context) {
 				uid := val.(uint)
 				adminIDPtr = &uid
 			}
-			
+
 			now := time.Now()
 			sol := &models.Solicitacao{
-				SolicitanteID:         asset.CurrentUserID,
-				AssetID:               &asset.ID,
-				Motivo:                "Transferência direta via painel de ativos",
-				Status:                models.StatusSolicitacaoEntregue,
-				DataSolicitacao:       now,
-				DataAprovacao:         &now,
-				AprovadorID:           adminIDPtr,
-				DataEntrega:           &now,
-				ConfirmadoPorID:       adminIDPtr,
+				SolicitanteID:   asset.CurrentUserID,
+				AssetID:         &asset.ID,
+				Motivo:          "Transferência direta via painel de ativos",
+				Status:          models.StatusSolicitacaoEntregue,
+				DataSolicitacao: now,
+				DataAprovacao:   &now,
+				AprovadorID:     adminIDPtr,
+				DataEntrega:     &now,
+				ConfirmadoPorID: adminIDPtr,
 			}
-			
+
 			_ = h.repo.DB().Create(sol).Error
-			
+
 			mov := &models.Movimentacao{
 				AssetID:    asset.ID,
 				Tipo:       models.TipoMovimentacaoEmprestimo,

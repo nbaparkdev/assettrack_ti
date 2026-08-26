@@ -21,8 +21,11 @@ import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { EmailLogsPage } from './pages/EmailLogsPage';
 import { SetoresPage } from './pages/SetoresPage';
+import { MonitoramentoPage } from './pages/MonitoramentoPage';
+import { ManualPage } from './pages/ManualPage';
 import { AppUpdateNotifier } from './components/layout/AppUpdateNotifier';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { initializeAndroidNotifications } from './utils/androidNotifications';
 
 const queryClient = new QueryClient();
 
@@ -35,6 +38,10 @@ const App: React.FC = () => {
     checkAuth();
   }, [checkAuth]);
 
+  useEffect(() => {
+    if (user) void initializeAndroidNotifications();
+  }, [user]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -42,6 +49,17 @@ const App: React.FC = () => {
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
+
+          {/* TV monitoring mode: the page performs its own staff-role guard. */}
+          <Route path="/monitoramento" element={<MonitoramentoPage />} />
+          <Route
+            path="/manual"
+            element={
+              <MainLayout>
+                <ManualPage />
+              </MainLayout>
+            }
+          />
 
           {/* Protected Routes */}
           <Route

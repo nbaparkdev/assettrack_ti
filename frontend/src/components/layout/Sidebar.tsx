@@ -19,6 +19,8 @@ import {
   FileSignature,
   Webhook,
   Database,
+  Activity,
+  BookOpen,
   PanelLeftClose,
   PanelLeftOpen
 } from 'lucide-react';
@@ -51,6 +53,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
 
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Manual do Sistema', path: '/manual', icon: BookOpen },
+    { name: 'Monitoramento TV', path: '/monitoramento', icon: Activity, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
     { name: 'Ativos & Inventário', path: '/assets', icon: Cpu, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador'] },
     { name: 'Central de Suporte', path: '/servicos', icon: MessageSquare },
     { name: 'Manutenções', path: '/manutencoes', icon: Wrench, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
@@ -81,10 +85,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
       <div className="flex flex-col flex-1 min-h-0">
         {/* Header */}
         <div className={`h-14 shrink-0 flex items-center border-b border-brand-border ${!isMobileView && collapsed ? 'justify-center px-1' : 'justify-between px-5'}`}>
-          {(isMobileView || !collapsed) && (
-            <span className="font-bold text-[#172b4d] tracking-tight text-lg truncate select-none">
-              AssetTrack<span className="text-brand-primary font-light lowercase">.ti</span>
-            </span>
+          {(isMobileView || !collapsed) ? (
+            <img
+              src="/logo-assettrack-claro.svg"
+              alt="AssetTrack TI"
+              className="h-[50px] w-[159px] max-w-none object-contain object-left"
+            />
+          ) : (
+            <img
+              src="/logo-assettrack-claro.svg"
+              alt="AssetTrack TI"
+              className="h-8 w-10 object-cover object-left"
+            />
           )}
           {isMobileView ? (
             <button

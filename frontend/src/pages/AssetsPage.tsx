@@ -374,14 +374,22 @@ export const AssetsPage: React.FC = () => {
 
     try {
       if (editAssetId) {
-        await assetsApi.update(editAssetId, payload);
+        // Use the server response immediately so the table reflects the saved
+        // location/assignment even before the list refresh completes.
+        const savedAsset = await assetsApi.update(editAssetId, payload);
+        setAssets((current) => current.map((item) => (
+          item.id === savedAsset.id ? savedAsset : item
+        )));
         setGlobalSuccess('Registro de ativo atualizado com sucesso.');
       } else {
-        await assetsApi.create(payload);
+        const createdAsset = await assetsApi.create(payload);
+        setAssets((current) => [createdAsset, ...current]);
         setGlobalSuccess('Novo ativo registrado com sucesso.');
       }
       setShowFormModal(false);
-      fetchAssets();
+      // Force a fresh read after saving, ensuring joined reference names
+      // (local, storage and department) are updated in the visible table.
+      await fetchAssets();
     } catch (err: any) {
       setFormError(err.response?.data?.error || 'Erro ao salvar ativo.');
     }
@@ -1167,7 +1175,7 @@ export const AssetsPage: React.FC = () => {
                             </td>
                             <td className="p-4 text-xs">
                               <div className="text-brand-text">
-                                {a.status === 'Disponível' ? '—' : (a.em_posse_de || a.current_user?.nome || '—')}
+                                {a.status === 'Disponível' ? '—' : (a.current_user?.nome || a.em_posse_de || '—')}
                               </div>
                               <div className="text-brand-muted">{a.current_departamento?.nome}</div>
                             </td>
@@ -2754,7 +2762,7 @@ export const AssetsPage: React.FC = () => {
                           <span className="text-brand-text font-semibold">
                             {selectedAssetForDetail.status === 'Disponível'
                               ? 'Ninguém (Disponível)'
-                              : (selectedAssetForDetail.em_posse_de || selectedAssetForDetail.current_user?.nome || 'Ninguém (Disponível)')}
+                              : (selectedAssetForDetail.current_user?.nome || selectedAssetForDetail.em_posse_de || 'Ninguém (Disponível)')}
                           </span>
                         </div>
                         <div>

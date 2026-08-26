@@ -1503,7 +1503,10 @@ export const KanbanPage: React.FC = () => {
     .slice(0, 6);
 
   return (
-    <div className="min-h-[calc(100vh-12rem)] space-y-6">
+    <div
+      ref={boardShellRef}
+      className={`relative min-h-[calc(100vh-12rem)] space-y-6 ${isBoardFullscreen ? 'overflow-auto bg-[#212121]' : ''}`}
+    >
       {notifStatusMessage && (
         <div className="pointer-events-none fixed right-5 top-20 z-[70] w-full max-w-sm">
           <div className="pointer-events-auto overflow-hidden rounded-2xl border border-[#bfdbfe] bg-white/95 shadow-[0_18px_48px_rgba(29,78,216,0.18)] backdrop-blur">
@@ -1572,7 +1575,6 @@ export const KanbanPage: React.FC = () => {
 
       {!loading && board && (
           <div
-          ref={boardShellRef}
           className={`relative -m-3 sm:-m-5 lg:-m-8 min-h-[calc(100dvh-4rem)] flex flex-col overflow-hidden text-[#172b4d] ${isBoardFullscreen ? 'bg-[#212121]' : ''}`}
           style={getBoardPatternStyle(board.project.board_background_color, board.project.board_pattern)}
         >
@@ -1707,7 +1709,7 @@ export const KanbanPage: React.FC = () => {
               </span>
             </div>
             <div
-              className="hidden items-center gap-2 text-[10px] font-medium md:flex"
+              className="hidden items-center gap-2 text-[14px] leading-5 font-medium md:flex"
               style={{ color: getBoardTextColor(board.project.board_background_color) }}
             >
               <span

@@ -230,6 +230,9 @@ func uintPtrEqual(a, b *uint) bool {
 // ListByCurrentUser returns assets currently assigned to a user.
 func (r *AssetRepository) ListByCurrentUser(userID uint) ([]models.Asset, error) {
 	var assets []models.Asset
-	err := r.db.Where("current_user_id = ? AND status = ?", userID, "EM_USO").Find(&assets).Error
+	// Status values were historically persisted as both "Em uso" and "EM_USO".
+	// Normalize the value here so alerts and other user-context features do not
+	// miss assets that are correctly linked through current_user_id.
+	err := r.db.Where("current_user_id = ? AND LOWER(REPLACE(status, '_', ' ')) IN ?", userID, []string{"em uso", "uso"}).Find(&assets).Error
 	return assets, err
 }

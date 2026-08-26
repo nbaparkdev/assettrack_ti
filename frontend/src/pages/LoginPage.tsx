@@ -183,9 +183,11 @@ export const LoginPage: React.FC = () => {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <span className="text-xs text-brand-primary uppercase tracking-widest block mb-2 font-semibold">
-            ▥ AssetTrack TI
-          </span>
+          <img
+            src="/logo-assettrack-claro.svg"
+            alt="AssetTrack TI"
+            className="mx-auto mb-4 h-auto w-[220px] max-w-[75%] object-contain"
+          />
           <h2 className="text-2xl font-bold tracking-tight text-brand-text">
             Painel de Acesso
           </h2>

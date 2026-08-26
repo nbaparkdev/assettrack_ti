@@ -15,7 +15,10 @@ const getApiBaseUrl = () => {
 
   // If running inside Capacitor (localhost), fall back to the development server IP on the Wi-Fi network
   if (isCapacitor && (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '')) {
-    return 'http://10.100.110.155:8080/api/v1';
+    // IP da interface Wi-Fi do servidor no ambiente local atual.
+    // O portal web continua usando o hostname acessado pelo dispositivo;
+    // o APK precisa de um endereço explícito para alcançar a API.
+    return 'http://172.30.6.127:8080/api/v1';
   }
   
   // Ensure we use http/https protocol for requests (Capacitor uses custom protocols like capacitor://)
@@ -153,4 +156,3 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-

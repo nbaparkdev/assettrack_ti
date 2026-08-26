@@ -70,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         <Link to="/alertas" className="grid h-8 w-8 place-items-center rounded bg-white/16 hover:bg-white/28" title="Notificações" aria-label="Notificações">
           <Bell size={16} />
         </Link>
-        <button className="hidden sm:grid h-8 w-8 place-items-center rounded bg-white/16 hover:bg-white/28" title="Ajuda" aria-label="Ajuda"><CircleHelp size={16} /></button>
+        <Link to="/manual" className="hidden sm:grid h-8 w-8 place-items-center rounded bg-white/16 hover:bg-white/28" title="Manual do sistema" aria-label="Manual do sistema"><CircleHelp size={16} /></Link>
         {canAccessSettings && (
           <Link to="/configuracoes" className="hidden sm:grid h-8 w-8 place-items-center rounded bg-white/16 hover:bg-white/28" title="Configurações" aria-label="Configurações"><Settings size={16} /></Link>
         )}

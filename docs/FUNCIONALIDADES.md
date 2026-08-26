@@ -47,7 +47,7 @@ Módulo integrado e profissional de suporte técnico para agilização operacion
 
 - **Abertura de Chamados:** Solicitação rápida por categorias e setores com suporte opcional a uploads de imagem para identificação visual inicial.
 - **Timeline de Interações com Fotos:** Histórico dinâmico cronológico em formato de linha do tempo com suporte a envio de imagens/fotos por usuários e técnicos para evidenciar o andamento.
-- **Dashboard Gerencial Premium:** Gráficos interativos (ApexCharts) com análise de status, prioridade de urgência, distribuição de categorias e ranking de usuários (exclusivo para Admins e Gerentes).
+- **Dashboard Gerencial Premium:** Gráficos interativos (Chart.js) com análise de status, prioridade de urgência, distribuição de categorias e ranking de usuários (exclusivo para Admins e Gerentes).
 - **Filtros Inteligentes de Pesquisa:** Painel de filtros avançados estrategicamente posicionado abaixo dos gráficos para buscas por texto, status, categoria, prioridade e intervalo de datas.
 - **Código e QR Rastreável:** Geração de códigos em formato estruturado (ex: `CH-2026-0001`) associados a um QR Code individual de visualização rápida no topo do chamado.
 - **Fuso Horário Local (America/Sao_Paulo):** Registro rigoroso de abertura e atualizações no horário do servidor local.
@@ -61,7 +61,7 @@ Módulo de alta prioridade para notificação instantânea de incidentes crític
 
 - **Acionamento Rápido:** Botão de emergência em destaque no dashboard de usuários comuns com modal para justificativa detalhada e vínculo automático do setor/equipamento.
 - **Transmissão SSE (Server-Sent Events):** Notificações enviadas em tempo real via streaming de eventos sem necessidade de atualização manual de página.
-- **Notificação Sonora de Alerta:** Emissão automática de som de alerta (`notificacao_alerta.mp3`) no navegador da equipe técnica e administrativa (`ADMIN`, `GERENTE_TI`, `GERENTE_INFRA`, `TECNICO`, `GERENTE`).
+- **Notificação Sonora de Alerta:** Emissão automática de som de alerta (`notificacao_alerta.mp3`) no navegador da equipe técnica e administrativa (`ADMIN`, `GERENTE_TI`, `GERENTE_INFRA`, `TECNICO`).
 - **Dashboard com Contadores em Tempo Real:** Banner no topo do dashboard com contagem de alertas totais recebidos e chamados pendentes.
 - **Histórico e Marcação de Atendimento:** Modal com visualização completa de histórico, filtros de busca por status (*Todos*, *Pendentes*, *Atendidos*) e ação de encerramento/atendimento registrando a identidade do técnico responsável.
 
@@ -171,3 +171,16 @@ Módulo de assistente virtual cognitivo integrado nativamente ao ERP, operando v
 - **Frontend:** React 18+ (Vite, TypeScript, Zustand, Tailwind CSS v4, Lucide).
 - **Banco de Dados:** PostgreSQL (Dockerizado).
 - **Infra:** Docker & Docker Compose.
+
+---
+
+## 🆕 Manual visual e monitoramento para TV
+
+- **Central de Manual:** Rota `/manual` com landing page técnica, ilustrações em SVG/CSS, atalhos operacionais e conteúdo filtrado pelo perfil autenticado.
+- **Separação por Perfil:** Usuário comum, técnico, gerentes, administrador, comprador e RH visualizam somente os módulos relevantes ao seu trabalho, com opção de consulta ampliada para perfis autorizados.
+- **Sala de Monitoramento:** Rota `/monitoramento`, independente do layout comum, preparada para TV e uso em tela cheia.
+- **Indicadores Operacionais:** Chamados abertos, prioridades altas, ativos em manutenção, alertas emergenciais, solicitações de ativos pendentes/aprovadas e fila de atendimento.
+- **Status e Atribuição ao Vivo:** A fila exibe o status normalizado do chamado e o técnico/responsável atual, com atualização a cada 5 segundos.
+- **Eventos Sonoros:** O arquivo `frontend/public/notificacao_alerta.mp3` é usado em emergências e em novidades operacionais detectadas no monitoramento.
+- **Modal Emergencial Reutilizado:** Alertas recebidos na sala de monitoramento abrem o mesmo modal global, com alarme, dados do colaborador, equipamentos vinculados e confirmação de ciência.
+- **Vínculo de Equipamentos:** Ativos em uso são identificados por `current_user_id` e status normalizado (`Em uso`/`EM_USO`), incluindo enriquecimento de alertas históricos.

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -247,6 +248,7 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 				Title:     "Chamado Aberto: " + summarizeTicketDescription(t.Descricao) + " (por " + solicitanteName + ")",
 				Severity:  "WARNING",
 				CreatedAt: t.DataAbertura.Format(time.RFC3339),
+				Link:      fmt.Sprintf("/servicos?status=aberto&ticketId=%d", t.ID),
 			})
 		}
 	}
@@ -265,4 +267,3 @@ func summarizeTicketDescription(description string) string {
 	}
 	return strings.TrimSpace(normalized[:maxLength-1]) + "…"
 }
-

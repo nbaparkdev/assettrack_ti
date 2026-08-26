@@ -16,7 +16,7 @@ Este documento consolida todas as melhorias visuais, funcionais e de infraestrut
   * [form.html](file:///home/humberto/Aplicativos/Assettrackti/assettrack_ti/app/templates/service_desk/form.html): Formulário de abertura com suporte a uploads.
   * [service_desk.py](file:///home/humberto/Aplicativos/Assettrackti/assettrack_ti/app/web/endpoints/service_desk.py): Endpoints POST de criação de chamado e comentários atualizados para processar e salvar imagens no diretório de uploads do servidor.
 
-### 📊 B. Dashboard Gerencial Premium (ApexCharts)
+### 📊 B. Dashboard Gerencial Premium (Chart.js)
 * **Descrição:** Painel estatístico e analítico moderno, de visualização restrita para **Administradores** e **Gerentes**.
 * **Gráficos Integrados:**
   1. **Status dos Chamados:** Gráfico de Rosca (Donut) interativo.

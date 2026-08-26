@@ -203,6 +203,28 @@ func (h *AlertsHandler) History(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Enrich legacy alerts that were created before the equipment lookup was
+	// corrected. This keeps the existing modal accurate without rewriting data.
+	for i := range alerts {
+		if alerts[i].AtivoNome != nil && strings.TrimSpace(*alerts[i].AtivoNome) != "" {
+			continue
+		}
+		assets, assetErr := h.assetRepo.ListByCurrentUser(alerts[i].UsuarioID)
+		if assetErr != nil || len(assets) == 0 {
+			continue
+		}
+		names := make([]string, 0, len(assets))
+		for _, asset := range assets {
+			if asset.EPatrimonio != "" {
+				names = append(names, asset.Nome+" ("+asset.EPatrimonio+")")
+			} else {
+				names = append(names, asset.Nome)
+			}
+		}
+		assetName := strings.Join(names, ", ")
+		alerts[i].AtivoNome = &assetName
+	}
 	c.JSON(http.StatusOK, alerts)
 }
 
@@ -474,4 +496,3 @@ func (h *AlertsHandler) UploadAvisoMedia(c *gin.Context) {
 		"filename":   filename,
 	})
 }
-

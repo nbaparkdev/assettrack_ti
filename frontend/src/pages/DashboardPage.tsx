@@ -1739,7 +1739,7 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 ) : (
                   stats.active_alerts.map((alert) => (
-                    <Link key={alert.id} to={dashboardSourceLinks.alerts} title="Abrir central de alertas" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0">
+                    <Link key={alert.id} to={alert.link || dashboardSourceLinks.alerts} title="Abrir item relacionado ao alerta" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/70 focus-visible:ring-offset-0">
                       <div className="border-l-4 border-red-500 bg-red-500/5 p-3 flex items-start space-x-2.5 transition-all hover:bg-red-500/10 hover:border-red-500/60">
                       {alert.severity === 'CRITICAL' ? (
                         <AlertTriangle className="text-red-500 mt-0.5 shrink-0" size={16} />

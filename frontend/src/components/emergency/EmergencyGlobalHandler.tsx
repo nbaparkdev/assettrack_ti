@@ -2,7 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { alertsApi } from '../../api/alerts';
 import { playEmergencyAlarm } from '../../utils/audio';
+import { API_BASE_URL } from '../../api/client';
 import { ShieldAlert, AlertTriangle, CheckCircle, X, Volume2, User, Building, Cpu, Clock, BellRing } from 'lucide-react';
+import { notifyAndroid } from '../../utils/androidNotifications';
 
 export interface EmergencyPayload {
   id: number;
@@ -53,6 +55,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
 
     const handleTestBroadcast = () => {
       playEmergencyAlarm();
+      void notifyAndroid('Alerta emergencial de teste', 'Teste de transmissão do AssetTrack TI.');
       setLiveAlert({
         id: 999999,
         usuario_nome: user?.nome || 'Usuário Teste',
@@ -81,7 +84,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
 
     const connectSSE = () => {
       try {
-        const streamUrl = `/api/v1/alertas/stream?token=${encodeURIComponent(token)}`;
+        const streamUrl = `${API_BASE_URL}/alertas/stream?token=${encodeURIComponent(token)}`;
         evtSource = new EventSource(streamUrl);
 
         evtSource.addEventListener('emergency_alert', (event: MessageEvent) => {
@@ -89,6 +92,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
             const data: EmergencyPayload = JSON.parse(event.data);
             if (!dismissedAlertIdsRef.current.has(data.id)) {
               playEmergencyAlarm();
+              void notifyAndroid('Alerta emergencial', `${data.usuario_nome}: ${data.motivo}`, { alertId: data.id });
               setLiveAlert(data);
             }
           } catch (err) {
@@ -126,6 +130,7 @@ export const EmergencyGlobalHandler: React.FC = () => {
           setLiveAlert(prev => {
             if (!prev || prev.id !== newest.id) {
               playEmergencyAlarm();
+              void notifyAndroid('Alerta emergencial', `${newest.usuario_nome}: ${newest.motivo}`, { alertId: newest.id });
               return {
                 id: newest.id,
                 usuario_nome: newest.usuario_nome,

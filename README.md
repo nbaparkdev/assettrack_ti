@@ -5,7 +5,13 @@
 
 Sistema de Controle de Ativos de TI com backend em Go (Gin + GORM), frontend em React + Vite, PostgreSQL e Redis.
 
-[Consulte os Requisitos do Sistema aqui](./REQUIREMENTS.md) | [Política de Segurança](./SECURITY.md) | [Licença](./LICENSE)
+[Manual completo](./docs/MANUAL_DO_USUARIO.md) | [Requisitos do Sistema](./REQUIREMENTS.md) | [Política de Segurança](./SECURITY.md) | [Licença](./LICENSE)
+
+## 📺 Sala de monitoramento e manual online
+
+Após iniciar a aplicação, a equipe pode abrir o [Manual do Sistema](http://localhost:8000/manual) pelo botão de ajuda ou pelo menu lateral. Administradores, gerentes e técnicos também possuem a [Sala de Monitoramento TV](http://localhost:8000/monitoramento), com status de chamados, atribuições, solicitações de ativos, alertas emergenciais, som de notificação e atualização automática a cada 5 segundos.
+
+O painel foi projetado para uso em uma TV: abra a rota, clique em **Tela cheia** e mantenha a sessão autenticada com um perfil operacional.
 
 ## Estrutura
 - **backend/**: API em Go, regras de negócio, modelos GORM e migração automática
@@ -163,7 +169,7 @@ Módulo integrado e moderno para gestão de chamados de suporte técnico.
 | Recurso | Descrição |
 | :--- | :--- |
 | **Abertura de Chamados** | Relato de problemas por categorias e setores com suporte a upload de imagens de identificação. |
-| **Painel de Gráficos (ApexCharts)** | Dashboard analítico premium (distribuição por status, prioridades, categorias e top solicitantes) restrito a Administradores e Gerentes. |
+| **Painel de Gráficos (Chart.js)** | Dashboard analítico premium (distribuição por status, prioridades, categorias e top solicitantes) restrito a Administradores e Gerentes. |
 | **Filtros Avançados de Busca** | Filtros posicionados estrategicamente abaixo dos gráficos para pesquisa refinada por texto, status, categoria, prioridade e intervalo de datas. |
 | **Timeline Interativa** | Histórico cronológico completo de interações com suporte a fotos tanto para técnicos quanto para solicitantes (reforço visual dos serviços). |
 | **Formato Profissional de Código** | Chamados gerados em formato estruturado (Ex: `CH-2026-0001`), com links permanentes amigáveis para organização. |
@@ -196,7 +202,7 @@ Sistema de notificação de alta prioridade para chamados de emergência de TI e
 | :--- | :--- |
 | **Operação Offline-First** | Fila de mutações gravada no armazenamento local (`localStorage`), permitindo que a equipe trabalhe mesmo sem sinal. |
 | **Sincronização Automática** | Auto-envio de pendências ao reconectar à rede com notificação visual (toast). |
-| **Botão & Modal de Download do APK** | Botão em destaque na versão web com download direto (`AssetTrack-TI-v1.2.0.apk`), QR Code para celulares e guia de 3 passos. |
+| **Botão & Modal de Download do APK** | Botão em destaque na versão web com download direto do APK versionado, QR Code para celulares e guia de 3 passos. |
 | **Notificador de Novas Versões** | Verificação em segundo plano alertando sobre atualizações disponíveis do aplicativo. |
 
 ## 📱 Sistema de QR Code

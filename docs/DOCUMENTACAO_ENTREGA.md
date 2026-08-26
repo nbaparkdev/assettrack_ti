@@ -85,3 +85,18 @@ Com o núcleo transacional concluído, o sistema agora conta com um poderoso mó
 - **Exportação de Documentos via Client-Side**: Botão de exportação em PDF dos relatórios gerenciais, renderizados internamente no navegador do administrador via `jsPDF`, eliminando processamento do backend.
 
 ---
+
+## 📺 Atualização operacional — 26/08/2026
+
+Foi entregue uma central de manual visual e uma sala de monitoramento preparada para TV:
+
+- Rota `/manual` com landing page técnica, ilustrações, atalhos e conteúdo separado por perfil.
+- Rota `/monitoramento` com logo centralizada, modo tela cheia, relógio, conexão ao vivo e indicadores operacionais.
+- Atualização automática dos chamados, incluindo status e técnico/responsável atribuído, a cada 5 segundos.
+- Inclusão de solicitações de ativos pendentes ou aprovadas aguardando entrega.
+- Reutilização do modal emergencial global no monitoramento.
+- Som `notificacao_alerta.mp3` para emergências e novidades operacionais.
+- Correção da identificação de equipamentos em uso vinculados ao usuário e enriquecimento de alertas legados.
+- APK recompilável pelo script `scripts/publish_mobile_apk.sh`, com os assets e telas mais recentes.
+
+---

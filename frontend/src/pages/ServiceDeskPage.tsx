@@ -193,6 +193,14 @@ export const ServiceDeskPage: React.FC = () => {
       const ticketsData = await serviceDeskApi.listTickets();
       setTickets(ticketsData);
 
+      const ticketId = Number(new URLSearchParams(location.search).get('ticketId'));
+      if (Number.isInteger(ticketId) && ticketId > 0) {
+        const ticketFromAlert = ticketsData.find((ticket) => ticket.id === ticketId);
+        if (ticketFromAlert) {
+          await handleSelectTicket(ticketFromAlert);
+        }
+      }
+
       const catsData = await serviceDeskApi.listCategories();
       setCategories(catsData);
 
