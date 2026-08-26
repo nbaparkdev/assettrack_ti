@@ -121,6 +121,30 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 ::-webkit-scrollbar-thumb { background: rgba(23, 43, 77, .28); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(23, 43, 77, .45); }
 
+.kanban-board-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: rgba(23, 43, 77, .5) rgba(255, 255, 255, .2);
+  scrollbar-gutter: stable;
+  overscroll-behavior-x: contain;
+}
+.kanban-board-scroll::-webkit-scrollbar {
+  height: 12px;
+}
+.kanban-board-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, .25);
+  border-radius: 999px;
+}
+.kanban-board-scroll::-webkit-scrollbar-thumb {
+  background: rgba(23, 43, 77, .52);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+.kanban-board-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(23, 43, 77, .76);
+  background-clip: content-box;
+}
+
 /* Hide scrollbar on horizontal submenus for touch devices */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

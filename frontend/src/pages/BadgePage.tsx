@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usersApi } from '../api/users';
 import { toApiFileUrl } from '../api/client';
 import type { BadgeInfo, QRTokenInfo } from '../types';
-import { QrCode, RefreshCw, KeyRound, CheckCircle, AlertCircle, Copy } from 'lucide-react';
+import { QrCode, RefreshCw, KeyRound, CheckCircle, AlertCircle, Copy, Building2 } from 'lucide-react';
 
 export const BadgePage: React.FC = () => {
   const [badge, setBadge] = useState<BadgeInfo | null>(null);
@@ -76,71 +76,88 @@ export const BadgePage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         {/* Badge Card */}
-        <div className="border border-brand-border bg-brand-card p-8 flex flex-col items-center">
-          <span className="font-mono text-xs text-brand-primary uppercase tracking-widest mb-6">
-            Identidade Funcional
-          </span>
+        <div className="overflow-hidden rounded-2xl border border-brand-border bg-brand-card shadow-[0_18px_45px_rgba(23,43,77,0.12)]">
+          <div className="relative flex items-center justify-between gap-4 overflow-hidden bg-[linear-gradient(135deg,#172b4d_0%,#0c66e4_100%)] px-6 py-5 text-white sm:px-8">
+            <div className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full border border-white/10 bg-white/5" />
+            <div className="pointer-events-none absolute right-20 top-8 h-16 w-16 rounded-full border border-white/10" />
+            <div className="relative flex min-w-0 items-center gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/20 bg-white/10 shadow-lg shadow-black/10">
+                <Building2 size={21} />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold uppercase tracking-[0.15em]">AssetTrack TI</p>
+                <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.22em] text-white/70">Identidade funcional</p>
+              </div>
+            </div>
+            <QrCode size={24} className="relative shrink-0 text-white/85" />
+          </div>
 
-          <div className="w-full max-w-xs border border-brand-border bg-brand-dark p-6 text-center flex flex-col items-center space-y-4">
-            <div className="w-20 h-20 border border-brand-primary/30 overflow-hidden flex items-center justify-center font-mono text-brand-primary text-3xl bg-brand-primary/5 uppercase shadow-sm">
-              {badge?.avatar_url ? (
-                <img
-                  src={toApiFileUrl(badge.avatar_url)}
-                  alt={`Avatar de ${badge.nome}`}
-                  className="w-full h-full object-cover"
-                />
+          <div className="p-6 sm:p-8">
+            <div className="grid grid-cols-1 items-center gap-7 sm:grid-cols-[minmax(0,1fr)_180px]">
+              <div className="flex min-w-0 items-center gap-4 sm:flex-col sm:items-start">
+                <div className="h-28 w-28 shrink-0 overflow-hidden rounded-xl border-4 border-white bg-brand-primary/5 text-center font-mono text-3xl uppercase text-brand-primary shadow-[0_10px_25px_rgba(12,102,228,0.22)] ring-1 ring-brand-primary/20 sm:h-36 sm:w-36">
+                  {badge?.avatar_url ? (
+                    <img
+                      src={toApiFileUrl(badge.avatar_url)}
+                      alt={`Avatar de ${badge.nome}`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="grid h-full w-full place-items-center">{badge?.nome.substring(0, 2)}</span>
+                  )}
+                </div>
+                <div className="min-w-0 sm:w-full">
+                  <h3 className="truncate text-2xl font-bold uppercase tracking-tight text-brand-text">{badge?.nome}</h3>
+                  <div className="mt-3 h-1 w-10 rounded-full bg-brand-primary" />
+                  <p className="mt-3 text-xs font-mono font-semibold uppercase tracking-[0.16em] text-brand-primary">
+                    {badge?.cargo || 'Colaborador'}
+                  </p>
+                  <p className="mt-1 text-sm text-brand-muted">{badge?.departamento_nome || 'Sem Departamento'}</p>
+                </div>
+              </div>
+
+              {/* QR base64 */}
+              {badge?.qr_code_base64 ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="select-none rounded-xl border border-brand-border bg-white p-2 shadow-sm">
+                    <img
+                      src={`data:image/png;base64,${badge.qr_code_base64}`}
+                      alt="QR Code do Usuário"
+                      className="h-40 w-40 object-contain"
+                    />
+                  </div>
+                  {qrInfo?.qr_token && (
+                    <button
+                      onClick={() => navigator.clipboard.writeText(qrInfo.qr_token)}
+                      className="group flex w-full items-center justify-center gap-2 rounded-lg border border-brand-border px-3 py-2 text-[10px] font-mono text-brand-muted transition-all hover:border-brand-primary/50 hover:bg-brand-primary/10 hover:text-brand-primary"
+                      title="Copiar Token"
+                    >
+                      <span className="truncate">{qrInfo.qr_token}</span>
+                      <Copy size={12} className="shrink-0 opacity-50 group-hover:opacity-100" />
+                    </button>
+                  )}
+                </div>
               ) : (
-                badge?.nome.substring(0, 2)
+                <div className="grid h-40 w-40 place-items-center justify-self-center border border-brand-border/60 bg-brand-card">
+                  <div className="h-8 w-8 animate-spin border-2 border-brand-primary border-t-transparent" />
+                </div>
               )}
             </div>
 
-            <div>
-              <h3 className="font-bold text-lg text-brand-text truncate w-full">{badge?.nome}</h3>
-              <p className="text-xs font-mono text-brand-primary uppercase tracking-wider mt-1">
-                {badge?.cargo || 'Colaborador'}
-              </p>
-              <p className="text-xs text-brand-muted mt-0.5">{badge?.departamento_nome || 'Sem Departamento'}</p>
-            </div>
-
-            <div className="w-full border-t border-brand-border/60 my-2" />
-
-            {/* QR base64 */}
-            {badge?.qr_code_base64 ? (
-              <div className="flex flex-col items-center space-y-3 w-full">
-                <div className="bg-white p-2 border border-brand-border select-none">
-                  <img
-                    src={`data:image/png;base64,${badge.qr_code_base64}`}
-                    alt="QR Code do Usuário"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                {qrInfo?.qr_token && (
-                  <button
-                    onClick={() => navigator.clipboard.writeText(qrInfo.qr_token)}
-                    className="flex items-center space-x-2 text-[10px] font-mono text-brand-muted hover:text-brand-primary hover:bg-brand-primary/10 border border-brand-border hover:border-brand-primary/50 px-3 py-1.5 transition-all w-full justify-center group"
-                    title="Copiar Token"
-                  >
-                    <span className="truncate">{qrInfo.qr_token}</span>
-                    <Copy size={12} className="opacity-50 group-hover:opacity-100 flex-shrink-0" />
-                  </button>
-                )}
+            <div className="mt-7 grid grid-cols-1 gap-3 border-t border-brand-border pt-5 text-xs font-mono uppercase sm:grid-cols-2">
+              <div>
+                <span className="block text-[10px] tracking-wider text-brand-muted">Matrícula</span>
+                <span className="mt-1 block font-semibold text-brand-text">{badge?.matricula || 'N/D'}</span>
               </div>
-            ) : (
-              <div className="w-40 h-40 bg-brand-card flex items-center justify-center border border-brand-border/60">
-                <div className="w-8 h-8 border-2 border-brand-primary border-t-transparent animate-spin" />
-              </div>
-            )}
-
-            <div className="text-left w-full space-y-1 mt-4">
-              <div className="flex justify-between text-[10px] font-mono text-brand-muted uppercase">
-                <span>Matrícula:</span>
-                <span className="text-brand-text">{badge?.matricula || 'N/D'}</span>
-              </div>
-              <div className="flex justify-between text-[10px] font-mono text-brand-muted uppercase">
-                <span>E-mail:</span>
-                <span className="text-brand-text truncate max-w-[180px]">{badge?.email}</span>
+              <div className="sm:text-right">
+                <span className="block text-[10px] tracking-wider text-brand-muted">E-mail</span>
+                <span className="mt-1 block truncate font-semibold text-brand-text">{badge?.email}</span>
               </div>
             </div>
+          </div>
+
+          <div className="bg-[linear-gradient(90deg,#e8f1ff_0%,#f7f9fc_50%,#e8f1ff_100%)] px-6 py-3 text-center text-[10px] font-mono font-semibold uppercase tracking-[0.24em] text-brand-primary">
+            {badge?.departamento_nome || 'Acesso institucional seguro'}
           </div>
         </div>
 

@@ -44,6 +44,8 @@ import {
   Globe,
   Play,
   PencilLine,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 
 const columnPalette = ['#60A5FA', '#F59E0B', '#A78BFA', '#34D399', '#F87171', '#22D3EE'];
@@ -188,7 +190,7 @@ const CardLinkPreview: React.FC<{
                 e.stopPropagation();
                 onEdit();
               }}
-              className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#172b4d] shadow-sm transition hover:bg-white"
+              className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-sm font-bold uppercase tracking-[0.12em] text-[#172b4d] shadow-sm transition hover:bg-white"
               title="Editar link"
             >
               <PencilLine size={11} />
@@ -242,7 +244,7 @@ const CardLinkPreview: React.FC<{
                 e.stopPropagation();
                 onOpen?.(preview.url);
               }}
-              className="inline-flex items-center gap-1.5 rounded-full bg-amber-600 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white transition hover:bg-amber-700"
+              className="inline-flex items-center gap-1.5 rounded-full bg-amber-600 px-3 py-1.5 text-sm font-bold uppercase tracking-[0.12em] text-white transition hover:bg-amber-700"
             >
               <ExternalLink size={12} />
               Abrir
@@ -301,6 +303,7 @@ export const KanbanPage: React.FC = () => {
   const [boardSearchQuery, setBoardSearchQuery] = useState('');
   const [boardPriorityFilter, setBoardPriorityFilter] = useState<string>('todos');
   const [boardResponsibleFilter, setBoardResponsibleFilter] = useState<string>('todos');
+  const [isBoardFullscreen, setIsBoardFullscreen] = useState(false);
 
   const [cardModal, setCardModal] = useState(false);
   const [editingCard, setEditingCard] = useState<KanbanCard | null>(null);
@@ -350,6 +353,7 @@ export const KanbanPage: React.FC = () => {
   const notificationsRef = useRef<KanbanNotification[]>([]);
   const boardRef = useRef<{ project: KanbanProject; board_progress: number; total_cards: number } | null>(null);
   const cardDetailRef = useRef<KanbanCard | null>(null);
+  const boardShellRef = useRef<HTMLDivElement | null>(null);
 
   const showError = (err: any) => {
     setError(err.response?.data?.error || 'Erro na operação');
@@ -413,6 +417,36 @@ export const KanbanPage: React.FC = () => {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase())
       .join('');
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsBoardFullscreen(document.fullscreenElement === boardShellRef.current);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleBoardFullscreen = async () => {
+    if (!boardShellRef.current) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await boardShellRef.current.requestFullscreen();
+      }
+    } catch (err) {
+      showError(err);
+    }
+  };
+
+  const toggleProjectFavorite = async () => {
+    if (!board) return;
+    try {
+      const result = await kanbanApi.toggleFavorite(board.project.id);
+      setBoard((current) => current ? { ...current, project: { ...current.project, favoritado: result.favoritado } } : current);
+      setProjects((current) => current.map((project) => project.id === board.project.id ? { ...project, favoritado: result.favoritado } : project));
+    } catch (err) {
+      showError(err);
+    }
   };
 
   const getDepartmentName = (user: User) => user.departamento?.nome?.trim() || 'Sem departamento';
@@ -504,6 +538,14 @@ export const KanbanPage: React.FC = () => {
     const g = parseInt(normalized.slice(2, 4), 16);
     const b = parseInt(normalized.slice(4, 6), 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
+  const getBoardTextColor = (color?: string) => {
+    const normalized = normalizeBoardColor(color).replace('#', '');
+    const channels = [0, 2, 4].map((offset) => parseInt(normalized.slice(offset, offset + 2), 16) / 255);
+    const linear = channels.map((channel) => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+    const luminance = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+    return luminance > 0.52 ? '#172b4d' : '#d4d6d9';
   };
 
   const normalizeBoardPattern = (pattern?: string) => (
@@ -1123,6 +1165,22 @@ export const KanbanPage: React.FC = () => {
         ? await kanbanApi.updateCard(editingCard.id, payload)
         : await kanbanApi.createCard(payload);
 
+      // Keep the selected color visible immediately while the board refreshes.
+      const savedCardWithColor = { ...savedCard, cor: savedCard.cor || payload.cor };
+      setBoard((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          project: {
+            ...current.project,
+            colunas: current.project.colunas?.map((column) => ({
+              ...column,
+              cards: column.cards?.map((card) => card.id === savedCardWithColor.id ? savedCardWithColor : card),
+            })),
+          },
+        };
+      });
+
       await persistCardPrimaryLink(savedCard, normalizedLink, cLinkName, editingCard);
 
       setCardModal(false);
@@ -1513,8 +1571,9 @@ export const KanbanPage: React.FC = () => {
       )}
 
       {!loading && board && (
-        <div
-          className="relative -m-3 sm:-m-5 lg:-m-8 min-h-[calc(100dvh-4rem)] flex flex-col overflow-hidden text-[#172b4d]"
+          <div
+          ref={boardShellRef}
+          className={`relative -m-3 sm:-m-5 lg:-m-8 min-h-[calc(100dvh-4rem)] flex flex-col overflow-hidden text-[#172b4d] ${isBoardFullscreen ? 'bg-[#212121]' : ''}`}
           style={getBoardPatternStyle(board.project.board_background_color, board.project.board_pattern)}
         >
           {normalizeBoardPattern(board.project.board_pattern) === 'glow' && (
@@ -1608,6 +1667,14 @@ export const KanbanPage: React.FC = () => {
               >
                 <Archive size={16} />
               </button>
+              <button
+                onClick={toggleBoardFullscreen}
+                className="grid h-8 w-8 place-items-center rounded bg-white/18 hover:bg-white/28 transition-colors"
+                title={isBoardFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+                aria-label={isBoardFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+              >
+                {isBoardFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
               {canDeleteProject(board.project) && (
                 <button
                   onClick={() => deleteProject(board.project)}
@@ -1624,8 +1691,13 @@ export const KanbanPage: React.FC = () => {
           <div className="relative z-10 flex min-h-[48px] flex-wrap items-center justify-between gap-2 bg-white/30 px-3 sm:px-5 py-1.5 text-[#172b4d] backdrop-blur border-b border-white/20">
             <div className="flex min-w-0 items-center gap-2">
               <h2 className="truncate text-base sm:text-lg font-bold">{board.project.titulo}</h2>
-              <button className="grid h-7 w-7 place-items-center rounded bg-white/28 hover:bg-white/45 shrink-0" title="Favoritar">
-                <Star size={14} />
+              <button
+                onClick={toggleProjectFavorite}
+                className={`grid h-7 w-7 place-items-center rounded transition-colors shrink-0 ${board.project.favoritado ? 'bg-amber-300/80 text-amber-900' : 'bg-white/28 text-[#172b4d] hover:bg-white/45'}`}
+                title={board.project.favoritado ? 'Remover dos favoritos' : 'Favoritar projeto'}
+                aria-label={board.project.favoritado ? 'Remover dos favoritos' : 'Favoritar projeto'}
+              >
+                <Star size={14} className={board.project.favoritado ? 'fill-current' : ''} />
               </button>
               <span className="hidden h-7 items-center rounded bg-white/28 px-2.5 text-xs font-medium md:inline-flex">
                 {board.total_cards} cartões
@@ -1634,8 +1706,14 @@ export const KanbanPage: React.FC = () => {
                 {board.board_progress}% progresso
               </span>
             </div>
-            <div className="hidden items-center gap-2 text-[10px] font-medium text-[#475569] md:flex">
-              <span className="rounded-full border border-white/35 bg-white/18 px-2 py-0.5">
+            <div
+              className="hidden items-center gap-2 text-[10px] font-medium md:flex"
+              style={{ color: getBoardTextColor(board.project.board_background_color) }}
+            >
+              <span
+                className="rounded-full border border-white/35 bg-white/18 px-2 py-0.5"
+                style={{ color: getBoardTextColor(board.project.board_background_color) }}
+              >
                 Criado por {board.project.criador?.nome ?? 'não identificado'}
               </span>
             </div>
@@ -1648,7 +1726,7 @@ export const KanbanPage: React.FC = () => {
                     title={participant.nome}
                     className="grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-[#0079bf] text-[10px] font-bold text-white shadow"
                   >
-                    {getInitials(participant.nome)}
+                    {participant.avatar_url ? <img src={toApiFileUrl(participant.avatar_url)} alt={participant.nome} className="h-full w-full rounded-full object-cover" /> : getInitials(participant.nome)}
                   </div>
                 ))}
               </div>
@@ -1670,9 +1748,9 @@ export const KanbanPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative z-10 flex-1 h-[calc(100dvh-9.5rem)] overflow-x-auto overflow-y-hidden px-2 sm:px-3 py-2">
+          <div className="kanban-board-scroll relative z-10 min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-2 pb-4 pt-2 sm:px-3">
             <div
-              className="flex h-full items-start gap-2.5 sm:gap-3 rounded-[8px] px-2 py-2"
+              className="flex min-h-full min-w-max items-start gap-2.5 rounded-[8px] px-2 py-2 sm:gap-3"
               style={{ backgroundColor: hexToRgba(board.project.board_background_color || defaultBoardBackgroundColor, 0.18) }}
             >
               {board.project.colunas?.map((col) => (
@@ -1761,8 +1839,8 @@ export const KanbanPage: React.FC = () => {
                               activeDragCardId === card.id ? 'rotate-[1deg] opacity-60 ring-2 ring-[#0079bf]/35' : ''
                             }`}
                             style={{
-                              backgroundColor: '#ffffff',
-                              backgroundImage: `linear-gradient(180deg, ${hexToRgba(cardAccent, 0.08)} 0%, rgba(255,255,255,0.98) 22%)`,
+                              backgroundColor: hexToRgba(cardAccent, 0.12),
+                              backgroundImage: `linear-gradient(180deg, ${hexToRgba(cardAccent, 0.28)} 0%, rgba(255,255,255,0.96) 68%)`,
                               color: '#172b4d',
                               borderLeftColor: cardAccent,
                               borderLeftWidth: 6,
@@ -1837,7 +1915,7 @@ export const KanbanPage: React.FC = () => {
                                     title={participant.nome}
                                     className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#0079bf] text-[10px] font-bold text-white shadow-sm"
                                   >
-                                    {getInitials(participant.nome)}
+                                    {participant.avatar_url ? <img src={toApiFileUrl(participant.avatar_url)} alt={participant.nome} className="h-full w-full rounded-full object-cover" /> : getInitials(participant.nome)}
                                   </div>
                                 ))}
                               </div>
@@ -3199,7 +3277,7 @@ export const KanbanPage: React.FC = () => {
 
               <div className="flex items-center justify-between border-t border-[#dfe1e6] pt-4">
                 <div className="text-xs font-medium text-[#5e6c84]">
-                  O cartao sera criado diretamente nesta lista.
+                  {editingCard ? 'As alterações serão salvas neste cartão.' : 'O cartão será criado diretamente nesta lista.'}
                 </div>
                 <div className="flex justify-end space-x-3">
                   <button
@@ -3217,7 +3295,7 @@ export const KanbanPage: React.FC = () => {
                     className="rounded border border-[#2563eb] bg-[#bfdbfe] px-4 py-2 text-sm font-bold text-[#121212] hover:bg-[#93c5fd]"
                     style={{ color: '#121212' }}
                   >
-                    Criar cartao
+                    {editingCard ? 'Salvar alterações' : 'Criar cartão'}
                   </button>
                 </div>
               </div>

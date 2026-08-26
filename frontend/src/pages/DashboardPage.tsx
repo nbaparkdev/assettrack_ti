@@ -4,13 +4,14 @@ import { useAuthStore } from '../stores/authStore';
 import { dashboardApi } from '../api/dashboard';
 import { transactionApi } from '../api/transaction';
 import { maintenanceApi } from '../api/maintenance';
+import { kanbanApi } from '../api/kanban';
 import type { DashboardStats } from '../api/dashboard';
 import type { Solicitacao, SolicitacaoManutencao } from '../types';
 import {
   LayoutDashboard, Wrench, MessageSquare, Briefcase, BellRing, FileDown,
   AlertTriangle, Info, QrCode, ArrowLeftRight, UserCheck,
   Laptop, Calendar, Clock, X, Send, Paperclip, Star, TrendingUp,
-  PlusCircle, Activity, Layers, BarChart3, PieChart, ShieldCheck, RefreshCw,
+  PlusCircle, Activity, Layers, BarChart3, PieChart, ShieldCheck, RefreshCw, Columns3,
   ChevronRight, Package, Zap, ShieldAlert, ExternalLink, Eye, Maximize2
 } from 'lucide-react';
 import { triggerEmergencyAlertModal } from '../components/emergency/EmergencyGlobalHandler';
@@ -19,6 +20,7 @@ import { alertsApi } from '../api/alerts';
 import { toApiFileUrl } from '../api/client';
 import type { ServiceTicket } from '../types';
 import type { Aviso } from '../types/alerts';
+import type { KanbanNotification } from '../types/kanban';
 
 
 import {
@@ -61,6 +63,7 @@ export const DashboardPage: React.FC = () => {
   // System notices (Avisos) for all users
   const [activeAvisos, setActiveAvisos] = useState<Aviso[]>([]);
   const [selectedAviso, setSelectedAviso] = useState<Aviso | null>(null);
+  const [kanbanNotifications, setKanbanNotifications] = useState<KanbanNotification[]>([]);
 
   // Service desk states for collaborator tracking
   const [myTickets, setMyTickets] = useState<ServiceTicket[]>([]);
@@ -179,11 +182,30 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const fetchKanbanNotifications = async () => {
+    try {
+      const notifications = await kanbanApi.listNotifications();
+      setKanbanNotifications(notifications.filter((notification) => notification.tipo === 'PROJETO_ADICIONADO' && !notification.lida));
+    } catch (err) {
+      console.error('Erro ao carregar notificações de projetos:', err);
+    }
+  };
+
+  const openKanbanNotification = async (notification: KanbanNotification) => {
+    try {
+      await kanbanApi.markNotificationRead(notification.id);
+      setKanbanNotifications((current) => current.filter((item) => item.id !== notification.id));
+    } catch (err) {
+      console.error('Erro ao marcar notificação de projeto:', err);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
       fetchStats(),
       fetchActiveAvisos(),
+      fetchKanbanNotifications(),
       !isStaff ? fetchUserDashboardData() : Promise.resolve(),
     ]);
   };
@@ -446,10 +468,16 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     fetchStats();
     fetchActiveAvisos();
+    fetchKanbanNotifications();
     if (!isStaff) {
       fetchUserDashboardData();
     }
   }, [isStaff]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchKanbanNotifications, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Real-time polling for active avisos (for all users)
   useEffect(() => {
@@ -767,6 +795,33 @@ export const DashboardPage: React.FC = () => {
           </Link>
         </div>
       ) : null}
+
+      {kanbanNotifications.length > 0 && (
+        <div className="border border-sky-300/60 bg-sky-50 p-4 md:p-5 rounded-sm shadow-sm space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded bg-sky-100 text-sky-700">
+              <Columns3 size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-sky-900">Você foi incluído em um projeto</h3>
+              <p className="text-xs text-sky-800/80">Acesse o Kanban para colaborar com sua equipe.</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {kanbanNotifications.map((notification) => (
+              <Link
+                key={notification.id}
+                to={notification.link || '/kanban'}
+                onClick={() => openKanbanNotification(notification)}
+                className="flex items-center justify-between gap-3 rounded border border-sky-200 bg-white px-3 py-2.5 text-sm text-sky-950 hover:border-sky-400 hover:bg-sky-50 transition-colors"
+              >
+                <span>{notification.mensagem}</span>
+                <span className="shrink-0 text-xs font-bold uppercase text-sky-700">Abrir Kanban</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Alert Banner for Pending Asset Requests (Staff/Managers) */}
       {isStaff && stats.pending_asset_requests > 0 && (

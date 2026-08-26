@@ -10,11 +10,12 @@ export interface KanbanProject {
   criador_id: number;
   is_active: boolean;
   is_archived: boolean;
+  favoritado?: boolean;
   created_at: string;
   updated_at: string;
   criador?: { id: number; nome: string };
   preventive_plan?: { id: number; nome: string; codigo: string };
-  participantes?: { id: number; nome: string }[];
+  participantes?: { id: number; nome: string; avatar_url?: string | null }[];
   colunas?: KanbanColumn[];
   cards?: KanbanCard[];
 }
@@ -56,8 +57,8 @@ export interface KanbanCard {
   material_stock_id?: number;
   tipo_item_necessario?: string;
   column?: KanbanColumn;
-  criador?: { id: number; nome: string };
-  responsavel?: { id: number; nome: string };
+  criador?: { id: number; nome: string; avatar_url?: string | null };
+  responsavel?: { id: number; nome: string; avatar_url?: string | null };
   preventive_order?: {
     id: number;
     numero: string;
@@ -69,7 +70,7 @@ export interface KanbanCard {
     tecnico?: { id: number; nome: string };
     plan?: { id: number; nome: string; codigo: string };
   };
-  participantes?: { id: number; nome: string }[];
+  participantes?: { id: number; nome: string; avatar_url?: string | null }[];
   ativos?: { id: number; nome: string }[];
   anexos?: KanbanAttachment[];
   interacoes?: KanbanCardInteraction[];

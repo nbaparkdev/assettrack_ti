@@ -193,6 +193,7 @@ func (h *KanbanHandler) ListProjects(c *gin.Context) {
 	accessible := make([]models.KanbanProject, 0)
 	for _, p := range projects {
 		if h.userCanAccessProject(user, &p) {
+			p.Favoritado, _ = h.projectRepo.IsFavorite(p.ID, user.ID)
 			accessible = append(accessible, p)
 		}
 	}
@@ -303,6 +304,7 @@ func (h *KanbanHandler) GetProjectBoard(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso não autorizado a este projeto"})
 		return
 	}
+	project.Favoritado, _ = h.projectRepo.IsFavorite(project.ID, user.ID)
 
 	// Board progress (like Python)
 	totalCards := 0
@@ -324,6 +326,36 @@ func (h *KanbanHandler) GetProjectBoard(c *gin.Context) {
 		"board_progress": boardProgress,
 		"total_cards":    totalCards,
 	})
+}
+
+func (h *KanbanHandler) ToggleProjectFavorite(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	project, err := h.projectRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Projeto não encontrado"})
+		return
+	}
+	if !h.userCanAccessProject(user, project) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso não autorizado a este projeto"})
+		return
+	}
+
+	favoritado, err := h.projectRepo.IsFavorite(project.ID, user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	favoritado = !favoritado
+	if err := h.projectRepo.SetFavorite(project.ID, user.ID, favoritado); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"favoritado": favoritado})
 }
 
 func (h *KanbanHandler) UpdateProject(c *gin.Context) {
@@ -410,8 +442,29 @@ func (h *KanbanHandler) UpdateProject(c *gin.Context) {
 	}
 
 	if in.ParticipanteIDs != nil {
+		previousParticipantIDs := make(map[uint]bool)
+		for _, participant := range project.Participantes {
+			previousParticipantIDs[participant.ID] = true
+		}
 		participantIDs := append([]uint{project.CriadorID}, in.ParticipanteIDs...)
-		_ = h.projectRepo.ReplaceParticipantes(project, uniqueUints(participantIDs))
+		participantIDs = uniqueUints(participantIDs)
+		if err := h.projectRepo.ReplaceParticipantes(project, participantIDs); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		newParticipantIDs := make([]uint, 0)
+		for _, participantID := range participantIDs {
+			if participantID != project.CriadorID && !previousParticipantIDs[participantID] {
+				newParticipantIDs = append(newParticipantIDs, participantID)
+			}
+		}
+		if len(newParticipantIDs) > 0 {
+			h.notify(newParticipantIDs, user.ID, models.NotifProjetoAdicionado,
+				"Você foi incluído em um projeto",
+				fmt.Sprintf("%s adicionou você ao projeto '%s'. Acesse o Kanban para colaborar.", user.Nome, project.Titulo),
+				&project.ID, nil)
+		}
 	}
 
 	h.notify(h.projectParticipantIDs(project), user.ID, models.NotifProjetoAdicionado,
@@ -536,14 +589,14 @@ func (h *KanbanHandler) DuplicateProject(c *gin.Context) {
 					continue
 				}
 
-		duplicateCard := &models.KanbanCard{
-			ProjectID:     duplicate.ID,
-			ColumnID:      newColumnID,
-			Titulo:        card.Titulo,
-			Cor:           card.Cor,
-			Descricao:     card.Descricao,
-			ChecklistJSON: card.ChecklistJSON,
-			CriadorID:     user.ID,
+				duplicateCard := &models.KanbanCard{
+					ProjectID:     duplicate.ID,
+					ColumnID:      newColumnID,
+					Titulo:        card.Titulo,
+					Cor:           card.Cor,
+					Descricao:     card.Descricao,
+					ChecklistJSON: card.ChecklistJSON,
+					CriadorID:     user.ID,
 					ResponsavelID: card.ResponsavelID,
 					Prioridade:    card.Prioridade,
 					DataEntrega:   card.DataEntrega,
@@ -944,6 +997,12 @@ func (h *KanbanHandler) UpdateCard(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	// Persist the color explicitly because it is a user-facing visual setting
+	// and must never fall back to the database default during a full card save.
+	if err := h.cardRepo.UpdateColor(card.ID, card.Cor); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	_ = h.cardRepo.ReplaceParticipantes(card, in.ParticipanteIDs)
 	_ = h.cardRepo.ReplaceAssets(card, in.AtivoIDs)
@@ -1267,10 +1326,17 @@ func (h *KanbanHandler) AddCardComment(c *gin.Context) {
 
 func (h *KanbanHandler) UnreadCount(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
-	count, err := h.notifRepo.UnreadCount(user.ID)
+	notifs, err := h.notifRepo.ListByUser(user.ID, 1000)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+	accessible := h.filterAccessibleNotifications(notifs, user)
+	count := int64(0)
+	for _, notification := range accessible {
+		if !notification.Lida {
+			count++
+		}
 	}
 	c.JSON(http.StatusOK, gin.H{"unread_count": count})
 }
@@ -1282,7 +1348,24 @@ func (h *KanbanHandler) ListNotifications(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, notifs)
+	c.JSON(http.StatusOK, h.filterAccessibleNotifications(notifs, user))
+}
+
+func (h *KanbanHandler) filterAccessibleNotifications(notifs []models.KanbanNotification, user *models.User) []models.KanbanNotification {
+	accessible := make([]models.KanbanNotification, 0, len(notifs))
+	for _, notification := range notifs {
+		// Project notifications are visible only while the user can access the
+		// related project as its creator or participant.
+		if notification.ProjectID == nil {
+			continue
+		}
+		project, err := h.projectRepo.GetByID(*notification.ProjectID)
+		if err != nil || !h.userCanAccessProject(user, project) {
+			continue
+		}
+		accessible = append(accessible, notification)
+	}
+	return accessible
 }
 
 func (h *KanbanHandler) MarkNotificationRead(c *gin.Context) {

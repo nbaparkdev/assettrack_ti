@@ -57,6 +57,7 @@ func main() {
 		&models.MaintenanceNotification{},
 		&models.CustomMaintenanceType{},
 		&models.KanbanProject{},
+		&models.KanbanProjectFavorite{},
 		&models.KanbanColumn{},
 		&models.KanbanCard{},
 		&models.KanbanCardInteraction{},

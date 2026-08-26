@@ -37,6 +37,10 @@ export const kanbanApi = {
     const response = await apiClient.post(`/kanban/projetos/${id}/status`, { acao });
     return response.data;
   },
+  toggleFavorite: async (id: number): Promise<{ favoritado: boolean }> => {
+    const response = await apiClient.post(`/kanban/projetos/${id}/favorito`);
+    return response.data;
+  },
   addColumn: async (projectId: number, nome: string, cor?: string): Promise<KanbanColumn> => {
     const response = await apiClient.post(`/kanban/projetos/${projectId}/colunas`, { nome, cor });
     return response.data;

@@ -55,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
     { name: 'Central de Suporte', path: '/servicos', icon: MessageSquare },
     { name: 'Manutenções', path: '/manutencoes', icon: Wrench, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
     { name: 'Prev. Programada', path: '/manutencao-preventiva', icon: ClipboardList, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
-    { name: 'Kanban', path: '/kanban', icon: Columns3, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'rh'] },
+    { name: 'Kanban', path: '/kanban', icon: Columns3 },
     { name: 'Alertas', path: '/alertas', icon: BellRing, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
     { name: 'Empréstimos', path: '/emprestimos', icon: ArrowLeftRight },
     { name: 'Compras', path: '/compras', icon: Briefcase, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'comprador'] },

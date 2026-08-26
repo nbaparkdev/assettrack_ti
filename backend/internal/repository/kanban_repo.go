@@ -102,6 +102,22 @@ func (r *KanbanProjectRepository) ReplaceParticipantes(project *models.KanbanPro
 	return r.db.Model(project).Association("Participantes").Replace(users)
 }
 
+func (r *KanbanProjectRepository) IsFavorite(projectID, userID uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.KanbanProjectFavorite{}).
+		Where("project_id = ? AND user_id = ?", projectID, userID).
+		Count(&count).Error
+	return count > 0, err
+}
+
+func (r *KanbanProjectRepository) SetFavorite(projectID, userID uint, favorite bool) error {
+	query := r.db.Where("project_id = ? AND user_id = ?", projectID, userID)
+	if favorite {
+		return query.FirstOrCreate(&models.KanbanProjectFavorite{ProjectID: projectID, UserID: userID}).Error
+	}
+	return query.Delete(&models.KanbanProjectFavorite{}).Error
+}
+
 type KanbanColumnRepository struct {
 	db *gorm.DB
 }
@@ -191,7 +207,15 @@ func (r *KanbanCardRepository) Create(card *models.KanbanCard) error {
 }
 
 func (r *KanbanCardRepository) Update(card *models.KanbanCard) error {
-	return r.db.Save(card).Error
+	// Select all scalar fields explicitly so the chosen card color is not
+	// omitted when the model was loaded with preloaded associations.
+	return r.db.Select("*").Save(card).Error
+}
+
+func (r *KanbanCardRepository) UpdateColor(cardID uint, color string) error {
+	return r.db.Model(&models.KanbanCard{}).
+		Where("id = ?", cardID).
+		Update("cor", color).Error
 }
 
 func (r *KanbanCardRepository) Delete(card *models.KanbanCard) error {

@@ -31,6 +31,7 @@ type KanbanProject struct {
 	CriadorID            uint      `gorm:"column:criador_id;not null" json:"criador_id"`
 	IsActive             bool      `gorm:"column:is_active;default:true" json:"is_active"`
 	IsArchived           bool      `gorm:"column:is_archived;default:false" json:"is_archived"`
+	Favoritado           bool      `gorm:"-" json:"favoritado"`
 	CreatedAt            time.Time `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt            time.Time `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
 
@@ -42,6 +43,15 @@ type KanbanProject struct {
 }
 
 func (KanbanProject) TableName() string { return "kanban_projects" }
+
+type KanbanProjectFavorite struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	ProjectID uint      `gorm:"column:project_id;not null;uniqueIndex:idx_kanban_project_user" json:"project_id"`
+	UserID    uint      `gorm:"column:user_id;not null;uniqueIndex:idx_kanban_project_user" json:"user_id"`
+	CreatedAt time.Time `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
+}
+
+func (KanbanProjectFavorite) TableName() string { return "kanban_project_favorites" }
 
 type KanbanColumn struct {
 	ID        uint   `gorm:"primaryKey" json:"id"`
