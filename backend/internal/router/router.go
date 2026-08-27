@@ -102,7 +102,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		kanbanProjectRepo, kanbanColumnRepo, kanbanCardRepo, kanbanInteractionRepo,
 		kanbanAttachmentRepo, kanbanNotifRepo, userRepo, kanbanBroker,
 	)
-	alertsHandler := handler.NewAlertsHandler(alertRepo, avisoRepo, userRepo, assetRepo, alertBroker)
+	alertsHandler := handler.NewAlertsHandler(alertRepo, avisoRepo, userRepo, assetRepo, alertBroker, webhookDispatcher)
 	procurementHandler := handler.NewProcurementHandler(
 		procCategoryRepo, procProductRepo, procCCRepo, procRequestRepo, procApprovalRepo,
 		procQuotationRepo, procOrderRepo, procReceivingRepo, procStockRepo,

@@ -13,6 +13,7 @@ import (
 	"github.com/assettrack/backend/internal/middleware"
 	"github.com/assettrack/backend/internal/models"
 	"github.com/assettrack/backend/internal/repository"
+	"github.com/assettrack/backend/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -53,11 +54,12 @@ func (b *AlertSSEBroker) Broadcast(payload interface{}) {
 }
 
 type AlertsHandler struct {
-	alertRepo *repository.EmergencyAlertRepository
-	avisoRepo *repository.AvisoRepository
-	userRepo  *repository.UserRepository
-	assetRepo *repository.AssetRepository
-	broker    *AlertSSEBroker
+	alertRepo  *repository.EmergencyAlertRepository
+	avisoRepo  *repository.AvisoRepository
+	userRepo   *repository.UserRepository
+	assetRepo  *repository.AssetRepository
+	broker     *AlertSSEBroker
+	dispatcher *service.WebhookDispatcher
 }
 
 func NewAlertsHandler(
@@ -66,13 +68,15 @@ func NewAlertsHandler(
 	userRepo *repository.UserRepository,
 	assetRepo *repository.AssetRepository,
 	broker *AlertSSEBroker,
+	dispatcher *service.WebhookDispatcher,
 ) *AlertsHandler {
 	return &AlertsHandler{
-		alertRepo: alertRepo,
-		avisoRepo: avisoRepo,
-		userRepo:  userRepo,
-		assetRepo: assetRepo,
-		broker:    broker,
+		alertRepo:  alertRepo,
+		avisoRepo:  avisoRepo,
+		userRepo:   userRepo,
+		assetRepo:  assetRepo,
+		broker:     broker,
+		dispatcher: dispatcher,
 	}
 }
 
@@ -148,6 +152,9 @@ func (h *AlertsHandler) SendAlert(c *gin.Context) {
 	}
 
 	h.broker.Broadcast(payload)
+	if h.dispatcher != nil {
+		h.dispatcher.DispatchEvent("EMERGENCY_ALERT_TRIGGERED", payload)
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "success",
