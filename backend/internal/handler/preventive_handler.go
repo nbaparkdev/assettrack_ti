@@ -52,6 +52,7 @@ type PreventiveHandler struct {
 	assetRepo      *repository.AssetRepository
 	userRepo       *repository.UserRepository
 	categoryRepo   *repository.AssetCategoryRepository
+	stockRepo      *repository.ProcurementStockRepository
 }
 
 type checklistItemPayload struct {
@@ -82,6 +83,7 @@ func NewPreventiveHandler(
 	assetRepo *repository.AssetRepository,
 	userRepo *repository.UserRepository,
 	categoryRepo *repository.AssetCategoryRepository,
+	stockRepo *repository.ProcurementStockRepository,
 ) *PreventiveHandler {
 	return &PreventiveHandler{
 		planRepo:       planRepo,
@@ -98,6 +100,7 @@ func NewPreventiveHandler(
 		assetRepo:      assetRepo,
 		userRepo:       userRepo,
 		categoryRepo:   categoryRepo,
+		stockRepo:      stockRepo,
 	}
 }
 
@@ -636,12 +639,32 @@ func (h *PreventiveHandler) CreateOrder(c *gin.Context) {
 		}
 	}
 
+	var linkedPlan *models.MaintenancePlan
+	if in.PlanID != nil {
+		linkedPlan, _ = h.planRepo.GetByID(*in.PlanID)
+	}
+	orderTipo := finalTipo
+	orderPrioridade := in.Prioridade
+	orderCriticidade := models.CriticalityMedia
+	if linkedPlan != nil {
+		// A ordem herda as regras do plano para manter a criticidade e a
+		// prioridade mesmo quando a execução é aberta manualmente.
+		if orderPrioridade == "" || orderPrioridade == models.PriorityMedia {
+			orderPrioridade = linkedPlan.Prioridade
+		}
+		orderCriticidade = linkedPlan.Criticidade
+		if in.Tipo == "" || in.Tipo == models.MaintTypePreventiva {
+			orderTipo = linkedPlan.Tipo
+		}
+	}
+
 	order := &models.MaintenanceOrder{
 		Numero:        numero,
 		AssetID:       in.AssetID,
-		Tipo:          normalizeEnumValue(finalTipo, pmSystemTypes, models.MaintTypePersonalizada),
-		Prioridade:    normalizeEnumValue(in.Prioridade, []string{models.PriorityBaixa, models.PriorityMedia, models.PriorityAlta, models.PriorityUrgente}, models.PriorityMedia),
+		Tipo:          normalizeEnumValue(orderTipo, pmSystemTypes, models.MaintTypePersonalizada),
+		Prioridade:    normalizeEnumValue(orderPrioridade, []string{models.PriorityBaixa, models.PriorityMedia, models.PriorityAlta, models.PriorityUrgente}, models.PriorityMedia),
 		Status:        models.PMStatusAberta,
+		Criticidade:   normalizeEnumValue(orderCriticidade, []string{models.CriticalityBaixa, models.CriticalityMedia, models.CriticalityAlta, models.CriticalityCritica}, models.CriticalityMedia),
 		DataAbertura:  time.Now(),
 		PlanID:        in.PlanID,
 		TecnicoID:     in.TecnicoID,
@@ -698,8 +721,8 @@ func (h *PreventiveHandler) CreateOrder(c *gin.Context) {
 		}
 	}
 
-	// Notify assigned technician
-	if order.TecnicoID != nil {
+	// Notify all selected stakeholders: technician and plan responsible.
+	if order.TecnicoID != nil || order.PlanID != nil {
 		h.notifyOrderAssigned(*order)
 	}
 
@@ -722,14 +745,28 @@ func (h *PreventiveHandler) notifyOrderAssigned(order models.MaintenanceOrder) {
 	if order.DataAgendada != nil {
 		dataStr = order.DataAgendada.Format("02/01/2006 15:04")
 	}
-	msg := fmt.Sprintf("Você foi designado como responsável por uma nova Ordem de Serviço de manutenção.\n\nOS Código: %s\nEquipamento/Ativo: %s%s\nPrioridade: %s\nData Agendada: %s",
-		order.Numero, assetName, map[bool]string{true: " (Patrimônio: " + patrimonio + ")", false: ""}[patrimonio != ""], strings.ToUpper(order.Prioridade), dataStr)
-	_ = h.notifRepo.Create(&models.MaintenanceNotification{
-		OrderID:   &order.ID,
-		UsuarioID: *order.TecnicoID,
-		Tipo:      "order_assigned",
-		Mensagem:  msg,
-	})
+	msg := fmt.Sprintf("Você foi designado como responsável por uma nova Ordem de Serviço de manutenção.\n\nOS Código: %s\nEquipamento/Ativo: %s%s\nPrioridade: %s\nCriticidade: %s\nData Agendada: %s",
+		order.Numero, assetName, map[bool]string{true: " (Patrimônio: " + patrimonio + ")", false: ""}[patrimonio != ""], strings.ToUpper(order.Prioridade), strings.ToUpper(order.Criticidade), dataStr)
+	recipients := make([]uint, 0, 2)
+	if order.TecnicoID != nil {
+		recipients = append(recipients, *order.TecnicoID)
+	}
+	if order.PlanID != nil {
+		if plan, err := h.planRepo.GetByID(*order.PlanID); err == nil && plan.ResponsavelID != nil {
+			alreadyIncluded := order.TecnicoID != nil && *order.TecnicoID == *plan.ResponsavelID
+			if !alreadyIncluded {
+				recipients = append(recipients, *plan.ResponsavelID)
+			}
+		}
+	}
+	for _, recipientID := range recipients {
+		_ = h.notifRepo.Create(&models.MaintenanceNotification{
+			OrderID:   &order.ID,
+			UsuarioID: recipientID,
+			Tipo:      "order_assigned",
+			Mensagem:  msg,
+		})
+	}
 }
 
 func (h *PreventiveHandler) GetOrder(c *gin.Context) {
@@ -1437,6 +1474,8 @@ func (h *PreventiveHandler) AddOrderMaterial(c *gin.Context) {
 	}
 
 	var in struct {
+		StockID       *uint   `json:"stock_id"`
+		ProductID     *uint   `json:"product_id"`
 		Produto       string  `json:"produto"`
 		Quantidade    float64 `json:"quantidade"`
 		ValorUnitario float64 `json:"valor_unitario"`
@@ -1446,14 +1485,37 @@ func (h *PreventiveHandler) AddOrderMaterial(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if in.Produto == "" || in.Quantidade <= 0 || in.ValorUnitario <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Produto, quantidade e valor unitário são obrigatórios"})
+	if in.Quantidade <= 0 || (in.StockID == nil && (in.Produto == "" || in.ValorUnitario <= 0)) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Selecione um item do estoque ou informe produto, quantidade e valor unitário"})
 		return
+	}
+
+	var stockProductID *uint
+	if in.StockID != nil {
+		stock, stockErr := h.stockRepo.GetByID(*in.StockID)
+		if stockErr != nil || stock.Product == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Item de estoque não encontrado"})
+			return
+		}
+		in.Produto = stock.Product.Nome
+		stockProductID = &stock.ProductID
+		if in.ValorUnitario < 0 {
+			in.ValorUnitario = 0
+		}
+		justificativa := fmt.Sprintf("Baixa por aplicação na ordem de serviço %d", orderID)
+		if in.Observacao != "" {
+			justificativa += ": " + in.Observacao
+		}
+		if _, consumeErr := h.stockRepo.ConsumeForMaintenance(*in.StockID, in.Quantidade, user.ID, uint(orderID), justificativa); consumeErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": consumeErr.Error()})
+			return
+		}
 	}
 
 	valorTotal := in.Quantidade * in.ValorUnitario
 	material := &models.MaintenanceMaterial{
 		OrderID:       uint(orderID),
+		ProductID:     stockProductID,
 		Produto:       in.Produto,
 		Quantidade:    in.Quantidade,
 		ValorUnitario: in.ValorUnitario,
@@ -1464,6 +1526,10 @@ func (h *PreventiveHandler) AddOrderMaterial(c *gin.Context) {
 	}
 
 	if err := h.materialRepo.Create(material); err != nil {
+		if stockProductID != nil {
+			// Compensate a stock withdrawal if persisting the material fails.
+			_, _ = h.stockRepo.CreateOrUpdate(*stockProductID, in.Quantidade, models.StockEntrada, user.ID, "Estorno de baixa: falha ao registrar material da manutenção", "maintenance_material", &material.ID)
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -1471,7 +1537,7 @@ func (h *PreventiveHandler) AddOrderMaterial(c *gin.Context) {
 	_ = h.historyRepo.Create(&models.MaintenanceHistory{
 		OrderID:   uint(orderID),
 		Acao:      "Material Adicionado",
-		Descricao: fmt.Sprintf("Material '%s' (x%.2f) adicionado por %s. Valor total: R$ %.2f", in.Produto, in.Quantidade, user.Nome, valorTotal),
+		Descricao: fmt.Sprintf("Material '%s' (x%.2f) adicionado por %s. Valor total: R$ %.2f%s", in.Produto, in.Quantidade, user.Nome, valorTotal, map[bool]string{true: " com baixa automática no estoque", false: ""}[stockProductID != nil]),
 		UsuarioID: &user.ID,
 	})
 
@@ -1495,6 +1561,17 @@ func (h *PreventiveHandler) RemoveOrderMaterial(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Material não encontrado"})
 		return
+	}
+	if material.OrderID != uint(orderID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Material não pertence a esta ordem de serviço"})
+		return
+	}
+	if material.ProductID != nil {
+		justificativa := fmt.Sprintf("Estorno por remoção do material aplicado na ordem de serviço %d", orderID)
+		if _, restoreErr := h.stockRepo.CreateOrUpdate(*material.ProductID, material.Quantidade, models.StockEntrada, user.ID, justificativa, "maintenance_material_reversal", &material.ID); restoreErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Não foi possível estornar o material para o estoque"})
+			return
+		}
 	}
 
 	if err := h.materialRepo.Delete(uint(materialID)); err != nil {
@@ -1707,6 +1784,20 @@ func (h *PreventiveHandler) MarkNotificationsRead(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Notificações marcadas como lidas"})
+}
+
+func (h *PreventiveHandler) MarkNotificationRead(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	if err := h.notifRepo.MarkRead(user.ID, uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Notificação marcada como lida"})
 }
 
 // ---------- Dashboard ----------

@@ -504,3 +504,10 @@ func (r *PMNotificationRepository) MarkAllRead(userID uint) error {
 		Where("usuario_id = ? AND lida = false", userID).
 		Update("lida", true).Error
 }
+
+// MarkRead marks one notification as read only when it belongs to the user.
+func (r *PMNotificationRepository) MarkRead(userID, notificationID uint) error {
+	return r.db.Model(&models.MaintenanceNotification{}).
+		Where("id = ? AND usuario_id = ?", notificationID, userID).
+		Update("lida", true).Error
+}

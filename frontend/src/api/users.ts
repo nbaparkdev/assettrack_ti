@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { User, QRTokenInfo, BadgeInfo, UserPublicProfile } from '../types';
+import type { User, QRTokenInfo, BadgeInfo, UserPublicProfile, UserHistoryReport } from '../types';
 
 export const usersApi = {
   list: async (skip = 0, limit = 100): Promise<User[]> => {
@@ -9,6 +9,11 @@ export const usersApi = {
 
   getById: async (id: number): Promise<User> => {
     const response = await apiClient.get<User>(`/users/${id}`);
+    return response.data;
+  },
+
+  getHistoryReport: async (id: number): Promise<UserHistoryReport> => {
+    const response = await apiClient.get<UserHistoryReport>(`/users/${id}/relatorio`);
     return response.data;
   },
 

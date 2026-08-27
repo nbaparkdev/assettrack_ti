@@ -11,6 +11,7 @@ import type {
   PMDashboard,
   PMNotification,
 } from '../types/preventive';
+import type { MaterialStock } from '../types/procurement';
 import {
   PM_STATUSES,
   PM_TYPES,
@@ -22,7 +23,7 @@ import { useAuthStore } from '../stores/authStore';
 import {
   Plus, Edit2, Trash2, X, ShieldAlert, Wrench, ClipboardList, Bell, Play, Pause,
   CheckCircle2, Ban, FileText, Camera, CalendarDays, ChevronLeft, ChevronRight,
-  ShoppingCart, RefreshCw, Link as LinkIcon
+  ShoppingCart, RefreshCw, Link as LinkIcon, ExternalLink
 } from 'lucide-react';
 
 const structureRoles = ['admin', 'gerente_ti', 'gerente_infra'];
@@ -153,9 +154,12 @@ export const PreventiveMaintenancePage: React.FC = () => {
   // Notifications
   const [notifs, setNotifs] = useState<PMNotification[]>([]);
 
+  const unreadNotifications = notifs.filter((notification) => !notification.lida).length;
+
   // Lookups
   const [techs, setTechs] = useState<{ id: number; nome: string }[]>([]);
   const [assets, setAssets] = useState<{ id: number; nome: string }[]>([]);
+  const [stockItems, setStockItems] = useState<MaterialStock[]>([]);
 
   // Plan form
   const [pNome, setPNome] = useState('');
@@ -179,6 +183,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
   const [oAgendada, setOAgendada] = useState('');
   const [orderChecklistDrafts, setOrderChecklistDrafts] = useState<OrderChecklistDraft[]>([createEmptyChecklistDraft()]);
   const [mProduto, setMProduto] = useState('');
+  const [mStockId, setMStockId] = useState<number | null>(null);
   const [mQuantidade, setMQuantidade] = useState('1');
   const [mValorUnitario, setMValorUnitario] = useState('');
   const [mObservacao, setMObservacao] = useState('');
@@ -334,6 +339,15 @@ export const PreventiveMaintenancePage: React.FC = () => {
         .map((x) => ({ id: x.id, nome: x.nome })),
     )).catch(() => {});
     assetsApi.list(0, 200).then((a) => setAssets(a.map((x) => ({ id: x.id, nome: x.nome })))).catch(() => {});
+    procurementApi.listStock().then(setStockItems).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      preventiveApi.myNotifications().then(setNotifs).catch(() => {});
+      fetchAll();
+    }, 30000);
+    return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -668,15 +682,19 @@ export const PreventiveMaintenancePage: React.FC = () => {
     if (!orderDetail) return;
     try {
       await preventiveApi.addMaterial(orderDetail.order.id, {
+        stock_id: mStockId ?? undefined,
+        product_id: mStockId ? stockItems.find((item) => item.id === mStockId)?.product_id : undefined,
         produto: mProduto,
         quantidade: Number(mQuantidade),
         valor_unitario: Number(mValorUnitario),
         observacao: mObservacao || undefined,
       });
       setMProduto('');
+      setMStockId(null);
       setMQuantidade('1');
       setMValorUnitario('');
       setMObservacao('');
+      procurementApi.listStock().then(setStockItems).catch(() => {});
       await refreshOrderDetail();
     } catch (err) {
       showError(err);
@@ -781,7 +799,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
           ['planos', 'Planos'],
           ['ordens', 'Ordens de Serviço'],
           ['calendario', 'Calendário'],
-          ['notifs', 'Notificações'],
+          ['notifs', `Notificações${unreadNotifications > 0 ? ` (${unreadNotifications})` : ''}`],
         ] as const).map(([key, label]) => (
           <button
             key={key}
@@ -1308,7 +1326,21 @@ export const PreventiveMaintenancePage: React.FC = () => {
           </div>
           <div className="space-y-2">
             {notifs.map((n) => (
-              <div key={n.id} className={`border p-4 ${n.lida ? 'border-brand-border bg-brand-card/50' : 'border-brand-primary/40 bg-brand-card'}`}>
+              <button
+                type="button"
+                key={n.id}
+                onClick={async () => {
+                  if (!n.lida) {
+                    await preventiveApi.markNotificationRead(n.id).catch(() => {});
+                    setNotifs((current) => current.map((item) => item.id === n.id ? { ...item, lida: true } : item));
+                  }
+                  if (n.order_id) {
+                    setTab('ordens');
+                    await openOrderDetail(n.order_id);
+                  }
+                }}
+                className={`w-full text-left border p-4 transition-colors ${n.lida ? 'border-brand-border bg-brand-card/50' : 'border-brand-primary/40 bg-brand-card hover:bg-brand-primary/5'}`}
+              >
                 <div className="flex items-center justify-between">
                   <span className={`text-xs font-mono uppercase ${n.lida ? 'text-brand-muted' : 'text-brand-primary'}`}>
                     <Bell size={12} className="inline mr-1" />
@@ -1317,9 +1349,10 @@ export const PreventiveMaintenancePage: React.FC = () => {
                   <span className="text-xs font-mono text-brand-muted">
                     {new Date(n.data_criacao).toLocaleString('pt-BR')}
                   </span>
+                  {n.order_id && <span className="text-xs text-brand-primary font-mono uppercase"><ExternalLink size={12} className="inline mr-1" />Abrir OS</span>}
                 </div>
                 <pre className="mt-2 text-sm text-brand-text font-sans whitespace-pre-wrap m-0">{n.mensagem}</pre>
-              </div>
+              </button>
             ))}
             {notifs.length === 0 && (
               <div className="p-12 text-center text-brand-muted font-mono text-sm">
@@ -1927,12 +1960,31 @@ export const PreventiveMaintenancePage: React.FC = () => {
               </div>
               {canWorkOrder && !['Concluída', 'Cancelada'].includes(orderDetail.order.status) && (
                 <form onSubmit={submitMaterial} className="p-3 border-b border-brand-border/60 bg-brand-card/40 space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <select
+                      value={mStockId ?? ''}
+                      onChange={(e) => {
+                        const stockId = e.target.value ? Number(e.target.value) : null;
+                        const selected = stockItems.find((item) => item.id === stockId);
+                        setMStockId(stockId);
+                        setMProduto(selected?.product?.nome ?? '');
+                        if (stockId && !mValorUnitario) setMValorUnitario('0');
+                      }}
+                      className="bg-brand-dark border border-brand-primary/40 px-3 py-2 text-sm text-brand-text focus:outline-none"
+                    >
+                      <option value="">Aplicar material do estoque (opcional)</option>
+                      {stockItems.map((item) => (
+                        <option key={item.id} value={item.id} disabled={item.quantidade_saldo <= 0}>
+                          {item.product?.nome ?? `Produto #${item.product_id}`} · saldo: {item.quantidade_saldo.toFixed(2)} {item.product?.unidade ?? 'UN'}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       type="text"
-                      placeholder="Produto ou peça"
+                      placeholder={mStockId ? 'Material selecionado do estoque' : 'Produto ou peça'}
                       value={mProduto}
                       onChange={(e) => setMProduto(e.target.value)}
+                      disabled={!!mStockId}
                       className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
                       required
                     />
@@ -1954,7 +2006,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
                       value={mValorUnitario}
                       onChange={(e) => setMValorUnitario(e.target.value)}
                       className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
-                      required
+                      required={!mStockId}
                     />
                     <button
                       type="submit"
@@ -1970,6 +2022,11 @@ export const PreventiveMaintenancePage: React.FC = () => {
                     onChange={(e) => setMObservacao(e.target.value)}
                     className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none"
                   />
+                  {mStockId && (
+                    <div className="text-xs text-emerald-400 font-mono">
+                      A aplicação deste material fará a baixa automática do saldo e registrará a OS no histórico do estoque.
+                    </div>
+                  )}
                 </form>
               )}
               <div className="divide-y divide-brand-border/60">
@@ -1978,6 +2035,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
                     <div>
                       <div className="text-brand-text">{m.produto}</div>
                       <div className="text-xs font-mono text-brand-muted">x{m.quantidade} · R$ {m.valor_unitario.toFixed(2)}</div>
+                      {m.product_id && <div className="text-[11px] font-mono text-emerald-400">Baixa automática do estoque</div>}
                       {m.observacao && <div className="text-xs text-brand-muted mt-1">{m.observacao}</div>}
                     </div>
                     <div className="flex items-center space-x-2">

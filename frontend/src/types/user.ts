@@ -22,6 +22,8 @@ export interface User {
   cargo: string | null;
   departamento_id: number | null;
   departamento: Departamento | null;
+  localizacao_id: number | null;
+  localizacao: { id: number; nome: string } | null;
   avatar_url?: string | null;
 }
 
@@ -61,4 +63,29 @@ export interface UserPublicProfile {
   departamento_nome: string | null;
   avatar_url: string | null;
   pending_deliveries: PendingDeliveryItem[];
+}
+
+export interface UserHistoryEvent {
+  categoria: string;
+  tipo: string;
+  titulo: string;
+  status?: string;
+  data: string;
+  referencia?: string;
+  ativo?: string;
+  detalhes?: string;
+}
+
+export interface UserHistoryReport {
+  usuario: User;
+  qr_code_base64: string;
+  ativos: Array<{
+    id: number;
+    nome: string;
+    e_patrimonio: string;
+    status: string;
+    numero_serie: string | null;
+  }>;
+  eventos: UserHistoryEvent[];
+  resumo: Record<string, number>;
 }

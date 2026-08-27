@@ -285,6 +285,11 @@ func (h *TransactionHandler) TransferirAsset(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Erro ao atualizar responsável pelo ativo: " + err.Error()})
 		return
 	}
+	updatedAsset, err := h.assetRepo.GetByID(asset.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Ativo transferido, mas não foi possível recarregar seus dados"})
+		return
+	}
 
 	obsMov := "Transferência direta de ativo efetuada por administrador: " + payload.Motivo
 	mov := &models.Movimentacao{
@@ -299,7 +304,7 @@ func (h *TransactionHandler) TransferirAsset(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "Ativo transferido com sucesso.",
 		"solicitacao": sol,
-		"asset":       asset,
+		"asset":       updatedAsset,
 	})
 }
 

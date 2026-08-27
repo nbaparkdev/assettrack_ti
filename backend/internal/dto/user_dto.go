@@ -10,6 +10,7 @@ type UserCreateRequest struct {
 	Role           string `json:"role,omitempty"`
 	IsActive       bool   `json:"is_active"`
 	DepartamentoID *uint  `json:"departamento_id,omitempty"`
+	LocalizacaoID  *uint  `json:"localizacao_id,omitempty"`
 }
 
 // UserUpdateRequest - update user payload (all optional)
@@ -22,6 +23,7 @@ type UserUpdateRequest struct {
 	Role           *string `json:"role,omitempty"`
 	IsActive       *bool   `json:"is_active,omitempty"`
 	DepartamentoID *uint   `json:"departamento_id,omitempty"`
+	LocalizacaoID  *uint   `json:"localizacao_id,omitempty"`
 }
 
 // UserResponse - user data returned to clients
@@ -35,7 +37,9 @@ type UserResponse struct {
 	IsActive       bool             `json:"is_active"`
 	AvatarURL      *string          `json:"avatar_url"`
 	DepartamentoID *uint            `json:"departamento_id"`
+	LocalizacaoID  *uint            `json:"localizacao_id"`
 	Departamento   *DepartamentoDTO `json:"departamento,omitempty"`
+	Localizacao    *LocalizacaoDTO  `json:"localizacao,omitempty"`
 }
 
 type ChangePasswordRequest struct {
@@ -45,6 +49,11 @@ type ChangePasswordRequest struct {
 
 // DepartamentoDTO - nested department info
 type DepartamentoDTO struct {
+	ID   uint   `json:"id"`
+	Nome string `json:"nome"`
+}
+
+type LocalizacaoDTO struct {
 	ID   uint   `json:"id"`
 	Nome string `json:"nome"`
 }

@@ -44,6 +44,8 @@ import {
   Globe,
   Play,
   PencilLine,
+  Download,
+  Upload,
   Maximize2,
   Minimize2,
 } from 'lucide-react';
@@ -274,6 +276,8 @@ export const KanbanPage: React.FC = () => {
   const isStaff = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'].includes(userRole);
   const canCreatePreventiveOrder = isStaff;
   const [projects, setProjects] = useState<KanbanProject[]>([]);
+  const [projectView, setProjectView] = useState<'ativos' | 'arquivados'>('ativos');
+  const importProjectInputRef = useRef<HTMLInputElement>(null);
   const [board, setBoard] = useState<{ project: KanbanProject; board_progress: number; total_cards: number } | null>(null);
   const [cardDetail, setCardDetail] = useState<KanbanCard | null>(null);
   const [purchaseRequestDetail, setPurchaseRequestDetail] = useState<PurchaseRequest | null>(null);
@@ -709,7 +713,7 @@ export const KanbanPage: React.FC = () => {
   const fetchProjects = async () => {
     setLoading(true);
     try {
-      setProjects(await kanbanApi.listProjects());
+      setProjects(await kanbanApi.listProjects(true));
       setUnread(await kanbanApi.unreadCount());
       setNotifs(await kanbanApi.listNotifications());
     } catch (err) {
@@ -721,7 +725,7 @@ export const KanbanPage: React.FC = () => {
 
   const refreshNotificationsState = async (options?: { highlightNew?: boolean; statusMessage?: string }) => {
     const [projectList, unreadCount, nextNotifications] = await Promise.all([
-      kanbanApi.listProjects(),
+      kanbanApi.listProjects(true),
       kanbanApi.unreadCount(),
       kanbanApi.listNotifications(),
     ]);
@@ -1081,6 +1085,101 @@ export const KanbanPage: React.FC = () => {
       }
     } catch (err) {
       showError(err);
+    }
+  };
+
+  const exportProject = async (project: KanbanProject) => {
+    try {
+      const boardData = await kanbanApi.getBoard(project.id);
+      const payload = {
+        assettrack_kanban_export: 1,
+        exported_at: new Date().toISOString(),
+        project: boardData.project,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `kanban-${project.titulo.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'projeto'}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showError(err);
+    }
+  };
+
+  const importProject = async (file: File) => {
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw);
+      const source = parsed?.project ?? parsed;
+      if (!source?.titulo || !Array.isArray(source?.colunas)) {
+        throw new Error('Arquivo inválido. Exporte um projeto do Kanban para obter o formato correto.');
+      }
+
+      const created = await kanbanApi.createProject({
+        titulo: `${String(source.titulo).trim()} (Importado)`,
+        descricao: source.descricao || undefined,
+        board_background_color: normalizeBoardColor(source.board_background_color),
+        board_pattern: normalizeBoardPattern(source.board_pattern),
+        related_to_maintenance: Boolean(source.related_to_maintenance),
+        related_to_preventive: Boolean(source.related_to_preventive),
+        preventive_plan_id: source.related_to_preventive ? source.preventive_plan_id : undefined,
+        participante_ids: (source.participantes ?? []).map((item: { id?: number }) => item.id).filter((id: number | undefined): id is number => Boolean(id)),
+      });
+
+      // New projects already receive the four standard columns. Reuse them
+      // when names match and only create columns that are custom to the file.
+      const createdBoard = await kanbanApi.getBoard(created.id);
+      const availableColumns = [...(createdBoard.project.colunas ?? [])];
+      const columnMap = new Map<number, number>();
+      for (const sourceColumn of source.colunas) {
+        const existingColumnIndex = availableColumns.findIndex((column) => column.nome.trim().toLowerCase() === String(sourceColumn.nome).trim().toLowerCase());
+        const createdColumn = existingColumnIndex >= 0
+          ? availableColumns[existingColumnIndex]
+          : await kanbanApi.addColumn(created.id, sourceColumn.nome, sourceColumn.cor);
+        if (existingColumnIndex < 0) availableColumns.push(createdColumn);
+        columnMap.set(Number(sourceColumn.id), createdColumn.id);
+        for (const sourceCard of sourceColumn.cards ?? []) {
+          const targetColumnId = columnMap.get(Number(sourceColumn.id));
+          if (!targetColumnId) continue;
+          const savedCard = await kanbanApi.createCard({
+            project_id: created.id,
+            column_id: targetColumnId,
+            titulo: sourceCard.titulo,
+            cor: sourceCard.cor,
+            descricao: sourceCard.descricao || undefined,
+            checklist_items: sourceCard.checklist_items ?? [],
+            responsavel_id: sourceCard.responsavel_id || undefined,
+            prioridade: sourceCard.prioridade,
+            data_entrega: sourceCard.data_entrega ? String(sourceCard.data_entrega).slice(0, 10) : undefined,
+            participante_ids: (sourceCard.participantes ?? []).map((item: { id?: number }) => item.id).filter((id: number | undefined): id is number => Boolean(id)),
+            ativo_ids: (sourceCard.ativos ?? []).map((item: { id?: number }) => item.id).filter((id: number | undefined): id is number => Boolean(id)),
+          });
+
+          // Link attachments can be recreated; local file attachments remain
+          // in the original project because their binary content is not in JSON.
+          for (const attachment of sourceCard.anexos ?? []) {
+            if (attachment.tipo === 'link' && attachment.url) {
+              await kanbanApi.uploadAttachment(savedCard.id, undefined, attachment.url, attachment.nome);
+            }
+          }
+        }
+        // Keep the original order when the exported board contains custom lists.
+        if (sourceColumn.ordem !== undefined) {
+          await kanbanApi.updateColumn(createdColumn.id, { ordem: Number(sourceColumn.ordem) });
+        }
+      }
+
+      await fetchProjects();
+      setProjectView('ativos');
+      setNotifStatusMessage(`Projeto “${created.titulo}” importado com sucesso.`);
+    } catch (err: any) {
+      showError(err?.message ? { response: { data: { error: err.message } } } : err);
+    } finally {
+      if (importProjectInputRef.current) importProjectInputRef.current.value = '';
     }
   };
 
@@ -1493,6 +1592,7 @@ export const KanbanPage: React.FC = () => {
   const boardRelatedToMaintenance = Boolean(board?.project.related_to_maintenance);
   const boardRelatedToPreventive = Boolean(board?.project.related_to_preventive);
   const boardFilteredCards = board?.project.colunas?.flatMap((column) => column.cards ?? []).filter(cardMatchesBoardFilters) ?? [];
+  const visibleProjects = projects.filter((project) => projectView === 'arquivados' ? project.is_archived : !project.is_archived);
   const isFilteringActive = Boolean(boardSearchQuery.trim()) || boardPriorityFilter !== 'todos' || boardResponsibleFilter !== 'todos';
   const visibleNotifications = notifs.filter((notification) => notifFilter === 'todas' || !notification.lida);
   const groupedNotifications = groupNotificationsByDate(visibleNotifications);
@@ -1542,12 +1642,51 @@ export const KanbanPage: React.FC = () => {
       )}
 
       {!board && (
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-3">
         <div>
           <h1 className="text-3xl font-bold uppercase tracking-wider font-mono text-brand-text m-0">Kanban</h1>
           <p className="text-brand-muted text-sm mt-1">Projetos e cartões de tarefas.</p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            ref={importProjectInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void importProject(file);
+            }}
+          />
+          <div className="flex items-center rounded-lg border border-brand-border bg-brand-card p-1" role="tablist" aria-label="Visualização de projetos">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={projectView === 'ativos'}
+              onClick={() => setProjectView('ativos')}
+              className={`rounded-md px-3 py-2 text-xs font-bold font-mono transition ${projectView === 'ativos' ? 'bg-brand-primary text-brand-dark' : 'text-brand-muted hover:text-brand-text'}`}
+            >
+              Projetos ativos ({projects.filter((project) => !project.is_archived).length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={projectView === 'arquivados'}
+              onClick={() => setProjectView('arquivados')}
+              className={`rounded-md px-3 py-2 text-xs font-bold font-mono transition ${projectView === 'arquivados' ? 'bg-amber-400 text-amber-950' : 'text-brand-muted hover:text-brand-text'}`}
+            >
+              Arquivados ({projects.filter((project) => project.is_archived).length})
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => importProjectInputRef.current?.click()}
+            className="border border-brand-border bg-brand-card px-4 py-2.5 text-xs font-bold font-mono text-brand-text transition hover:border-brand-primary hover:text-brand-primary"
+            title="Importar projeto do Kanban"
+          >
+            <Upload size={15} className="mr-1.5 inline" />
+            Importar
+          </button>
           <button
             onClick={openCreateProjectModal}
             className="bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs flex items-center space-x-1.5"
@@ -1968,7 +2107,7 @@ export const KanbanPage: React.FC = () => {
 
       {!loading && !board && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {projects.map((p) => (
+          {visibleProjects.map((p) => (
             <div
               key={p.id}
               className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,_rgba(15,23,42,0.92),_rgba(30,41,59,0.88))] p-5 shadow-[0_24px_60px_rgba(2,6,23,0.28)] cursor-pointer hover:border-brand-primary/40"
@@ -2003,6 +2142,17 @@ export const KanbanPage: React.FC = () => {
                   {p.is_archived && (
                     <span className="text-[10px] font-mono uppercase px-2 py-1 rounded-full border border-white/10 text-slate-300">Arquivado</span>
                   )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void exportProject(p);
+                    }}
+                    className="grid h-9 w-9 place-items-center rounded-full border border-cyan-500/20 bg-cyan-500/10 text-cyan-200 transition hover:bg-cyan-500/20 hover:text-white"
+                    title="Exportar projeto"
+                  >
+                    <Download size={15} />
+                  </button>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -2066,9 +2216,9 @@ export const KanbanPage: React.FC = () => {
               </div>
             </div>
           ))}
-          {projects.length === 0 && (
+          {visibleProjects.length === 0 && (
             <div className="col-span-3 p-12 text-center text-brand-muted font-mono text-sm">
-              Nenhum projeto de Kanban.
+              {projectView === 'arquivados' ? 'Nenhum projeto arquivado.' : 'Nenhum projeto ativo de Kanban.'}
             </div>
           )}
         </div>

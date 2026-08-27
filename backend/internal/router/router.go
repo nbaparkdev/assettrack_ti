@@ -86,7 +86,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)
-	userHandler := handler.NewUserHandler(userRepo, authSvc)
+	userHandler := handler.NewUserHandler(userRepo, authSvc, qrSvc)
 	qrHandler := handler.NewQRHandler(userRepo, authSvc, qrSvc, qrLogSvc, txRepo, maintRepo, assetRepo)
 	assetHandler := handler.NewAssetHandler(assetRepo, categoryRepo)
 	serviceDeskHandler := handler.NewServiceDeskHandler(serviceDeskRepo)
@@ -96,7 +96,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	preventiveHandler := handler.NewPreventiveHandler(
 		pmPlanRepo, pmChecklistRepo, pmItemRepo, pmPlanAssetRepo, pmOrderRepo,
 		pmExecRepo, pmHistoryRepo, pmMaterialRepo, pmPhotoRepo, pmNotifRepo,
-		pmCustomTypeRepo, assetRepo, userRepo, categoryRepo,
+		pmCustomTypeRepo, assetRepo, userRepo, categoryRepo, procStockRepo,
 	)
 	kanbanHandler := handler.NewKanbanHandler(
 		kanbanProjectRepo, kanbanColumnRepo, kanbanCardRepo, kanbanInteractionRepo,
@@ -154,6 +154,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		{
 			users.GET("", rManagerOrRH, userHandler.List)
 			users.POST("", rAdmin, userHandler.Create)
+			users.GET("/:id/relatorio", rManagerOrRH, userHandler.HistoryReport)
 			users.GET("/:id", userHandler.GetByID)
 			users.PUT("/:id", rAdmin, userHandler.Update)
 			users.DELETE("/:id", rAdmin, userHandler.Delete)
@@ -255,6 +256,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		{
 			preventiva.GET("/dashboard", preventiveHandler.Dashboard)
 			preventiva.GET("/notificacoes", preventiveHandler.MyNotifications)
+			preventiva.POST("/notificacoes/:id/lida", preventiveHandler.MarkNotificationRead)
 			preventiva.POST("/notificacoes/lidas", preventiveHandler.MarkNotificationsRead)
 
 			preventiva.GET("/planos", preventiveHandler.ListPlans)

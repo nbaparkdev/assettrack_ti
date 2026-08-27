@@ -18,7 +18,7 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 
 func (r *UserRepository) GetByID(id uint) (*models.User, error) {
 	var user models.User
-	if err := r.db.Preload("Departamento").First(&user, id).Error; err != nil {
+	if err := r.db.Preload("Departamento").Preload("Localizacao").First(&user, id).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -26,7 +26,7 @@ func (r *UserRepository) GetByID(id uint) (*models.User, error) {
 
 func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 	var user models.User
-	if err := r.db.Preload("Departamento").Where("email = ?", email).First(&user).Error; err != nil {
+	if err := r.db.Preload("Departamento").Preload("Localizacao").Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -34,7 +34,7 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 
 func (r *UserRepository) GetByQRToken(token string) (*models.User, error) {
 	var user models.User
-	if err := r.db.Preload("Departamento").Where("qr_token = ?", token).First(&user).Error; err != nil {
+	if err := r.db.Preload("Departamento").Preload("Localizacao").Where("qr_token = ?", token).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -42,7 +42,7 @@ func (r *UserRepository) GetByQRToken(token string) (*models.User, error) {
 
 func (r *UserRepository) GetMulti(skip, limit int) ([]models.User, error) {
 	var users []models.User
-	if err := r.db.Preload("Departamento").Offset(skip).Limit(limit).Find(&users).Error; err != nil {
+	if err := r.db.Preload("Departamento").Preload("Localizacao").Offset(skip).Limit(limit).Find(&users).Error; err != nil {
 		return nil, err
 	}
 	return users, nil

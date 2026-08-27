@@ -104,9 +104,9 @@ type MaintenancePlanAsset struct {
 func (MaintenancePlanAsset) TableName() string { return "maintenance_plan_assets" }
 
 type MaintenanceChecklist struct {
-	ID      uint  `gorm:"primaryKey" json:"id"`
-	PlanID  *uint `gorm:"column:plan_id;index" json:"plan_id"`
-	OrderID *uint `gorm:"column:order_id;index" json:"order_id"`
+	ID      uint   `gorm:"primaryKey" json:"id"`
+	PlanID  *uint  `gorm:"column:plan_id;index" json:"plan_id"`
+	OrderID *uint  `gorm:"column:order_id;index" json:"order_id"`
 	Nome    string `gorm:"size:200;not null" json:"nome"`
 	Ordem   int    `gorm:"default:0" json:"ordem"`
 

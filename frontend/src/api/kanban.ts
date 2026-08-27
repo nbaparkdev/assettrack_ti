@@ -9,8 +9,10 @@ import type {
 } from '../types/kanban';
 
 export const kanbanApi = {
-  listProjects: async (): Promise<KanbanProject[]> => {
-    const response = await apiClient.get<KanbanProject[]>('/kanban/projetos');
+  listProjects: async (includeArchived = false): Promise<KanbanProject[]> => {
+    const response = await apiClient.get<KanbanProject[]>('/kanban/projetos', {
+      params: includeArchived ? { incluir_arquivados: 'true' } : undefined,
+    });
     return response.data;
   },
   getBoard: async (id: number): Promise<{ project: KanbanProject; board_progress: number; total_cards: number }> => {

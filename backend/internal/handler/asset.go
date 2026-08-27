@@ -709,13 +709,25 @@ func (h *AssetHandler) Update(c *gin.Context) {
 	// Keep the legacy display field in sync with the canonical user relation.
 	// This prevents an old free-text value in `em_posse_de` from diverging from
 	// the user actually linked to the asset whenever it is marked as in use.
+	if asset.Status == models.AssetStatusEmUso && asset.CurrentUserID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Selecione o usuário responsável para colocar o ativo em uso"})
+		return
+	}
+
 	if asset.Status == models.AssetStatusEmUso && asset.CurrentUserID != nil {
 		var currentUser models.User
-		if err := h.repo.DB().First(&currentUser, *asset.CurrentUserID).Error; err != nil {
+		if err := h.repo.DB().Preload("Departamento").Preload("Localizacao").First(&currentUser, *asset.CurrentUserID).Error; err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário responsável pelo ativo não encontrado"})
 			return
 		}
 		asset.EmPosseDe = &currentUser.Nome
+		asset.CurrentDepartamentoID = currentUser.DepartamentoID
+		asset.CurrentLocalID = currentUser.LocalizacaoID
+		asset.CurrentArmazenamentoID = nil
+	} else if asset.Status == models.AssetStatusDisponivel {
+		// Um ativo disponível não pode continuar atribuído a uma pessoa.
+		asset.CurrentUserID = nil
+		asset.EmPosseDe = nil
 	}
 
 	if err := h.repo.Update(asset); err != nil {

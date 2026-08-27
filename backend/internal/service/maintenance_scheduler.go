@@ -84,7 +84,39 @@ func (s *MaintenanceScheduler) CheckAndGenerate() {
 		}
 
 		if len(assets) == 0 {
-			log.Printf("[SCHEDULER] Plan %s has no linked assets or category. Advancing next execution.", plan.Codigo)
+			// A preventive plan can represent a building/industrial area as a
+			// whole, so it does not need an equipment link to generate its OS.
+			// Keep one general order per plan and day to preserve idempotency.
+			var existing models.MaintenanceOrder
+			todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+			todayEnd := todayStart.AddDate(0, 0, 1)
+			err := s.db.Where("plan_id = ? AND asset_id IS NULL", plan.ID).
+				Where("data_abertura >= ? AND data_abertura < ?", todayStart, todayEnd).
+				Where("status NOT IN ?", []string{models.PMStatusConcluida, models.PMStatusCancelada}).
+				First(&existing).Error
+			if err != nil {
+				numero, numberErr := s.orderRepo.GenerateOrderNumber(now)
+				if numberErr == nil {
+					desc := fmt.Sprintf("Ordem geral gerada automaticamente pelo plano %s.", plan.Codigo)
+					if plan.Descricao != nil && *plan.Descricao != "" {
+						desc = *plan.Descricao
+					}
+					infra := plan.Nome
+					order := &models.MaintenanceOrder{
+						Numero: numero, PlanID: &plan.ID, InfraPredialServico: &infra,
+						TecnicoID: plan.ResponsavelID, Status: models.PMStatusAgendada,
+						Prioridade: plan.Prioridade, Criticidade: plan.Criticidade,
+						Tipo: plan.Tipo, Observacoes: &desc, DataAbertura: now, DataAgendada: &now,
+					}
+					if createErr := s.orderRepo.Create(order); createErr == nil {
+						_ = s.historyRepo.Create(&models.MaintenanceHistory{OrderID: order.ID, Acao: "Ordem Criada", Descricao: "Ordem geral gerada automaticamente pelo plano predial/industrial.", StatusNovo: &order.Status})
+						if plan.ResponsavelID != nil {
+							_ = s.notifRepo.Create(&models.MaintenanceNotification{OrderID: &order.ID, UsuarioID: *plan.ResponsavelID, Tipo: "order_assigned", Mensagem: fmt.Sprintf("Nova ordem geral de manutenção gerada pelo plano %s.\n\nOS Código: %s\nÁrea/Serviço: %s\nPrioridade: %s", plan.Codigo, order.Numero, infra, plan.Prioridade)})
+						}
+						log.Printf("[SCHEDULER] General order %s created for plan %s.", order.Numero, plan.Codigo)
+					}
+				}
+			}
 			s.advancePlan(plan)
 			continue
 		}

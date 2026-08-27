@@ -97,6 +97,7 @@ export interface MaintenanceExecution {
 export interface MaintenanceMaterial {
   id: number;
   order_id: number;
+  product_id?: number;
   produto: string;
   quantidade: number;
   valor_unitario: number;

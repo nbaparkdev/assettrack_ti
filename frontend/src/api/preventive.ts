@@ -147,7 +147,7 @@ export const preventiveApi = {
     const response = await apiClient.get(`/preventiva/ordens/${id}/historico`);
     return response.data;
   },
-  addMaterial: async (orderId: number, data: Partial<MaintenanceMaterial>): Promise<MaintenanceMaterial> => {
+  addMaterial: async (orderId: number, data: Partial<MaintenanceMaterial> & { stock_id?: number; product_id?: number }): Promise<MaintenanceMaterial> => {
     const response = await apiClient.post(`/preventiva/ordens/${orderId}/materiais`, data);
     return response.data;
   },
@@ -179,6 +179,10 @@ export const preventiveApi = {
   // Notifications
   myNotifications: async (): Promise<PMNotification[]> => {
     const response = await apiClient.get('/preventiva/notificacoes');
+    return response.data;
+  },
+  markNotificationRead: async (id: number): Promise<{ message: string }> => {
+    const response = await apiClient.post(`/preventiva/notificacoes/${id}/lida`);
     return response.data;
   },
   markNotificationsRead: async (): Promise<{ message: string }> => {

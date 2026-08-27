@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,10 +22,152 @@ import (
 type UserHandler struct {
 	userRepo *repository.UserRepository
 	authSvc  *service.AuthService
+	qrSvc    *service.QRService
 }
 
-func NewUserHandler(userRepo *repository.UserRepository, authSvc *service.AuthService) *UserHandler {
-	return &UserHandler{userRepo: userRepo, authSvc: authSvc}
+func NewUserHandler(userRepo *repository.UserRepository, authSvc *service.AuthService, qrSvc *service.QRService) *UserHandler {
+	return &UserHandler{userRepo: userRepo, authSvc: authSvc, qrSvc: qrSvc}
+}
+
+type UserHistoryEvent struct {
+	Categoria  string `json:"categoria"`
+	Tipo       string `json:"tipo"`
+	Titulo     string `json:"titulo"`
+	Status     string `json:"status,omitempty"`
+	Data       string `json:"data"`
+	Referencia string `json:"referencia,omitempty"`
+	Ativo      string `json:"ativo,omitempty"`
+	Detalhes   string `json:"detalhes,omitempty"`
+}
+
+type UserHistoryReport struct {
+	Usuario      *dto.UserResponse  `json:"usuario"`
+	QRCodeBase64 string             `json:"qr_code_base64"`
+	Ativos       []models.Asset     `json:"ativos"`
+	Eventos      []UserHistoryEvent `json:"eventos"`
+	Resumo       map[string]int     `json:"resumo"`
+}
+
+// HistoryReport returns the user's complete operational history for managers
+// and HR, including tickets, maintenance, borrowing requests and movements.
+func (h *UserHandler) HistoryReport(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Invalid user ID"})
+		return
+	}
+
+	user, err := h.userRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "User not found"})
+		return
+	}
+
+	if user.QRToken == nil || *user.QRToken == "" {
+		newToken, tokenErr := h.userRepo.RegenerateQRToken(user.ID)
+		if tokenErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"detail": "Failed to generate user QR code"})
+			return
+		}
+		user.QRToken = &newToken
+	}
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = c.Request.Header.Get("Referer")
+		origin = strings.TrimRight(origin, "/")
+	}
+	if origin == "" {
+		origin = "http://localhost:8000"
+	}
+	qrBase64, err := h.qrSvc.GenerateQRBase64(origin + "/usuario/" + *user.QRToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Failed to generate user QR code"})
+		return
+	}
+
+	db := h.userRepo.DB()
+	var ativos []models.Asset
+	db.Preload("CurrentDepartamento").Preload("CurrentLocal").Preload("CurrentArmazenamento").
+		Where("current_user_id = ?", user.ID).Order("nome asc").Find(&ativos)
+
+	events := make([]UserHistoryEvent, 0)
+	addEvent := func(category, kind, title, status string, date time.Time, ref, asset, details string) {
+		events = append(events, UserHistoryEvent{
+			Categoria: category, Tipo: kind, Titulo: title, Status: status,
+			Data: date.Format(time.RFC3339), Referencia: ref, Ativo: asset, Detalhes: details,
+		})
+	}
+
+	var tickets []models.ServiceTicket
+	db.Preload("Servico").Preload("Tecnico").Preload("Solicitante").
+		Where("solicitante_id = ? OR tecnico_id = ? OR id IN (SELECT ticket_id FROM service_ticket_interactions WHERE usuario_id = ?)", user.ID, user.ID, user.ID).
+		Order("data_abertura desc").Find(&tickets)
+	for _, ticket := range tickets {
+		role := "Solicitante"
+		if ticket.TecnicoID != nil && *ticket.TecnicoID == user.ID {
+			role = "Técnico responsável"
+		}
+		details := pointerString(ticket.Solucao)
+		if details == "" {
+			details = pointerString(ticket.FeedbackUsuario)
+		}
+		addEvent("tickets", role, ticket.Descricao, string(ticket.Status), ticket.DataAbertura, ticket.Codigo, "", details)
+	}
+
+	var maintRequests []models.SolicitacaoManutencao
+	db.Preload("Asset").Where("solicitante_id = ? OR responsavel_id = ?", user.ID, user.ID).
+		Order("data_solicitacao desc").Find(&maintRequests)
+	for _, request := range maintRequests {
+		asset := ""
+		if request.Asset != nil {
+			asset = request.Asset.Nome
+		}
+		addEvent("manutencao", "Solicitação", request.Descricao, string(request.Status), request.DataSolicitacao, fmt.Sprintf("SM-%06d", request.ID), asset, "")
+	}
+
+	var borrowings []models.Solicitacao
+	db.Preload("Asset").Where("solicitante_id = ? OR aprovador_id = ? OR confirmado_por_id = ? OR recebido_por_id = ?", user.ID, user.ID, user.ID, user.ID).
+		Order("data_solicitacao desc").Find(&borrowings)
+	for _, borrowing := range borrowings {
+		asset := ""
+		if borrowing.Asset != nil {
+			asset = borrowing.Asset.Nome
+		}
+		addEvent("ativos", "Solicitação de ativo", borrowing.Motivo, string(borrowing.Status), borrowing.DataSolicitacao, fmt.Sprintf("SOL-%06d", borrowing.ID), asset, "")
+	}
+
+	var movements []models.Movimentacao
+	db.Preload("Asset").Where("de_user_id = ? OR para_user_id = ?", user.ID, user.ID).
+		Order("data desc").Find(&movements)
+	for _, movement := range movements {
+		asset := ""
+		if movement.Asset != nil {
+			asset = movement.Asset.Nome
+		}
+		addEvent("movimentacoes", string(movement.Tipo), "Movimentação de ativo", "", movement.Data, fmt.Sprintf("MOV-%06d", movement.ID), asset, pointerString(movement.Observacao))
+	}
+
+	var maintenances []models.Manutencao
+	db.Preload("Asset").Where("responsavel_id = ? OR destino_user_id = ?", user.ID, user.ID).
+		Order("data_entrada desc").Find(&maintenances)
+	for _, maintenance := range maintenances {
+		asset := ""
+		if maintenance.Asset != nil {
+			asset = maintenance.Asset.Nome
+		}
+		addEvent("manutencao", "Execução técnica", maintenance.Motivo, string(maintenance.Status), maintenance.DataEntrada, fmt.Sprintf("MAN-%06d", maintenance.ID), asset, "")
+	}
+
+	sort.SliceStable(events, func(i, j int) bool { return events[i].Data > events[j].Data })
+	resumo := map[string]int{"ativos": len(ativos), "tickets": len(tickets), "manutencoes": len(maintRequests) + len(maintenances), "movimentacoes": len(movements), "solicitacoes_ativos": len(borrowings)}
+	c.JSON(http.StatusOK, UserHistoryReport{Usuario: toUserResponse(user), QRCodeBase64: qrBase64, Ativos: ativos, Eventos: events, Resumo: resumo})
+}
+
+func pointerString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 // List GET /api/v1/users
@@ -76,6 +219,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 		Role:           role,
 		IsActive:       req.IsActive,
 		DepartamentoID: req.DepartamentoID,
+		LocalizacaoID:  req.LocalizacaoID,
 	}
 	if req.Matricula != "" {
 		user.Matricula = &req.Matricula
@@ -151,6 +295,9 @@ func (h *UserHandler) Update(c *gin.Context) {
 	if req.DepartamentoID != nil {
 		user.DepartamentoID = req.DepartamentoID
 	}
+	if req.LocalizacaoID != nil {
+		user.LocalizacaoID = req.LocalizacaoID
+	}
 	if req.Password != nil {
 		hash, err := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
 		if err == nil {
@@ -224,10 +371,16 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	if req.Email != nil { user.Email = *req.Email }
-	if req.Nome != nil { user.Nome = *req.Nome }
-	if req.Matricula != nil { user.Matricula = req.Matricula }
-	
+	if req.Email != nil {
+		user.Email = *req.Email
+	}
+	if req.Nome != nil {
+		user.Nome = *req.Nome
+	}
+	if req.Matricula != nil {
+		user.Matricula = req.Matricula
+	}
+
 	if err := h.userRepo.Update(user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Failed to update profile"})
 		return
@@ -265,7 +418,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	}
 
 	publicPath := fmt.Sprintf("/uploads/avatars/%s", filename)
-	
+
 	user, _ := h.userRepo.GetByID(activeUser.ID)
 	user.AvatarURL = &publicPath
 	h.userRepo.Update(user)
@@ -320,12 +473,16 @@ func toUserResponse(u *models.User) *dto.UserResponse {
 		IsActive:       u.IsActive,
 		AvatarURL:      u.AvatarURL,
 		DepartamentoID: u.DepartamentoID,
+		LocalizacaoID:  u.LocalizacaoID,
 	}
 	if u.Departamento != nil {
 		resp.Departamento = &dto.DepartamentoDTO{
 			ID:   u.Departamento.ID,
 			Nome: u.Departamento.Nome,
 		}
+	}
+	if u.Localizacao != nil {
+		resp.Localizacao = &dto.LocalizacaoDTO{ID: u.Localizacao.ID, Nome: u.Localizacao.Nome}
 	}
 	return resp
 }

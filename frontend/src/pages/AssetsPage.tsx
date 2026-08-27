@@ -93,6 +93,7 @@ export const AssetsPage: React.FC = () => {
   const [assetStatus, setAssetStatusValue] = useState<AssetStatus>('Disponível');
   const [assetSerie, setAssetSerie] = useState('');
   const [assetEmPosseDe, setAssetEmPosseDe] = useState('');
+  const [assetCurrentUserId, setAssetCurrentUserId] = useState<number | ''>('');
   const [assetBloqueado, setAssetBloqueado] = useState(false);
   const [assetRequerRH, setAssetRequerRH] = useState(false);
   const [assetCategoriaId, setAssetCategoriaId] = useState<number | ''>('');
@@ -315,6 +316,7 @@ export const AssetsPage: React.FC = () => {
     setAssetStatusValue('Disponível');
     setAssetSerie('');
     setAssetEmPosseDe('');
+    setAssetCurrentUserId('');
     setAssetBloqueado(false);
     setAssetRequerRH(false);
     setAssetCategoriaId('');
@@ -337,6 +339,7 @@ export const AssetsPage: React.FC = () => {
     setAssetStatusValue(a.status);
     setAssetSerie(a.numero_serie || '');
     setAssetEmPosseDe(a.em_posse_de || '');
+    setAssetCurrentUserId(a.current_user_id || '');
     setAssetBloqueado(a.bloqueado);
     setAssetRequerRH(a.requer_termo_rh);
     setAssetCategoriaId(a.categoria_id || '');
@@ -362,6 +365,9 @@ export const AssetsPage: React.FC = () => {
       status: assetStatus,
       numero_serie: assetSerie || null,
       em_posse_de: assetEmPosseDe || null,
+      current_user_id: assetStatus === 'Em uso'
+        ? (assetCurrentUserId ? Number(assetCurrentUserId) : null)
+        : assetStatus === 'Disponível' ? null : undefined,
       bloqueado: assetBloqueado,
       requer_termo_rh: assetRequerRH,
       categoria_id: assetCategoriaId ? Number(assetCategoriaId) : null,
@@ -461,7 +467,7 @@ export const AssetsPage: React.FC = () => {
       });
 
       const selectedUser = usersList.find(u => u.id === Number(detailTransferUserId));
-      setSelectedAssetForDetail({
+      setSelectedAssetForDetail(res.asset || {
         ...selectedAssetForDetail,
         status: 'Em uso',
         current_user_id: Number(detailTransferUserId),
@@ -1910,12 +1916,23 @@ export const AssetsPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">Em Posse De (Pessoa / Usuário)</label>
-                  <input
-                    type="text"
-                    value={assetEmPosseDe}
-                    onChange={(e) => setAssetEmPosseDe(e.target.value)}
+                  <select
+                    value={assetCurrentUserId}
+                    onChange={(e) => {
+                      const nextId = e.target.value ? Number(e.target.value) : '';
+                      setAssetCurrentUserId(nextId);
+                      const selected = usersList.find((u) => u.id === Number(nextId));
+                      setAssetEmPosseDe(selected?.nome || '');
+                    }}
+                    required={assetStatus === 'Em uso'}
                     className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary font-mono"
-                  />
+                  >
+                    <option value="">{assetStatus === 'Em uso' ? 'Selecione o usuário...' : 'Nenhum usuário'}</option>
+                    {usersList.map((u) => (
+                      <option key={u.id} value={u.id}>{u.nome} ({u.role})</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-brand-muted mt-1">Ao salvar em uso, localização, setor e armazenamento serão ajustados automaticamente.</p>
                 </div>
 
                 <div>

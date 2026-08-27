@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { Solicitacao } from '../types';
+import type { Asset, Solicitacao } from '../types';
 
 export const transactionApi = {
   // Borrowings
@@ -40,8 +40,8 @@ export const transactionApi = {
       motivo: string;
       data_prevista_devolucao?: string;
     }
-  ): Promise<{ message: string; solicitacao: Solicitacao }> => {
-    const response = await apiClient.post<{ message: string; solicitacao: Solicitacao }>(`/movimentacoes/transferir/${assetId}`, data);
+  ): Promise<{ message: string; solicitacao: Solicitacao; asset: Asset }> => {
+	    const response = await apiClient.post<{ message: string; solicitacao: Solicitacao; asset: Asset }>(`/movimentacoes/transferir/${assetId}`, data);
     return response.data;
   },
 };

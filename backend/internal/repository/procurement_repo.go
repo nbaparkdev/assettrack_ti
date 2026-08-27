@@ -9,6 +9,7 @@ import (
 
 	"github.com/assettrack/backend/internal/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ---------- Categories ----------
@@ -544,6 +545,43 @@ func (r *ProcurementStockRepository) CreateOrUpdate(
 	return stock, nil
 }
 
+// ConsumeForMaintenance performs a locked stock withdrawal and records the
+// maintenance order as the source of the movement.
+func (r *ProcurementStockRepository) ConsumeForMaintenance(stockID uint, quantidade float64, userID, orderID uint, justificativa string) (*models.MaterialStock, error) {
+	var result *models.MaterialStock
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		var stock models.MaterialStock
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&stock, stockID).Error; err != nil {
+			return err
+		}
+		if stock.QuantidadeSaldo < quantidade {
+			return fmt.Errorf("saldo insuficiente: disponível %.2f, solicitado %.2f", stock.QuantidadeSaldo, quantidade)
+		}
+		stock.QuantidadeSaldo -= quantidade
+		if err := tx.Save(&stock).Error; err != nil {
+			return err
+		}
+		origem := "maintenance_orders"
+		if err := tx.Create(&models.MaterialStockTransaction{
+			ProductID: stock.ProductID, Quantidade: quantidade, TipoMovimentacao: models.StockSaida,
+			OrigemTabela: &origem, OrigemID: &orderID, UserID: userID,
+			Justificativa: stringPtr(justificativa),
+		}).Error; err != nil {
+			return err
+		}
+		result = &stock
+		return nil
+	})
+	return result, err
+}
+
+func stringPtr(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
 func (r *ProcurementStockRepository) ListTransactions(productID uint, limit int) ([]models.MaterialStockTransaction, error) {
 	var items []models.MaterialStockTransaction
 	q := r.db.Preload("User")
@@ -565,14 +603,14 @@ func (r *ProcurementStockRepository) VerifyAndSyncOrderInventory(
 		if err := r.db.Preload("Product").Where("receiving_id = ?", recv.ID).Find(&items).Error; err != nil {
 			continue
 		}
-		
+
 		for i := range items {
 			item := &items[i]
 			if item.Product.Tipo == models.ProductTypeMaterialConsumo || item.Product.Tipo == models.ProductTypeProduto {
 				var tx models.MaterialStockTransaction
-				err := r.db.Where("origem_tabela = ? AND origem_id = ? AND product_id = ?", 
+				err := r.db.Where("origem_tabela = ? AND origem_id = ? AND product_id = ?",
 					"purchase_receivings", recv.ID, item.ProductID).First(&tx).Error
-				
+
 				if err != nil {
 					// Create stock transaction and adjust balance
 					_, _ = r.CreateOrUpdate(
@@ -588,7 +626,7 @@ func (r *ProcurementStockRepository) VerifyAndSyncOrderInventory(
 						diff := item.QuantidadeRecebida - tx.Quantidade
 						tx.Quantidade = item.QuantidadeRecebida
 						r.db.Save(&tx)
-						
+
 						// Adjust stock balance
 						stock, err := r.GetByProductID(item.ProductID)
 						if err == nil && stock != nil {
