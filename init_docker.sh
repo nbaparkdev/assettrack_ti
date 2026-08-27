@@ -19,6 +19,11 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
+if ! command -v curl &> /dev/null; then
+    echo "❌ curl não encontrado. Instale curl antes de iniciar a aplicação."
+    exit 1
+fi
+
 # Verificar Docker Compose
 if ! docker compose version &> /dev/null; then
     echo "❌ Docker Compose não encontrado."
@@ -34,6 +39,9 @@ echo "✅ Docker Compose OK"
 export VITE_APP_VERSION_CODE="$(date -u +%s)"
 export VITE_APP_VERSION_NAME="$(date -u +%Y.%m.%d.%H%M)"
 export VITE_APP_BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+HOST_IP="${ASSETTRACK_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+HOST_IP="${HOST_IP:-127.0.0.1}"
+export VITE_API_URL="${VITE_API_URL:-http://${HOST_IP}:8080/api/v1}"
 
 # Derrubar ambiente antigo se estiver ativo
 echo "🛑 Parando containers antigos..."
@@ -91,8 +99,8 @@ echo ""
 echo "------------------------------------------------"
 echo "✅ AssetTrack TI iniciado com sucesso!"
 echo "------------------------------------------------"
-echo "🌐 Frontend URL: http://localhost:8000"
-echo "🌐 Backend API:  http://localhost:8080/api/v1"
+echo "🌐 Frontend URL: http://${HOST_IP}:8000"
+echo "🌐 Backend API:  http://${HOST_IP}:8080/api/v1"
 echo "🌐 API Health:   http://localhost:8080/health"
 echo "👤 Admin Padrão: admin@example.com"
 echo "🔑 Senha:        admin"

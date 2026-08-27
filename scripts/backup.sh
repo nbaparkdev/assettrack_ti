@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Configuration
-BACKUP_DIR="./backups"
-DB_CONTAINER="assettrack_ti-db-1"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+BACKUP_DIR="$ROOT_DIR/backups"
 DB_USER="user"
 DB_NAME="assettrack"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -13,7 +14,12 @@ mkdir -p "$BACKUP_DIR"
 
 # Perform Backup
 echo "Starting backup of ${DB_NAME}..."
-docker exec -t "$DB_CONTAINER" pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$FILENAME"
+if ! docker compose ps -q db >/dev/null 2>&1; then
+  echo "❌ Docker Compose não está disponível ou o serviço db não foi encontrado."
+  exit 1
+fi
+
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "$FILENAME"
 
 if [ $? -eq 0 ]; then
   echo "✅ Backup successful: $FILENAME"
