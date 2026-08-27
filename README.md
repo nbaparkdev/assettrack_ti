@@ -102,6 +102,45 @@ Para facilitar a manutenção, você pode usar os seguintes scripts:
     ./update_docker.sh
     ```
 
+### 🔄 Atualizar a aplicação na VM
+
+Para baixar automaticamente as mudanças do GitHub, reconstruir os containers e publicar o APK mais recente, execute na VM:
+
+```bash
+cd /caminho/assettrack_ti
+git pull --ff-only
+bash update_docker.sh
+```
+
+O script atualiza a API e o frontend, reinicia os serviços e tenta gerar o APK caso o ambiente Android esteja disponível. Se os scripts ainda não tiverem permissão de execução:
+
+```bash
+chmod +x *.sh scripts/*.sh
+./update_docker.sh
+```
+
+Para conferir o estado após a atualização:
+
+```bash
+docker compose ps
+curl http://localhost:8080/health
+```
+
+Em uma VM acessada por outros dispositivos, utilize o endereço IP da VM exibido pelo instalador e libere as portas `8000` e `8080` no firewall.
+
+### 🆕 Instalação inicial na VM
+
+Na primeira instalação, execute dentro da pasta do projeto:
+
+```bash
+git pull
+cp .env.example .env
+chmod +x init_docker.sh scripts/*.sh
+./init_docker.sh
+```
+
+O instalador cria a configuração local, constrói a API, o frontend, o banco e o Redis, executa as migrações e inicia a aplicação.
+
 ### 2. Inicialização Manual
 Caso prefira rodar os comandos passo a passo:
 
