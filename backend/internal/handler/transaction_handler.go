@@ -280,6 +280,11 @@ func (h *TransactionHandler) TransferirAsset(c *gin.Context) {
 	asset.Status = models.AssetStatusEmUso
 	asset.CurrentUserID = &payload.ParaUserID
 	asset.EmPosseDe = &targetUser.Nome
+	// An asset assigned to a person follows that user's organizational
+	// location. It must not remain in the previous rack/storage location.
+	asset.CurrentDepartamentoID = targetUser.DepartamentoID
+	asset.CurrentLocalID = targetUser.LocalizacaoID
+	asset.CurrentArmazenamentoID = nil
 
 	if err := h.assetRepo.Update(asset); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Erro ao atualizar responsável pelo ativo: " + err.Error()})
