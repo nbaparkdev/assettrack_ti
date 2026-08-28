@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { webhooksApi, WEBHOOK_EVENTS_OPTIONS } from '../api/webhooks';
+import { getWebhookEventLabel, WEBHOOK_EVENT_CATEGORIES, webhooksApi } from '../api/webhooks';
 import type { Webhook, WebhookInput, WebhookLog } from '../types/webhook';
 import { Webhook as WebhookIcon, Plus, Edit2, Trash2, Activity, PlayCircle, CheckCircle2, XCircle, Key } from 'lucide-react';
 
@@ -129,6 +129,10 @@ export const WebhooksPage: React.FC = () => {
     }
   };
 
+  const selectAllEvents = () => {
+    setSelectedEvents(WEBHOOK_EVENT_CATEGORIES.flatMap((category) => category.events.map((event) => event.code)));
+  };
+
   if (loading) return <div className="text-brand-muted font-mono text-sm">Carregando...</div>;
 
   return (
@@ -165,7 +169,7 @@ export const WebhooksPage: React.FC = () => {
                   </span>
                   {w.secret_key && (
                     <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-purple-500/30 text-purple-400 flex items-center">
-                      <Key size={10} className="mr-1" /> HMAC Protegido
+                      <Key size={10} className="mr-1" /> Assinatura HMAC
                     </span>
                   )}
                 </div>
@@ -216,7 +220,7 @@ export const WebhooksPage: React.FC = () => {
                     value={nome}
                     onChange={(e) => setNome(e.target.value)}
                     className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
-                    placeholder="Ex: n8n Production"
+                    placeholder="Ex.: Integração n8n - Produção"
                   />
                 </div>
                 <div>
@@ -230,15 +234,15 @@ export const WebhooksPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-brand-muted mb-1 uppercase">Chave Secreta HMAC (Opcional)</label>
+                  <label className="block text-xs font-mono text-brand-muted mb-1 uppercase">Chave secreta para assinatura HMAC (opcional)</label>
                   <input
                     type="text"
                     value={secretKey}
                     onChange={(e) => setSecretKey(e.target.value)}
                     className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
-                    placeholder="Deixe em branco para não assinar"
+                    placeholder="Deixe em branco se não utilizar assinatura"
                   />
-                  <p className="text-[10px] text-brand-muted mt-1 font-mono">Assina o payload via cabeçalho X-Hub-Signature</p>
+                  <p className="text-[10px] text-brand-muted mt-1 font-mono">Adiciona uma assinatura ao conteúdo enviado pelo cabeçalho X-Hub-Signature.</p>
                 </div>
                 <div className="flex items-center space-x-2 pt-6">
                   <input
@@ -247,23 +251,35 @@ export const WebhooksPage: React.FC = () => {
                     onChange={(e) => setIsActive(e.target.checked)}
                     id="is_active"
                   />
-                  <label htmlFor="is_active" className="text-sm font-mono text-brand-text">Ativo (Habilitado)</label>
+                  <label htmlFor="is_active" className="text-sm font-mono text-brand-text">Webhook ativo</label>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-brand-muted mb-2 uppercase border-b border-brand-border pb-2">Eventos Inscritos</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
-                  {WEBHOOK_EVENTS_OPTIONS.map((e) => (
-                    <label key={e} className="flex items-start space-x-2 p-2 border border-brand-border bg-brand-dark hover:border-brand-primary/50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedEvents.includes(e)}
-                        onChange={() => toggleEvent(e)}
-                        className="mt-1"
-                      />
-                      <span className="text-xs font-mono text-brand-text break-all">{e}</span>
-                    </label>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-brand-border pb-2">
+                  <div>
+                    <label className="block text-xs font-mono text-brand-muted uppercase">Eventos inscritos</label>
+                    <p className="mt-1 text-xs text-brand-muted">Escolha quais acontecimentos devem ser enviados para esta integração.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-brand-primary">{selectedEvents.length} selecionado(s)</span>
+                    <button type="button" onClick={selectAllEvents} className="text-xs font-mono text-brand-primary hover:underline">Selecionar todos</button>
+                    <button type="button" onClick={() => setSelectedEvents([])} className="text-xs font-mono text-brand-muted hover:text-brand-text hover:underline">Limpar</button>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {WEBHOOK_EVENT_CATEGORIES.map((category) => (
+                    <section key={category.title} className="rounded border border-brand-border bg-brand-dark/40 p-3">
+                      <div className="mb-3"><h4 className="text-sm font-semibold text-brand-text">{category.title}</h4><p className="mt-0.5 text-xs text-brand-muted">{category.description}</p></div>
+                      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                        {category.events.map((event) => (
+                          <label key={event.code} className="flex items-start gap-2 rounded border border-brand-border bg-brand-dark p-2.5 hover:border-brand-primary/50 cursor-pointer">
+                            <input type="checkbox" checked={selectedEvents.includes(event.code)} onChange={() => toggleEvent(event.code)} className="mt-1" />
+                            <span><span className="block text-sm text-brand-text">{event.label}</span><span className="mt-0.5 block text-xs text-brand-muted">{event.description}</span><span className="mt-1 block font-mono text-[10px] text-brand-muted/70">{event.code}</span></span>
+                          </label>
+                        ))}
+                      </div>
+                    </section>
                   ))}
                 </div>
               </div>
@@ -308,7 +324,7 @@ export const WebhooksPage: React.FC = () => {
                     {logs.map((l) => (
                       <tr key={l.id} className="hover:bg-brand-dark/50">
                         <td className="p-3 font-mono text-brand-text whitespace-nowrap text-xs">{new Date(l.created_at).toLocaleString('pt-BR')}</td>
-                        <td className="p-3 font-mono text-brand-primary text-xs">{l.evento}</td>
+                        <td className="p-3 text-brand-primary text-xs"><span className="block">{getWebhookEventLabel(l.evento)}</span><span className="font-mono text-[10px] text-brand-muted">{l.evento}</span></td>
                         <td className="p-3 text-center">
                           {l.sucesso ? (
                             <span className="inline-flex items-center text-green-400 text-xs font-mono"><CheckCircle2 size={12} className="mr-1" /> {l.response_code}</span>
