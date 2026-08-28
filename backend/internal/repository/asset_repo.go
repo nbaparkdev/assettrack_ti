@@ -44,6 +44,7 @@ func (r *AssetRepository) ListWithFilters(skip, limit int, filters AssetListFilt
 		Preload("CurrentArmazenamento").
 		Preload("PrevLocal").
 		Preload("PrevArmazenamento").
+		Preload("CreatedBy").
 		Preload("Fornecedor").
 		Preload("NotaFiscal").
 		Preload("Categoria")
@@ -92,6 +93,7 @@ func (r *AssetRepository) GetByID(id uint) (*models.Asset, error) {
 		Preload("CurrentArmazenamento").
 		Preload("PrevLocal").
 		Preload("PrevArmazenamento").
+		Preload("CreatedBy").
 		Preload("Fornecedor").
 		Preload("NotaFiscal").
 		Preload("Categoria").
@@ -111,6 +113,7 @@ func (r *AssetRepository) GetByEPatrimonio(ePatrimonio string) (*models.Asset, e
 		Preload("CurrentArmazenamento").
 		Preload("PrevLocal").
 		Preload("PrevArmazenamento").
+		Preload("CreatedBy").
 		Preload("Fornecedor").
 		Preload("NotaFiscal").
 		Preload("Categoria").
@@ -131,6 +134,9 @@ func (r *AssetRepository) Update(updated *models.Asset) error {
 	if err := r.db.First(&existing, updated.ID).Error; err != nil {
 		return err
 	}
+	// The creator is immutable: editing an asset must never clear or replace
+	// the user who originally registered it.
+	updated.CreatedByID = existing.CreatedByID
 
 	// Rule: If marked as Bloqueado (Ativo Fixo)
 	if existing.Bloqueado {

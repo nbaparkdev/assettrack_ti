@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/assettrack/backend/internal/middleware"
 	"github.com/assettrack/backend/internal/models"
 	"github.com/assettrack/backend/internal/repository"
 	"github.com/gin-gonic/gin"
@@ -254,9 +255,9 @@ func (h *AssetHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Set CreatedByID if auth user context is available
-	if val, exists := c.Get("user_id"); exists {
-		userID := val.(uint)
+	// Always derive the creator from the authenticated session.
+	if user := middleware.GetCurrentUser(c); user != nil {
+		userID := user.ID
 		asset.CreatedByID = &userID
 	}
 
@@ -507,8 +508,8 @@ func (h *AssetHandler) buildAssetFromCSVRow(tx *gorm.DB, row []string, headers a
 		}
 		asset = models.Asset{EPatrimonio: ePatrimonio}
 		asset.Status = models.AssetStatusDisponivel
-		if val, exists := c.Get("user_id"); exists {
-			userID := val.(uint)
+		if user := middleware.GetCurrentUser(c); user != nil {
+			userID := user.ID
 			asset.CreatedByID = &userID
 		}
 	} else {
@@ -748,8 +749,8 @@ func (h *AssetHandler) Update(c *gin.Context) {
 
 		if count == 0 {
 			var userIDPtr *uint
-			if val, exists := c.Get("user_id"); exists {
-				uid := val.(uint)
+			if user := middleware.GetCurrentUser(c); user != nil {
+				uid := user.ID
 				userIDPtr = &uid
 			}
 			maint := models.Manutencao{
@@ -777,8 +778,8 @@ func (h *AssetHandler) Update(c *gin.Context) {
 	if asset.CurrentUserID != nil {
 		if oldUserID == nil || *oldUserID != *asset.CurrentUserID {
 			var adminIDPtr *uint
-			if val, exists := c.Get("user_id"); exists {
-				uid := val.(uint)
+			if user := middleware.GetCurrentUser(c); user != nil {
+				uid := user.ID
 				adminIDPtr = &uid
 			}
 
@@ -1189,8 +1190,8 @@ func (h *AssetHandler) BulkDuplicate(c *gin.Context) {
 		}
 
 		// Auth context user id as creator
-		if val, exists := c.Get("user_id"); exists {
-			userID := val.(uint)
+		if user := middleware.GetCurrentUser(c); user != nil {
+			userID := user.ID
 			newAsset.CreatedByID = &userID
 		}
 

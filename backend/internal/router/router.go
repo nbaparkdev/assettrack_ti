@@ -107,7 +107,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		procCategoryRepo, procProductRepo, procCCRepo, procRequestRepo, procApprovalRepo,
 		procQuotationRepo, procOrderRepo, procReceivingRepo, procStockRepo,
 		procContractRepo, procContractTypeRepo, procHistoryRepo, procNotifRepo,
-		procResearchRepo, assetRepo, userRepo, kanbanProjectRepo, kanbanCardRepo, kanbanInteractionRepo, kanbanBroker, systemSettingsRepo,
+		procResearchRepo, invoiceRepo, assetRepo, userRepo, kanbanProjectRepo, kanbanCardRepo, kanbanInteractionRepo, kanbanBroker, systemSettingsRepo,
 	)
 	rhHandler := handler.NewRHHandler(rhRepo, userRepo, assetRepo, alertRepo, alertBroker)
 	webhookHandler := handler.NewWebhookHandler(webhookRepo, webhookDispatcher)
@@ -393,6 +393,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			compras.GET("/pedidos", procurementHandler.ListOrders)
 			compras.POST("/pedidos", rManager, procurementHandler.CreateOrder)
 			compras.GET("/pedidos/:id", procurementHandler.GetOrder)
+			compras.PUT("/pedidos/:id/status", rManager, procurementHandler.UpdateOrderStatus)
 			compras.POST("/pedidos/:id/receber", procurementHandler.ReceiveOrder)
 			compras.POST("/pedidos/:id/reconciliar", rManager, procurementHandler.ReconcileOrderInventory)
 

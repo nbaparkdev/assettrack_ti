@@ -16,6 +16,10 @@ import type {
   CostCenter,
   PurchaseProduct,
   PurchaseCategory,
+  PurchaseContract,
+  ContractType,
+  PurchaseResearch,
+  PurchaseNotification,
 } from '../types/procurement';
 import { URGENCIES, requestStatusColor, orderStatusColor } from '../types/procurement';
 import { useAuthStore } from '../stores/authStore';
@@ -34,7 +38,7 @@ export const ProcurementPage: React.FC = () => {
   const user = useAuthStore().user;
   const manage = user ? canManage.includes(user.role) : false;
 
-  const [tab, setTab] = useState<'dashboard' | 'solicitacoes' | 'ordens' | 'estoque' | 'cotacoes' | 'cadastros' | 'fornecedores'>(
+  const [tab, setTab] = useState<'dashboard' | 'solicitacoes' | 'ordens' | 'estoque' | 'cotacoes' | 'cadastros' | 'contratos' | 'pesquisas' | 'fornecedores'>(
     location.pathname === '/compras/fornecedores' ? 'fornecedores' : 'dashboard',
   );
   const [loading, setLoading] = useState(false);
@@ -46,6 +50,10 @@ export const ProcurementPage: React.FC = () => {
   const [stock, setStock] = useState<MaterialStock[]>([]);
   const [stockTransactions, setStockTransactions] = useState<MaterialStockTransaction[]>([]);
   const [quotations, setQuotations] = useState<PurchaseQuotation[]>([]);
+  const [contracts, setContracts] = useState<PurchaseContract[]>([]);
+  const [contractTypes, setContractTypes] = useState<ContractType[]>([]);
+  const [researches, setResearches] = useState<PurchaseResearch[]>([]);
+  const [purchaseNotifications, setPurchaseNotifications] = useState<PurchaseNotification[]>([]);
 
   const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
   const [products, setProducts] = useState<PurchaseProduct[]>([]);
@@ -64,6 +72,24 @@ export const ProcurementPage: React.FC = () => {
   const [consumeJustification, setConsumeJustification] = useState('');
   const [consumeCCId, setConsumeCCId] = useState<number | ''>('');
   const [savingConsume, setSavingConsume] = useState(false);
+  const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
+  const [receivingItems, setReceivingItems] = useState<{ product_id: number; quantidade_recebida: number; divergencias: string }[]>([]);
+  const [receivingNotes, setReceivingNotes] = useState('');
+  const [savingReceiving, setSavingReceiving] = useState(false);
+  const [receivingInvoices, setReceivingInvoices] = useState<{ id: number; numero_nota: string }[]>([]);
+  const [receivingInvoiceId, setReceivingInvoiceId] = useState<number | ''>('');
+  const [uploadingReceivingInvoice, setUploadingReceivingInvoice] = useState(false);
+
+  const [contractModal, setContractModal] = useState(false);
+  const [editingContract, setEditingContract] = useState<PurchaseContract | null>(null);
+  const [contractForm, setContractForm] = useState({ fornecedor_id: '', tipo: '', tipo_id: '', numero: '', data_inicio: '', data_fim: '', renovacao_automatica: false, valor: 0, periodicidade: 'Mensal' });
+  const [researchModal, setResearchModal] = useState(false);
+  const [researchTitle, setResearchTitle] = useState('');
+  const [researchJustification, setResearchJustification] = useState('');
+  const [researchItems, setResearchItems] = useState([{ nome_produto: '', link_produto: '', valor_estimado: 0, quantidade: 1, tipo_produto: 'Consumo' }]);
+  const [contractTypeName, setContractTypeName] = useState('');
+  const [contractTypeDescription, setContractTypeDescription] = useState('');
+  const [savingContractType, setSavingContractType] = useState(false);
 
   // Cost center management
   const [ccCodigo, setCCCodigo] = useState('');
@@ -118,13 +144,17 @@ export const ProcurementPage: React.FC = () => {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [d, r, o, s, tx, q] = await Promise.all([
+      const [d, r, o, s, tx, q, c, ct, pr, notifications] = await Promise.all([
         procurementApi.dashboard(),
         procurementApi.listRequests(),
         procurementApi.listOrders(),
         procurementApi.listStock(),
         procurementApi.listStockTransactions(undefined, 20),
         procurementApi.listQuotations(),
+        procurementApi.listContracts(),
+        procurementApi.listContractTypes(),
+        procurementApi.listResearches(),
+        procurementApi.myNotifications(),
       ]);
       setDash(d);
       setRequests(r);
@@ -132,8 +162,13 @@ export const ProcurementPage: React.FC = () => {
       setStock(s);
       setStockTransactions(tx);
       setQuotations(q);
+      setContracts(c);
+      setContractTypes(ct);
+      setResearches(pr);
+      setPurchaseNotifications(notifications);
     } catch (err) {
       console.error(err);
+      showError(err);
     } finally {
       setLoading(false);
     }
@@ -168,7 +203,7 @@ export const ProcurementPage: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
-    const allowedTabs = ['dashboard', 'solicitacoes', 'ordens', 'estoque', 'cotacoes', 'cadastros', 'fornecedores'] as const;
+    const allowedTabs = ['dashboard', 'solicitacoes', 'ordens', 'estoque', 'cotacoes', 'cadastros', 'contratos', 'pesquisas', 'fornecedores'] as const;
     if (tabParam && allowedTabs.includes(tabParam as any)) {
       const nextTab = tabParam as typeof allowedTabs[number];
       setTab(nextTab);
@@ -180,7 +215,7 @@ export const ProcurementPage: React.FC = () => {
     }
   }, [location.search]);
 
-  const handleTabChange = (nextTab: 'dashboard' | 'solicitacoes' | 'ordens' | 'estoque' | 'cotacoes' | 'cadastros' | 'fornecedores') => {
+  const handleTabChange = (nextTab: 'dashboard' | 'solicitacoes' | 'ordens' | 'estoque' | 'cotacoes' | 'cadastros' | 'contratos' | 'pesquisas' | 'fornecedores') => {
     setTab(nextTab);
     navigate(nextTab === 'fornecedores' ? '/compras/fornecedores' : '/compras');
   };
@@ -595,6 +630,8 @@ export const ProcurementPage: React.FC = () => {
     return parsed.toLocaleString('pt-BR');
   };
 
+  const unreadPurchaseNotifications = purchaseNotifications.filter((notification) => !notification.lido);
+
   const openQuotationModal = (req: PurchaseRequest) => {
     setQRequestId(req.id);
     const suggestedSupplierIds = Array.from(
@@ -678,14 +715,60 @@ export const ProcurementPage: React.FC = () => {
     }
   };
 
-  const receiveOrder = async (order: PurchaseOrder) => {
-    const itens = order.itens.map((it) => ({ product_id: it.product_id, quantidade_recebida: it.quantidade }));
-    if (!window.confirm(`Registrar recebimento total do pedido ${order.numero}?`)) return;
+  const remainingOrderItemQuantity = (order: PurchaseOrder, productId: number, orderedQuantity: number) => {
+    const received = (order.receivings || []).flatMap((receiving) => receiving.itens || [])
+      .filter((item) => item.product_id === productId)
+      .reduce((total, item) => total + item.quantidade_recebida, 0);
+    return Math.max(0, orderedQuantity - received);
+  };
+
+  const openReceivingModal = async (order: PurchaseOrder) => {
+    setReceivingOrder(order);
+    setReceivingItems(order.itens.map((item) => ({ product_id: item.product_id, quantidade_recebida: remainingOrderItemQuantity(order, item.product_id, item.quantidade), divergencias: '' })));
+    setReceivingNotes('');
+    setReceivingInvoiceId('');
+    setReceivingInvoices([]);
     try {
-      await procurementApi.receiveOrder(order.id, { itens, observacoes: 'Recebimento total' });
+      setReceivingInvoices(await suppliersApi.listInvoices(order.fornecedor_id));
+    } catch (_err) {
+      // NF-e is optional; receipt can proceed without an invoice linked.
+    }
+  };
+
+  const uploadReceivingInvoice = async (file?: File) => {
+    if (!file || !receivingOrder) return;
+    setUploadingReceivingInvoice(true);
+    try {
+      const invoice = await suppliersApi.uploadInvoice(receivingOrder.fornecedor_id, file);
+      const invoices = await suppliersApi.listInvoices(receivingOrder.fornecedor_id);
+      setReceivingInvoices(invoices);
+      setReceivingInvoiceId(invoice.id);
+      setGlobalMessage(`NF-e ${invoice.numero_nota} importada e selecionada para o recebimento.`);
+    } catch (err) {
+      showError(err);
+    } finally {
+      setUploadingReceivingInvoice(false);
+    }
+  };
+
+  const submitReceiving = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!receivingOrder) return;
+    const itens = receivingItems.filter((item) => item.quantidade_recebida > 0);
+    if (itens.length === 0) {
+      showError({ response: { data: { error: 'Informe a quantidade recebida de ao menos um item.' } } });
+      return;
+    }
+    setSavingReceiving(true);
+    try {
+      await procurementApi.receiveOrder(receivingOrder.id, { itens, nota_fiscal_id: receivingInvoiceId ? Number(receivingInvoiceId) : undefined, observacoes: receivingNotes.trim() || undefined });
+      setReceivingOrder(null);
+      setGlobalMessage(`Recebimento do pedido ${receivingOrder.numero} registrado com sucesso.`);
       fetchAll();
     } catch (err) {
       showError(err);
+    } finally {
+      setSavingReceiving(false);
     }
   };
 
@@ -759,6 +842,128 @@ export const ProcurementPage: React.FC = () => {
     }
   };
 
+  const cancelOrder = async (order: PurchaseOrder) => {
+    if (!window.confirm(`Cancelar o pedido ${order.numero}? Esta ação encerra o fluxo de compra deste pedido.`)) return;
+    await updateOrderStatus(order, 'Cancelado');
+  };
+
+  const markPurchaseNotificationsRead = async () => {
+    try {
+      await procurementApi.markNotificationsRead();
+      setPurchaseNotifications(purchaseNotifications.map((notification) => ({ ...notification, lido: true })));
+    } catch (err) { showError(err); }
+  };
+
+  const resetContractForm = () => {
+    setEditingContract(null);
+    setContractForm({ fornecedor_id: '', tipo: '', tipo_id: '', numero: '', data_inicio: '', data_fim: '', renovacao_automatica: false, valor: 0, periodicidade: 'Mensal' });
+  };
+
+  const openContractModal = (contract?: PurchaseContract) => {
+    if (contract) {
+      setEditingContract(contract);
+      setContractForm({
+        fornecedor_id: String(contract.fornecedor_id), tipo: contract.tipo, tipo_id: contract.tipo_id ? String(contract.tipo_id) : '', numero: contract.numero,
+        data_inicio: contract.data_inicio.slice(0, 10), data_fim: contract.data_fim.slice(0, 10), renovacao_automatica: contract.renovacao_automatica,
+        valor: contract.valor, periodicidade: contract.periodicidade || 'Mensal',
+      });
+    } else {
+      resetContractForm();
+    }
+    setContractModal(true);
+  };
+
+  const submitContract = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contractForm.fornecedor_id || !contractForm.numero || !contractForm.data_inicio || !contractForm.data_fim) {
+      showError({ response: { data: { error: 'Fornecedor, número e período do contrato são obrigatórios' } } });
+      return;
+    }
+    if (contractForm.data_fim < contractForm.data_inicio) {
+      showError({ response: { data: { error: 'A data final do contrato deve ser posterior à data inicial.' } } });
+      return;
+    }
+    const payload = {
+      fornecedor_id: Number(contractForm.fornecedor_id), tipo: contractForm.tipo.trim() || 'Geral', tipo_id: contractForm.tipo_id ? Number(contractForm.tipo_id) : undefined,
+      numero: contractForm.numero.trim(), data_inicio: contractForm.data_inicio, data_fim: contractForm.data_fim,
+      renovacao_automatica: contractForm.renovacao_automatica, valor: Number(contractForm.valor) || 0, periodicidade: contractForm.periodicidade,
+    };
+    try {
+      if (editingContract) await procurementApi.updateContract(editingContract.id, payload);
+      else await procurementApi.createContract(payload);
+      setContractModal(false);
+      resetContractForm();
+      setGlobalMessage(editingContract ? 'Contrato atualizado com sucesso.' : 'Contrato cadastrado com sucesso.');
+      fetchAll();
+    } catch (err) { showError(err); }
+  };
+
+  const deleteContract = async (contract: PurchaseContract) => {
+    if (!window.confirm(`Excluir o contrato ${contract.numero}?`)) return;
+    try {
+      await procurementApi.deleteContract(contract.id);
+      setGlobalMessage('Contrato excluído com sucesso.');
+      fetchAll();
+    } catch (err) { showError(err); }
+  };
+
+  const createContractType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contractTypeName.trim()) {
+      showError({ response: { data: { error: 'Informe o nome do tipo de contrato.' } } });
+      return;
+    }
+    setSavingContractType(true);
+    try {
+      await procurementApi.createContractType({ nome: contractTypeName.trim(), descricao: contractTypeDescription.trim() || undefined, ativo: true });
+      setContractTypeName('');
+      setContractTypeDescription('');
+      const types = await procurementApi.listContractTypes();
+      setContractTypes(types);
+      setGlobalMessage('Tipo de contrato criado com sucesso.');
+    } catch (err) { showError(err); } finally { setSavingContractType(false); }
+  };
+
+  const submitResearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const items = researchItems.filter((item) => item.nome_produto.trim() && item.quantidade > 0);
+    if (!researchTitle.trim() || !researchJustification.trim() || items.length === 0) {
+      showError({ response: { data: { error: 'Informe título, justificativa e ao menos um item válido.' } } });
+      return;
+    }
+    try {
+      await procurementApi.createResearch({ titulo: researchTitle.trim(), justificativa: researchJustification.trim(), items });
+      setResearchModal(false);
+      setResearchTitle(''); setResearchJustification('');
+      setResearchItems([{ nome_produto: '', link_produto: '', valor_estimado: 0, quantidade: 1, tipo_produto: 'Consumo' }]);
+      setGlobalMessage('Pesquisa de compra criada e enviada para aprovação.');
+      fetchAll();
+    } catch (err) { showError(err); }
+  };
+
+  const decideResearch = async (research: PurchaseResearch, action: 'aprovar' | 'rejeitar') => {
+    const justification = window.prompt(action === 'aprovar' ? 'Observação da aprovação (opcional):' : 'Motivo da reprovação:') ?? undefined;
+    if (action === 'rejeitar' && justification === undefined) return;
+    let centroCustoId: number | undefined;
+    if (action === 'aprovar') {
+      const answer = window.prompt(`Informe o ID do centro de custo (${costCenters.map((cc) => `${cc.id}: ${cc.codigo}`).join(', ')}):`);
+      if (!answer) return;
+      centroCustoId = Number(answer);
+      if (!centroCustoId || !costCenters.some((cc) => cc.id === centroCustoId)) {
+        showError({ response: { data: { error: 'Centro de custo inválido.' } } });
+        return;
+      }
+    }
+    try {
+      await procurementApi.decideResearch(research.id, {
+        acao: action, justificativa_decisao: justification || undefined, centro_custo_id: centroCustoId,
+        approved_item_ids: action === 'aprovar' ? research.items.filter((item) => item.aprovado).map((item) => item.id) : undefined,
+      });
+      setGlobalMessage(action === 'aprovar' ? 'Pesquisa aprovada e convertida em solicitação de compra.' : 'Pesquisa reprovada.');
+      fetchAll();
+    } catch (err) { showError(err); }
+  };
+
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const filteredRequests = requests.filter((r) => requestCostCenterFilter === 'all' || r.centro_custo_id === requestCostCenterFilter);
 
@@ -767,7 +972,7 @@ export const ProcurementPage: React.FC = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold uppercase tracking-wider font-mono text-brand-text m-0">Compras</h1>
-          <p className="text-brand-muted text-sm mt-1">Solicitações, cotações, pedidos de compra e estoque.</p>
+          <p className="text-brand-muted text-sm mt-1">Da solicitação ao recebimento, com contratos, pesquisas e governança orçamentária.</p>
         </div>
         <div className="hidden xl:flex items-center gap-2">
           <button onClick={() => procurementApi.exportCsv('dashboard')} className="border border-brand-border hover:bg-brand-card px-3 py-2 font-mono text-xs uppercase">
@@ -799,29 +1004,35 @@ export const ProcurementPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="w-full min-w-0 max-w-full overflow-x-auto border-b border-brand-border flex items-center gap-1 pb-0.5 no-scrollbar scroll-smooth">
+      {/* Navegação do processo de compras */}
+      <div className="w-full min-w-0 max-w-full overflow-x-auto rounded-2xl border border-brand-border bg-brand-card/70 p-2 no-scrollbar scroll-smooth">
+        <div className="flex min-w-max items-center gap-1">
         {([
-          ['dashboard', 'Dashboard'],
+          ['dashboard', 'Visão geral'],
           ['solicitacoes', 'Solicitações'],
           ['cotacoes', 'Cotações'],
-          ['ordens', 'Ordens de Compra'],
+          ['ordens', 'Pedidos'],
           ['estoque', 'Estoque'],
-          ['cadastros', 'Cadastros'],
+          ['contratos', 'Contratos'],
+          ['pesquisas', 'Pesquisas'],
           ['fornecedores', 'Fornecedores'],
-        ] as const).map(([key, label]) => (
+          ['cadastros', 'Configurações'],
+        ] as const).map(([key, label], index) => (
+          <React.Fragment key={key}>
+            {[1, 5, 7].includes(index) && <span className="mx-1 h-6 w-px bg-brand-border" aria-hidden="true" />}
           <button
-            key={key}
             onClick={() => handleTabChange(key)}
-            className={`shrink-0 whitespace-nowrap px-4 py-2.5 font-mono text-xs uppercase tracking-wider border-b-2 transition-all rounded-t-lg cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap rounded-xl px-4 py-2.5 font-mono text-xs uppercase tracking-wider transition-all cursor-pointer ${
               tab === key
-                ? 'border-brand-primary bg-white text-brand-primary font-bold shadow-sm'
-                : 'border-transparent bg-white/40 text-brand-text opacity-70 hover:opacity-100 hover:bg-white/70'
+                ? 'bg-brand-primary text-brand-dark font-bold shadow-sm'
+                : 'text-brand-muted hover:bg-brand-dark/10 hover:text-brand-text'
             }`}
           >
             {label}
           </button>
+          </React.Fragment>
         ))}
+        </div>
       </div>
 
       {loading && (
@@ -833,37 +1044,52 @@ export const ProcurementPage: React.FC = () => {
 
       {/* ---------- DASHBOARD ---------- */}
       {!loading && tab === 'dashboard' && dash && (
-        <div className="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-6 gap-4">
-          <div className="border border-brand-border bg-brand-card p-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <div className="relative overflow-hidden rounded-2xl border border-brand-border bg-gradient-to-r from-[#0d2137] via-[#12335a] to-[#1079ea] p-6 text-white md:col-span-2 xl:col-span-6">
+            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+            <div className="relative flex flex-col justify-between gap-4 md:flex-row md:items-end">
+              <div><p className="text-xs font-mono uppercase tracking-[0.18em] text-blue-100">Central de suprimentos</p><h2 className="mt-2 text-2xl font-semibold">Visão geral de compras</h2><p className="mt-1 max-w-2xl text-sm text-blue-100">Acompanhe aprovação, pedidos, orçamento e fornecedores em uma única visão operacional.</p><div className="mt-3 flex flex-wrap gap-2 text-[11px] font-mono"><span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1">{dash.req_pending_count} aguardando aprovação</span><span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1">{dash.orders_active_count} pedido(s) em andamento</span>{dash.low_stock_count > 0 && <span className="rounded-full border border-amber-200/40 bg-amber-300/15 px-2.5 py-1 text-amber-100">{dash.low_stock_count} alerta(s) de estoque</span>}</div></div>
+              <div className="flex flex-wrap gap-2"><button onClick={() => handleTabChange('solicitacoes')} className="rounded-lg bg-white px-3 py-2 text-xs font-bold font-mono uppercase text-[#0d2137] hover:bg-blue-50"><Plus size={14} className="mr-1 inline" /> Solicitação</button><button onClick={() => handleTabChange('ordens')} className="rounded-lg border border-white/40 px-3 py-2 text-xs font-bold font-mono uppercase text-white hover:bg-white/10">Pedidos</button><button onClick={() => handleTabChange('estoque')} className="rounded-lg border border-white/40 px-3 py-2 text-xs font-bold font-mono uppercase text-white hover:bg-white/10">Estoque</button><button onClick={() => handleTabChange('contratos')} className="rounded-lg border border-white/40 px-3 py-2 text-xs font-bold font-mono uppercase text-white hover:bg-white/10">Contratos</button></div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm">
             <div className="text-3xl font-bold font-mono text-brand-primary">{dash.req_pending_count}</div>
             <div className="text-xs font-mono uppercase text-brand-muted mt-1">Solicitações pendentes</div>
           </div>
-          <div className="border border-brand-border bg-brand-card p-4">
+          <div className="rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm">
             <div className="text-3xl font-bold font-mono text-brand-primary">{dash.orders_active_count}</div>
             <div className="text-xs font-mono uppercase text-brand-muted mt-1">Pedidos em aberto</div>
           </div>
-          <div className="border border-brand-border bg-brand-card p-4">
+          <div className="rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm">
             <div className="text-3xl font-bold font-mono text-brand-primary">{dash.low_stock_count}</div>
             <div className="text-xs font-mono uppercase text-brand-muted mt-1">Itens com estoque baixo</div>
           </div>
-          <div className="border border-brand-border bg-brand-card p-4">
+          <div className="rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm">
             <div className="text-3xl font-bold font-mono text-brand-primary">{fmt(dash.monthly_budget_used || 0)}</div>
             <div className="text-xs font-mono uppercase text-brand-muted mt-1">Uso do orçamento mensal</div>
             <div className="text-[11px] text-brand-muted mt-2">Base: {fmt(dash.monthly_budget_total || 0)}</div>
           </div>
-          <div className="border border-brand-border bg-brand-card p-4">
+          <div className="rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm">
             <div className="text-3xl font-bold font-mono text-brand-primary">{fmt(dash.requested_total || 0)}</div>
             <div className="text-xs font-mono uppercase text-brand-muted mt-1">Total solicitado</div>
           </div>
-          <div className="border border-brand-border bg-brand-card p-4">
+          <div className="rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm">
             <div className="text-3xl font-bold font-mono text-brand-primary">{fmt(dash.estimated_savings_total || 0)}</div>
             <div className="text-xs font-mono uppercase text-brand-muted mt-1">Economia estimada</div>
             <div className="text-[11px] text-brand-muted mt-2">Comprado: {fmt(dash.ordered_total || 0)}</div>
           </div>
 
-          <div className="md:col-span-4 grid grid-cols-1 xl:grid-cols-[1.2fr_.8fr] gap-4">
-            <div className="border border-brand-border bg-brand-card">
-              <div className="p-3 border-b border-brand-border bg-brand-dark/20 text-xs font-mono uppercase tracking-wider text-brand-muted">Solicitações recentes</div>
+          <div className="overflow-hidden rounded-2xl border border-brand-border bg-brand-card shadow-sm md:col-span-2 xl:col-span-6">
+            <div className="flex flex-col gap-3 border-b border-brand-border bg-brand-dark/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div><div className="text-xs font-mono uppercase tracking-wider text-brand-muted">Atualizações de compras</div><div className="mt-1 text-sm font-semibold text-brand-text">Notificações operacionais</div></div>
+              {unreadPurchaseNotifications.length > 0 && <button onClick={markPurchaseNotificationsRead} className="self-start rounded-lg border border-brand-primary/30 px-3 py-1.5 text-xs font-mono uppercase text-brand-primary hover:bg-brand-primary/10 sm:self-auto">Marcar {unreadPurchaseNotifications.length} como lida{unreadPurchaseNotifications.length > 1 ? 's' : ''}</button>}
+            </div>
+            {purchaseNotifications.length > 0 ? <div className="grid divide-y divide-brand-border/60 md:grid-cols-2 md:divide-x md:divide-y-0">{purchaseNotifications.slice(0, 4).map((notification) => <div key={notification.id} className="flex gap-3 p-4"><span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.lido ? 'bg-brand-muted/40' : 'bg-brand-primary'}`} /><div className="min-w-0"><p className={`text-sm ${notification.lido ? 'text-brand-muted' : 'text-brand-text'}`}>{notification.mensagem}</p><p className="mt-1 text-[11px] font-mono text-brand-muted">{fmtDateTime(notification.data_criacao)}</p></div></div>)}</div> : <div className="p-5 text-center text-xs font-mono text-brand-muted">Nenhuma atualização operacional pendente.</div>}
+          </div>
+
+          <div className="grid gap-4 md:col-span-2 xl:col-span-6 xl:grid-cols-[1.2fr_.8fr]">
+            <div className="overflow-hidden rounded-2xl border border-brand-border bg-brand-card shadow-sm">
+              <div className="flex items-center justify-between border-b border-brand-border bg-brand-dark/20 p-4"><div><div className="text-xs font-mono uppercase tracking-wider text-brand-muted">Fila operacional</div><div className="mt-1 text-sm font-semibold text-brand-text">Solicitações recentes</div></div><button onClick={() => handleTabChange('solicitacoes')} className="text-xs font-mono text-brand-primary hover:underline">Ver todas</button></div>
               <div className="divide-y divide-brand-border/60">
                 {dash.requests_recent.map((r) => (
                   <div key={r.id} className="p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-sm">
@@ -882,8 +1108,8 @@ export const ProcurementPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="border border-brand-border bg-brand-card">
-              <div className="p-3 border-b border-brand-border bg-brand-dark/20 text-xs font-mono uppercase tracking-wider text-brand-muted">Saúde dos centros de custo</div>
+            <div className="overflow-hidden rounded-2xl border border-brand-border bg-brand-card shadow-sm">
+              <div className="border-b border-brand-border bg-brand-dark/20 p-4"><div className="text-xs font-mono uppercase tracking-wider text-brand-muted">Orçamento</div><div className="mt-1 text-sm font-semibold text-brand-text">Saúde dos centros de custo</div></div>
               <div className="p-4 grid grid-cols-2 gap-3 border-b border-brand-border">
                 <div className="border border-brand-border bg-brand-dark/10 p-3">
                   <div className="text-2xl font-bold font-mono text-orange-400">{dash.cost_centers_alert || 0}</div>
@@ -932,8 +1158,8 @@ export const ProcurementPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="border border-brand-border bg-brand-card">
-              <div className="p-3 border-b border-brand-border bg-brand-dark/20 text-xs font-mono uppercase tracking-wider text-brand-muted">Fornecedores com maior volume</div>
+            <div className="overflow-hidden rounded-2xl border border-brand-border bg-brand-card shadow-sm xl:col-span-2">
+              <div className="flex items-center justify-between border-b border-brand-border bg-brand-dark/20 p-4"><div><div className="text-xs font-mono uppercase tracking-wider text-brand-muted">Parcerias</div><div className="mt-1 text-sm font-semibold text-brand-text">Fornecedores com maior volume</div></div><button onClick={() => handleTabChange('fornecedores')} className="text-xs font-mono text-brand-primary hover:underline">Ver fornecedores</button></div>
               <div className="divide-y divide-brand-border/60">
                 {(dash.top_suppliers || []).map((supplier) => (
                   <div key={supplier.id} className="p-3 flex items-center justify-between gap-3">
@@ -949,8 +1175,8 @@ export const ProcurementPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="md:col-span-4 xl:col-span-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <div className="border border-brand-border bg-brand-card overflow-x-auto">
+          <div className="grid gap-4 md:col-span-2 xl:col-span-6 xl:grid-cols-2">
+            <div className="overflow-x-auto rounded-2xl border border-brand-border bg-brand-card shadow-sm">
               <div className="p-3 border-b border-brand-border bg-brand-dark/20 text-xs font-mono uppercase tracking-wider text-brand-muted">Relatório por centro de custo</div>
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -982,7 +1208,7 @@ export const ProcurementPage: React.FC = () => {
               </table>
             </div>
 
-            <div className="border border-brand-border bg-brand-card overflow-x-auto">
+            <div className="overflow-x-auto rounded-2xl border border-brand-border bg-brand-card shadow-sm">
               <div className="p-3 border-b border-brand-border bg-brand-dark/20 text-xs font-mono uppercase tracking-wider text-brand-muted">Performance de fornecedores</div>
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -1336,6 +1562,7 @@ export const ProcurementPage: React.FC = () => {
                     </td>
                     <td className="p-4">
                       <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 border ${orderStatusColor[o.status] ?? 'border-brand-border'}`}>{o.status}</span>
+                      {(o.receivings || []).some((receiving) => receiving.nota_fiscal) && <div className="mt-2 space-y-1">{Array.from(new Map((o.receivings || []).filter((receiving) => receiving.nota_fiscal).map((receiving) => [receiving.nota_fiscal!.id, receiving.nota_fiscal!])).values()).map((invoice) => <div key={invoice.id} className="font-mono text-[10px] text-cyan-400">NF-e {invoice.numero_nota}</div>)}</div>}
                     </td>
                     <td className="p-4 font-mono text-xs">{new Date(o.data_emissao).toLocaleDateString('pt-BR')}</td>
                     <td className="p-4 text-right whitespace-nowrap">
@@ -1355,8 +1582,13 @@ export const ProcurementPage: React.FC = () => {
                         </button>
                       )}
                       {manage && ['Aberto', 'Enviado', 'Aceito', 'Em transporte'].includes(o.status) && (
-                        <button onClick={() => receiveOrder(o)} className="text-green-400 border border-green-500/30 px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-green-500/10">
+                        <button onClick={() => openReceivingModal(o)} className="text-green-400 border border-green-500/30 px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-green-500/10">
                           <Package size={12} className="inline mr-1" /> Receber
+                        </button>
+                      )}
+                      {manage && ['Aberto', 'Enviado', 'Aceito', 'Em transporte'].includes(o.status) && (
+                        <button onClick={() => cancelOrder(o)} className="ml-2 text-red-400 border border-red-500/30 px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-red-500/10">
+                          <Ban size={12} className="inline mr-1" /> Cancelar
                         </button>
                       )}
                       {manage && ['Recebido parcialmente', 'Recebido totalmente'].includes(o.status) && (
@@ -1492,6 +1724,35 @@ export const ProcurementPage: React.FC = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* ---------- CONTRATOS ---------- */}
+      {!loading && tab === 'contratos' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div><h2 className="font-mono text-sm font-bold uppercase text-brand-text">Contratos</h2><p className="mt-1 text-xs text-brand-muted">Acompanhe vigência, valor e renovação dos contratos com fornecedores.</p></div>
+            {manage && <button onClick={() => openContractModal()} className="bg-brand-primary px-4 py-2.5 text-xs font-bold font-mono uppercase tracking-wider text-brand-dark hover:bg-brand-primary/90"><Plus size={15} className="mr-1 inline" /> Novo contrato</button>}
+          </div>
+          <div className="overflow-x-auto border border-brand-border bg-brand-card">
+            <table className="w-full border-collapse text-left text-sm"><thead><tr className="border-b border-brand-border bg-brand-dark/20 text-xs font-mono uppercase tracking-wider text-brand-muted"><th className="p-4">Número</th><th className="p-4">Fornecedor</th><th className="p-4">Tipo</th><th className="p-4">Vigência</th><th className="p-4">Valor</th><th className="p-4">Renovação</th><th className="p-4 text-right">Ações</th></tr></thead>
+              <tbody className="divide-y divide-brand-border/60">{contracts.map((contract) => <tr key={contract.id} className="hover:bg-brand-dark/10"><td className="p-4 font-mono text-xs text-brand-primary">{contract.numero}</td><td className="p-4 text-brand-text">{contract.fornecedor?.nome ?? `#${contract.fornecedor_id}`}</td><td className="p-4 text-brand-muted">{contract.tipo}</td><td className="p-4 text-xs text-brand-muted">{fmtDateTime(contract.data_inicio).slice(0, 10)} até {fmtDateTime(contract.data_fim).slice(0, 10)}</td><td className="p-4 font-mono text-xs text-brand-text">{fmt(contract.valor)}</td><td className="p-4 text-xs text-brand-muted">{contract.renovacao_automatica ? 'Automática' : 'Manual'}</td><td className="p-4 text-right whitespace-nowrap">{manage && <><button onClick={() => openContractModal(contract)} className="mr-2 border border-brand-primary/30 px-2.5 py-1.5 text-xs font-mono uppercase text-brand-primary hover:bg-brand-primary/10"><Pencil size={12} className="mr-1 inline" />Editar</button><button onClick={() => deleteContract(contract)} className="border border-red-500/30 px-2.5 py-1.5 text-xs font-mono uppercase text-red-400 hover:bg-red-500/10"><Trash2 size={12} className="mr-1 inline" />Excluir</button></>}</td></tr>)}
+              {contracts.length === 0 && <tr><td colSpan={7} className="p-12 text-center font-mono text-sm text-brand-muted">Nenhum contrato cadastrado.</td></tr>}</tbody></table>
+          </div>
+          <div className="rounded-2xl border border-brand-border bg-brand-card p-5">
+            <div className="mb-4"><div className="text-xs font-mono uppercase tracking-wider text-brand-muted">Base de classificação</div><h3 className="mt-1 text-sm font-semibold text-brand-text">Tipos de contrato</h3><p className="mt-1 text-xs text-brand-muted">Padronize os tipos usados nos contratos, como licença, suporte, locação e serviço.</p></div>
+            {manage && <form onSubmit={createContractType} className="grid gap-3 md:grid-cols-[1fr_1.5fr_auto]"><input value={contractTypeName} onChange={(e) => setContractTypeName(e.target.value)} placeholder="Nome do tipo" className="border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text" /><input value={contractTypeDescription} onChange={(e) => setContractTypeDescription(e.target.value)} placeholder="Descrição opcional" className="border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text" /><button type="submit" disabled={savingContractType} className="bg-brand-primary px-4 py-2 text-xs font-bold font-mono uppercase text-brand-dark disabled:opacity-60">{savingContractType ? 'Salvando...' : 'Criar tipo'}</button></form>}
+            <div className="mt-4 flex flex-wrap gap-2">{contractTypes.map((type) => <span key={type.id} className="rounded-full border border-brand-primary/25 bg-brand-primary/5 px-3 py-1.5 text-xs text-brand-text">{type.nome}{type.descricao && <span className="ml-1 text-brand-muted">· {type.descricao}</span>}</span>)}{contractTypes.length === 0 && <span className="text-xs text-brand-muted">Nenhum tipo cadastrado.</span>}</div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- PESQUISAS ---------- */}
+      {!loading && tab === 'pesquisas' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3"><div><h2 className="font-mono text-sm font-bold uppercase text-brand-text">Pesquisas de compra</h2><p className="mt-1 text-xs text-brand-muted">Registre referências de mercado e encaminhe itens para aprovação.</p></div><button onClick={() => setResearchModal(true)} className="bg-brand-primary px-4 py-2.5 text-xs font-bold font-mono uppercase tracking-wider text-brand-dark hover:bg-brand-primary/90"><Plus size={15} className="mr-1 inline" /> Nova pesquisa</button></div>
+          <div className="space-y-3">{researches.map((research) => <div key={research.id} className="border border-brand-border bg-brand-card p-4"><div className="flex flex-col justify-between gap-3 md:flex-row"><div><div className="flex items-center gap-2"><span className="font-mono text-xs text-brand-primary">{research.numero}</span><span className="border border-brand-border px-2 py-0.5 font-mono text-[10px] uppercase text-brand-muted">{research.status}</span></div><h3 className="mt-2 font-semibold text-brand-text">{research.titulo}</h3><p className="mt-1 text-xs text-brand-muted">{research.justificativa}</p></div><div className="text-xs text-brand-muted">{research.solicitante?.nome || 'Solicitante'}<br />{fmtDateTime(research.data_criacao)}</div></div><div className="mt-3 grid gap-2 md:grid-cols-2">{research.items.map((item) => <div key={item.id} className="rounded border border-brand-border/60 bg-brand-dark/15 p-3 text-xs"><div className="font-medium text-brand-text">{item.nome_produto}</div><div className="mt-1 text-brand-muted">{item.quantidade} un. · {item.tipo_produto} · {fmt(item.valor_estimado)}</div>{item.link_produto && <a className="mt-1 inline-flex items-center text-brand-primary hover:underline" href={item.link_produto} target="_blank" rel="noreferrer">Ver referência <ExternalLink size={12} className="ml-1" /></a>}</div>)}</div>{manage && research.status === 'Pendente' && <div className="mt-4 flex gap-2"><button onClick={() => decideResearch(research, 'aprovar')} className="border border-green-500/30 px-3 py-2 text-xs font-mono uppercase text-green-400 hover:bg-green-500/10"><CheckCircle2 size={13} className="mr-1 inline" /> Aprovar e converter</button><button onClick={() => decideResearch(research, 'rejeitar')} className="border border-red-500/30 px-3 py-2 text-xs font-mono uppercase text-red-400 hover:bg-red-500/10"><Ban size={13} className="mr-1 inline" /> Reprovar</button></div>}</div>)}
+            {researches.length === 0 && <div className="border border-brand-border bg-brand-card p-12 text-center font-mono text-sm text-brand-muted">Nenhuma pesquisa de compra cadastrada.</div>}</div>
         </div>
       )}
 
@@ -1788,6 +2049,26 @@ export const ProcurementPage: React.FC = () => {
       )}
 
       {!loading && tab === 'fornecedores' && <SuppliersPage />}
+
+      {contractModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-dark/85 p-4 backdrop-blur-sm"><form onSubmit={submitContract} className="w-full max-w-2xl space-y-4 border border-brand-border bg-brand-card p-6 shadow-2xl"><div className="flex items-center justify-between border-b border-brand-border pb-3"><h2 className="font-mono text-sm font-bold uppercase">{editingContract ? 'Editar contrato' : 'Novo contrato'}</h2><button type="button" onClick={() => { setContractModal(false); resetContractForm(); }} className="text-brand-muted hover:text-brand-text"><X size={20} /></button></div><div className="grid gap-3 sm:grid-cols-2"><select required value={contractForm.fornecedor_id} onChange={(e) => setContractForm({ ...contractForm, fornecedor_id: e.target.value })} className="border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text"><option value="">Fornecedor...</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.nome}</option>)}</select><input required value={contractForm.numero} onChange={(e) => setContractForm({ ...contractForm, numero: e.target.value })} placeholder="Número do contrato" className="border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text" /><select value={contractForm.tipo_id} onChange={(e) => { const type = contractTypes.find((item) => item.id === Number(e.target.value)); setContractForm({ ...contractForm, tipo_id: e.target.value, tipo: type?.nome || contractForm.tipo }); }} className="border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text"><option value="">Tipo de contrato...</option>{contractTypes.filter((type) => type.ativo).map((type) => <option key={type.id} value={type.id}>{type.nome}</option>)}</select><input value={contractForm.tipo} onChange={(e) => setContractForm({ ...contractForm, tipo: e.target.value })} placeholder="Tipo (ex.: Licença, Serviço)" className="border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text" /><input required type="date" value={contractForm.data_inicio} onChange={(e) => setContractForm({ ...contractForm, data_inicio: e.target.value })} className="border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text" /><input required type="date" value={contractForm.data_fim} onChange={(e) => setContractForm({ ...contractForm, data_fim: e.target.value })} className="border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text" /><input type="number" min="0" step="0.01" value={contractForm.valor} onChange={(e) => setContractForm({ ...contractForm, valor: Number(e.target.value) })} placeholder="Valor" className="border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text" /><select value={contractForm.periodicidade} onChange={(e) => setContractForm({ ...contractForm, periodicidade: e.target.value })} className="border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text">{['Mensal', 'Trimestral', 'Semestral', 'Anual', 'Único'].map((period) => <option key={period}>{period}</option>)}</select></div><label className="flex items-center gap-2 text-xs text-brand-muted"><input type="checkbox" checked={contractForm.renovacao_automatica} onChange={(e) => setContractForm({ ...contractForm, renovacao_automatica: e.target.checked })} /> Renovação automática</label><div className="flex justify-end gap-3"><button type="button" onClick={() => { setContractModal(false); resetContractForm(); }} className="border border-brand-border px-4 py-2 text-xs font-mono uppercase">Cancelar</button><button type="submit" className="bg-brand-primary px-4 py-2 text-xs font-bold font-mono uppercase text-brand-dark">Salvar contrato</button></div></form></div>
+      )}
+
+      {researchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-dark/85 p-4 backdrop-blur-sm"><form onSubmit={submitResearch} className="max-h-[90vh] w-full max-w-3xl space-y-4 overflow-y-auto border border-brand-border bg-brand-card p-6 shadow-2xl"><div className="flex items-center justify-between border-b border-brand-border pb-3"><h2 className="font-mono text-sm font-bold uppercase">Nova pesquisa de compra</h2><button type="button" onClick={() => setResearchModal(false)} className="text-brand-muted hover:text-brand-text"><X size={20} /></button></div><input required value={researchTitle} onChange={(e) => setResearchTitle(e.target.value)} placeholder="Título da pesquisa" className="w-full border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text" /><textarea required value={researchJustification} onChange={(e) => setResearchJustification(e.target.value)} placeholder="Justificativa" rows={3} className="w-full border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text" /><div className="space-y-3">{researchItems.map((item, index) => <div key={index} className="grid gap-2 border border-brand-border/60 p-3 sm:grid-cols-6"><input required value={item.nome_produto} onChange={(e) => setResearchItems(researchItems.map((current, i) => i === index ? { ...current, nome_produto: e.target.value } : current))} placeholder="Produto" className="sm:col-span-2 border border-brand-border bg-brand-dark px-2 py-2 text-sm text-brand-text" /><input value={item.link_produto} onChange={(e) => setResearchItems(researchItems.map((current, i) => i === index ? { ...current, link_produto: e.target.value } : current))} placeholder="Link" className="sm:col-span-2 border border-brand-border bg-brand-dark px-2 py-2 text-sm text-brand-text" /><input type="number" min="0" step="0.01" value={item.valor_estimado} onChange={(e) => setResearchItems(researchItems.map((current, i) => i === index ? { ...current, valor_estimado: Number(e.target.value) } : current))} placeholder="Valor" className="border border-brand-border bg-brand-dark px-2 py-2 text-sm text-brand-text" /><input type="number" min="1" step="1" value={item.quantidade} onChange={(e) => setResearchItems(researchItems.map((current, i) => i === index ? { ...current, quantidade: Number(e.target.value) } : current))} placeholder="Qtd." className="border border-brand-border bg-brand-dark px-2 py-2 text-sm text-brand-text" /><select value={item.tipo_produto} onChange={(e) => setResearchItems(researchItems.map((current, i) => i === index ? { ...current, tipo_produto: e.target.value } : current))} className="sm:col-span-2 border border-brand-border bg-brand-dark px-2 py-2 text-sm text-brand-text"><option>Consumo</option><option>Imobilizado</option></select>{researchItems.length > 1 && <button type="button" onClick={() => setResearchItems(researchItems.filter((_, i) => i !== index))} className="border border-red-500/30 px-2 py-2 text-xs font-mono uppercase text-red-400">Remover</button>}</div>)}</div><button type="button" onClick={() => setResearchItems([...researchItems, { nome_produto: '', link_produto: '', valor_estimado: 0, quantidade: 1, tipo_produto: 'Consumo' }])} className="border border-brand-primary/30 px-3 py-2 text-xs font-mono uppercase text-brand-primary"><Plus size={13} className="mr-1 inline" />Adicionar item</button><div className="flex justify-end gap-3"><button type="button" onClick={() => setResearchModal(false)} className="border border-brand-border px-4 py-2 text-xs font-mono uppercase">Cancelar</button><button type="submit" className="bg-brand-primary px-4 py-2 text-xs font-bold font-mono uppercase text-brand-dark">Criar pesquisa</button></div></form></div>
+      )}
+
+      {receivingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-dark/85 p-4 backdrop-blur-sm">
+          <form onSubmit={submitReceiving} className="max-h-[90vh] w-full max-w-3xl space-y-5 overflow-y-auto rounded-xl border border-brand-border bg-brand-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-brand-border pb-3"><div><div className="font-mono text-xs text-brand-primary">{receivingOrder.numero}</div><h2 className="mt-1 text-lg font-semibold text-brand-text">Registrar recebimento</h2><p className="mt-1 text-xs text-brand-muted">Informe as quantidades efetivamente recebidas. Itens não preenchidos permanecem pendentes.</p></div><button type="button" onClick={() => setReceivingOrder(null)} className="text-brand-muted hover:text-brand-text"><X size={20} /></button></div>
+            <div className="space-y-3">{receivingOrder.itens.map((item) => { const draft = receivingItems.find((entry) => entry.product_id === item.product_id); const remaining = remainingOrderItemQuantity(receivingOrder, item.product_id, item.quantidade); return <div key={item.id} className="grid gap-3 rounded-lg border border-brand-border/60 bg-brand-dark/10 p-3 md:grid-cols-[1.4fr_.55fr_1fr]"><div><div className="text-sm font-medium text-brand-text">{item.product?.nome || `Produto #${item.product_id}`}</div><div className="mt-1 text-xs text-brand-muted">Pedido: {item.quantidade} · Pendente: {remaining} · {fmt(item.valor_unitario)} por unidade</div></div><label className="text-xs text-brand-muted">Quantidade recebida<input type="number" min="0" max={remaining} step="0.01" value={draft?.quantidade_recebida ?? 0} onChange={(e) => setReceivingItems(receivingItems.map((entry) => entry.product_id === item.product_id ? { ...entry, quantidade_recebida: Math.min(remaining, Math.max(0, Number(e.target.value))) } : entry))} className="mt-1 w-full border border-brand-border bg-brand-dark px-2 py-2 text-sm text-brand-text" /></label><label className="text-xs text-brand-muted">Divergência / observação<input value={draft?.divergencias ?? ''} onChange={(e) => setReceivingItems(receivingItems.map((entry) => entry.product_id === item.product_id ? { ...entry, divergencias: e.target.value } : entry))} placeholder="Ex.: embalagem avariada" className="mt-1 w-full border border-brand-border bg-brand-dark px-2 py-2 text-sm text-brand-text" /></label></div>; })}</div>
+            <div className="rounded-lg border border-brand-border/60 bg-brand-dark/10 p-3"><div className="flex flex-col gap-2 sm:flex-row sm:items-end"><label className="block flex-1 text-xs text-brand-muted">Nota fiscal (opcional)<select value={receivingInvoiceId} onChange={(e) => setReceivingInvoiceId(e.target.value ? Number(e.target.value) : '')} className="mt-1 w-full border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text"><option value="">Nenhuma NF-e vinculada</option>{receivingInvoices.map((invoice) => <option key={invoice.id} value={invoice.id}>NF-e {invoice.numero_nota}</option>)}</select></label><label className="cursor-pointer border border-cyan-500/30 px-3 py-2 text-center text-xs font-mono uppercase text-cyan-400 hover:bg-cyan-500/10"><input type="file" accept=".xml,text/xml,application/xml" className="hidden" disabled={uploadingReceivingInvoice} onChange={(e) => { const file = e.target.files?.[0]; void uploadReceivingInvoice(file); e.currentTarget.value = ''; }} />{uploadingReceivingInvoice ? 'Importando...' : 'Importar XML da NF-e'}</label></div><p className="mt-2 text-[11px] text-brand-muted">Importe o XML da NF-e do fornecedor ou selecione uma nota já cadastrada. A nota será vinculada a este recebimento.</p></div>
+            <label className="block text-xs text-brand-muted">Observações gerais<textarea value={receivingNotes} onChange={(e) => setReceivingNotes(e.target.value)} rows={3} placeholder="Ex.: entrega conferida no almoxarifado" className="mt-1 w-full border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text" /></label>
+            <div className="flex justify-end gap-3"><button type="button" onClick={() => setReceivingOrder(null)} className="border border-brand-border px-4 py-2 text-xs font-mono uppercase">Cancelar</button><button type="submit" disabled={savingReceiving} className="bg-brand-primary px-4 py-2 text-xs font-bold font-mono uppercase text-brand-dark disabled:opacity-60">{savingReceiving ? 'Registrando...' : 'Confirmar recebimento'}</button></div>
+          </form>
+        </div>
+      )}
 
       {/* ---------- REQUEST DETAILS MODAL ---------- */}
       {viewingRequest && (

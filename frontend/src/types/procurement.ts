@@ -142,6 +142,7 @@ export interface PurchaseOrder {
   fornecedor?: { id: number; nome: string };
   centro_custo?: CostCenter;
   itens: PurchaseOrderItem[];
+  receivings?: PurchaseReceiving[];
   request_valor_estimado_total: number;
   economia_estimada: number;
   prazo_entrega_dias: number;
@@ -167,6 +168,7 @@ export interface PurchaseReceiving {
   data_recebimento: string;
   responsavel_id: number;
   nota_fiscal_id?: number;
+	  nota_fiscal?: { id: number; numero_nota: string };
   observacoes?: string;
   responsavel?: { id: number; nome: string };
   itens: PurchaseReceivingItem[];

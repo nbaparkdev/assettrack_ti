@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import { assetsApi } from '../api/assets';
+import { suppliersApi } from '../api/suppliers';
 import { usersApi } from '../api/users';
 import { maintenanceApi } from '../api/maintenance';
 import { transactionApi } from '../api/transaction';
@@ -98,6 +99,9 @@ export const AssetsPage: React.FC = () => {
   const [assetRequerRH, setAssetRequerRH] = useState(false);
   const [assetCategoriaId, setAssetCategoriaId] = useState<number | ''>('');
   const [assetFornecedorId, setAssetFornecedorId] = useState<number | ''>('');
+  const [assetNotaFiscalId, setAssetNotaFiscalId] = useState<number | ''>('');
+  const [assetNotasFiscais, setAssetNotasFiscais] = useState<{ id: number; numero_nota: string }[]>([]);
+  const [loadingAssetNotasFiscais, setLoadingAssetNotasFiscais] = useState(false);
   const [assetLocalId, setAssetLocalId] = useState<number | ''>('');
   const [assetArmazenamentoId, setAssetArmazenamentoId] = useState<number | ''>('');
   const [assetDataAquisicao, setAssetDataAquisicao] = useState('');
@@ -321,6 +325,8 @@ export const AssetsPage: React.FC = () => {
     setAssetRequerRH(false);
     setAssetCategoriaId('');
     setAssetFornecedorId('');
+    setAssetNotaFiscalId('');
+    setAssetNotasFiscais([]);
     setAssetLocalId('');
     setAssetArmazenamentoId('');
     setAssetDataAquisicao('');
@@ -344,6 +350,7 @@ export const AssetsPage: React.FC = () => {
     setAssetRequerRH(a.requer_termo_rh);
     setAssetCategoriaId(a.categoria_id || '');
     setAssetFornecedorId(a.fornecedor_id || '');
+    setAssetNotaFiscalId(a.nota_fiscal_id || '');
     setAssetLocalId(a.current_local_id || '');
     setAssetArmazenamentoId(a.current_armazenamento_id || '');
     setAssetDataAquisicao(a.data_aquisicao ? a.data_aquisicao.split('T')[0] : '');
@@ -372,6 +379,7 @@ export const AssetsPage: React.FC = () => {
       requer_termo_rh: assetRequerRH,
       categoria_id: assetCategoriaId ? Number(assetCategoriaId) : null,
       fornecedor_id: assetFornecedorId ? Number(assetFornecedorId) : null,
+      nota_fiscal_id: assetNotaFiscalId ? Number(assetNotaFiscalId) : null,
       current_local_id: assetLocalId ? Number(assetLocalId) : null,
       current_armazenamento_id: assetArmazenamentoId ? Number(assetArmazenamentoId) : null,
       current_departamento_id: assetDepartamentoId ? Number(assetDepartamentoId) : null,
@@ -400,6 +408,20 @@ export const AssetsPage: React.FC = () => {
       setFormError(err.response?.data?.error || 'Erro ao salvar ativo.');
     }
   };
+
+  useEffect(() => {
+    if (!showFormModal || !assetFornecedorId) {
+      setAssetNotasFiscais([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingAssetNotasFiscais(true);
+    suppliersApi.listInvoices(Number(assetFornecedorId))
+      .then((invoices) => { if (!cancelled) setAssetNotasFiscais(invoices); })
+      .catch(() => { if (!cancelled) setAssetNotasFiscais([]); })
+      .finally(() => { if (!cancelled) setLoadingAssetNotasFiscais(false); });
+    return () => { cancelled = true; };
+  }, [assetFornecedorId, showFormModal]);
 
   const handleDeleteAsset = async (id: number) => {
     if (!window.confirm('Tem certeza que deseja excluir permanentemente este ativo?')) return;
@@ -1847,7 +1869,7 @@ export const AssetsPage: React.FC = () => {
                   <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">Fornecedor</label>
                   <select
                     value={assetFornecedorId}
-                    onChange={(e) => setAssetFornecedorId(e.target.value ? Number(e.target.value) : '')}
+                    onChange={(e) => { setAssetFornecedorId(e.target.value ? Number(e.target.value) : ''); setAssetNotaFiscalId(''); }}
                     className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary font-mono"
                   >
                     <option value="">Selecione...</option>
@@ -1855,6 +1877,19 @@ export const AssetsPage: React.FC = () => {
                       <option key={f.id} value={f.id}>{f.nome}</option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">Nota fiscal (NF-e)</label>
+                  <select
+                    value={assetNotaFiscalId}
+                    disabled={!assetFornecedorId || loadingAssetNotasFiscais}
+                    onChange={(e) => setAssetNotaFiscalId(e.target.value ? Number(e.target.value) : '')}
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary font-mono disabled:opacity-60"
+                  >
+                    <option value="">{loadingAssetNotasFiscais ? 'Carregando NF-e...' : assetFornecedorId ? 'Selecione a NF-e...' : 'Selecione o fornecedor primeiro'}</option>
+                    {assetNotasFiscais.map((invoice) => <option key={invoice.id} value={invoice.id}>NF-e {invoice.numero_nota}</option>)}
+                  </select>
+                  {assetFornecedorId && !loadingAssetNotasFiscais && assetNotasFiscais.length === 0 && <p className="mt-1 text-[10px] text-brand-muted">Nenhuma NF-e cadastrada para este fornecedor.</p>}
                 </div>
               </div>
 

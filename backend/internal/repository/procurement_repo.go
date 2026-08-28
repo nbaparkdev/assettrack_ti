@@ -377,7 +377,7 @@ func NewProcurementOrderRepository(db *gorm.DB) *ProcurementOrderRepository {
 
 func (r *ProcurementOrderRepository) List(status string, skip, limit int) ([]models.PurchaseOrder, error) {
 	var items []models.PurchaseOrder
-	q := r.db.Preload("Fornecedor").Preload("CentroCusto").Preload("Request").Preload("Request.Itens").Preload("Quotation.Suppliers").Preload("Itens.Product").Preload("Receivings")
+	q := r.db.Preload("Fornecedor").Preload("CentroCusto").Preload("Request").Preload("Request.Itens").Preload("Quotation.Suppliers").Preload("Itens.Product").Preload("Receivings.NotaFiscal").Preload("Receivings.Itens")
 	if status != "" {
 		q = q.Where("status = ?", status)
 	}
@@ -388,7 +388,7 @@ func (r *ProcurementOrderRepository) List(status string, skip, limit int) ([]mod
 func (r *ProcurementOrderRepository) GetByID(id uint) (*models.PurchaseOrder, error) {
 	var item models.PurchaseOrder
 	err := r.db.Preload("Fornecedor").Preload("CentroCusto").Preload("Request").Preload("Request.Itens").
-		Preload("Quotation.Suppliers").Preload("Itens.Product").Preload("Receivings.Responsavel").
+		Preload("Quotation.Suppliers").Preload("Itens.Product").Preload("Receivings.Responsavel").Preload("Receivings.NotaFiscal").Preload("Receivings.Itens").
 		First(&item, id).Error
 	if err != nil {
 		return nil, err

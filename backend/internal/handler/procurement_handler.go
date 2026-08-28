@@ -61,6 +61,7 @@ type ProcurementHandler struct {
 	historyRepo      *repository.ProcurementHistoryRepository
 	notifRepo        *repository.ProcurementNotificationRepository
 	researchRepo     *repository.ProcurementResearchRepository
+	invoiceRepo      *repository.InvoiceRepository
 	assetRepo        *repository.AssetRepository
 	userRepo         *repository.UserRepository
 	projectRepo      *repository.KanbanProjectRepository
@@ -85,6 +86,7 @@ func NewProcurementHandler(
 	historyRepo *repository.ProcurementHistoryRepository,
 	notifRepo *repository.ProcurementNotificationRepository,
 	researchRepo *repository.ProcurementResearchRepository,
+	invoiceRepo *repository.InvoiceRepository,
 	assetRepo *repository.AssetRepository,
 	userRepo *repository.UserRepository,
 	projectRepo *repository.KanbanProjectRepository,
@@ -108,6 +110,7 @@ func NewProcurementHandler(
 		historyRepo:      historyRepo,
 		notifRepo:        notifRepo,
 		researchRepo:     researchRepo,
+		invoiceRepo:      invoiceRepo,
 		assetRepo:        assetRepo,
 		userRepo:         userRepo,
 		projectRepo:      projectRepo,
@@ -151,12 +154,12 @@ func (h *ProcurementHandler) broadcastKanbanRequestUpdate(req *models.PurchaseRe
 	h.kanbanBroker.BroadcastToUsers(ids, KanbanEvent{
 		Type: "kanban_update",
 		Payload: gin.H{
-			"tipo":        "SOLICITACAO_COMPRA_ATUALIZADA",
-			"mensagem":    mensagem,
-			"project_id":  card.ProjectID,
-			"card_id":     card.ID,
-			"request_id":  req.ID,
-			"status":      req.Status,
+			"tipo":       "SOLICITACAO_COMPRA_ATUALIZADA",
+			"mensagem":   mensagem,
+			"project_id": card.ProjectID,
+			"card_id":    card.ID,
+			"request_id": req.ID,
+			"status":     req.Status,
 		},
 	})
 }
@@ -546,24 +549,24 @@ func (h *ProcurementHandler) Dashboard(c *gin.Context) {
 			status = "no_budget"
 		}
 		ccSummary = append(ccSummary, gin.H{
-			"id":                   cc.ID,
-			"codigo":               cc.Codigo,
-			"nome":                 cc.Nome,
-			"orcamento_mensal":     cc.OrcamentoMensal,
+			"id":                     cc.ID,
+			"codigo":                 cc.Codigo,
+			"nome":                   cc.Nome,
+			"orcamento_mensal":       cc.OrcamentoMensal,
 			"orcamento_mensal_usado": cc.OrcamentoMensalUsado,
-			"uso_percentual":       usagePct,
-			"status":               status,
+			"uso_percentual":         usagePct,
+			"status":                 status,
 		})
 		ccReports[cc.ID] = gin.H{
-			"id":                 cc.ID,
-			"codigo":             cc.Codigo,
-			"nome":               cc.Nome,
-			"orcamento_mensal":   cc.OrcamentoMensal,
-			"orcamento_usado":    cc.OrcamentoMensalUsado,
+			"id":                  cc.ID,
+			"codigo":              cc.Codigo,
+			"nome":                cc.Nome,
+			"orcamento_mensal":    cc.OrcamentoMensal,
+			"orcamento_usado":     cc.OrcamentoMensalUsado,
 			"solicitado_pendente": 0.0,
 			"solicitado_aprovado": 0.0,
-			"comprado_total":     0.0,
-			"economia_total":     0.0,
+			"comprado_total":      0.0,
+			"economia_total":      0.0,
 		}
 	}
 	for _, r := range reqs {
@@ -660,23 +663,23 @@ func (h *ProcurementHandler) Dashboard(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"req_pending_count":      reqPending,
-		"orders_active_count":    ordersActive,
-		"low_stock_count":        lowStock,
-		"requests_recent":        recentReq,
-		"orders_recent":          recentOrders,
-		"requested_total":        requestedTotal,
-		"quoted_total":           quotedTotal,
-		"ordered_total":          orderedTotal,
+		"req_pending_count":       reqPending,
+		"orders_active_count":     ordersActive,
+		"low_stock_count":         lowStock,
+		"requests_recent":         recentReq,
+		"orders_recent":           recentOrders,
+		"requested_total":         requestedTotal,
+		"quoted_total":            quotedTotal,
+		"ordered_total":           orderedTotal,
 		"estimated_savings_total": estimatedSavingsTotal,
-		"top_suppliers":          topSuppliers,
-		"cost_center_reports":    costCenterReports,
-		"supplier_performance":   supplierPerformance,
-		"monthly_budget_total":   monthlyBudgetTotal,
-		"monthly_budget_used":    monthlyBudgetUsed,
-		"cost_centers_alert":     costCentersAlert,
+		"top_suppliers":           topSuppliers,
+		"cost_center_reports":     costCenterReports,
+		"supplier_performance":    supplierPerformance,
+		"monthly_budget_total":    monthlyBudgetTotal,
+		"monthly_budget_used":     monthlyBudgetUsed,
+		"cost_centers_alert":      costCentersAlert,
 		"cost_centers_over_limit": costCentersOverLimit,
-		"cost_centers_summary":   ccSummary,
+		"cost_centers_summary":    ccSummary,
 	})
 }
 
@@ -1852,8 +1855,21 @@ func (h *ProcurementHandler) ReceiveOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Informe ao menos um item recebido"})
 		return
 	}
+	if in.NotaFiscalID != nil {
+		invoice, err := h.invoiceRepo.GetByID(*in.NotaFiscalID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Nota fiscal não encontrada"})
+			return
+		}
+		if invoice.FornecedorID != order.FornecedorID {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "A nota fiscal selecionada não pertence ao fornecedor deste pedido"})
+			return
+		}
+	}
 	ordered := make(map[uint]float64)
-	for _, item := range order.Itens { ordered[item.ProductID] += item.Quantidade }
+	for _, item := range order.Itens {
+		ordered[item.ProductID] += item.Quantidade
+	}
 	for _, item := range in.Itens {
 		if item.ProductID == 0 || item.QuantidadeRecebida <= 0 || ordered[item.ProductID] == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Item de recebimento não pertence ao pedido ou possui quantidade inválida"})
@@ -1954,13 +1970,13 @@ func (h *ProcurementHandler) convertReceivingToAssets(
 				if len(order.Itens) > 0 {
 					valor = order.ValorTotal / float64(len(order.Itens))
 				}
-				
+
 				// Unique serial number by appending index if multiple items
 				numeroSerie := product.Codigo
 				if qty > 1 {
 					numeroSerie = fmt.Sprintf("%s-%d", product.Codigo, q+1)
 				}
-				
+
 				asset := models.Asset{
 					Nome:                   product.Nome,
 					EPatrimonio:            patrimonio,
@@ -2030,10 +2046,10 @@ func (h *ProcurementHandler) ListStockTransactions(c *gin.Context) {
 func (h *ProcurementHandler) ConsumeStock(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	var in struct {
-		StockID         uint    `json:"stock_id"`
-		QuantidadeUsar  float64 `json:"quantidade_usar"`
-		Justificativa   string  `json:"justificativa"`
-		CentroCustoID   *uint   `json:"centro_custo_id"`
+		StockID        uint    `json:"stock_id"`
+		QuantidadeUsar float64 `json:"quantidade_usar"`
+		Justificativa  string  `json:"justificativa"`
+		CentroCustoID  *uint   `json:"centro_custo_id"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -2116,6 +2132,10 @@ func (h *ProcurementHandler) CreateContract(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Datas inválidas"})
 		return
 	}
+	if dtFim.Before(*dtIni) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A data final deve ser posterior à data inicial"})
+		return
+	}
 	contract := &models.PurchaseContract{
 		FornecedorID:        in.FornecedorID,
 		Tipo:                in.Tipo,
@@ -2168,6 +2188,10 @@ func (h *ProcurementHandler) UpdateContract(c *gin.Context) {
 	}
 	if dt := parseProcDate(in.DataFim); dt != nil {
 		contract.DataFim = *dt
+	}
+	if contract.DataFim.Before(contract.DataInicio) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A data final deve ser posterior à data inicial"})
+		return
 	}
 	contract.RenovacaoAutomatica = in.RenovacaoAutomatica
 	contract.Valor = in.Valor
@@ -2754,18 +2778,18 @@ func (h *ProcurementHandler) KanbanPurchaseRequest(c *gin.Context) {
 func (h *ProcurementHandler) CreateMaintenancePurchaseRequest(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	var in struct {
-		NomeProduto          string   `json:"nome_produto"`
-		LinkProduto          string   `json:"link_produto"`
-		Quantidade           float64  `json:"quantidade"`
-		ValorEstimado        float64  `json:"valor_estimado"`
-		Justificativa        string   `json:"justificativa"`
-		Urgencia             string   `json:"urgencia"`
-		TipoItem             string   `json:"tipo_item"`
-		AssetID              *uint    `json:"asset_id"`
-		MaintenanceOrderID   *uint    `json:"maintenance_order_id"`
-		MaintenanceRequestID *uint    `json:"maintenance_request_id"`
-		CentroCustoID        *uint    `json:"centro_custo_id"`
-		DepartamentoID       *uint    `json:"departamento_id"`
+		NomeProduto          string  `json:"nome_produto"`
+		LinkProduto          string  `json:"link_produto"`
+		Quantidade           float64 `json:"quantidade"`
+		ValorEstimado        float64 `json:"valor_estimado"`
+		Justificativa        string  `json:"justificativa"`
+		Urgencia             string  `json:"urgencia"`
+		TipoItem             string  `json:"tipo_item"`
+		AssetID              *uint   `json:"asset_id"`
+		MaintenanceOrderID   *uint   `json:"maintenance_order_id"`
+		MaintenanceRequestID *uint   `json:"maintenance_request_id"`
+		CentroCustoID        *uint   `json:"centro_custo_id"`
+		DepartamentoID       *uint   `json:"departamento_id"`
 	}
 
 	if err := c.ShouldBindJSON(&in); err != nil {
