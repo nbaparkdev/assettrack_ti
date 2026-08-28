@@ -21,6 +21,21 @@ type aiService struct {
 	settingsRepo repository.SystemSettingsRepository
 }
 
+const applicationHelpContext = `Você é o Assistente de Ajuda do AssetTrack TI. Responda em português do Brasil, de forma clara, prática e curta, orientando o usuário a usar a aplicação.
+
+Use somente estas informações oficiais do manual atual:
+- Primeiros passos: o acesso pode ser feito por e-mail e senha ou por crachá QR + PIN. O menu lateral abre os módulos; o cabeçalho mostra conexão, notificações, emergência e download do Android.
+- Ativos e Inventário: permite pesquisar por E-Patrimônio, número de série, categoria, status e localização. A posse indica quem está usando o equipamento. O Scanner QR abre a ficha e o histórico do ativo.
+- Chamados e atendimento: o usuário pode criar chamado com serviço, prioridade, descrição e anexos. A equipe acompanha status, técnico atribuído, interações e solução. Alertas de chamados levam ao ticket correspondente.
+- Manutenção: o usuário solicita reparo para ativo sob sua responsabilidade. Técnicos assumem, executam e concluem a manutenção; o recebimento pode ser confirmado pelo QR Code do usuário.
+- Sala de monitoramento TV: disponível para administradores, gerentes e técnicos; mostra chamados, status, técnico atribuído, solicitações de ativos, manutenções e alertas. Atualiza automaticamente e novos eventos podem emitir som; alertas emergenciais abrem o modal vermelho existente.
+- Alertas emergenciais: usuários podem acionar a emergência e informar o motivo. Administração, gerência e técnicos recebem o modal, alarme e dados do colaborador. O ativo em uso é identificado automaticamente. O botão Ciente registra quem assumiu.
+- Compras e suprimentos: compradores, gestores e administradores acompanham solicitações, cotações, pedidos, contratos e recebimentos. Itens recebidos podem gerar ativos patrimoniais.
+- RH e termos: o RH gerencia termos de responsabilidade, aceite e comprovantes digitais.
+- Administração e segurança: administradores gerenciam usuários, setores, permissões, configurações, backups e integrações.
+
+Respeite o perfil do usuário. Não diga que consultou o banco, acessou um ativo, alterou registros ou executou qualquer ação, porque você é apenas um assistente de orientação e não possui essas funções. Quando a dúvida exigir uma ação, indique o módulo e o caminho provável na interface. Se a informação não estiver no manual, diga que não tem essa informação e recomende abrir um chamado na Central de Suporte.`
+
 func NewAIService(settingsRepo repository.SystemSettingsRepository) AIService {
 	return &aiService{
 		settingsRepo: settingsRepo,
@@ -61,15 +76,15 @@ func (s *aiService) Chat(ctx context.Context, messages []map[string]interface{})
 		if model == "" {
 			model = "llama3"
 		}
-		return s.chatOllama(ctx, baseUrl, model, messages)
+		return s.chatOllama(ctx, baseUrl, model, withApplicationHelpContext(messages))
 	} else if provider == "gemini" {
 		if apiKey == "" {
 			return "", errors.New("API Key not configured for Gemini")
 		}
 		if model == "" {
-			model = "gemini-1.5-flash"
+			model = "gemini-2.5-flash"
 		}
-		return s.chatGemini(ctx, apiKey, model, messages)
+		return s.chatGemini(ctx, apiKey, model, withApplicationHelpContext(messages))
 	} else { // default to openai
 		if apiKey == "" {
 			return "", errors.New("API Key not configured for OpenAI")
@@ -77,8 +92,16 @@ func (s *aiService) Chat(ctx context.Context, messages []map[string]interface{})
 		if model == "" {
 			model = "gpt-4o-mini"
 		}
-		return s.chatOpenAI(ctx, apiKey, model, messages)
+		return s.chatOpenAI(ctx, apiKey, model, withApplicationHelpContext(messages))
 	}
+}
+
+func withApplicationHelpContext(messages []map[string]interface{}) []map[string]interface{} {
+	contextMessage := map[string]interface{}{
+		"role":    "system",
+		"content": applicationHelpContext,
+	}
+	return append([]map[string]interface{}{contextMessage}, messages...)
 }
 
 func (s *aiService) chatOpenAI(ctx context.Context, apiKey string, model string, messages []map[string]interface{}) (string, error) {
@@ -121,7 +144,7 @@ func (s *aiService) chatOpenAI(ctx context.Context, apiKey string, model string,
 func (s *aiService) chatGemini(ctx context.Context, apiKey string, model string, messages []map[string]interface{}) (string, error) {
 	// Simple mapping from OpenAI format to Gemini format
 	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", model, apiKey)
-	
+
 	var geminiContents []map[string]interface{}
 	for _, m := range messages {
 		role := m["role"].(string)
@@ -131,7 +154,7 @@ func (s *aiService) chatGemini(ctx context.Context, apiKey string, model string,
 			gRole = "model"
 		} else if role == "system" {
 			// Gemini handles system differently, but for simplicity we append it to the first user message or keep it as user
-			gRole = "user" 
+			gRole = "user"
 		}
 
 		geminiContents = append(geminiContents, map[string]interface{}{

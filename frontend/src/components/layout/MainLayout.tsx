@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { BottomNav } from './BottomNav';
@@ -13,19 +13,7 @@ interface MainLayoutProps {
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { token, loading } = useAuthStore();
-  const [showChatbotWidget, setShowChatbotWidget] = useState(() => localStorage.getItem('assettrack-ai-enabled') !== 'false');
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
-
-  useEffect(() => {
-    const handleVisibilityChange = (event: Event) => {
-      const detail = (event as CustomEvent<{ enabled?: boolean }>).detail;
-      const enabled = detail?.enabled ?? localStorage.getItem('assettrack-ai-enabled') !== 'false';
-      setShowChatbotWidget(enabled);
-    };
-
-    window.addEventListener('assettrack-ai-visibility-change', handleVisibilityChange as EventListener);
-    return () => window.removeEventListener('assettrack-ai-visibility-change', handleVisibilityChange as EventListener);
-  }, []);
 
   if (loading) {
     return (
@@ -58,7 +46,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             © {new Date().getFullYear()} AssetTrack TI. Todos os direitos reservados.
           </footer>
         </main>
-        {showChatbotWidget && <ChatbotWidget />}
+        {/* O campo de ajuda é acessível a todo usuário autenticado. */}
+        <ChatbotWidget />
         <EmergencyGlobalHandler />
         <BottomNav onOpenDrawer={() => setIsMobileDrawerOpen(true)} />
       </div>

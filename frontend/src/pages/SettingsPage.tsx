@@ -17,7 +17,11 @@ export const SettingsPage: React.FC = () => {
   const fetchSettings = async () => {
     try {
       const data = await getSettings();
-      setSettings(data);
+      setSettings({
+        ...data,
+        openai_model: data.openai_model || 'gpt-4o-mini',
+        gemini_model: data.gemini_model || 'gemini-2.5-flash',
+      });
       const aiEnabled = data.ai_enabled !== 'false';
       localStorage.setItem('assettrack-ai-enabled', String(aiEnabled));
       window.dispatchEvent(new CustomEvent('assettrack-ai-visibility-change', { detail: { enabled: aiEnabled } }));
@@ -202,6 +206,24 @@ export const SettingsPage: React.FC = () => {
                     className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors placeholder-brand-muted/30"
                   />
                 </div>
+
+                {settings.ai_provider === 'gemini' && (
+                  <div>
+                    <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Modelo Gemini</label>
+                    <select
+                      name="gemini_model"
+                      value={settings.gemini_model || 'gemini-2.5-flash'}
+                      onChange={handleInputChange}
+                      className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors appearance-none"
+                    >
+                      <option value="gemini-2.5-flash" className="bg-brand-dark text-brand-text">Gemini 2.5 Flash (recomendado)</option>
+                      <option value="gemini-2.5-pro" className="bg-brand-dark text-brand-text">Gemini 2.5 Pro</option>
+                      <option value="gemini-2.0-flash" className="bg-brand-dark text-brand-text">Gemini 2.0 Flash</option>
+                      <option value="gemini-2.0-flash-lite" className="bg-brand-dark text-brand-text">Gemini 2.0 Flash Lite</option>
+                    </select>
+                    <p className="mt-1 text-xs text-brand-muted">Selecione um modelo liberado para a sua chave no Google AI Studio.</p>
+                  </div>
+                )}
               </>
             )}
           </div>

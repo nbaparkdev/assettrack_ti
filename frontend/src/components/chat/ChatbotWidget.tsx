@@ -34,8 +34,12 @@ export const ChatbotWidget: React.FC = () => {
     try {
       const response = await sendChatMessage(newMessages);
       setMessages(prev => [...prev, { role: 'assistant', content: response.response }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Desculpe, ocorreu um erro ao se comunicar com o servidor.' }]);
+    } catch (error: any) {
+      const serverMessage = error?.response?.data?.error;
+      const message = serverMessage
+        ? `Não foi possível obter uma resposta: ${serverMessage}`
+        : 'Desculpe, ocorreu um erro ao se comunicar com o servidor.';
+      setMessages(prev => [...prev, { role: 'assistant', content: message }]);
     } finally {
       setLoading(false);
     }
