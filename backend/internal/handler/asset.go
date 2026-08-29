@@ -28,6 +28,13 @@ type AssetHandler struct {
 	categoryRepo *repository.AssetCategoryRepository
 }
 
+func sameAssetUserID(left, right *uint) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
+}
+
 func NewAssetHandler(repo *repository.AssetRepository, categoryRepo *repository.AssetCategoryRepository) *AssetHandler {
 	return &AssetHandler{
 		repo:         repo,
@@ -715,7 +722,12 @@ func (h *AssetHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if asset.Status == models.AssetStatusEmUso && asset.CurrentUserID != nil {
+	// When an asset is newly assigned (or the responsible user changes),
+	// derive its location, department and storage from the user. Once the
+	// same user is already assigned, preserve manually edited location data.
+	userAssignmentChanged := !sameAssetUserID(oldUserID, asset.CurrentUserID)
+	if asset.Status == models.AssetStatusEmUso && asset.CurrentUserID != nil &&
+		(oldStatus != models.AssetStatusEmUso || userAssignmentChanged) {
 		var currentUser models.User
 		if err := h.repo.DB().Preload("Departamento").Preload("Localizacao").First(&currentUser, *asset.CurrentUserID).Error; err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Usuário responsável pelo ativo não encontrado"})
@@ -811,7 +823,15 @@ func (h *AssetHandler) Update(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, asset)
+	// Return the persisted asset with fresh relations. The update request may
+	// change a foreign key such as CurrentLocalID, while the asset loaded above
+	// still holds the old preloaded CurrentLocal relation in memory.
+	updatedAsset, err := h.repo.GetByID(asset.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "ativo atualizado, mas não foi possível recarregar os dados"})
+		return
+	}
+	c.JSON(http.StatusOK, updatedAsset)
 }
 
 func (h *AssetHandler) Delete(c *gin.Context) {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/assettrack/backend/internal/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type AssetRepository struct {
@@ -181,8 +182,10 @@ func (r *AssetRepository) Update(updated *models.Asset) error {
 		}
 	}
 
-	// Update record using db.Select("*").Save (saves all fields including nil/zeros)
-	return r.db.Select("*").Save(updated).Error
+	// Persist only the asset fields. Because an asset is loaded with its
+	// relations preloaded, GORM could otherwise write the old relation back
+	// over a newly selected foreign key such as CurrentLocalID.
+	return r.db.Omit(clause.Associations).Select("*").Save(updated).Error
 }
 
 func (r *AssetRepository) Delete(id uint) error {

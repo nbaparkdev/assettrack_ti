@@ -38,6 +38,8 @@ import {
   Layers3,
   Wrench,
   Download,
+  ChevronLeft,
+  ChevronRight,
   ArrowRightLeft,
   RotateCcw,
   Camera,
@@ -71,6 +73,9 @@ export const AssetsPage: React.FC = () => {
   const [searchEP, setSearchEP] = useState('');
   const [filterCategory, setFilterCategory] = useState<number | ''>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [assetPage, setAssetPage] = useState(1);
+  const [assetPageSize, setAssetPageSize] = useState<20 | 50 | 100>(20);
+  const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(new Set());
   
   // Reports Filters
   const [reportStartDate, setReportStartDate] = useState('');
@@ -204,7 +209,7 @@ export const AssetsPage: React.FC = () => {
     setLoading(true);
     setGlobalError(null);
     try {
-      const data = await assetsApi.list(0, 100, {
+      const data = await assetsApi.list(0, 10000, {
         e_patrimonio: searchEP,
         categoria_id: filterCategory,
         status: filterStatus,
@@ -288,6 +293,8 @@ export const AssetsPage: React.FC = () => {
   };
 
   useEffect(() => {
+    setAssetPage(1);
+    setSelectedAssetIds(new Set());
     fetchAssets();
     fetchReferences();
   }, [searchEP, filterCategory, filterStatus]);
@@ -427,11 +434,88 @@ export const AssetsPage: React.FC = () => {
     if (!window.confirm('Tem certeza que deseja excluir permanentemente este ativo?')) return;
     try {
       await assetsApi.delete(id);
+      setSelectedAssetIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
       setGlobalSuccess('Ativo excluído com sucesso.');
       fetchAssets();
     } catch (err: any) {
       setGlobalError('Não foi possível excluir o ativo.');
     }
+  };
+
+  const handleToggleAssetSelection = (assetId: number) => {
+    setSelectedAssetIds((current) => {
+      const next = new Set(current);
+      if (next.has(assetId)) next.delete(assetId);
+      else next.add(assetId);
+      return next;
+    });
+  };
+
+  const handleToggleAssetGroupSelection = (assetIds: number[]) => {
+    const everyAssetSelected = assetIds.length > 0 && assetIds.every((id) => selectedAssetIds.has(id));
+    setSelectedAssetIds((current) => {
+      const next = new Set(current);
+      assetIds.forEach((id) => {
+        if (everyAssetSelected) next.delete(id);
+        else next.add(id);
+      });
+      return next;
+    });
+  };
+
+  const handleExportSelectedAssets = () => {
+    const selectedAssets = assets.filter((asset) => selectedAssetIds.has(asset.id));
+    if (selectedAssets.length === 0) return;
+
+    const escapeCsv = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+    const rows = [
+      ['E-Patrimonio', 'Nome', 'Modelo', 'Categoria', 'Status', 'Localização', 'Armazenamento', 'Em posse de', 'Setor / Departamento'],
+      ...selectedAssets.map((asset) => [
+        asset.e_patrimonio,
+        asset.nome,
+        asset.modelo,
+        asset.categoria?.nome,
+        asset.status,
+        getAssetLocationLabel(asset),
+        getAssetStorageLabel(asset),
+        asset.current_user?.nome || asset.em_posse_de,
+        asset.current_departamento?.nome,
+      ]),
+    ];
+    const blob = new Blob([`\uFEFF${rows.map((row) => row.map(escapeCsv).join(';')).join('\n')}`], { type: 'text/csv;charset=utf-8;' });
+    const fileUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = `ativos_selecionados_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(fileUrl);
+  };
+
+  const handleDeleteSelectedAssets = async () => {
+    const selectedIds = Array.from(selectedAssetIds);
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Deseja excluir permanentemente ${selectedIds.length} ativo(s) selecionado(s)?`)) return;
+
+    const results = await Promise.allSettled(selectedIds.map((id) => assetsApi.delete(id)));
+    const deletedIds = selectedIds.filter((_, index) => results[index].status === 'fulfilled');
+    const failedCount = selectedIds.length - deletedIds.length;
+    setSelectedAssetIds((current) => {
+      const next = new Set(current);
+      deletedIds.forEach((id) => next.delete(id));
+      return next;
+    });
+    if (failedCount > 0) {
+      setGlobalError(`${failedCount} ativo(s) não puderam ser excluídos. Os demais foram removidos.`);
+    } else {
+      setGlobalSuccess(`${deletedIds.length} ativo(s) excluído(s) com sucesso.`);
+    }
+    await fetchAssets();
   };
 
   const handleOpenDetailModal = (asset: Asset) => {
@@ -940,6 +1024,16 @@ export const AssetsPage: React.FC = () => {
     groupedAssets[catName].push(a);
   });
 
+  const assetTotalPages = Math.max(1, Math.ceil(assets.length / assetPageSize));
+  const currentAssetPage = Math.min(assetPage, assetTotalPages);
+  const paginatedAssets = assets.slice((currentAssetPage - 1) * assetPageSize, currentAssetPage * assetPageSize);
+  const groupedAssetsForPage: Record<string, Asset[]> = {};
+  paginatedAssets.forEach(a => {
+    const catName = a.categoria?.nome || 'Sem Categoria';
+    if (!groupedAssetsForPage[catName]) groupedAssetsForPage[catName] = [];
+    groupedAssetsForPage[catName].push(a);
+  });
+
   // Kanban statuses list
   const statusesList: { name: AssetStatus; color: string; label: string }[] = [
     { name: 'Disponível', color: 'border-green-500/30 bg-green-500/5 text-green-400', label: 'Disponível' },
@@ -1134,6 +1228,40 @@ export const AssetsPage: React.FC = () => {
       {/* TAB CONTENT: TABLE VIEW */}
       {activeTab === 'table' && (
         <div className="border border-brand-border bg-brand-card">
+          {selectedAssetIds.size > 0 && (
+            <div className="flex flex-col gap-3 border-b border-brand-primary/30 bg-brand-primary/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <span className="font-mono text-xs font-semibold text-brand-text">
+                {selectedAssetIds.size} ativo(s) selecionado(s)
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportSelectedAssets}
+                  className="flex items-center gap-1.5 border border-brand-primary/40 px-3 py-2 font-mono text-xs font-bold uppercase text-brand-primary hover:bg-brand-primary/10"
+                >
+                  <Download size={14} />
+                  Exportar selecionados
+                </button>
+                {isManagerOrAbove && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteSelectedAssets}
+                    className="flex items-center gap-1.5 border border-red-500/50 px-3 py-2 font-mono text-xs font-bold uppercase text-red-400 hover:bg-red-500/10"
+                  >
+                    <Trash2 size={14} />
+                    Excluir selecionados
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedAssetIds(new Set())}
+                  className="border border-brand-border px-3 py-2 font-mono text-xs uppercase text-brand-muted hover:text-brand-text"
+                >
+                  Limpar
+                </button>
+              </div>
+            </div>
+          )}
           {loading ? (
             <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
               <RefreshCw className="animate-spin text-brand-primary" size={24} />
@@ -1145,7 +1273,7 @@ export const AssetsPage: React.FC = () => {
             </div>
           ) : (
             <div className="divide-y divide-brand-border">
-              {Object.entries(groupedAssets).map(([categoryName, items]) => (
+              {Object.entries(groupedAssetsForPage).map(([categoryName, items]) => (
                 <div key={categoryName} className="space-y-0.5">
                   <div className="bg-brand-dark/40 px-4 py-2 border-b border-brand-border flex items-center justify-between">
                     <span className="font-mono text-xs font-bold text-brand-primary uppercase tracking-widest">{categoryName}</span>
@@ -1156,6 +1284,15 @@ export const AssetsPage: React.FC = () => {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-brand-border/40 text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                          <th className="w-11 p-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={items.length > 0 && items.every((asset) => selectedAssetIds.has(asset.id))}
+                              onChange={() => handleToggleAssetGroupSelection(items.map((asset) => asset.id))}
+                              aria-label={`Selecionar todos os ativos de ${categoryName}`}
+                              className="h-4 w-4 accent-brand-primary"
+                            />
+                          </th>
                           <th className="p-4 w-1/4">Equipamento</th>
                           <th className="p-4">Patrimônio / S/N</th>
                           <th className="p-4">Local / Armaz.</th>
@@ -1171,6 +1308,15 @@ export const AssetsPage: React.FC = () => {
                             onClick={() => handleOpenDetailModal(a)}
                             className="hover:bg-brand-dark/15 cursor-pointer transition-colors"
                           >
+                            <td className="p-4 text-center" onClick={(event) => event.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={selectedAssetIds.has(a.id)}
+                                onChange={() => handleToggleAssetSelection(a.id)}
+                                aria-label={`Selecionar ${a.nome}`}
+                                className="h-4 w-4 accent-brand-primary"
+                              />
+                            </td>
                             <td className="p-4">
                               <div className="font-medium text-brand-text flex items-center space-x-1.5">
                                 <span>{a.nome}</span>
@@ -1250,6 +1396,50 @@ export const AssetsPage: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+          {!loading && assets.length > 0 && (
+            <div className="flex flex-col gap-3 border-t border-brand-border bg-brand-dark/20 px-4 py-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 text-brand-muted font-mono">
+                <span>Exibir</span>
+                <select
+                  value={assetPageSize}
+                  onChange={(e) => {
+                    setAssetPageSize(Number(e.target.value) as 20 | 50 | 100);
+                    setAssetPage(1);
+                  }}
+                  className="border border-brand-border bg-brand-dark px-2 py-1.5 text-brand-text focus:outline-none focus:border-brand-primary"
+                  aria-label="Quantidade de ativos por página"
+                >
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <span>por página · {assets.length} ativo(s)</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 sm:justify-end">
+                <span className="font-mono text-brand-muted">Página {currentAssetPage} de {assetTotalPages}</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setAssetPage(page => Math.max(1, page - 1))}
+                    disabled={currentAssetPage === 1}
+                    className="border border-brand-border p-1.5 text-brand-text hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Página anterior"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAssetPage(page => Math.min(assetTotalPages, page + 1))}
+                    disabled={currentAssetPage === assetTotalPages}
+                    className="border border-brand-border p-1.5 text-brand-text hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Próxima página"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -2888,6 +3078,19 @@ export const AssetsPage: React.FC = () => {
 
                       {!showDetailMaintenanceForm && !showDetailTransferForm && !showDetailDevolucaoForm && (
                         <div className="space-y-2.5">
+                          {isManagerOrAbove && (
+                            <button
+                              onClick={() => {
+                                handleOpenEdit(selectedAssetForDetail);
+                                setShowDetailModal(false);
+                              }}
+                              className="flex items-center justify-center space-x-2 w-full py-2.5 bg-brand-dark border border-brand-primary/40 text-brand-primary font-bold font-mono text-xs uppercase tracking-wider hover:bg-brand-primary/10 transition-all"
+                            >
+                              <Edit2 size={14} />
+                              <span>Editar Ativo</span>
+                            </button>
+                          )}
+
                           <button
                             onClick={() => {
                               setShowDetailMaintenanceForm(true);

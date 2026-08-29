@@ -25,6 +25,16 @@ if [ -f "$ENV_FILE" ]; then
   APP_RELEASE_KEY_PASSWORD="${APP_RELEASE_KEY_PASSWORD:-${APP_RELEASE_KEY_PASSWORD_VALUE:-}}"
 fi
 
+# The signing file may have been created on the host and later used inside the
+# API container, where the workspace path is different. Reuse the local copy
+# from the mounted uploads directory when the configured path is unavailable.
+if [ -n "$APP_RELEASE_KEYSTORE_FILE" ] && [ ! -f "$APP_RELEASE_KEYSTORE_FILE" ]; then
+  signing_file_in_uploads="$BACKEND_UPLOADS_DIR/android-signing/$(basename "$APP_RELEASE_KEYSTORE_FILE")"
+  if [ -f "$signing_file_in_uploads" ]; then
+    APP_RELEASE_KEYSTORE_FILE="$signing_file_in_uploads"
+  fi
+fi
+
 timestamp_utc="$(date -u +%Y.%m.%d.%H%M)"
 version_code="${VITE_APP_VERSION_CODE:-$(date -u +%s)}"
 version_name="${VITE_APP_VERSION_NAME:-$timestamp_utc}"

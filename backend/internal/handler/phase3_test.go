@@ -130,6 +130,60 @@ func TestAtivoFixoMaintenanceLockAndRestore(t *testing.T) {
 	}
 }
 
+func TestUpdateAssetPersistsManualLocationForSameAssignedUser(t *testing.T) {
+	db := setupTestDB(t)
+	assetRepo := repository.NewAssetRepository(db)
+	categoryRepo := repository.NewAssetCategoryRepository(db)
+	handler := NewAssetHandler(assetRepo, categoryRepo)
+
+	department := models.Departamento{Nome: "TI"}
+	firstLocation := models.Localizacao{Nome: "Sala A"}
+	secondLocation := models.Localizacao{Nome: "Sala B"}
+	user := models.User{Nome: "Técnico", Email: "tecnico@example.com", DepartamentoID: &department.ID}
+	db.Create(&department)
+	db.Create(&firstLocation)
+	db.Create(&secondLocation)
+	user.LocalizacaoID = &firstLocation.ID
+	db.Create(&user)
+
+	asset := models.Asset{
+		Nome:           "Notebook",
+		EPatrimonio:    "EP-LOCAL-UPDATE",
+		Status:         models.AssetStatusEmUso,
+		CurrentUserID:  &user.ID,
+		CurrentLocalID: &firstLocation.ID,
+		EmPosseDe:      &user.Nome,
+	}
+	if err := assetRepo.Create(&asset); err != nil {
+		t.Fatalf("failed to create asset: %v", err)
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"nome":             asset.Nome,
+		"e_patrimonio":     asset.EPatrimonio,
+		"status":           models.AssetStatusEmUso,
+		"current_user_id":  user.ID,
+		"current_local_id": secondLocation.ID,
+	})
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx.Request = httptest.NewRequest(http.MethodPut, "/assets/"+strconv.FormatUint(uint64(asset.ID), 10), bytes.NewReader(payload))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	ctx.Params = gin.Params{{Key: "id", Value: strconv.FormatUint(uint64(asset.ID), 10)}}
+	handler.Update(ctx)
+
+	updated, err := assetRepo.GetByID(asset.ID)
+	if err != nil {
+		t.Fatalf("failed to reload asset: %v", err)
+	}
+	if updated.CurrentLocalID == nil || *updated.CurrentLocalID != secondLocation.ID {
+		t.Fatalf("expected manually selected location %d, got %v", secondLocation.ID, updated.CurrentLocalID)
+	}
+}
+
 func TestServiceDeskTicketAutocode(t *testing.T) {
 	db := setupTestDB(t)
 
