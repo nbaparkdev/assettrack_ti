@@ -57,6 +57,16 @@ echo "------------------------------------------------"
 echo "⚙️  Sincronizando frontend com Capacitor..."
 (cd "$FRONTEND_DIR" && npm run mobile:sync)
 
+android_sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+if [ -n "$android_sdk" ] && [ -d "$android_sdk" ]; then
+  # O local.properties versionado/gerado pode apontar para o host. Dentro do
+  # container, o SDK é exposto pelo caminho definido em ANDROID_SDK_ROOT.
+  printf 'sdk.dir=%s\n' "$android_sdk" > "$ANDROID_DIR/local.properties"
+else
+  echo "❌ Android SDK não encontrado. Configure ANDROID_SDK_PATH no .env e monte um SDK válido para o container."
+  exit 1
+fi
+
 build_type="debug"
 gradle_args=(
   "-PappVersionCode=$version_code"

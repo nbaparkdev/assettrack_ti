@@ -11,9 +11,11 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server ./cmd/server
 
 # Runtime stage
-FROM alpine:3.20
+FROM node:22-trixie-slim
 
-RUN apk add --no-cache ca-certificates tzdata postgresql16-client bash nodejs npm openjdk17-jdk python3
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates tzdata postgresql-client bash openjdk-21-jdk python3 \
+    && rm -rf /var/lib/apt/lists/*
 ENV TZ=America/Sao_Paulo
 
 WORKDIR /app

@@ -141,6 +141,8 @@ chmod +x init_docker.sh scripts/*.sh
 
 O instalador cria a configuração local, constrói a API, o frontend, o banco e o Redis, executa as migrações e inicia a aplicação.
 
+Para usar o botão **Publicar APK Mobile** dentro do portal, o Docker precisa acessar o Android SDK da VM. Antes de iniciar, ajuste `ANDROID_SDK_PATH` no arquivo `.env` para o caminho real do SDK, por exemplo `ANDROID_SDK_PATH=/home/usuario/Android/Sdk`. O container disponibiliza esse SDK no caminho interno correto e o script atualiza automaticamente o `local.properties`.
+
 ### 2. Inicialização Manual
 Caso prefira rodar os comandos passo a passo:
 
