@@ -254,7 +254,7 @@ export const AlertsPage: React.FC = () => {
                             await alertsApi.markAtendido(a.id);
                             fetchData();
                           }}
-                          className="text-green-400 border border-green-500/30 px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-green-500/10"
+                          className="text-[#f10909] border border-[#f90101] px-2.5 py-1.5 font-mono text-xs uppercase hover:bg-red-500/10"
                         >
                           Marcar Atendido
                         </button>
@@ -262,12 +262,12 @@ export const AlertsPage: React.FC = () => {
                     </div>
                   </div>
                   {a.ciente && !a.atendido && (
-                    <div className="text-xs font-mono text-amber-300 mt-1">
+                    <div className="text-xs font-mono text-[#2739c4] mt-1">
                       Ciente{a.ciente_por ? ` por ${a.ciente_por.nome}` : ''}{a.ciente_em ? ` em ${new Date(a.ciente_em).toLocaleString('pt-BR')}` : ''}
                     </div>
                   )}
                   {a.atendido && a.atendido_por && (
-                    <div className="text-xs font-mono text-green-400 mt-1">Atendido por {a.atendido_por.nome}</div>
+                    <div className="text-xs font-mono font-semibold text-[#f51919] mt-1">Atendido por {a.atendido_por.nome}</div>
                   )}
                 </div>
               ))}
