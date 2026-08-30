@@ -26,7 +26,8 @@ import {
   ShoppingBag,
   CheckCircle2,
   Info,
-  Wrench
+  Wrench,
+  RefreshCw
 } from 'lucide-react';
 
 export const BorrowingsPage: React.FC = () => {
@@ -306,19 +307,30 @@ export const BorrowingsPage: React.FC = () => {
     return true;
   });
 
+  const visibleBorrowings = solicitacoes.filter((item) => isManagerOrAbove || item.solicitante_id === currentUser?.id);
+  const borrowingMetrics = {
+    pending: visibleBorrowings.filter((item) => item.status?.toLowerCase() === 'pendente').length,
+    approved: visibleBorrowings.filter((item) => item.status?.toLowerCase() === 'aprovada').length,
+    delivered: visibleBorrowings.filter((item) => item.status?.toLowerCase() === 'entregue').length,
+    returned: visibleBorrowings.filter((item) => item.status?.toLowerCase() === 'devolvida').length,
+  };
+
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+    <div className="space-y-5">
+      <section className="relative overflow-hidden rounded-2xl border border-brand-primary/20 bg-gradient-to-br from-[#0c66e4] via-[#1559b7] to-[#172b4d] p-5 text-white shadow-lg md:p-7">
+        <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-brand-text">Solicitações de Empréstimo</h1>
-          <p className="text-xs sm:text-sm text-brand-muted mt-0.5">Gerencie o empréstimo temporário de ativos para colaboradores</p>
+          <div className="mb-2 flex items-center gap-2 text-xs font-mono uppercase tracking-[0.18em] text-blue-100"><ShoppingBag size={14} /> Gestão de empréstimos</div>
+          <h1 className="m-0 text-2xl font-bold tracking-tight md:text-3xl">Equipamentos em circulação, controle em dia.</h1>
+          <p className="mt-2 text-sm leading-6 text-blue-100">Acompanhe aprovações, entregas, devoluções e a responsabilidade por cada ativo.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           {isManagerOrAbove && (
             <button
               onClick={() => setShowQRModal(true)}
-              className="flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-3.5 py-2.5 bg-white/70 border border-brand-primary/40 hover:bg-white text-brand-primary font-medium rounded-xl transition-all active:scale-95 cursor-pointer shadow-sm min-h-[40px]"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-3.5 py-2.5 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/20 sm:flex-none"
             >
               <QrCode size={18} />
               <span>Scanner QR</span>
@@ -326,12 +338,22 @@ export const BorrowingsPage: React.FC = () => {
           )}
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white font-medium rounded-xl transition-all shadow-md shadow-brand-primary/20 active:scale-95 cursor-pointer min-h-[40px]"
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-primary shadow-sm hover:bg-blue-50 sm:flex-none"
           >
             <Plus size={18} />
             <span>Solicitar Equipamento</span>
           </button>
         </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { label: 'Aguardando aprovação', value: borrowingMetrics.pending, hint: 'solicitações na fila', status: 'pendente', icon: Clock, tone: 'text-blue-600 bg-blue-50' },
+          { label: 'Prontos para entrega', value: borrowingMetrics.approved, hint: 'aprovados pela equipe', status: 'aprovada', icon: CheckCircle2, tone: 'text-amber-600 bg-amber-50' },
+          { label: 'Em uso', value: borrowingMetrics.delivered, hint: 'ativos com colaboradores', status: 'entregue', icon: User, tone: 'text-violet-600 bg-violet-50' },
+          { label: 'Devolvidos', value: borrowingMetrics.returned, hint: 'retornaram ao inventário', status: 'devolvida', icon: Undo2, tone: 'text-emerald-600 bg-emerald-50' },
+        ].map(({ label, value, hint, status, icon: Icon, tone }) => <button type="button" key={label} onClick={() => setStatusFilter(statusFilter === status ? '' : status)} className={`rounded-2xl border bg-brand-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${statusFilter === status ? 'border-brand-primary ring-2 ring-brand-primary/15' : 'border-brand-border'}`} aria-label={`Filtrar por ${label}`}><div className="flex items-start justify-between gap-2"><span className={`rounded-xl p-2 ${tone}`}><Icon size={17} /></span><span className="text-2xl font-bold tracking-tight text-brand-text">{value}</span></div><div className="mt-4 text-xs font-bold uppercase tracking-wide text-brand-text">{label}</div><div className="mt-1 text-xs text-brand-muted">{hint}</div></button>)}
       </div>
 
       {error && (
@@ -343,31 +365,22 @@ export const BorrowingsPage: React.FC = () => {
       )}
 
       {/* Filters */}
-      <div className="p-4 bg-brand-card border border-brand-border flex items-center space-x-4">
-        <div className="flex items-center space-x-2 text-brand-muted text-xs">
-          <Filter size={14} />
-          <span>Status:</span>
+      <div className="flex flex-col gap-3 rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <span className="rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><Filter size={14} /></span>
+          <div><div className="text-xs font-bold uppercase tracking-wide text-brand-text">Controle de fluxo</div><div className="mt-0.5 text-xs text-brand-muted">{filteredSolicitacoes.length} solicitação(ões) nesta visão</div></div>
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-brand-dark border border-brand-border px-3 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary"
-        >
-          <option value="">Todos</option>
-          <option value="pendente">Pendente</option>
-          <option value="aprovada">Aprovada</option>
-          <option value="rejeitada">Rejeitada</option>
-          <option value="entregue">Entregue / Em Uso</option>
-          <option value="devolvida">Devolvida</option>
-        </select>
+        <div className="flex w-full gap-2 sm:w-auto"><select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full rounded-xl bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary sm:w-auto"><option value="">Todos os status</option><option value="pendente">Pendente</option><option value="aprovada">Aprovada</option><option value="rejeitada">Rejeitada</option><option value="entregue">Entregue / Em Uso</option><option value="devolvida">Devolvida</option></select><button type="button" onClick={fetchSolicitacoes} className="rounded-xl border border-brand-border px-3 text-brand-muted hover:border-brand-primary hover:text-brand-primary" title="Atualizar solicitações" aria-label="Atualizar solicitações"><RefreshCw size={16} /></button></div>
       </div>
 
       {/* List */}
       {loading ? (
         <div className="p-12 text-center text-brand-muted font-mono text-sm">Carregando solicitações...</div>
       ) : filteredSolicitacoes.length === 0 ? (
-        <div className="p-12 border border-brand-border bg-brand-card/20 text-center text-brand-muted text-sm">
-          Nenhuma solicitação de empréstimo registrada.
+        <div className="rounded-2xl border border-dashed border-brand-border bg-brand-card/60 p-12 text-center text-brand-muted shadow-sm">
+          <CheckCircle2 size={28} className="mx-auto mb-3 text-emerald-500" />
+          <div className="text-sm font-semibold text-brand-text">Tudo organizado por aqui</div>
+          <div className="mt-1 text-sm">Nenhuma solicitação de empréstimo registrada.</div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -376,7 +389,7 @@ export const BorrowingsPage: React.FC = () => {
             return (
               <div
                 key={item.id}
-                className="p-5 bg-brand-card border border-brand-border hover:border-brand-primary/20 transition-all flex flex-col justify-between space-y-4"
+                className="flex flex-col justify-between space-y-4 rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-primary/40 hover:shadow-md"
               >
                 <div className="space-y-3">
                   <div className="flex justify-between items-start">
@@ -399,7 +412,7 @@ export const BorrowingsPage: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="text-xs text-brand-muted bg-brand-dark/40 p-3 border border-brand-border/40 font-mono whitespace-pre-wrap">
+                  <div className="rounded-xl border border-brand-border/40 bg-brand-dark/40 p-3 text-xs font-mono text-brand-muted whitespace-pre-wrap">
                     Motivo: "{item.motivo}"
                   </div>
 

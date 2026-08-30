@@ -65,6 +65,16 @@ export const ServiceDeskPage: React.FC = () => {
     return status.toLowerCase().replace(/\s+/g, '_');
   };
 
+  const statusLabel = (status: string | undefined): string => {
+    const labels: Record<string, string> = {
+      aberto: 'Aberto',
+      em_atendimento: 'Em atendimento',
+      resolvido: 'Resolvido',
+      fechado: 'Fechado',
+    };
+    return labels[normalizeStatus(status)] || normalizeStatus(status).replace('_', ' ') || 'Sem status';
+  };
+
   const isImageFile = (url: string | undefined): boolean => {
     if (!url) return false;
     const lower = url.toLowerCase();
@@ -411,20 +421,37 @@ export const ServiceDeskPage: React.FC = () => {
     return true;
   });
 
+  const ticketStatusCounts = tickets.reduce<Record<string, number>>((counts, ticket) => {
+    const status = normalizeStatus(ticket.status);
+    counts[status] = (counts[status] || 0) + 1;
+    return counts;
+  }, {});
+  const ticketPriorityCounts = tickets.reduce<Record<string, number>>((counts, ticket) => {
+    counts[ticket.prioridade] = (counts[ticket.prioridade] || 0) + 1;
+    return counts;
+  }, {});
+  const openTicketCount = tickets.filter((ticket) => ['aberto', 'em_atendimento'].includes(normalizeStatus(ticket.status))).length;
+  const resolvedTicketCount = tickets.filter((ticket) => ['resolvido', 'fechado'].includes(normalizeStatus(ticket.status))).length;
+  const ticketTotalForChart = Math.max(tickets.length, 1);
+  const recentTickets = [...tickets].sort((a, b) => new Date(b.data_abertura).getTime() - new Date(a.data_abertura).getTime()).slice(0, 4);
+
   return (
     <div className="flex h-full min-h-[calc(100vh-4rem)] bg-brand-dark overflow-hidden">
       {/* Main Panel */}
       <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left gap-4">
+        <section className="relative overflow-hidden rounded-2xl border border-brand-primary/20 bg-gradient-to-br from-[#0c66e4] via-[#1559b7] to-[#172b4d] p-5 text-white shadow-lg md:p-7">
+          <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-brand-text">Central de Suporte & Chamados</h1>
-            <p className="text-sm text-brand-muted">Registre e acompanhe incidentes e solicitações de TI</p>
+            <div className="mb-2 flex items-center gap-2 text-xs font-mono uppercase tracking-[0.18em] text-blue-100"><MessageSquare size={14} /> Service desk</div>
+            <h1 className="m-0 text-2xl font-bold tracking-tight md:text-3xl">Suporte técnico no controle.</h1>
+            <p className="mt-2 text-sm leading-6 text-blue-100">Priorize incidentes, acompanhe o SLA e mantenha cada atendimento com histórico completo.</p>
           </div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             {isTechnicianOrAbove && (
               <button
                 onClick={() => setShowConfigModal(true)}
-                className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-dark border border-brand-border hover:bg-brand-card text-brand-text font-medium transition-all w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/20"
               >
                 <Plus size={18} />
                 <span>Configurar Serviços</span>
@@ -432,13 +459,30 @@ export const ServiceDeskPage: React.FC = () => {
             )}
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-medium transition-all w-full sm:w-auto"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-primary shadow-sm hover:bg-blue-50"
             >
               <Plus size={18} />
               <span>Abrir Chamado</span>
             </button>
           </div>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { label: 'Chamados em aberto', value: openTicketCount, hint: 'abertos ou em atendimento', icon: MessageSquare, tone: 'text-blue-600 bg-blue-50' },
+            { label: 'Prioridade urgente', value: ticketPriorityCounts.urgente || 0, hint: 'resposta imediata', icon: AlertCircle, tone: 'text-red-600 bg-red-50' },
+            { label: 'Resolvidos', value: resolvedTicketCount, hint: `${tickets.length} chamados no total`, icon: CheckCircle2, tone: 'text-emerald-600 bg-emerald-50' },
+            { label: 'Categorias ativas', value: categories.length, hint: `${definitions.length} serviços disponíveis`, icon: Filter, tone: 'text-violet-600 bg-violet-50' },
+          ].map(({ label, value, hint, icon: Icon, tone }) => <button type="button" key={label} onClick={() => { if (label === 'Chamados em aberto') setStatusFilter('aberto'); if (label === 'Prioridade urgente') setPriorityFilter('urgente'); }} className="rounded-2xl border border-brand-border bg-brand-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"><div className="flex items-start justify-between gap-2"><span className={`rounded-xl p-2 ${tone}`}><Icon size={17} /></span><span className="text-2xl font-bold tracking-tight text-brand-text">{value}</span></div><div className="mt-4 text-xs font-bold uppercase tracking-wide text-brand-text">{label}</div><div className="mt-1 text-xs text-brand-muted">{hint}</div></button>)}
         </div>
+
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,.75fr)]">
+          <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm"><div className="mb-4 flex items-start justify-between"><div><div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Panorama do atendimento</div><h2 className="mt-1 text-lg font-bold text-brand-text">Chamados por status</h2></div><span className="text-xs text-brand-muted">{tickets.length} registros</span></div><div className="grid gap-3 sm:grid-cols-4">{[['aberto', 'Abertos', 'bg-blue-500'], ['em_atendimento', 'Em atendimento', 'bg-amber-500'], ['resolvido', 'Resolvidos', 'bg-emerald-500'], ['fechado', 'Fechados', 'bg-slate-400']].map(([key, label, color]) => <button type="button" key={key} onClick={() => setStatusFilter(statusFilter === key ? '' : key)} className={`rounded-xl border p-3 text-left transition hover:border-brand-primary/40 ${statusFilter === key ? 'border-brand-primary ring-2 ring-brand-primary/15' : 'border-brand-border'}`}><div className="flex items-center gap-2 text-xs font-semibold text-brand-text"><span className={`h-2 w-2 rounded-full ${color}`} />{label}</div><div className="mt-2 text-2xl font-bold text-brand-text">{ticketStatusCounts[key] || 0}</div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-dark/10"><div className={`h-full rounded-full ${color}`} style={{ width: `${Math.max(((ticketStatusCounts[key] || 0) / ticketTotalForChart) * 100, ticketStatusCounts[key] ? 6 : 0)}%` }} /></div></button>)}</div></section>
+          <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm"><div className="mb-4"><div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Distribuição</div><h2 className="mt-1 text-lg font-bold text-brand-text">Prioridades</h2></div><div className="space-y-3">{[['urgente', 'Urgente', 'bg-red-500'], ['alta', 'Alta', 'bg-amber-500'], ['media', 'Média', 'bg-blue-500'], ['baixa', 'Baixa', 'bg-slate-400']].map(([key, label, color]) => <button type="button" key={key} onClick={() => setPriorityFilter(priorityFilter === key ? '' : key)} className="w-full text-left"><div className="mb-1 flex justify-between text-xs"><span className="font-semibold text-brand-text">{label}</span><span className="font-mono text-brand-muted">{ticketPriorityCounts[key] || 0}</span></div><div className="h-2 overflow-hidden rounded-full bg-brand-dark/10"><div className={`h-full rounded-full ${color}`} style={{ width: `${Math.max(((ticketPriorityCounts[key] || 0) / ticketTotalForChart) * 100, ticketPriorityCounts[key] ? 6 : 0)}%` }} /></div></button>)}</div></section>
+        </div>
+
+        <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm"><div className="mb-4 flex items-start justify-between"><div><div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Atividade</div><h2 className="mt-1 text-lg font-bold text-brand-text">Chamados mais recentes</h2></div><span className="text-xs text-brand-muted">Atualização manual na lista</span></div><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{recentTickets.map((ticket) => <button type="button" key={ticket.id} onClick={() => handleSelectTicket(ticket)} className="rounded-xl border border-brand-border bg-brand-dark/10 p-3 text-left transition hover:border-brand-primary/40"><div className="flex items-center justify-between gap-2"><span className="text-xs font-bold uppercase text-brand-primary">{ticket.codigo}</span><span className="text-[10px] text-brand-muted">{new Date(ticket.data_abertura).toLocaleDateString('pt-BR')}</span></div><div className="mt-2 line-clamp-2 text-sm font-semibold text-brand-text">{getDescriptionSummary(ticket.descricao, 70)}</div><div className="mt-2 flex items-center justify-between gap-2 text-[10px] uppercase text-brand-muted"><span>{statusLabel(ticket.status)}</span><span>{ticket.prioridade}</span></div></button>)}{recentTickets.length === 0 && <div className="col-span-full rounded-xl border border-dashed border-brand-border p-6 text-center text-sm text-brand-muted">Nenhum chamado registrado.</div>}</div></section>
 
         {error && (
           <div className="flex items-start space-x-3 p-4 border border-red-500/20 bg-red-500/5 text-red-400 text-sm">

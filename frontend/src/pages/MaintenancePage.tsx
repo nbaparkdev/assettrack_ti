@@ -275,17 +275,20 @@ export const MaintenancePage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-brand-text">Gestão de Oficina & Manutenção</h1>
-          <p className="text-xs sm:text-sm text-brand-muted mt-0.5">Acompanhe solicitações corretivas, preventivas e relatórios técnicos</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+    <div className="space-y-5">
+      <section className="relative overflow-hidden rounded-2xl border border-brand-primary/20 bg-gradient-to-br from-[#0c66e4] via-[#1559b7] to-[#172b4d] p-5 text-white shadow-lg md:p-7">
+        <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-xs font-mono uppercase tracking-[0.18em] text-blue-100"><Clock size={14} /> Centro de oficina</div>
+            <h1 className="m-0 max-w-xl text-2xl font-bold tracking-tight md:text-3xl">Manutenções no ritmo certo.</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100">Centralize chamados, acompanhe reparos e devolva ativos à operação com rastreabilidade.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
           {isTechnicianOrAbove && (
             <button
               onClick={() => setShowQRModal(true)}
-              className="flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-3.5 py-2.5 bg-white/70 border border-brand-primary/40 hover:bg-white text-brand-primary font-medium rounded-xl transition-all active:scale-95 cursor-pointer shadow-sm min-h-[40px]"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/20"
             >
               <QrCode size={18} />
               <span>Scanner de Handover</span>
@@ -293,36 +296,29 @@ export const MaintenancePage: React.FC = () => {
           )}
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white font-medium rounded-xl transition-all shadow-md shadow-brand-primary/20 active:scale-95 cursor-pointer min-h-[40px]"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-primary shadow-sm hover:bg-blue-50"
           >
             <Plus size={18} />
             <span>Solicitar Manutenção</span>
           </button>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Workshop Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="p-4 bg-brand-card border border-brand-border flex flex-col justify-between">
-          <span className="text-[10px] uppercase font-bold text-brand-muted tracking-wider">Fila de Espera</span>
-          <span className="text-2xl font-bold text-blue-400 mt-2">{totalPending}</span>
-          <span className="text-[10px] text-brand-muted mt-1">Solicitações aguardando triagem</span>
-        </div>
-        <div className="p-4 bg-brand-card border border-brand-border flex flex-col justify-between">
-          <span className="text-[10px] uppercase font-bold text-brand-muted tracking-wider">Na Bancada (Oficina)</span>
-          <span className="text-2xl font-bold text-amber-500 mt-2">{totalInWorkshop}</span>
-          <span className="text-[10px] text-brand-muted mt-1">Equipamentos sendo consertados</span>
-        </div>
-        <div className="p-4 bg-brand-card border border-brand-border flex flex-col justify-between">
-          <span className="text-[10px] uppercase font-bold text-brand-muted tracking-wider">Total Concluído</span>
-          <span className="text-2xl font-bold text-brand-primary mt-2">{totalConcluded}</span>
-          <span className="text-[10px] text-brand-muted mt-1">Reparos finalizados com sucesso</span>
-        </div>
-        <div className="p-4 bg-brand-card border border-brand-border flex flex-col justify-between">
-          <span className="text-[10px] uppercase font-bold text-brand-muted tracking-wider">Custo de Oficina</span>
-          <span className="text-2xl font-bold text-emerald-400 mt-2">{formatCurrency(totalSpent)}</span>
-          <span className="text-[10px] text-brand-muted mt-1">Investimento total em reparação</span>
-        </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { label: 'Fila de espera', value: totalPending, hint: 'aguardando triagem', icon: Clock, tone: 'text-blue-600 bg-blue-50' },
+          { label: 'Na bancada', value: totalInWorkshop, hint: 'reparos em andamento', icon: AlertCircle, tone: 'text-amber-600 bg-amber-50' },
+          { label: 'Reparos concluídos', value: totalConcluded, hint: 'finalizados ou entregues', icon: CheckCircle2, tone: 'text-emerald-600 bg-emerald-50' },
+          { label: 'Custo acumulado', value: formatCurrency(totalSpent), hint: 'investimento em reparos', icon: DollarSign, tone: 'text-violet-600 bg-violet-50' },
+        ].map(({ label, value, hint, icon: Icon, tone }) => (
+          <div key={label} className="rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-2"><span className={`rounded-xl p-2 ${tone}`}><Icon size={17} /></span><span className="text-2xl font-bold tracking-tight text-brand-text">{value}</span></div>
+            <div className="mt-4 text-xs font-bold uppercase tracking-wide text-brand-text">{label}</div>
+            <div className="mt-1 text-xs text-brand-muted">{hint}</div>
+          </div>
+        ))}
       </div>
 
       {error && (
@@ -334,7 +330,7 @@ export const MaintenancePage: React.FC = () => {
       )}
 
       {/* Tabs */}
-      <div className="w-full min-w-0 max-w-full overflow-x-auto border-b border-brand-border flex items-center gap-2 pb-0.5 no-scrollbar scroll-smooth">
+      <div className="w-full min-w-0 max-w-full overflow-x-auto rounded-t-2xl border-b border-brand-border flex items-center gap-1.5 bg-white/20 pb-0.5 no-scrollbar scroll-smooth">
         <button
           onClick={() => { setActiveTab('requests'); setStatusFilter(''); }}
           className={`shrink-0 whitespace-nowrap py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer rounded-t-lg ${activeTab === 'requests'
@@ -365,15 +361,15 @@ export const MaintenancePage: React.FC = () => {
       </div>
 
       {/* Filters (Conditional based on active tab) */}
-      <div className="p-4 bg-brand-card border border-brand-border flex items-center space-x-4">
-        <div className="flex items-center space-x-2 text-brand-muted text-xs">
+      <div className="flex flex-col gap-3 rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-brand-muted">
           <Filter size={14} />
-          <span>Status:</span>
+          <span>Filtrar visão atual</span>
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-brand-dark border border-brand-border px-3 py-1.5 text-xs text-brand-text focus:outline-none focus:border-brand-primary"
+          className="w-full rounded-xl border border-brand-border bg-brand-dark px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary sm:w-auto"
         >
           <option value="">Todos</option>
           {activeTab === 'requests' ? (
@@ -400,15 +396,17 @@ export const MaintenancePage: React.FC = () => {
       {loading ? (
         <div className="p-12 text-center text-brand-muted font-mono text-sm">Buscando registros...</div>
       ) : filteredRequests.length === 0 ? (
-        <div className="p-12 border border-brand-border bg-brand-card/20 text-center text-brand-muted text-sm">
-          Nenhuma solicitação encontrada.
+        <div className="rounded-2xl border border-dashed border-brand-border bg-brand-card/60 p-12 text-center text-brand-muted shadow-sm">
+          <CheckCircle2 size={28} className="mx-auto mb-3 text-emerald-500" />
+          <div className="text-sm font-semibold text-brand-text">Tudo limpo por aqui</div>
+          <div className="mt-1 text-sm">Nenhuma solicitação encontrada nesta visão.</div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredRequests.map((request) => (
             <div
               key={request.id}
-              className="p-5 bg-brand-card border border-brand-border hover:border-brand-primary/20 transition-all flex flex-col justify-between space-y-4"
+              className="flex flex-col justify-between space-y-4 rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-primary/40 hover:shadow-md"
             >
               <div className="space-y-3">
                 <div className="flex justify-between items-start">
@@ -430,7 +428,7 @@ export const MaintenancePage: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="text-xs text-brand-muted bg-brand-dark/40 p-3 border border-brand-border/40 font-mono whitespace-pre-wrap">
+                <div className="rounded-xl border border-brand-border/40 bg-brand-dark/40 p-3 text-xs font-mono text-brand-muted whitespace-pre-wrap">
                   {request.descricao}
                 </div>
 

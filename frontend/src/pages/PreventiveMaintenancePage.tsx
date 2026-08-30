@@ -23,8 +23,11 @@ import { useAuthStore } from '../stores/authStore';
 import {
   Plus, Edit2, Trash2, X, ShieldAlert, Wrench, ClipboardList, Bell, Play, Pause,
   CheckCircle2, Ban, FileText, Camera, CalendarDays, ChevronLeft, ChevronRight,
-  ShoppingCart, RefreshCw, Link as LinkIcon, ExternalLink
+  ShoppingCart, RefreshCw, Link as LinkIcon, ExternalLink, FileDown, BarChart3,
+  TrendingUp, Timer, DollarSign
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const structureRoles = ['admin', 'gerente_ti', 'gerente_infra'];
 const workRoles = ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'];
@@ -127,9 +130,10 @@ export const PreventiveMaintenancePage: React.FC = () => {
   const canEditStructure = user ? structureRoles.includes(user.role) : false;
   const canWorkOrder = user ? workRoles.includes(user.role) : false;
 
-  const [tab, setTab] = useState<'dashboard' | 'planos' | 'ordens' | 'calendario' | 'notifs'>('dashboard');
+  const [tab, setTab] = useState<'dashboard' | 'relatorio' | 'planos' | 'ordens' | 'calendario' | 'notifs'>('dashboard');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exportingReport, setExportingReport] = useState(false);
 
   // Dashboard
   const [dash, setDash] = useState<PMDashboard | null>(null);
@@ -416,6 +420,158 @@ export const PreventiveMaintenancePage: React.FC = () => {
     startOfDay(eventDate).getTime() >= weekStart.getTime() &&
     startOfDay(eventDate).getTime() <= addDays(weekStart, 6).getTime()
   );
+
+  const dashboardUpcomingOrders = orders
+    .map((order) => ({ order, eventDate: getCalendarEventDate(order) }))
+    .filter(({ order, eventDate }) => eventDate && !['Concluída', 'Cancelada'].includes(order.status))
+    .sort((a, b) => a.eventDate!.getTime() - b.eventDate!.getTime())
+    .slice(0, 5);
+  const dashboardAttentionOrders = orders.filter((order) => ['Aguardando peça', 'Pausada'].includes(order.status));
+  const dashboardStatusTotal = Object.values(dash?.orders_by_status ?? {}).reduce((total, value) => total + value, 0) || 1;
+
+  const reportCompletedOrders = orders.filter((order) => order.status === 'Concluída');
+  const reportCancelledOrders = orders.filter((order) => order.status === 'Cancelada');
+  const reportOpenOrders = orders.filter((order) => !['Concluída', 'Cancelada'].includes(order.status));
+  const reportTotalCost = orders.reduce((total, order) => total + (Number(order.custo_total) || 0), 0);
+  const reportTotalPhotos = orders.reduce((total, order) => total + (order.photos?.length || 0), 0);
+  const reportChecklistItems = orders.reduce((total, order) => total + (order.executions?.length || 0), 0);
+  const reportCompletedChecklistItems = orders.reduce((total, order) => total + (order.executions?.filter((execution) => execution.concluido).length || 0), 0);
+  const reportChecklistRate = reportChecklistItems > 0 ? (reportCompletedChecklistItems / reportChecklistItems) * 100 : 0;
+  const reportAverageMinutes = reportCompletedOrders.length > 0
+    ? reportCompletedOrders.reduce((total, order) => total + (Number(order.tempo_total_minutos) || 0), 0) / reportCompletedOrders.length
+    : 0;
+  const reportStatusCounts = PM_STATUSES.reduce<Record<string, number>>((counts, status) => {
+    counts[status] = orders.filter((order) => order.status === status).length;
+    return counts;
+  }, {});
+  const reportPriorityCounts = PM_PRIORITIES.reduce<Record<string, number>>((counts, priority) => {
+    counts[priority] = orders.filter((order) => order.prioridade === priority).length;
+    return counts;
+  }, {});
+  const reportTechnicianCounts = orders.reduce<Record<string, number>>((counts, order) => {
+    const technician = order.tecnico?.nome || 'Sem técnico';
+    counts[technician] = (counts[technician] || 0) + 1;
+    return counts;
+  }, {});
+  const reportCompletionRate = orders.length > 0 ? (reportCompletedOrders.length / orders.length) * 100 : 0;
+  const reportAttentionRate = orders.length > 0 ? (dashboardAttentionOrders.length / orders.length) * 100 : 0;
+
+  const formatReportCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+  const exportPreventiveReport = () => {
+    setExportingReport(true);
+    try {
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const generatedAt = new Date().toLocaleString('pt-BR');
+      const totalOrders = Math.max(orders.length, 1);
+      const primaryBlue: [number, number, number] = [12, 102, 228];
+      const slate: [number, number, number] = [15, 23, 42];
+      let y = 18;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.setTextColor(...slate);
+      doc.text('AssetTrack TI', 14, y);
+      y += 9;
+      doc.setFontSize(15);
+      doc.text('Relatório geral de manutenção preventiva', 14, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Gerado em ${generatedAt} · ${user?.nome || 'Usuário do sistema'}`, 14, y + 7);
+      y += 17;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(...slate);
+      doc.text('1. Resumo executivo', 14, y);
+      autoTable(doc, {
+        startY: y + 4,
+        theme: 'grid',
+        headStyles: { fillColor: primaryBlue },
+        head: [['Indicador', 'Resultado', 'Leitura técnica']],
+        body: [
+          ['Ordens analisadas', String(orders.length), 'Base consolidada do módulo preventivo'],
+          ['Taxa de conclusão', `${reportCompletionRate.toFixed(1)}%`, `${reportCompletedOrders.length} ordens concluídas`],
+          ['Ordens em aberto', String(reportOpenOrders.length), 'Exigem acompanhamento operacional'],
+          ['Ordens canceladas', String(reportCancelledOrders.length), 'Avaliar causa e recorrência'],
+          ['Tempo médio informado', formatMinutes(Math.round(reportAverageMinutes)), 'Considera ordens concluídas com tempo registrado'],
+          ['Custo total registrado', formatReportCurrency(reportTotalCost), `${reportTotalPhotos} evidências fotográficas`],
+        ],
+      });
+      y = (doc as any).lastAutoTable.finalY + 12;
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...slate);
+      doc.text('2. Análises técnicas', 14, y);
+      autoTable(doc, {
+        startY: y + 4,
+        theme: 'striped',
+        headStyles: { fillColor: [30, 64, 175] },
+        head: [['Análise', 'Resultado', 'Recomendação']],
+        body: [
+          ['Execução de checklists', `${reportChecklistRate.toFixed(1)}%`, reportChecklistRate >= 90 ? 'Aderência adequada' : 'Reforçar o preenchimento antes do encerramento'],
+          ['Ordens aguardando peça/pausadas', String(dashboardAttentionOrders.length), dashboardAttentionOrders.length > 0 ? 'Priorizar compras e desbloqueios' : 'Sem pendências críticas'],
+          ['Planos com vencimento próximo', String(dash?.plans_due || 0), (dash?.plans_due || 0) > 0 ? 'Revisar agenda dos próximos 7 dias' : 'Agenda sob controle'],
+          ['Cobertura técnica', `${Object.keys(reportTechnicianCounts).length} responsáveis`, Object.keys(reportTechnicianCounts).length > 1 ? 'Distribuição por equipe disponível' : 'Revisar alocação de responsáveis'],
+        ],
+      });
+      y = (doc as any).lastAutoTable.finalY + 12;
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...slate);
+      doc.text('3. Distribuição por status e prioridade', 14, y);
+      autoTable(doc, {
+        startY: y + 4,
+        theme: 'grid',
+        headStyles: { fillColor: [56, 189, 248] },
+        head: [['Grupo', 'Indicador', 'Quantidade', 'Participação']],
+        body: [
+          ...PM_STATUSES.map((status) => ['Status', status, String(reportStatusCounts[status] || 0), `${(((reportStatusCounts[status] || 0) / totalOrders) * 100).toFixed(1)}%`]),
+          ...PM_PRIORITIES.map((priority) => ['Prioridade', priority, String(reportPriorityCounts[priority] || 0), `${(((reportPriorityCounts[priority] || 0) / totalOrders) * 100).toFixed(1)}%`]),
+        ],
+      });
+      y = (doc as any).lastAutoTable.finalY + 12;
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...slate);
+      doc.text('4. Ordens registradas', 14, y);
+      autoTable(doc, {
+        startY: y + 4,
+        theme: 'striped',
+        headStyles: { fillColor: primaryBlue },
+        head: [['OS', 'Ativo / serviço', 'Status', 'Prioridade', 'Técnico', 'Abertura', 'Conclusão']],
+        body: orders.map((order) => [
+          order.numero,
+          order.asset?.nome || order.infra_predial_servico || 'Serviço',
+          order.status,
+          order.prioridade,
+          order.tecnico?.nome || '—',
+          new Date(order.data_abertura).toLocaleDateString('pt-BR'),
+          order.data_conclusao ? new Date(order.data_conclusao).toLocaleDateString('pt-BR') : '—',
+        ]),
+        styles: { fontSize: 7 },
+      });
+
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let page = 1; page <= pageCount; page += 1) {
+        doc.setPage(page);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Página ${page} de ${pageCount} · AssetTrack TI · Manutenção preventiva`, 14, doc.internal.pageSize.height - 8);
+      }
+      doc.save(`relatorio_manutencao_preventiva_${new Date().getTime()}.pdf`);
+    } catch (err) {
+      console.error(err);
+      alert('Não foi possível gerar o relatório em PDF.');
+    } finally {
+      setExportingReport(false);
+    }
+  };
 
   // ---- Plans ----
   const openPlanModal = (plan?: MaintenancePlan) => {
@@ -797,6 +953,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
       <div className="w-full min-w-0 max-w-full overflow-x-auto border-b border-brand-border flex items-center gap-1.5 pb-0.5 no-scrollbar scroll-smooth">
         {([
           ['dashboard', 'Dashboard'],
+          ['relatorio', 'Relatório geral'],
           ['planos', 'Planos'],
           ['ordens', 'Ordens de Serviço'],
           ['calendario', 'Calendário'],
@@ -825,81 +982,135 @@ export const PreventiveMaintenancePage: React.FC = () => {
 
       {/* ---------- DASHBOARD ---------- */}
       {!loading && tab === 'dashboard' && dash && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div className="border border-brand-border bg-brand-card p-4">
-            <div className="text-3xl font-bold font-mono text-brand-primary">{dash.active_plans}</div>
-            <div className="text-xs font-mono uppercase text-brand-muted mt-1">Planos ativos</div>
-          </div>
-          <div className="border border-brand-border bg-brand-card p-4">
-            <div className="text-3xl font-bold font-mono text-brand-primary">{dash.plans_due}</div>
-            <div className="text-xs font-mono uppercase text-brand-muted mt-1">Planos a vencer (7d)</div>
-          </div>
-          <div className="border border-brand-border bg-brand-card p-4">
-            <div className="text-3xl font-bold font-mono text-brand-primary">{dash.open_orders}</div>
-            <div className="text-xs font-mono uppercase text-brand-muted mt-1">OS abertas</div>
-          </div>
-          <div className="border border-brand-border bg-brand-card p-4">
-            <div className="text-3xl font-bold font-mono text-brand-primary">{dash.due_soon}</div>
-            <div className="text-xs font-mono uppercase text-brand-muted mt-1">OS agendadas (7d)</div>
-          </div>
-          <div className="border border-brand-border bg-brand-card p-4">
-            <div className="text-3xl font-bold font-mono text-brand-primary">{dash.total_orders}</div>
-            <div className="text-xs font-mono uppercase text-brand-muted mt-1">Total de OS</div>
-          </div>
-          <div className="border border-brand-border bg-brand-card p-4">
-            <div className="text-3xl font-bold font-mono text-brand-primary">{dash.total_plans}</div>
-            <div className="text-xs font-mono uppercase text-brand-muted mt-1">Total de planos</div>
+        <div className="space-y-5">
+          <section className="relative overflow-hidden rounded-2xl border border-brand-primary/20 bg-gradient-to-br from-[#0c66e4] via-[#1559b7] to-[#172b4d] p-5 text-white shadow-lg md:p-7">
+            <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+            <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="mb-2 flex items-center gap-2 text-xs font-mono uppercase tracking-[0.18em] text-blue-100"><Wrench size={14} /> Central de manutenção</div>
+                <h2 className="m-0 max-w-xl text-2xl font-bold tracking-tight md:text-3xl">Operação preventiva sob controle.</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100">Acompanhe o que precisa de atenção, organize a agenda e mantenha os ativos disponíveis.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {canWorkOrder && <button onClick={() => void openOrderModal()} className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-primary shadow-sm hover:bg-blue-50"><Plus size={15} /> Nova OS</button>}
+                {canEditStructure && <button onClick={() => openPlanModal()} className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/20"><ClipboardList size={15} /> Novo plano</button>}
+              </div>
+            </div>
+          </section>
+
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            {[
+              { label: 'Planos ativos', value: dash.active_plans, hint: `${dash.total_plans} no total`, icon: ClipboardList, tone: 'text-blue-600 bg-blue-50' },
+              { label: 'Planos vencendo', value: dash.plans_due, hint: 'próximos 7 dias', icon: CalendarDays, tone: 'text-amber-600 bg-amber-50' },
+              { label: 'OS abertas', value: dash.open_orders, hint: 'aguardando ação', icon: Wrench, tone: 'text-orange-600 bg-orange-50' },
+              { label: 'OS nesta semana', value: dash.due_soon, hint: 'agenda próxima', icon: CalendarDays, tone: 'text-cyan-600 bg-cyan-50' },
+              { label: 'OS concluídas', value: dash.orders_by_status['Concluída'] ?? 0, hint: `${dash.total_orders} no total`, icon: CheckCircle2, tone: 'text-emerald-600 bg-emerald-50' },
+              { label: 'Alertas pendentes', value: unreadNotifications, hint: 'notificações não lidas', icon: Bell, tone: 'text-violet-600 bg-violet-50' },
+            ].map(({ label, value, hint, icon: Icon, tone }) => (
+              <div key={label} className="rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-2"><span className={`rounded-xl p-2 ${tone}`}><Icon size={17} /></span><span className="text-2xl font-bold tracking-tight text-brand-text">{value}</span></div>
+                <div className="mt-4 text-xs font-bold uppercase tracking-wide text-brand-text">{label}</div>
+                <div className="mt-1 text-xs text-brand-muted">{hint}</div>
+              </div>
+            ))}
           </div>
 
-          <div className="col-span-2 md:col-span-3 lg:col-span-6 border border-brand-border bg-brand-card p-4">
-            <div className="text-xs font-mono uppercase text-brand-muted mb-3">OS por status</div>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(dash.orders_by_status).map(([status, count]) => (
-                <span key={status} className={`text-xs font-mono uppercase px-2 py-1 border ${statusColor[status] ?? 'border-brand-border'}`}>
-                  {status}: {count}
-                </span>
-              ))}
-            </div>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,.75fr)]">
+            <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm">
+              <div className="mb-4 flex items-start justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Agenda operacional</div><h3 className="mt-1 text-lg font-bold text-brand-text">Próximas ordens de serviço</h3></div><button onClick={() => setTab('calendario')} className="text-xs font-bold uppercase tracking-wide text-brand-primary hover:underline">Ver calendário</button></div>
+              <div className="space-y-2">
+                {dashboardUpcomingOrders.map(({ order, eventDate }) => (
+                  <button key={order.id} onClick={() => openOrderDetail(order.id)} className="group flex w-full items-center gap-3 rounded-xl border border-brand-border bg-brand-dark/10 p-3 text-left hover:border-brand-primary/40 hover:bg-brand-primary/5">
+                    <div className="min-w-[46px] rounded-lg bg-brand-primary/10 px-2 py-1.5 text-center"><div className="text-[10px] font-bold uppercase text-brand-primary">{eventDate?.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</div><div className="text-lg font-bold leading-none text-brand-primary">{eventDate?.getDate()}</div></div>
+                    <div className="min-w-0 flex-1"><div className="text-xs font-bold uppercase text-brand-primary">{order.numero}</div><div className="mt-0.5 truncate text-sm font-semibold text-brand-text">{order.asset?.nome ?? order.infra_predial_servico ?? 'Serviço'}</div><div className="mt-0.5 truncate text-xs text-brand-muted">{order.tecnico?.nome ?? 'Sem técnico'} · {order.tipo}</div></div>
+                    <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold uppercase ${statusColor[order.status] ?? 'border-brand-border text-brand-muted'}`}>{order.status}</span>
+                  </button>
+                ))}
+                {dashboardUpcomingOrders.length === 0 && <div className="rounded-xl border border-dashed border-brand-border p-8 text-center text-sm text-brand-muted">Nenhuma OS programada no momento.</div>}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm">
+              <div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Visão do fluxo</div><h3 className="mt-1 text-lg font-bold text-brand-text">Ordens por status</h3>
+              <div className="mt-5 space-y-4">
+                {Object.entries(dash.orders_by_status).map(([status, count]) => <div key={status}><div className="mb-1.5 flex items-center justify-between text-xs"><span className="font-semibold text-brand-text">{status}</span><span className="font-mono text-brand-muted">{count}</span></div><div className="h-2 overflow-hidden rounded-full bg-brand-dark/10"><div className="h-full rounded-full bg-brand-primary transition-all" style={{ width: `${Math.max((count / dashboardStatusTotal) * 100, count ? 6 : 0)}%` }} /></div></div>)}
+                {Object.keys(dash.orders_by_status).length === 0 && <div className="py-6 text-center text-sm text-brand-muted">Ainda não há dados de status.</div>}
+              </div>
+              <div className="mt-6 grid grid-cols-2 gap-2"><button onClick={() => setTab('ordens')} className="rounded-xl border border-brand-border px-3 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-text hover:border-brand-primary/40">Todas as OS</button><button onClick={() => setTab('notifs')} className="rounded-xl bg-brand-primary px-3 py-2.5 text-xs font-bold uppercase tracking-wide text-white hover:bg-blue-700">Ver alertas</button></div>
+            </section>
           </div>
 
-          <div className="col-span-2 md:col-span-3 lg:col-span-6 border border-brand-border bg-brand-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-mono uppercase text-brand-muted">Desempenho dos técnicos</div>
-              <div className="text-xs text-brand-muted">Tempo médio e aderência aos itens obrigatórios</div>
+          {dashboardAttentionOrders.length > 0 && <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5"><div className="flex items-start gap-3"><div className="rounded-xl bg-amber-100 p-2 text-amber-700"><ShieldAlert size={18} /></div><div className="flex-1"><div className="text-xs font-bold uppercase tracking-[0.12em] text-amber-700">Atenção necessária</div><h3 className="mt-1 text-lg font-bold text-amber-950">{dashboardAttentionOrders.length} {dashboardAttentionOrders.length === 1 ? 'ordem precisa' : 'ordens precisam'} de acompanhamento</h3><p className="mt-1 text-sm text-amber-800">Há ordens pausadas ou aguardando peça. Revise os detalhes para evitar atrasos.</p></div><button onClick={() => setTab('ordens')} className="shrink-0 rounded-xl border border-amber-300 bg-white/60 px-3 py-2 text-xs font-bold uppercase tracking-wide text-amber-800">Revisar</button></div></section>}
+
+          <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm"><div className="mb-4 flex items-start justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Equipe</div><h3 className="mt-1 text-lg font-bold text-brand-text">Desempenho dos técnicos</h3></div><span className="text-xs text-brand-muted">Aderência e tempo médio</span></div><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{dash.technician_performance.map((tech) => <div key={tech.user_id} className="rounded-xl border border-brand-border bg-brand-dark/10 p-4"><div className="flex items-center justify-between"><span className="font-semibold text-brand-text">{tech.nome}</span><span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">{tech.required_completion_rate.toFixed(0)}%</span></div><div className="mt-3 grid grid-cols-3 gap-2 text-center"><div><div className="text-lg font-bold text-brand-text">{tech.assigned_orders}</div><div className="text-[10px] uppercase text-brand-muted">Atribuídas</div></div><div><div className="text-lg font-bold text-brand-text">{tech.in_progress_orders}</div><div className="text-[10px] uppercase text-brand-muted">Andamento</div></div><div><div className="text-lg font-bold text-brand-text">{tech.completed_orders}</div><div className="text-[10px] uppercase text-brand-muted">Concluídas</div></div></div><div className="mt-3 border-t border-brand-border pt-2 text-xs text-brand-muted">Tempo médio <span className="float-right font-bold text-brand-primary">{formatMinutes(tech.avg_resolution_minutes)}</span></div></div>)}{dash.technician_performance.length === 0 && <div className="col-span-full rounded-xl border border-dashed border-brand-border p-6 text-center text-sm text-brand-muted">Ainda não há indicadores suficientes para exibir desempenho técnico.</div>}</div></section>
+        </div>
+      )}
+
+      {/* ---------- RELATÓRIO GERAL ---------- */}
+      {!loading && tab === 'relatorio' && (
+        <div className="space-y-5">
+          <section className="relative overflow-hidden rounded-2xl border border-brand-primary/20 bg-gradient-to-br from-[#172b4d] via-[#1559b7] to-[#0c66e4] p-5 text-white shadow-lg md:p-7">
+            <div className="absolute -right-12 -top-20 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl" />
+            <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="mb-2 flex items-center gap-2 text-xs font-mono uppercase tracking-[0.18em] text-blue-100"><BarChart3 size={14} /> Inteligência operacional</div>
+                <h2 className="m-0 max-w-2xl text-2xl font-bold tracking-tight md:text-3xl">Relatório geral de manutenção.</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100">Uma leitura técnica de tudo que foi planejado, executado, concluído e ainda precisa de atenção.</p>
+              </div>
+              <button onClick={exportPreventiveReport} disabled={exportingReport} className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-primary shadow-sm hover:bg-blue-50 disabled:cursor-wait disabled:opacity-70">
+                <FileDown size={16} /> {exportingReport ? 'Gerando PDF...' : 'Exportar relatório PDF'}
+              </button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-brand-border text-[11px] font-mono uppercase tracking-wider text-brand-muted">
-                    <th className="py-2 pr-4">Responsável</th>
-                    <th className="py-2 pr-4">OS atribuídas</th>
-                    <th className="py-2 pr-4">Em andamento</th>
-                    <th className="py-2 pr-4">Concluídas</th>
-                    <th className="py-2 pr-4">Obrigatórias</th>
-                    <th className="py-2">Tempo médio</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-brand-border/50 text-sm">
-                  {dash.technician_performance.map((tech) => (
-                    <tr key={tech.user_id}>
-                      <td className="py-3 pr-4 text-brand-text">{tech.nome}</td>
-                      <td className="py-3 pr-4 font-mono text-brand-text">{tech.assigned_orders}</td>
-                      <td className="py-3 pr-4 font-mono text-brand-text">{tech.in_progress_orders}</td>
-                      <td className="py-3 pr-4 font-mono text-brand-text">{tech.completed_orders}</td>
-                      <td className="py-3 pr-4 font-mono text-brand-text">{tech.required_completion_rate.toFixed(0)}%</td>
-                      <td className="py-3 font-mono text-brand-primary">{formatMinutes(tech.avg_resolution_minutes)}</td>
-                    </tr>
-                  ))}
-                  {dash.technician_performance.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="py-6 text-center text-brand-muted font-mono text-xs">
-                        Ainda não há indicadores suficientes para exibir desempenho técnico.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          </section>
+
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[
+              { label: 'Ordens analisadas', value: orders.length, hint: `${reportOpenOrders.length} em aberto`, icon: ClipboardList, tone: 'text-blue-600 bg-blue-50' },
+              { label: 'Taxa de conclusão', value: `${reportCompletionRate.toFixed(0)}%`, hint: `${reportCompletedOrders.length} concluídas`, icon: TrendingUp, tone: 'text-emerald-600 bg-emerald-50' },
+              { label: 'Tempo médio', value: formatMinutes(Math.round(reportAverageMinutes)), hint: 'ordens concluídas', icon: Timer, tone: 'text-amber-600 bg-amber-50' },
+              { label: 'Custo registrado', value: formatReportCurrency(reportTotalCost), hint: `${reportTotalPhotos} fotos de evidência`, icon: DollarSign, tone: 'text-violet-600 bg-violet-50' },
+            ].map(({ label, value, hint, icon: Icon, tone }) => (
+              <div key={label} className="rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-2"><span className={`rounded-xl p-2 ${tone}`}><Icon size={17} /></span><span className="text-right text-xl font-bold tracking-tight text-brand-text md:text-2xl">{value}</span></div>
+                <div className="mt-4 text-xs font-bold uppercase tracking-wide text-brand-text">{label}</div>
+                <div className="mt-1 text-xs text-brand-muted">{hint}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]">
+            <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm">
+              <div className="mb-4 flex items-start justify-between"><div><div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Leitura técnica</div><h3 className="mt-1 text-lg font-bold text-brand-text">Indicadores de execução</h3></div><span className="text-xs text-brand-muted">Base atualizada</span></div>
+              <div className="space-y-4">
+                {[
+                  { label: 'Conclusão das ordens', value: reportCompletionRate, detail: reportCompletionRate >= 80 ? 'Ritmo saudável de execução' : 'Aumentar o acompanhamento das pendências', color: 'bg-emerald-500' },
+                  { label: 'Checklists preenchidos', value: reportChecklistRate, detail: reportChecklistRate >= 90 ? 'Boa aderência aos procedimentos' : 'Reforçar evidências e rotinas técnicas', color: 'bg-blue-500' },
+                  { label: 'Ordens em atenção', value: reportAttentionRate, detail: dashboardAttentionOrders.length > 0 ? `${dashboardAttentionOrders.length} aguardando peça ou pausada` : 'Nenhuma ordem crítica na fila', color: 'bg-amber-500' },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div className="mb-1.5 flex items-center justify-between gap-3 text-xs"><span className="font-semibold text-brand-text">{item.label}</span><span className="font-mono font-bold text-brand-primary">{item.value.toFixed(0)}%</span></div>
+                    <div className="h-2 overflow-hidden rounded-full bg-brand-dark/10"><div className={`h-full rounded-full ${item.color}`} style={{ width: `${Math.min(100, Math.max(item.value, item.value > 0 ? 6 : 0))}%` }} /></div>
+                    <div className="mt-1 text-[11px] text-brand-muted">{item.detail}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm">
+              <div className="mb-4"><div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Distribuição da carga</div><h3 className="mt-1 text-lg font-bold text-brand-text">Ordens por prioridade</h3></div>
+              <div className="space-y-3">
+                {PM_PRIORITIES.map((priority) => {
+                  const count = reportPriorityCounts[priority] || 0;
+                  return <div key={priority}><div className="mb-1 flex justify-between text-xs"><span className="font-semibold text-brand-text">{priority}</span><span className="font-mono text-brand-muted">{count}</span></div><div className="h-2 overflow-hidden rounded-full bg-brand-dark/10"><div className={`h-full rounded-full ${priority === 'Urgente' ? 'bg-red-500' : priority === 'Alta' ? 'bg-amber-500' : priority === 'Média' ? 'bg-blue-500' : 'bg-slate-400'}`} style={{ width: `${Math.max((count / Math.max(orders.length, 1)) * 100, count ? 6 : 0)}%` }} /></div></div>;
+                })}
+              </div>
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">{dashboardAttentionOrders.length > 0 ? 'Priorize as ordens aguardando peça ou pausadas para reduzir o tempo parado.' : 'A fila não possui ordens pausadas ou aguardando peça no momento.'}</div>
+            </section>
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-2">
+            <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm"><div className="mb-4"><div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Cobertura da equipe</div><h3 className="mt-1 text-lg font-bold text-brand-text">Distribuição por técnico</h3></div><div className="space-y-2">{Object.entries(reportTechnicianCounts).sort(([, a], [, b]) => b - a).map(([technician, count]) => <div key={technician} className="flex items-center justify-between rounded-xl border border-brand-border bg-brand-dark/10 px-3 py-2.5 text-sm"><span className="font-medium text-brand-text">{technician}</span><span className="rounded-full bg-brand-primary/10 px-2 py-1 text-xs font-bold text-brand-primary">{count} OS</span></div>)}{Object.keys(reportTechnicianCounts).length === 0 && <div className="rounded-xl border border-dashed border-brand-border p-6 text-center text-sm text-brand-muted">Sem responsáveis registrados.</div>}</div></section>
+            <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm"><div className="mb-4 flex items-start justify-between"><div><div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Rastreamento</div><h3 className="mt-1 text-lg font-bold text-brand-text">Ordens concluídas recentemente</h3></div><button onClick={() => setTab('ordens')} className="text-xs font-bold uppercase tracking-wide text-brand-primary hover:underline">Ver todas</button></div><div className="space-y-2">{[...reportCompletedOrders].sort((a, b) => new Date(b.data_conclusao || b.data_abertura).getTime() - new Date(a.data_conclusao || a.data_abertura).getTime()).slice(0, 5).map((order) => <button key={order.id} onClick={() => openOrderDetail(order.id)} className="flex w-full items-center gap-3 rounded-xl border border-brand-border bg-brand-dark/10 p-3 text-left hover:border-brand-primary/40"><div className="rounded-lg bg-emerald-50 p-2 text-emerald-600"><CheckCircle2 size={16} /></div><div className="min-w-0 flex-1"><div className="text-xs font-bold uppercase text-brand-primary">{order.numero}</div><div className="truncate text-sm font-semibold text-brand-text">{order.asset?.nome || order.infra_predial_servico || 'Serviço'}</div></div><div className="shrink-0 text-right text-[10px] text-brand-muted">{order.data_conclusao ? new Date(order.data_conclusao).toLocaleDateString('pt-BR') : 'Concluída'}</div></button>)}{reportCompletedOrders.length === 0 && <div className="rounded-xl border border-dashed border-brand-border p-6 text-center text-sm text-brand-muted">Ainda não há ordens concluídas.</div>}</div></section>
           </div>
         </div>
       )}

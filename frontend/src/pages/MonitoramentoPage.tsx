@@ -11,6 +11,8 @@ import { maintenanceApi } from '../api/maintenance';
 import { alertsApi } from '../api/alerts';
 import { API_BASE_URL } from '../api/client';
 import { transactionApi } from '../api/transaction';
+import { kanbanApi } from '../api/kanban';
+import type { KanbanProject } from '../types/kanban';
 import { EmergencyGlobalHandler } from '../components/emergency/EmergencyGlobalHandler';
 import type { ServiceTicket } from '../types/serviceDesk';
 import type { SolicitacaoManutencao } from '../types/maintenance';
@@ -54,6 +56,7 @@ export const MonitoramentoPage: React.FC = () => {
   const [tickets, setTickets] = useState<ServiceTicket[]>([]);
   const [maintenance, setMaintenance] = useState<SolicitacaoManutencao[]>([]);
   const [assetRequests, setAssetRequests] = useState<Solicitacao[]>([]);
+  const [kanbanProjects, setKanbanProjects] = useState<KanbanProject[]>([]);
   const [emergencyAlerts, setEmergencyAlerts] = useState<EmergencyAlert[]>([]);
   const [clock, setClock] = useState(new Date());
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -69,15 +72,24 @@ export const MonitoramentoPage: React.FC = () => {
       maintenanceApi.listRequests(0, 100),
       alertsApi.history(),
       transactionApi.listSolicitacoes(0, 100),
+      kanbanApi.listProjects(false),
     ]);
     if (results[0].status === 'fulfilled') setStats(results[0].value);
     const nextTickets = results[1].status === 'fulfilled' ? results[1].value : tickets;
     const nextMaintenance = results[2].status === 'fulfilled' ? results[2].value : maintenance;
     const nextAssetRequests = results[4].status === 'fulfilled' ? results[4].value : assetRequests;
+    const nextKanbanProjects = results[5].status === 'fulfilled' ? results[5].value : kanbanProjects;
+    const boardResults = results[5].status === 'fulfilled'
+      ? await Promise.allSettled(nextKanbanProjects.slice(0, 40).map((project) => kanbanApi.getBoard(project.id)))
+      : [];
+    const loadedKanbanProjects = boardResults.length
+      ? boardResults.filter((result): result is PromiseFulfilledResult<{ project: KanbanProject; board_progress: number; total_cards: number }> => result.status === 'fulfilled').map((result) => result.value.project)
+      : nextKanbanProjects;
     const nextSignature = JSON.stringify({
       tickets: nextTickets.map((ticket) => [ticket.id, ticket.status, ticket.tecnico_id, ticket.responsavel_id]),
       requests: nextAssetRequests.map((request) => [request.id, request.status]),
       maintenance: nextMaintenance.map((item) => [item.id, item.status]),
+      kanban: loadedKanbanProjects.flatMap((project) => (project.colunas || []).flatMap((column) => (column.cards || []).map((card) => [card.id, column.id, card.updated_at]))),
     });
     if (monitorSignatureRef.current !== null && monitorSignatureRef.current !== nextSignature) {
       playNotificationSound();
@@ -88,6 +100,7 @@ export const MonitoramentoPage: React.FC = () => {
     if (results[2].status === 'fulfilled') setMaintenance(nextMaintenance);
     if (results[3].status === 'fulfilled') setEmergencyAlerts(results[3].value);
     if (results[4].status === 'fulfilled') setAssetRequests(nextAssetRequests);
+    if (loadedKanbanProjects.length || results[5].status === 'fulfilled') setKanbanProjects(loadedKanbanProjects);
     setLastUpdate(new Date());
     setLoading(false);
   }, []);
@@ -98,6 +111,13 @@ export const MonitoramentoPage: React.FC = () => {
     const interval = window.setInterval(refresh, 5000);
     const clockInterval = window.setInterval(() => setClock(new Date()), 1000);
     return () => { window.clearInterval(interval); window.clearInterval(clockInterval); };
+  }, [refresh, token, user?.role]);
+
+  useEffect(() => {
+    if (!token || !STAFF_ROLES.includes(user?.role?.toLowerCase() || '')) return;
+    const source = new EventSource(`${API_BASE_URL}/kanban/sse?token=${encodeURIComponent(token)}`);
+    source.addEventListener('kanban_update', () => { void refresh(); });
+    return () => source.close();
   }, [refresh, token, user?.role]);
 
   useEffect(() => {
@@ -125,6 +145,20 @@ export const MonitoramentoPage: React.FC = () => {
   const activeMaintenance = useMemo(() => maintenance.filter((item) => !['concluida', 'rejeitada', 'entregue'].includes(String(item.status).toLowerCase())), [maintenance]);
   const pendingAssetRequests = useMemo(() => assetRequests.filter((item) => ['pendente', 'aprovada'].includes(String(item.status).toLowerCase())), [assetRequests]);
   const activeEmergency = useMemo(() => emergencyAlerts.filter((alert) => !alert.atendido), [emergencyAlerts]);
+  const kanbanSummary = useMemo(() => {
+    const columns = new Map<string, { name: string; color: string; count: number }>();
+    const updates: { id: number; title: string; project: string; status: string; responsible: string; updatedAt: string }[] = [];
+    let totalCards = 0;
+    kanbanProjects.forEach((project) => (project.colunas || []).forEach((column) => {
+      const cards = column.cards || [];
+      totalCards += cards.length;
+      const current = columns.get(column.nome) || { name: column.nome, color: column.cor, count: 0 };
+      current.count += cards.length;
+      columns.set(column.nome, current);
+      cards.forEach((card) => updates.push({ id: card.id, title: card.titulo, project: project.titulo, status: column.nome, responsible: card.responsavel?.nome || card.criador?.nome || 'Não atribuído', updatedAt: card.updated_at }));
+    }));
+    return { totalCards, columns: Array.from(columns.values()), updates: updates.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 6) };
+  }, [kanbanProjects]);
   const visibleAlerts = useMemo(() => [
     ...activeEmergency.map((alert) => ({ id: `emergency-${alert.id}`, title: alert.motivo, detail: `${alert.usuario_nome} · alerta emergencial`, tone: 'red', age: alert.created_at })),
     ...urgentTickets.map((ticket) => ({ id: `ticket-${ticket.id}`, title: ticket.descricao, detail: `${ticket.codigo} · ${priorityLabel[ticket.prioridade] || ticket.prioridade}`, tone: ticket.prioridade === 'urgente' ? 'red' : 'amber', age: ticket.data_abertura })),
@@ -145,29 +179,30 @@ export const MonitoramentoPage: React.FC = () => {
     { label: 'Prioridade alta', value: urgentTickets.length, icon: AlertTriangle, color: 'text-amber-300', link: 'atenção imediata' },
     { label: 'Em manutenção', value: stats?.total_assets_maintenance ?? activeMaintenance.length, icon: Wrench, color: 'text-violet-300', link: `${activeMaintenance.length} solicitações ativas` },
     { label: 'Alertas ativos', value: activeEmergency.length, icon: AlertOctagon, color: 'text-red-300', link: connection === 'online' ? 'tempo real ativo' : 'reconectando' },
+    { label: 'Cartões no Kanban', value: kanbanSummary.totalCards, icon: Activity, color: 'text-emerald-300', link: `${kanbanProjects.length} projetos acompanhados` },
   ];
 
   return (
-    <div ref={fullscreenRef} className="min-h-screen bg-[#071525] text-white selection:bg-cyan-400/30">
-      <div className="mx-auto flex min-h-screen max-w-[1900px] flex-col px-5 py-5 sm:px-8 sm:py-7 2xl:px-12">
-        <header className="relative flex shrink-0 items-center justify-between border-b border-white/10 pb-5">
-          <div className="min-w-[180px]">
+    <div ref={fullscreenRef} className="h-screen min-h-0 overflow-x-hidden overflow-y-auto bg-[#071525] text-white selection:bg-cyan-400/30">
+      <div className="mx-auto flex min-h-full max-w-[1900px] flex-col px-3 py-4 sm:px-6 sm:py-6 lg:px-8 2xl:px-12">
+        <header className="relative flex shrink-0 items-center justify-between gap-3 border-b border-white/10 pb-4 sm:pb-5">
+          <div className="min-w-0 flex-1 sm:min-w-[180px]">
             <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-300"><Activity size={14} /> Sala de monitoramento</p>
-            <p className="mt-1 text-xs text-slate-400">Operação AssetTrack TI · {user?.nome}</p>
+            <p className="mt-1 truncate text-xs text-slate-400">Operação AssetTrack TI · {user?.nome}</p>
           </div>
-          <img src="/logo-assettrack-monitoramento.png" alt="AssetTrack TI" className="absolute left-1/2 top-0 h-[60px] w-[280px] -translate-x-1/2 object-contain sm:h-[69px] sm:w-[328px]" />
-          <div className="flex min-w-[180px] items-center justify-end gap-3">
-            <div className="text-right"><p className="text-2xl font-semibold tracking-tight sm:text-3xl">{clock.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p><p className="text-[10px] uppercase tracking-widest text-slate-500">{clock.toLocaleDateString('pt-BR')}</p></div>
+          <img src="/logo-assettrack-monitoramento.png" alt="AssetTrack TI" className="absolute left-1/2 top-0 hidden h-[48px] w-[190px] -translate-x-1/2 object-contain sm:block sm:h-[60px] sm:w-[280px] lg:h-[69px] lg:w-[328px]" />
+          <div className="flex shrink-0 items-center justify-end gap-2 sm:min-w-[180px] sm:gap-3">
+            <div className="text-right"><p className="text-xl font-semibold tracking-tight sm:text-3xl">{clock.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p><p className="text-[9px] uppercase tracking-widest text-slate-500 sm:text-[10px]">{clock.toLocaleDateString('pt-BR')}</p></div>
             <button onClick={toggleFullscreen} className="rounded-xl border border-white/15 bg-white/5 p-2.5 text-slate-300 transition hover:bg-white/10 hover:text-white" aria-label={isFullscreen ? 'Sair da tela cheia' : 'Entrar em tela cheia'} title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}>{isFullscreen ? <X size={18} /> : <Expand size={18} />}</button>
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col gap-5 pt-5">
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <div className="flex flex-1 flex-col gap-4 pt-4 sm:gap-5 sm:pt-5">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
             {metricCards.map(({ label, value, icon: Icon, color, link }) => <div key={label} className="rounded-2xl border border-white/10 bg-[#0d2137] p-4 shadow-2xl shadow-black/10 sm:p-5"><div className="flex items-start justify-between"><p className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</p><Icon size={20} className={color} /></div><p className={`mt-2 text-3xl font-semibold tracking-tight sm:text-4xl ${color}`}>{loading ? '—' : value}</p><p className="mt-1 text-[11px] text-slate-500">{link}</p></div>)}
           </div>
 
-          <div className="grid min-h-0 flex-1 gap-5 xl:grid-cols-3">
+          <div className="grid min-h-0 gap-4 sm:gap-5 xl:grid-cols-3">
             <section className="flex min-h-[300px] flex-col rounded-2xl border border-white/10 bg-[#0d2137] p-5 sm:p-6">
               <div className="mb-4 flex items-center justify-between"><div><h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider"><Headphones size={17} className="text-cyan-300" /> Fila de atendimento</h2><p className="mt-1 text-xs text-slate-500">Chamados que precisam de acompanhamento</p></div><span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">{openTickets.length} ativos</span></div>
               <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">
@@ -180,6 +215,21 @@ export const MonitoramentoPage: React.FC = () => {
 
             <section className="flex min-h-[300px] flex-col rounded-2xl border border-white/10 bg-[#0d2137] p-5 sm:p-6"><div className="mb-4 flex items-center justify-between"><div><h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider"><MonitorCog size={17} className="text-amber-300" /> Solicitações de ativos</h2><p className="mt-1 text-xs text-slate-500">Pendentes e aprovadas aguardando entrega</p></div><span className="rounded-full bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-300">{pendingAssetRequests.length} pendentes</span></div><div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">{pendingAssetRequests.slice(0, 7).map((request) => <div key={request.id} className="rounded-xl border border-white/7 bg-[#102a44] px-3 py-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-100">{request.asset?.nome || 'Equipamento solicitado'}</p><p className="mt-1 truncate text-[11px] text-slate-500">{request.solicitante?.nome || 'Solicitante'} · {request.motivo || 'Sem justificativa'}</p></div><span className={`shrink-0 rounded px-2 py-1 text-[9px] font-bold uppercase ${String(request.status).toLowerCase() === 'aprovada' ? 'bg-emerald-400/10 text-emerald-300' : 'bg-amber-300/10 text-amber-300'}`}>{String(request.status).toLowerCase() === 'aprovada' ? 'Aprovada' : 'Pendente'}</span></div></div>)}{!pendingAssetRequests.length && <div className="grid h-full place-items-center text-sm text-slate-500"><CheckCircle2 className="mr-2 inline text-emerald-400" size={18} /> Nenhuma solicitação pendente</div>}</div></section>
           </div>
+
+          <section className="rounded-2xl border border-white/10 bg-[#0d2137] p-4 shadow-2xl shadow-black/10 sm:p-6">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div><h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider"><Activity size={17} className="text-emerald-300" /> Kanban operacional</h2><p className="mt-1 text-xs text-slate-500">Contagens e últimas movimentações dos projetos disponíveis para esta equipe</p></div>
+              <button onClick={() => navigate('/kanban')} className="self-start rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-300 transition hover:bg-white/10 hover:text-white">Abrir Kanban</button>
+            </div>
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2">
+                <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/5 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Projetos</p><p className="mt-1 text-2xl font-semibold text-emerald-300">{kanbanProjects.length}</p></div>
+                <div className="rounded-xl border border-cyan-300/15 bg-cyan-300/5 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Cartões</p><p className="mt-1 text-2xl font-semibold text-cyan-300">{kanbanSummary.totalCards}</p></div>
+                {kanbanSummary.columns.map((column) => <div key={column.name} className="rounded-xl border border-white/10 bg-[#102a44] p-3"><div className="flex items-center justify-between gap-2"><p className="truncate text-[10px] uppercase tracking-wider text-slate-500">{column.name}</p><span className="h-2 w-2 rounded-full" style={{ backgroundColor: column.color || '#38bdf8' }} /></div><p className="mt-1 text-2xl font-semibold text-slate-100">{column.count}</p></div>)}
+              </div>
+              <div className="min-w-0"><div className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Atualizações recentes</div><div className="space-y-2">{kanbanSummary.updates.map((update) => <div key={`${update.id}-${update.updatedAt}`} className="flex items-center gap-3 rounded-xl border border-white/7 bg-[#102a44] px-3 py-2.5"><span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-slate-100">{update.title}</p><p className="mt-1 truncate text-[10px] text-slate-500">{update.project} · {update.responsible}</p></div><div className="shrink-0 text-right"><p className="max-w-[110px] truncate text-[10px] font-semibold uppercase text-emerald-300">{update.status}</p><p className="mt-1 text-[10px] text-slate-600">{formatAge(update.updatedAt)}</p></div></div>)}{!kanbanSummary.updates.length && <div className="rounded-xl border border-dashed border-white/10 p-7 text-center text-sm text-slate-500">Nenhum cartão Kanban disponível para acompanhamento.</div>}</div></div>
+            </div>
+          </section>
 
           <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 text-[11px] text-slate-500"><span className="flex items-center gap-2"><MonitorCog size={14} className="text-cyan-300" /> Status, atribuições e novidades com atualização a cada 5 segundos</span><span className="flex items-center gap-2"><Clock3 size={14} /> Última sincronização: {lastUpdate ? formatTime(lastUpdate.toISOString()) : 'carregando'} <button onClick={refresh} className="rounded p-1 transition hover:bg-white/10 hover:text-white" title="Atualizar agora"><RefreshCw size={14} /></button><button onClick={() => navigate('/')} className="rounded p-1 transition hover:bg-white/10 hover:text-white" title="Voltar ao sistema"><X size={14} /></button></span></footer>
         </div>

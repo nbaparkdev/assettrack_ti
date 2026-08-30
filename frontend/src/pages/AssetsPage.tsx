@@ -1043,8 +1043,14 @@ export const AssetsPage: React.FC = () => {
     { name: 'Baixado', color: 'border-red-500/30 bg-red-500/5 text-red-400', label: 'Baixado' },
   ];
 
+  const assetStatusCounts = assets.reduce<Record<string, number>>((counts, asset) => {
+    counts[asset.status] = (counts[asset.status] || 0) + 1;
+    return counts;
+  }, {});
+  const assetInventoryValue = assets.reduce((total, asset) => total + (asset.valor || 0), 0);
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Notifications */}
       {globalError && (
         <div className="p-4 border border-red-500/30 bg-red-500/5 text-red-400 text-sm font-mono flex items-center justify-between">
@@ -1067,12 +1073,15 @@ export const AssetsPage: React.FC = () => {
       )}
 
       {/* Header section */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+      <section className="relative overflow-hidden rounded-2xl border border-brand-primary/20 bg-gradient-to-br from-[#0c66e4] via-[#1559b7] to-[#172b4d] p-5 text-white shadow-lg md:p-7">
+        <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold uppercase tracking-wider font-mono text-brand-text m-0">
-            Ativos & Inventário
+          <div className="mb-2 flex items-center gap-2 text-xs font-mono uppercase tracking-[0.18em] text-blue-100"><Layers3 size={14} /> Central patrimonial</div>
+          <h1 className="m-0 text-2xl font-bold tracking-tight md:text-3xl">
+            Inventário organizado, ativos disponíveis.
           </h1>
-          <p className="text-brand-muted text-sm mt-1">
+          <p className="mt-2 text-sm leading-6 text-blue-100">
             Gestão de equipamentos, controle patrimonial, QR Codes e Kanban de oficina.
           </p>
         </div>
@@ -1109,7 +1118,7 @@ export const AssetsPage: React.FC = () => {
               setScannerMode('camera');
               setShowScannerModal(true);
             }}
-            className="flex-1 sm:flex-initial border border-brand-primary/40 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary font-bold font-mono px-3.5 py-2.5 rounded-xl uppercase tracking-wider text-xs flex items-center justify-center space-x-1.5 transition-all shadow-sm active:scale-95 cursor-pointer min-h-[40px]"
+            className="flex-1 sm:flex-initial border border-[#7a87e6] bg-brand-primary/10 hover:bg-white/20 text-[#e8eaed] font-bold font-mono px-3.5 py-2.5 rounded-xl uppercase tracking-wider text-xs flex items-center justify-center space-x-1.5 transition-all shadow-sm active:scale-95 cursor-pointer min-h-[40px]"
           >
             <QrCode size={16} />
             <span>Scanner QR</span>
@@ -1125,10 +1134,22 @@ export const AssetsPage: React.FC = () => {
             </button>
           )}
         </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { label: 'Total de ativos', value: assets.length, hint: 'registros na visão atual', icon: Layers3, tone: 'text-blue-600 bg-blue-50' },
+          { label: 'Disponíveis', value: assetStatusCounts['Disponível'] || 0, hint: 'prontos para uso', icon: CheckCircle2, tone: 'text-emerald-600 bg-emerald-50' },
+          { label: 'Em manutenção', value: assetStatusCounts['Manutenção'] || 0, hint: 'fora de operação', icon: Wrench, tone: 'text-amber-600 bg-amber-50' },
+          { label: 'Valor inventariado', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(assetInventoryValue), hint: 'soma dos ativos carregados', icon: DollarSign, tone: 'text-violet-600 bg-violet-50' },
+        ].map(({ label, value, hint, icon: Icon, tone }) => (
+          <div key={label} className="rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm"><div className="flex items-start justify-between gap-2"><span className={`rounded-xl p-2 ${tone}`}><Icon size={17} /></span><span className="text-right text-2xl font-bold tracking-tight text-brand-text">{value}</span></div><div className="mt-4 text-xs font-bold uppercase tracking-wide text-brand-text">{label}</div><div className="mt-1 text-xs text-brand-muted">{hint}</div></div>
+        ))}
       </div>
 
       {/* Tabs Menu */}
-      <div className="w-full min-w-0 max-w-full overflow-x-auto border-b border-brand-border flex items-center gap-1 pb-0.5 no-scrollbar scroll-smooth">
+      <div className="w-full min-w-0 max-w-full overflow-x-auto rounded-t-2xl border-b border-brand-border bg-white/20 flex items-center gap-1 pb-0.5 no-scrollbar scroll-smooth">
         <button
           onClick={() => setActiveTab('table')}
           className={`shrink-0 whitespace-nowrap px-4 sm:px-5 py-2.5 sm:py-3 border-b-2 font-mono text-xs uppercase tracking-wider flex items-center space-x-2 transition-all cursor-pointer rounded-t-lg ${
@@ -1182,7 +1203,7 @@ export const AssetsPage: React.FC = () => {
 
       {/* SEARCH AND QUICK FILTERS FOR TABLE & KANBAN */}
       {(activeTab === 'table' || activeTab === 'kanban') && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-brand-card/25 border border-brand-border p-4">
+        <div className="grid grid-cols-1 gap-3 rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm md:grid-cols-3">
           <div className="relative">
             <Search className="absolute left-3 top-3 text-brand-muted" size={16} />
             <input
@@ -1190,7 +1211,7 @@ export const AssetsPage: React.FC = () => {
               placeholder="Buscar por E-Patrimônio..."
               value={searchEP}
               onChange={(e) => setSearchEP(e.target.value)}
-              className="w-full bg-brand-dark border border-brand-border pl-10 pr-4 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary font-mono transition-colors"
+              className="w-full rounded-xl bg-brand-dark border border-brand-border pl-10 pr-4 py-2.5 text-sm text-brand-text focus:outline-none focus:border-brand-primary font-mono transition-colors"
             />
           </div>
 
@@ -1198,7 +1219,7 @@ export const AssetsPage: React.FC = () => {
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value ? Number(e.target.value) : '')}
-              className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors font-mono"
+              className="w-full rounded-xl bg-brand-dark border border-brand-border px-3 py-2.5 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors font-mono"
             >
               <option value="">Todas as Categorias</option>
               {references?.categorias.map(cat => (
@@ -1211,7 +1232,7 @@ export const AssetsPage: React.FC = () => {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors font-mono"
+              className="w-full rounded-xl bg-brand-dark border border-brand-border px-3 py-2.5 text-sm text-brand-text focus:outline-none focus:border-brand-primary transition-colors font-mono"
             >
               <option value="">Todos os Status</option>
               <option value="Disponível">Disponível</option>

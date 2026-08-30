@@ -151,22 +151,44 @@ export const AlertsPage: React.FC = () => {
     }
   };
 
+  const activeHistoryCount = history.filter((alert) => !alert.atendido).length;
+  const acknowledgedCount = history.filter((alert) => alert.ciente && !alert.atendido).length;
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-brand-border pb-4">
-        <div>
-          <h1 className="text-3xl font-bold uppercase tracking-wider font-mono text-brand-text m-0">Alertas & Avisos</h1>
-          <p className="text-brand-muted text-sm mt-1">Alertas emergenciais em tempo real e avisos do sistema.</p>
-        </div>
-        {isStaff && (
+    <div className="space-y-5">
+      <section className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-br from-[#b4232d] via-[#8f2632] to-[#172b4d] p-5 text-white shadow-lg md:p-7">
+        <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-xs font-mono uppercase tracking-[0.18em] text-red-100"><Siren size={14} /> Central de comunicação</div>
+            <h1 className="m-0 max-w-xl text-2xl font-bold tracking-tight md:text-3xl">Alertas claros. Resposta rápida.</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-red-100">Dispare emergências, acompanhe confirmações e mantenha os comunicados do sistema organizados.</p>
+          </div>
+          {isStaff && (
           <button
             onClick={triggerTestEmergencyAlert}
-            className="px-4 py-2 bg-brand-card border border-red-500/40 text-red-400 font-mono font-bold text-xs uppercase tracking-wider flex items-center hover:bg-red-500/10 transition-colors shadow-lg"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/20"
           >
-            <Volume2 size={16} className="mr-2" />
+            <Volume2 size={16} />
             Testar Som & Popup de Alerta
           </button>
-        )}
+          )}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { label: 'Alertas em aberto', value: activeHistoryCount, hint: 'aguardando atendimento', icon: ShieldAlert, tone: 'text-red-600 bg-red-50' },
+          { label: 'Cientes pendentes', value: acknowledgedCount, hint: 'assumidos pela equipe', icon: CheckCircle2, tone: 'text-amber-600 bg-amber-50' },
+          { label: 'Recebidos agora', value: liveAlerts.length, hint: 'eventos nesta sessão', icon: Siren, tone: 'text-violet-600 bg-violet-50' },
+          { label: 'Comunicados', value: avisos.length, hint: 'avisos cadastrados', icon: Bell, tone: 'text-blue-600 bg-blue-50' },
+        ].map(({ label, value, hint, icon: Icon, tone }) => (
+          <div key={label} className="rounded-2xl border border-brand-border bg-brand-card p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-2"><span className={`rounded-xl p-2 ${tone}`}><Icon size={17} /></span><span className="text-2xl font-bold tracking-tight text-brand-text">{value}</span></div>
+            <div className="mt-4 text-xs font-bold uppercase tracking-wide text-brand-text">{label}</div>
+            <div className="mt-1 text-xs text-brand-muted">{hint}</div>
+          </div>
+        ))}
       </div>
 
       {/* Live alerts (staff) */}
@@ -186,9 +208,9 @@ export const AlertsPage: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Trigger alert */}
-        <div className="border border-brand-border bg-brand-card p-6 space-y-4">
+        <div className="rounded-2xl border border-red-200 bg-brand-card p-5 shadow-sm sm:p-6">
           <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text flex items-center">
             <ShieldAlert size={16} className="mr-2 text-red-400" /> Disparar alerta emergencial
           </h3>
@@ -202,12 +224,12 @@ export const AlertsPage: React.FC = () => {
               rows={4}
               required
               placeholder="Descreva o problema urgente..."
-              className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-red-500/50"
+              className="w-full rounded-xl bg-brand-dark border border-brand-border px-3 py-3 text-sm text-brand-text focus:outline-none focus:border-red-500/50"
             />
             <button
               type="submit"
               disabled={sending}
-              className="bg-red-500/20 text-red-400 border border-red-500/40 px-4 py-2.5 font-bold font-mono uppercase tracking-wider text-xs hover:bg-red-500/30 disabled:opacity-50 w-full"
+              className="w-full rounded-xl bg-red-600 px-4 py-3 font-bold font-mono uppercase tracking-wider text-xs text-white hover:bg-red-700 disabled:opacity-50"
             >
               {sending ? 'Enviando...' : 'Transmitir alerta'}
             </button>
@@ -221,8 +243,8 @@ export const AlertsPage: React.FC = () => {
 
         {/* Alert history (staff) */}
         {isStaff && (
-          <div className="border border-brand-border bg-brand-card">
-            <div className="p-4 border-b border-brand-border text-sm font-bold font-mono uppercase tracking-wider text-brand-text flex items-center">
+          <div className="overflow-hidden rounded-2xl border border-brand-border bg-brand-card shadow-sm">
+            <div className="flex items-center border-b border-brand-border p-4 text-sm font-bold font-mono uppercase tracking-wider text-brand-text">
               <Bell size={16} className="mr-2" /> Histórico de alertas
             </div>
             <div className="divide-y divide-brand-border/60 max-h-96 overflow-y-auto">
@@ -280,8 +302,8 @@ export const AlertsPage: React.FC = () => {
       </div>
 
       {/* Avisos */}
-      <div className="border border-brand-border bg-brand-card">
-        <div className="p-4 border-b border-brand-border flex justify-between items-center">
+      <div className="overflow-hidden rounded-2xl border border-brand-border bg-brand-card shadow-sm">
+        <div className="flex flex-col items-start justify-between gap-3 border-b border-brand-border p-4 sm:flex-row sm:items-center">
           <div>
             <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text m-0">Avisos e Comunicados do Sistema</h3>
             <p className="text-xs text-brand-muted mt-0.5">Visíveis na Dashboard para todos os usuários da aplicação</p>
