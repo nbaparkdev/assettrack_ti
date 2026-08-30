@@ -1,16 +1,52 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { rhApi } from '../api/rh';
 import { apiClient as api } from '../api/client';
-import type { TermoResponsabilidade } from '../types/rh';
+import type { TermoResponsabilidade, RHControlResponse, RHStatusType, RHStatusRecord } from '../types/rh';
 import type { Solicitacao } from '../types/transaction';
 import type { User } from '../types/user';
-import { FileSignature, Printer, CheckCircle2, XCircle, Edit2, Plus, UserMinus } from 'lucide-react';
+import { FileSignature, Printer, CheckCircle2, XCircle, Edit2, Plus, UserMinus, CalendarDays, MessageSquareText, UsersRound, Clock3, Download, ClipboardPlus, Megaphone, LayoutDashboard } from 'lucide-react';
 import jsPDF from 'jspdf';
 
 const statusStyles: Record<string, string> = {
   Pendente: 'border-yellow-500/30 text-yellow-400',
   Assinado: 'border-green-500/30 text-green-400',
   Cancelado: 'border-red-500/30 text-red-400',
+};
+
+const employeeStatus: Record<RHStatusType, { label: string; className: string; calendarClassName: string }> = {
+  trabalhando: { label: 'Trabalhando', className: 'border-emerald-500/30 text-emerald-600 bg-emerald-500/10', calendarClassName: 'border-emerald-300 border-l-emerald-600 bg-emerald-50 text-emerald-800' },
+  folga: { label: 'Folga', className: 'border-sky-500/30 text-sky-600 bg-sky-500/10', calendarClassName: 'border-sky-300 border-l-sky-600 bg-sky-50 text-sky-800' },
+  ferias: { label: 'Férias', className: 'border-violet-500/30 text-violet-600 bg-violet-500/10', calendarClassName: 'border-violet-300 border-l-violet-600 bg-violet-50 text-violet-800' },
+  banco_horas: { label: 'Banco de horas', className: 'border-amber-500/30 text-amber-700 bg-amber-500/10', calendarClassName: 'border-amber-300 border-l-amber-600 bg-amber-50 text-amber-800' },
+  desligado: { label: 'Desligado', className: 'border-red-500/30 text-red-600 bg-red-500/10', calendarClassName: 'border-red-300 border-l-red-600 bg-red-50 text-red-800' },
+};
+
+const dateInputValue = () => {
+  const date = new Date();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+
+const RHMonthlyCalendar: React.FC<{ records: RHStatusRecord[]; sectorId: string }> = ({ records, sectorId }) => {
+  const [reference, setReference] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const days = useMemo(() => {
+    const first = new Date(reference.getFullYear(), reference.getMonth(), 1);
+    const count = new Date(reference.getFullYear(), reference.getMonth() + 1, 0).getDate();
+    const padding: Array<Date | null> = Array.from({ length: first.getDay() }, () => null);
+    const dates: Array<Date | null> = Array.from({ length: count }, (_, index) => new Date(reference.getFullYear(), reference.getMonth(), index + 1));
+    return padding.concat(dates);
+  }, [reference]);
+  const filteredRecords = sectorId ? records.filter(item => String(item.usuario?.departamento_id ?? '') === sectorId) : records;
+  const eventsForDay = (date: Date) => filteredRecords.filter(item => {
+    const start = new Date(item.inicio); const end = new Date(item.fim || item.inicio);
+    const calendarDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+    return calendarDate >= new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime() && calendarDate <= new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
+  });
+  return <div className="border border-brand-border bg-brand-card">
+    <div className="p-4 border-b border-brand-border flex items-center gap-3"><CalendarDays size={16} className="text-brand-primary" /><span className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text">Calendário de RH</span><div className="ml-auto flex gap-2"><button type="button" onClick={() => setReference(new Date(reference.getFullYear(), reference.getMonth() - 1, 1))} className="text-xs text-brand-primary">←</button><span className="text-xs text-brand-muted capitalize min-w-32 text-center">{reference.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span><button type="button" onClick={() => setReference(new Date(reference.getFullYear(), reference.getMonth() + 1, 1))} className="text-xs text-brand-primary">→</button></div></div>
+    <div className="grid grid-cols-7 overflow-hidden rounded-b-xl border-l border-brand-border">{['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => <div key={day} className="border-r border-b border-brand-border bg-brand-dark/40 p-2 text-center text-[10px] font-bold uppercase tracking-wide text-brand-muted">{day}</div>)}{days.map((date, index) => <div key={index} className="min-h-28 border-r border-b border-brand-border bg-white/35 p-2">{date && <><div className="flex justify-end"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold text-brand-muted">{date.getDate()}</span></div><div className="mt-1.5 space-y-1.5">{eventsForDay(date).slice(0, 3).map(item => <div title={`${item.usuario?.nome || ''} · ${employeeStatus[item.tipo].label}`} key={item.id} className={`border border-l-4 rounded-md px-1.5 py-1 text-[10px] font-semibold leading-tight shadow-sm ${employeeStatus[item.tipo].calendarClassName}`}><span className="block truncate">{item.usuario?.nome || 'Colaborador'}</span><span className="block text-[9px] font-medium opacity-75">{employeeStatus[item.tipo].label}</span></div>)}</div></>}</div>)}</div>
+  </div>;
 };
 
 export const RHPage: React.FC = () => {
@@ -25,6 +61,10 @@ export const RHPage: React.FC = () => {
   const [solId, setSolId] = useState<number | null>(null);
   const [conteudo, setConteudo] = useState('');
   const [saving, setSaving] = useState(false);
+  const [control, setControl] = useState<RHControlResponse | null>(null);
+  const [statusForm, setStatusForm] = useState({ usuario_id: '', tipo: 'folga', inicio: dateInputValue(), fim: '', horas: '', observacao: '' });
+  const [noticeForm, setNoticeForm] = useState({ usuario_id: '', titulo: '', mensagem: '', inicio: dateInputValue(), fim: '' });
+  const [calendarSector, setCalendarSector] = useState('');
 
   const fetchData = async () => {
     try {
@@ -47,6 +87,7 @@ export const RHPage: React.FC = () => {
         
         return true;
       }));
+      setControl(await rhApi.control());
     } catch (err) {
       console.error(err);
     } finally {
@@ -56,7 +97,42 @@ export const RHPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    const interval = window.setInterval(fetchData, 30000);
+    return () => window.clearInterval(interval);
   }, []);
+
+  const saveStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!statusForm.usuario_id) return;
+    try {
+      await rhApi.createStatus({
+        usuario_id: Number(statusForm.usuario_id), tipo: statusForm.tipo, inicio: statusForm.inicio,
+        fim: statusForm.fim || undefined, horas: statusForm.horas ? Number(statusForm.horas) : undefined,
+        observacao: statusForm.observacao || undefined,
+      });
+      setStatusForm({ usuario_id: '', tipo: 'folga', inicio: dateInputValue(), fim: '', horas: '', observacao: '' });
+      await fetchData();
+    } catch (err: any) { alert(err.response?.data?.error || 'Não foi possível registrar o status.'); }
+  };
+
+  const saveNotice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await rhApi.createComunicado({ usuario_id: noticeForm.usuario_id ? Number(noticeForm.usuario_id) : undefined, titulo: noticeForm.titulo, mensagem: noticeForm.mensagem, inicio: noticeForm.inicio || undefined, fim: noticeForm.fim || undefined });
+      setNoticeForm({ usuario_id: '', titulo: '', mensagem: '', inicio: dateInputValue(), fim: '' });
+      await fetchData();
+    } catch (err: any) { alert(err.response?.data?.error || 'Não foi possível enviar o comunicado.'); }
+  };
+
+  const exportControl = async () => {
+    try {
+      const blob = await rhApi.exportStatusCSV();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url; anchor.download = 'controle_rh.csv'; anchor.click();
+      URL.revokeObjectURL(url);
+    } catch { alert('Não foi possível exportar o relatório de RH.'); }
+  };
 
   const openCreate = async (solicitacao: Solicitacao) => {
     setEditing(null);
@@ -152,13 +228,80 @@ export const RHPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold uppercase tracking-wider font-mono text-brand-text m-0">Portal RH</h1>
-        <p className="text-brand-muted text-sm mt-1">
-          Termos de Responsabilidade pela guarda e uso de equipamentos.
-        </p>
-      </div>
+    <div className="max-w-7xl mx-auto space-y-6 pb-8">
+      <section className="relative overflow-hidden rounded-2xl border border-brand-border bg-brand-card shadow-sm">
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-dark via-brand-dark to-brand-primary opacity-95" />
+        <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full bg-white/10" />
+        <div className="relative flex flex-col gap-5 p-6 text-white sm:flex-row sm:items-end sm:justify-between sm:p-8">
+          <div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/70"><LayoutDashboard size={15} /> Gestão de pessoas</div><h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Portal RH</h1><p className="mt-2 max-w-xl text-sm leading-relaxed text-white/80">Acompanhe a disponibilidade da equipe, mantenha o calendário atualizado e centralize as comunicações internas.</p></div>
+          <button type="button" onClick={exportControl} className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-primary shadow-sm hover:bg-blue-50"><Download size={15} className="mr-2" />Exportar relatório</button>
+        </div>
+      </section>
+
+      {/* Controle de disponibilidade — refreshed every 30 seconds */}
+      {control && (
+        <>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            {(Object.keys(employeeStatus) as RHStatusType[]).map((type) => {
+              const meta = employeeStatus[type];
+              const count = control.colaboradores.filter(c => c.status_atual === type).length;
+              return <div key={type} className="border border-brand-border bg-brand-card p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-brand-muted">{meta.label}</div>
+                <div className={`mt-1 text-3xl font-bold tracking-tight ${meta.className.split(' ')[1]}`}>{count}</div>
+              </div>;
+            })}
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <form onSubmit={saveStatus} className="border border-brand-border bg-brand-card p-5 space-y-4">
+              <div className="flex items-start gap-3"><div className="rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><ClipboardPlus size={18} /></div><div><div className="text-base font-bold text-brand-text">Registrar status</div><p className="mt-0.5 text-xs text-brand-muted">Inclua uma mudança de agenda no calendário do colaborador.</p></div></div>
+              <select required value={statusForm.usuario_id} onChange={e => setStatusForm({ ...statusForm, usuario_id: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text">
+                <option value="">Selecione o colaborador</option>
+                {control.colaboradores.filter(c => c.usuario.is_active).map(c => <option key={c.usuario.id} value={c.usuario.id}>{c.usuario.nome}</option>)}
+              </select>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <select value={statusForm.tipo} onChange={e => setStatusForm({ ...statusForm, tipo: e.target.value })} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text">
+                  <option value="trabalhando">Trabalhando</option><option value="folga">Folga</option><option value="ferias">Férias</option><option value="banco_horas">Banco de horas</option>
+                </select>
+                <input required type="date" value={statusForm.inicio} onChange={e => setStatusForm({ ...statusForm, inicio: e.target.value })} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text" />
+                <input type="date" value={statusForm.fim} onChange={e => setStatusForm({ ...statusForm, fim: e.target.value })} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text" title="Fim (opcional)" />
+              </div>
+              {statusForm.tipo === 'banco_horas' && <input type="number" step="0.5" placeholder="Quantidade de horas" value={statusForm.horas} onChange={e => setStatusForm({ ...statusForm, horas: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text" />}
+              <input placeholder="Observação para o histórico (opcional)" value={statusForm.observacao} onChange={e => setStatusForm({ ...statusForm, observacao: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text" />
+              <button className="bg-brand-primary text-brand-dark font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs">Salvar no calendário</button>
+            </form>
+
+            <form onSubmit={saveNotice} className="border border-brand-border bg-brand-card p-5 space-y-4">
+              <div className="flex items-start gap-3"><div className="rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><Megaphone size={18} /></div><div><div className="text-base font-bold text-brand-text">Novo comunicado</div><p className="mt-0.5 text-xs text-brand-muted">Envie uma mensagem individual ou para toda a empresa.</p></div></div>
+              <select value={noticeForm.usuario_id} onChange={e => setNoticeForm({ ...noticeForm, usuario_id: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text">
+                <option value="">Todos os colaboradores</option>
+                {control.colaboradores.filter(c => c.usuario.is_active).map(c => <option key={c.usuario.id} value={c.usuario.id}>{c.usuario.nome}</option>)}
+              </select>
+              <input required placeholder="Título do comunicado" value={noticeForm.titulo} onChange={e => setNoticeForm({ ...noticeForm, titulo: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text" />
+              <textarea required placeholder="Mensagem para o colaborador" value={noticeForm.mensagem} onChange={e => setNoticeForm({ ...noticeForm, mensagem: e.target.value })} className="w-full min-h-20 bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text" />
+              <div className="grid grid-cols-2 gap-3"><input type="date" value={noticeForm.inicio} onChange={e => setNoticeForm({ ...noticeForm, inicio: e.target.value })} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text" /><input type="date" value={noticeForm.fim} onChange={e => setNoticeForm({ ...noticeForm, fim: e.target.value })} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text" title="Expira em (opcional)" /></div>
+              <button className="bg-brand-primary text-brand-dark font-bold font-mono px-4 py-2.5 uppercase tracking-wider text-xs">Enviar comunicado</button>
+            </form>
+          </div>
+
+          <div className="border border-brand-border bg-brand-card">
+            <div className="p-4 border-b border-brand-border flex items-center gap-2 text-sm font-bold font-mono uppercase tracking-wider text-brand-text"><UsersRound size={16} className="text-brand-primary" /> Status atual da equipe <span className="ml-auto text-[10px] normal-case text-brand-muted font-normal">atualiza automaticamente</span></div>
+            <div className="divide-y divide-brand-border/60 max-h-[340px] overflow-y-auto">
+              {control.colaboradores.map(({ usuario, status_atual }) => <div key={usuario.id} className="p-3 flex items-center justify-between gap-3"><div><span className="font-medium text-brand-text">{usuario.nome}</span><span className="ml-2 text-xs text-brand-muted">{usuario.cargo || 'Cargo não definido'}</span></div><span className={`text-[10px] font-mono uppercase px-2 py-1 border ${employeeStatus[status_atual].className}`}>{employeeStatus[status_atual].label}</span></div>)}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex justify-end items-center gap-2"><label className="text-xs font-mono uppercase text-brand-muted">Filtrar calendário por setor</label><select value={calendarSector} onChange={e => setCalendarSector(e.target.value)} className="bg-brand-dark border border-brand-border px-3 py-2 text-xs text-brand-text"><option value="">Todos os setores</option>{Array.from(new Map(control.colaboradores.filter(c => c.usuario.departamento).map(c => [c.usuario.departamento_id, c.usuario.departamento!.nome])).entries()).map(([id, name]) => <option key={String(id)} value={String(id)}>{name}</option>)}</select></div>
+            <RHMonthlyCalendar records={control.status} sectorId={calendarSector} />
+          </div>
+
+          {(control.status.length > 0 || control.comunicados.length > 0) && <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="border border-brand-border bg-brand-card"><div className="p-4 border-b border-brand-border flex gap-2 text-sm font-bold font-mono uppercase tracking-wider text-brand-text"><Clock3 size={16} className="text-brand-primary" /> Agenda de RH</div><div className="divide-y divide-brand-border/60 max-h-72 overflow-y-auto">{control.status.slice(0, 20).map(s => <div className="p-3 flex justify-between gap-3" key={s.id}><div><span className="text-brand-text">{s.usuario?.nome || 'Colaborador'}</span><span className="ml-2 text-xs text-brand-muted">{new Date(s.inicio).toLocaleDateString('pt-BR')}{s.fim ? ` até ${new Date(s.fim).toLocaleDateString('pt-BR')}` : ''}</span><p className="text-xs text-brand-muted m-0 mt-1">{s.observacao || (s.horas ? `${s.horas}h registradas` : '')}</p></div><div className="flex gap-2 items-start"><span className={`text-[10px] font-mono uppercase px-2 py-1 border ${employeeStatus[s.tipo].className}`}>{employeeStatus[s.tipo].label}</span><button type="button" title="Remover registro" onClick={() => action(() => rhApi.deleteStatus(s.id), 'Remover este registro de calendário?')} className="text-red-400"><XCircle size={16} /></button></div></div>)}</div></div>
+            <div className="border border-brand-border bg-brand-card"><div className="p-4 border-b border-brand-border flex gap-2 text-sm font-bold font-mono uppercase tracking-wider text-brand-text"><MessageSquareText size={16} className="text-brand-primary" /> Comunicados enviados</div><div className="divide-y divide-brand-border/60 max-h-72 overflow-y-auto">{control.comunicados.slice(0, 20).map(n => <div className="p-3 flex justify-between gap-3" key={n.id}><div><span className="text-brand-text">{n.titulo}</span><span className="ml-2 text-xs text-brand-muted">{n.usuario?.nome || 'Todos os colaboradores'}</span><p className="text-xs text-brand-muted m-0 mt-1">{n.mensagem}</p></div><button type="button" title="Remover comunicado" onClick={() => action(() => rhApi.deleteComunicado(n.id), 'Remover este comunicado?')} className="text-red-400 h-fit"><XCircle size={16} /></button></div>)}</div></div>
+          </div>}
+        </>
+      )}
 
       {/* Solicitações pendentes de termo */}
       <div className="border border-brand-border bg-brand-card">
@@ -216,7 +359,7 @@ export const RHPage: React.FC = () => {
                     </span>
                   </div>
                   <span className="text-xs font-mono text-brand-muted">
-                    Termo #{t.id} · criado em {new Date(t.data_criacao).toLocaleDateString('pt-BR')}
+                    Termo #{t.id} · criado em {new Date(t.data_geracao).toLocaleDateString('pt-BR')}
                     {t.data_assinatura ? ` · assinado em ${new Date(t.data_assinatura).toLocaleDateString('pt-BR')}` : ''}
                   </span>
                 </div>

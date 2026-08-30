@@ -1,8 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Key, Camera, Loader2, Save } from 'lucide-react';
+import { User, Key, Camera, Loader2, Save, CalendarDays, MessageSquareText, Building2, Mail, BadgeCheck, ShieldCheck, Check, BellRing } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { profileApi } from '../api/profile';
 import { toApiFileUrl } from '../api/client';
+import { rhApi } from '../api/rh';
+import type { MyRHPortal, RHStatusType } from '../types/rh';
+import { notifyAndroid } from '../utils/androidNotifications';
+
+const rhStatusMeta: Record<RHStatusType, { label: string; className: string }> = {
+  trabalhando: { label: 'Trabalhando', className: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' },
+  folga: { label: 'Em folga', className: 'text-sky-300 border-sky-500/30 bg-sky-500/10' },
+  ferias: { label: 'Em férias', className: 'text-violet-300 border-violet-500/30 bg-violet-500/10' },
+  banco_horas: { label: 'Banco de horas', className: 'text-amber-300 border-amber-500/30 bg-amber-500/10' },
+  desligado: { label: 'Desligado', className: 'text-red-400 border-red-500/30 bg-red-500/10' },
+};
 
 export const ProfilePage: React.FC = () => {
   const { user, logout, checkAuth } = useAuthStore();
@@ -18,8 +29,10 @@ export const ProfilePage: React.FC = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [rhPortal, setRhPortal] = useState<MyRHPortal | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const notifiedRHIds = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     if (user) {
@@ -28,6 +41,25 @@ export const ProfilePage: React.FC = () => {
       setMatricula(user.matricula || '');
     }
   }, [user]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadRH = async () => {
+      try {
+        const data = await rhApi.myPortal();
+        if (!mounted) return;
+        const unseen = data.comunicados.filter(item => !item.lida && !notifiedRHIds.current.has(item.comunicado.id));
+        unseen.forEach(item => {
+          notifiedRHIds.current.add(item.comunicado.id);
+          void notifyAndroid(item.comunicado.titulo, item.comunicado.mensagem, { rh_comunicado_id: item.comunicado.id });
+        });
+        setRhPortal(data);
+      } catch { /* RH data must not block profile access */ }
+    };
+    void loadRH();
+    const interval = window.setInterval(loadRH, 30000);
+    return () => { mounted = false; window.clearInterval(interval); };
+  }, []);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,32 +154,34 @@ export const ProfilePage: React.FC = () => {
   const avatarUrl = toApiFileUrl(user.avatar_url);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold uppercase tracking-wider font-mono text-brand-text m-0 flex items-center">
-          <User className="mr-3 text-brand-primary" size={28} />
-          Meu Perfil
-        </h1>
-        <p className="text-brand-muted text-sm mt-1">Gerencie suas informações pessoais, avatar e senha de acesso</p>
-      </div>
+    <div className="max-w-6xl mx-auto space-y-6 pb-8">
+      <section className="relative overflow-hidden rounded-2xl border border-brand-border bg-brand-card shadow-sm">
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-dark via-brand-dark to-brand-primary opacity-95" />
+        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10" />
+        <div className="relative p-6 sm:p-8 text-white">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/70"><BadgeCheck size={15} /> Conta corporativa</div>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Meu perfil</h1>
+          <p className="mt-2 max-w-xl text-sm text-white/80">Mantenha seus dados, sua foto de identificação e suas configurações de acesso sempre atualizados.</p>
+	        </div>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column: Avatar & Basic Info */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-brand-card border border-brand-border p-6 flex flex-col items-center">
-            <div 
-              className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-brand-primary/50 group cursor-pointer bg-brand-dark flex items-center justify-center mb-4"
-              onClick={handleAvatarClick}
-            >
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <aside className="space-y-6 lg:col-span-4">
+          <div className="overflow-hidden border border-brand-border bg-brand-card">
+            <div className="h-20 bg-gradient-to-br from-brand-primary/90 to-brand-dark" />
+            <div className="px-6 pb-6">
+              <div
+                className="relative -mt-12 h-24 w-24 cursor-pointer overflow-hidden rounded-2xl border-4 border-white bg-brand-dark shadow-lg group flex items-center justify-center"
+                onClick={handleAvatarClick}
+                title="Alterar foto de perfil"
+              >
               {uploadingAvatar ? (
                 <Loader2 className="animate-spin text-brand-primary" size={32} />
               ) : avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-4xl font-mono text-brand-primary/50">{user.nome.substring(0,2).toUpperCase()}</span>
+                <span className="text-2xl font-bold text-brand-primary/70">{user.nome.substring(0,2).toUpperCase()}</span>
               )}
-              
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <Camera className="text-white" size={24} />
               </div>
@@ -159,23 +193,43 @@ export const ProfilePage: React.FC = () => {
                 onChange={handleFileChange}
               />
             </div>
-            
-            <h2 className="text-lg font-bold text-brand-text text-center">{user.nome}</h2>
-            <p className="text-sm text-brand-primary font-mono uppercase tracking-wider text-center mt-1">{user.role.replace('_', ' ')}</p>
-            <p className="text-xs text-brand-muted mt-1 text-center">{user.cargo || 'Cargo não definido'}</p>
-          </div>
-        </div>
-
-        {/* Right Column: Forms */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Profile Details Form */}
-          <div className="bg-brand-card border border-brand-border">
-            <div className="p-4 border-b border-brand-border flex items-center">
-              <User className="mr-2 text-brand-primary" size={18} />
-              <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text m-0">Dados Pessoais</h3>
+              <h2 className="mt-4 text-xl font-bold text-brand-text">{user.nome}</h2>
+              <p className="mt-1 text-sm text-brand-muted">{user.cargo || 'Cargo não definido'}</p>
+              <span className="mt-4 inline-flex items-center rounded-full bg-brand-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-primary"><ShieldCheck className="mr-1.5" size={13} />{user.role.replace('_', ' ')}</span>
+              <div className="mt-5 space-y-3 border-t border-brand-border pt-4 text-sm">
+                <div className="flex items-center gap-3 text-brand-muted"><Mail size={16} className="text-brand-primary" /><span className="truncate">{user.email}</span></div>
+                <div className="flex items-center gap-3 text-brand-muted"><Building2 size={16} className="text-brand-primary" /><span>{user.departamento?.nome || 'Setor não definido'}</span></div>
+              </div>
             </div>
-            <form onSubmit={handleProfileUpdate} className="p-4 space-y-4">
+          </div>
+
+          {rhPortal && <div className="bg-brand-card border border-brand-border">
+            <div className="p-4 border-b border-brand-border flex items-center gap-2"><CalendarDays size={17} className="text-brand-primary" /><h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text m-0">Minha situação RH</h3></div>
+            <div className="p-4 space-y-4">
+              <div><span className="text-xs text-brand-muted font-mono uppercase">Status atual</span><div className={`w-fit mt-1 text-xs font-bold font-mono uppercase px-2 py-1 border ${rhStatusMeta[rhPortal.status_atual].className}`}>{rhStatusMeta[rhPortal.status_atual].label}</div></div>
+              {rhPortal.calendario.filter(item => new Date(item.fim || '2999-12-31') >= new Date()).slice(0, 3).map(item => <div key={item.id} className="border-t border-brand-border pt-3"><div className="text-sm text-brand-text capitalize">{rhStatusMeta[item.tipo].label}</div><div className="text-xs text-brand-muted">{new Date(item.inicio).toLocaleDateString('pt-BR')}{item.fim ? ` até ${new Date(item.fim).toLocaleDateString('pt-BR')}` : ''}</div>{item.observacao && <div className="text-xs text-brand-muted mt-1">{item.observacao}</div>}</div>)}
+              {rhPortal.calendario.length === 0 && <p className="text-xs text-brand-muted m-0">Nenhum período programado.</p>}
+            </div>
+          </div>}
+
+          {rhPortal && rhPortal.comunicados.length > 0 && <div className="bg-brand-card border border-brand-border">
+            <div className="p-4 border-b border-brand-border flex items-center gap-2"><MessageSquareText size={17} className="text-brand-primary" /><div><h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text m-0">Comunicados do RH</h3><p className="mt-0.5 text-xs text-brand-muted">Avisos e atualizações enviados para você.</p></div></div>
+            <div className="space-y-3 p-3">{rhPortal.comunicados.map(({ comunicado, lida }) => {
+              const isUpdate = comunicado.titulo.startsWith('Atualização do RH:');
+              return <article className={`relative rounded-xl border p-4 transition-colors ${lida ? 'border-brand-border bg-white/60' : 'border-brand-primary/30 bg-brand-primary/5 shadow-sm'}`} key={comunicado.id}>
+                {!lida && <span aria-label="Não lido" className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-brand-primary" />}
+                <div className="flex gap-3"><div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isUpdate ? 'bg-violet-500/10 text-violet-600' : 'bg-brand-primary/10 text-brand-primary'}`}>{isUpdate ? <CalendarDays size={17} /> : <BellRing size={17} />}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2 pr-5"><h4 className="text-sm font-semibold text-brand-text m-0">{comunicado.titulo}</h4><span className={`text-[10px] font-bold uppercase tracking-wide ${isUpdate ? 'text-violet-600' : 'text-brand-primary'}`}>{isUpdate ? 'Atualização' : comunicado.usuario_id ? 'Individual' : 'Comunicado geral'}</span></div><p className="mt-2 text-xs leading-relaxed text-brand-muted">{comunicado.mensagem}</p>{!lida && <button onClick={async () => { await rhApi.markMyComunicadoRead(comunicado.id); const data = await rhApi.myPortal(); setRhPortal(data); }} className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#4d4c4c] bg-[#f6f9fe] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#c12525] shadow-sm hover:bg-[#eef2f8] focus:outline-none focus:ring-2 focus:ring-[#c12525]/25"><Check size={13} strokeWidth={3} />Confirmar leitura</button>}</div></div>
+              </article>;
+            })}</div>
+          </div>}
+	        </aside>
+
+	        <main className="space-y-6 lg:col-span-8">
+          <div className="bg-brand-card border border-brand-border">
+            <div className="p-5 border-b border-brand-border flex items-center justify-between gap-4">
+              <div className="flex items-center"><div className="mr-3 rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><User size={18} /></div><div><h3 className="text-base font-bold text-brand-text m-0">Dados pessoais</h3><p className="text-xs text-brand-muted mt-0.5">Informações usadas na sua identificação corporativa.</p></div></div>
+            </div>
+            <form onSubmit={handleProfileUpdate} className="p-5 space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-mono text-brand-muted mb-1 uppercase">Nome Completo</label>
@@ -184,7 +238,7 @@ export const ProfilePage: React.FC = () => {
                     value={nome}
                     onChange={(e) => setNome(e.target.value)}
                     required
-                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2.5 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
                   />
                 </div>
                 <div>
@@ -194,7 +248,7 @@ export const ProfilePage: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2.5 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
                   />
                 </div>
                 <div>
@@ -203,7 +257,7 @@ export const ProfilePage: React.FC = () => {
                     type="text"
                     value={matricula}
                     onChange={(e) => setMatricula(e.target.value)}
-                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2.5 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
                   />
                 </div>
               </div>
@@ -220,13 +274,11 @@ export const ProfilePage: React.FC = () => {
             </form>
           </div>
 
-          {/* Password Form */}
           <div className="bg-brand-card border border-brand-border">
-            <div className="p-4 border-b border-brand-border flex items-center">
-              <Key className="mr-2 text-brand-primary" size={18} />
-              <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text m-0">Alterar Senha</h3>
+            <div className="p-5 border-b border-brand-border flex items-center">
+              <div className="mr-3 rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><Key size={18} /></div><div><h3 className="text-base font-bold text-brand-text m-0">Segurança da conta</h3><p className="text-xs text-brand-muted mt-0.5">Use uma senha única e mantenha seu acesso protegido.</p></div>
             </div>
-            <form onSubmit={handlePasswordUpdate} className="p-4 space-y-4">
+            <form onSubmit={handlePasswordUpdate} className="p-5 space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <label className="block text-xs font-mono text-brand-muted mb-1 uppercase">Senha Atual</label>
@@ -235,7 +287,7 @@ export const ProfilePage: React.FC = () => {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     required
-                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2.5 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
                   />
                 </div>
                 <div>
@@ -246,7 +298,7 @@ export const ProfilePage: React.FC = () => {
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
                     minLength={4}
-                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2.5 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
                   />
                 </div>
                 <div>
@@ -257,7 +309,7 @@ export const ProfilePage: React.FC = () => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
                     minLength={4}
-                    className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
+                    className="w-full bg-brand-dark border border-brand-border px-3 py-2.5 text-sm text-brand-text focus:outline-none focus:border-brand-primary"
                   />
                 </div>
               </div>
@@ -274,7 +326,7 @@ export const ProfilePage: React.FC = () => {
             </form>
           </div>
 
-        </div>
+        </main>
       </div>
     </div>
   );

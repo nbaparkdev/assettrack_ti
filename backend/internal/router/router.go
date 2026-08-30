@@ -80,6 +80,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	qrLogSvc := service.NewQRLogService(qrLogRepo)
 	webhookDispatcher := service.NewWebhookDispatcher(webhookRepo)
 	aiSvc := service.NewAIService(systemSettingsRepo)
+	emailSvc := service.NewEmailService(systemSettingsRepo, emailLogRepo)
 
 	// Rate limiter
 	rateLimiter := middleware.NewRateLimiter(rdb)
@@ -109,7 +110,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		procContractRepo, procContractTypeRepo, procHistoryRepo, procNotifRepo,
 		procResearchRepo, invoiceRepo, assetRepo, userRepo, kanbanProjectRepo, kanbanCardRepo, kanbanInteractionRepo, kanbanBroker, systemSettingsRepo,
 	)
-	rhHandler := handler.NewRHHandler(rhRepo, userRepo, assetRepo, alertRepo, alertBroker)
+	rhHandler := handler.NewRHHandler(rhRepo, userRepo, assetRepo, alertRepo, alertBroker, emailSvc)
 	webhookHandler := handler.NewWebhookHandler(webhookRepo, webhookDispatcher)
 	backupHandler := handler.NewBackupHandler(cfg)
 	dashboardHandler := handler.NewDashboardHandler(db)
@@ -423,6 +424,12 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		rh := v1.Group("/rh", authMW, rActive, rRH)
 		{
 			rh.GET("/termos", rhHandler.List)
+			rh.GET("/controle", rhHandler.StatusDashboard)
+			rh.GET("/controle/export.csv", rhHandler.ExportStatusCSV)
+			rh.POST("/status", rhHandler.CreateStatus)
+			rh.DELETE("/status/:id", rhHandler.DeleteStatus)
+			rh.POST("/comunicados", rhHandler.CreateComunicado)
+			rh.DELETE("/comunicados/:id", rhHandler.DeleteComunicado)
 			rh.GET("/solicitacoes/:id/modelo", rhHandler.GenerateTemplate)
 			rh.POST("/termos", rhHandler.Create)
 			rh.PUT("/termos/:id", rhHandler.Update)
@@ -481,6 +488,8 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		prof := v1.Group("/profile", authMW, rActive)
 		{
 			prof.PUT("", userHandler.UpdateProfile)
+			prof.GET("/rh", rhHandler.MyPortal)
+			prof.POST("/rh/comunicados/:id/lida", rhHandler.MarkMyComunicadoRead)
 			prof.POST("/avatar", userHandler.UploadAvatar)
 			prof.PUT("/password", userHandler.ChangePassword)
 		}

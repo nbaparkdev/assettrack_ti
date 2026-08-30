@@ -18,3 +18,53 @@ type TermoResponsabilidade struct {
 }
 
 func (TermoResponsabilidade) TableName() string { return "termos_responsabilidade" }
+
+// RHStatus is an HR-managed period in an employee's work calendar.  The
+// effective status is calculated from the periods that are active right now,
+// so a scheduled vacation never needs a manual status change on its first day.
+type RHStatus struct {
+	ID          uint       `gorm:"primaryKey" json:"id"`
+	UsuarioID   uint       `gorm:"column:usuario_id;not null;index" json:"usuario_id"`
+	Tipo        string     `gorm:"type:varchar(30);not null;index" json:"tipo"`
+	Inicio      time.Time  `gorm:"column:inicio;not null;index" json:"inicio"`
+	Fim         *time.Time `gorm:"column:fim;index" json:"fim"`
+	Horas       *float64   `gorm:"column:horas" json:"horas"`
+	Observacao  *string    `gorm:"type:text" json:"observacao"`
+	CriadoPorID uint       `gorm:"column:criado_por_id;not null" json:"criado_por_id"`
+	CreatedAt   time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+
+	Usuario   *User `gorm:"foreignKey:UsuarioID" json:"usuario,omitempty"`
+	CriadoPor *User `gorm:"foreignKey:CriadoPorID" json:"criado_por,omitempty"`
+}
+
+func (RHStatus) TableName() string { return "rh_status" }
+
+// RHComunicado is an individual or company-wide message, independently kept
+// from the general system notices so it can be shown only to its recipient.
+type RHComunicado struct {
+	ID          uint       `gorm:"primaryKey" json:"id"`
+	UsuarioID   *uint      `gorm:"column:usuario_id;index" json:"usuario_id"`
+	Titulo      string     `gorm:"not null" json:"titulo"`
+	Mensagem    string     `gorm:"type:text;not null" json:"mensagem"`
+	Inicio      time.Time  `gorm:"column:inicio;not null;index" json:"inicio"`
+	Fim         *time.Time `gorm:"column:fim;index" json:"fim"`
+	Ativo       bool       `gorm:"default:true" json:"ativo"`
+	CriadoPorID uint       `gorm:"column:criado_por_id;not null" json:"criado_por_id"`
+	CreatedAt   time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+
+	Usuario   *User `gorm:"foreignKey:UsuarioID" json:"usuario,omitempty"`
+	CriadoPor *User `gorm:"foreignKey:CriadoPorID" json:"criado_por,omitempty"`
+}
+
+func (RHComunicado) TableName() string { return "rh_comunicados" }
+
+// RHComunicadoLeitura stores acknowledgement per recipient, including for
+// company-wide messages, without mutating the message for other employees.
+type RHComunicadoLeitura struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	ComunicadoID uint      `gorm:"column:comunicado_id;not null;uniqueIndex:idx_rh_comunicado_leitura" json:"comunicado_id"`
+	UsuarioID    uint      `gorm:"column:usuario_id;not null;uniqueIndex:idx_rh_comunicado_leitura" json:"usuario_id"`
+	LidoEm       time.Time `gorm:"column:lido_em;autoCreateTime" json:"lido_em"`
+}
+
+func (RHComunicadoLeitura) TableName() string { return "rh_comunicado_leituras" }

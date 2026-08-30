@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"encoding/csv"
 	"fmt"
 	"html"
 	"net/http"
@@ -8,8 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/assettrack/backend/internal/middleware"
 	"github.com/assettrack/backend/internal/models"
 	"github.com/assettrack/backend/internal/repository"
+	"github.com/assettrack/backend/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -48,6 +52,318 @@ __________________________________________________
 var ptMonths = []string{
 	"janeiro", "fevereiro", "março", "abril", "maio", "junho",
 	"julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+}
+
+var validRHStatusTypes = map[string]bool{
+	"trabalhando": true, "folga": true, "ferias": true, "banco_horas": true, "desligado": true,
+}
+
+func currentRHStatus(statuses []models.RHStatus, now time.Time) string {
+	prioridade := map[string]int{"desligado": 5, "ferias": 4, "folga": 3, "banco_horas": 2, "trabalhando": 1}
+	resultado, maior := "trabalhando", 0
+	for _, status := range statuses {
+		if status.Inicio.After(now) || (status.Fim != nil && status.Fim.Before(now)) {
+			continue
+		}
+		if prioridade[status.Tipo] > maior {
+			resultado, maior = status.Tipo, prioridade[status.Tipo]
+		}
+	}
+	return resultado
+}
+
+func parseRHDate(value string, endOfDay bool) (*time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04", "2006-01-02"} {
+		if parsed, err := time.ParseInLocation(layout, value, time.Local); err == nil {
+			if layout == "2006-01-02" && endOfDay {
+				parsed = parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			}
+			return &parsed, nil
+		}
+	}
+	return nil, fmt.Errorf("data inválida")
+}
+
+type rhStatusInput struct {
+	UsuarioID  uint     `json:"usuario_id"`
+	Tipo       string   `json:"tipo"`
+	Inicio     string   `json:"inicio"`
+	Fim        string   `json:"fim"`
+	Horas      *float64 `json:"horas"`
+	Observacao string   `json:"observacao"`
+}
+
+type rhComunicadoInput struct {
+	UsuarioID *uint  `json:"usuario_id"`
+	Titulo    string `json:"titulo"`
+	Mensagem  string `json:"mensagem"`
+	Inicio    string `json:"inicio"`
+	Fim       string `json:"fim"`
+}
+
+// StatusDashboard returns the personnel control center, including the
+// current calculated status of every employee and their scheduled calendar.
+func (h *RHHandler) StatusDashboard(c *gin.Context) {
+	statuses, err := h.rhRepo.ListStatuses()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	comunicados, err := h.rhRepo.ListComunicados()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	users, err := h.userRepo.GetMulti(0, 1000)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	byUser := make(map[uint][]models.RHStatus)
+	for _, status := range statuses {
+		byUser[status.UsuarioID] = append(byUser[status.UsuarioID], status)
+	}
+	now := time.Now()
+	colaboradores := make([]gin.H, 0)
+	for _, user := range users {
+		status := currentRHStatus(byUser[user.ID], now)
+		if !user.IsActive {
+			status = "desligado"
+		}
+		colaboradores = append(colaboradores, gin.H{"usuario": user, "status_atual": status})
+	}
+	c.JSON(http.StatusOK, gin.H{"colaboradores": colaboradores, "status": statuses, "comunicados": comunicados, "atualizado_em": now})
+}
+
+func (h *RHHandler) CreateStatus(c *gin.Context) {
+	var in rhStatusInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	in.Tipo = strings.TrimSpace(strings.ToLower(in.Tipo))
+	if in.UsuarioID == 0 || !validRHStatusTypes[in.Tipo] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Colaborador e status válido são obrigatórios"})
+		return
+	}
+	if in.Tipo == "desligado" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Use o fluxo de desligamento para revogar o acesso e registrar o desligamento"})
+		return
+	}
+	user, err := h.userRepo.GetByID(in.UsuarioID)
+	if err != nil || !user.IsActive {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Colaborador ativo não encontrado"})
+		return
+	}
+	inicio, err := parseRHDate(in.Inicio, false)
+	if err != nil || inicio == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Data de início inválida"})
+		return
+	}
+	fim, err := parseRHDate(in.Fim, true)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Data final inválida"})
+		return
+	}
+	if fim != nil && fim.Before(*inicio) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A data final deve ser posterior ao início"})
+		return
+	}
+	var observacao *string
+	if text := strings.TrimSpace(in.Observacao); text != "" {
+		observacao = &text
+	}
+	current := middleware.GetCurrentUser(c)
+	status := &models.RHStatus{UsuarioID: in.UsuarioID, Tipo: in.Tipo, Inicio: *inicio, Fim: fim, Horas: in.Horas, Observacao: observacao, CriadoPorID: current.ID}
+	if err := h.rhRepo.CreateStatus(status); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	label := map[string]string{"trabalhando": "Trabalhando", "folga": "Folga", "ferias": "Férias", "banco_horas": "Banco de horas"}[status.Tipo]
+	message := fmt.Sprintf("O RH registrou o status %s a partir de %s.", label, status.Inicio.Format("02/01/2006"))
+	if status.Fim != nil {
+		message += " Período previsto até " + status.Fim.Format("02/01/2006") + "."
+	}
+	if status.Observacao != nil {
+		message += " " + *status.Observacao
+	}
+	comunicado := &models.RHComunicado{UsuarioID: &user.ID, Titulo: "Atualização do RH: " + label, Mensagem: message, Inicio: time.Now(), Ativo: true, CriadoPorID: current.ID}
+	_ = h.rhRepo.CreateComunicado(comunicado)
+	if h.emailSvc != nil {
+		go func(email, subject, content string) {
+			_ = h.emailSvc.SendEmail(context.Background(), email, subject, "<p>"+html.EscapeString(content)+"</p>")
+		}(user.Email, comunicado.Titulo, message)
+	}
+	c.JSON(http.StatusCreated, status)
+}
+
+func (h *RHHandler) DeleteStatus(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	if err := h.rhRepo.DeleteStatus(uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Registro de status removido"})
+}
+
+func (h *RHHandler) CreateComunicado(c *gin.Context) {
+	var in rhComunicadoInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(in.Titulo) == "" || strings.TrimSpace(in.Mensagem) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Título e mensagem são obrigatórios"})
+		return
+	}
+	if in.UsuarioID != nil {
+		if _, err := h.userRepo.GetByID(*in.UsuarioID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Colaborador não encontrado"})
+			return
+		}
+	}
+	inicio, err := parseRHDate(in.Inicio, false)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Data de início inválida"})
+		return
+	}
+	if inicio == nil {
+		now := time.Now()
+		inicio = &now
+	}
+	fim, err := parseRHDate(in.Fim, true)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Data final inválida"})
+		return
+	}
+	if fim != nil && fim.Before(*inicio) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A data final deve ser posterior ao início"})
+		return
+	}
+	current := middleware.GetCurrentUser(c)
+	comunicado := &models.RHComunicado{UsuarioID: in.UsuarioID, Titulo: strings.TrimSpace(in.Titulo), Mensagem: strings.TrimSpace(in.Mensagem), Inicio: *inicio, Fim: fim, Ativo: true, CriadoPorID: current.ID}
+	if err := h.rhRepo.CreateComunicado(comunicado); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, comunicado)
+}
+
+func (h *RHHandler) DeleteComunicado(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	if err := h.rhRepo.DeleteComunicado(uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Comunicado removido"})
+}
+
+// MyPortal exposes only the authenticated user's HR calendar and messages.
+func (h *RHHandler) MyPortal(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	statuses, err := h.rhRepo.ListStatusesForUser(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	now := time.Now()
+	comunicados, err := h.rhRepo.ListComunicadosForUser(user.ID, now)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	readIDs, err := h.rhRepo.ListReadComunicadoIDs(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	readSet := make(map[uint]bool, len(readIDs))
+	for _, id := range readIDs {
+		readSet[id] = true
+	}
+	views := make([]gin.H, 0, len(comunicados))
+	for _, comunicado := range comunicados {
+		views = append(views, gin.H{"comunicado": comunicado, "lida": readSet[comunicado.ID]})
+	}
+	status := currentRHStatus(statuses, now)
+	if !user.IsActive {
+		status = "desligado"
+	}
+	c.JSON(http.StatusOK, gin.H{"status_atual": status, "calendario": statuses, "comunicados": views, "atualizado_em": now})
+}
+
+func (h *RHHandler) MarkMyComunicadoRead(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	user := middleware.GetCurrentUser(c)
+	items, err := h.rhRepo.ListComunicadosForUser(user.ID, time.Now())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	allowed := false
+	for _, item := range items {
+		if item.ID == uint(id) {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Comunicado não encontrado"})
+		return
+	}
+	if err := h.rhRepo.MarkComunicadoRead(uint(id), user.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Leitura confirmada"})
+}
+
+func (h *RHHandler) ExportStatusCSV(c *gin.Context) {
+	statuses, err := h.rhRepo.ListStatuses()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=controle_rh.csv")
+	w := csv.NewWriter(c.Writer)
+	defer w.Flush()
+	_ = w.Write([]string{"Colaborador", "E-mail", "Status", "Início", "Fim", "Horas", "Observação", "Registrado por"})
+	for _, item := range statuses {
+		name, email, creator, end, hours, note := "", "", "", "", "", ""
+		if item.Usuario != nil {
+			name, email = item.Usuario.Nome, item.Usuario.Email
+		}
+		if item.CriadoPor != nil {
+			creator = item.CriadoPor.Nome
+		}
+		if item.Fim != nil {
+			end = item.Fim.Format("02/01/2006")
+		}
+		if item.Horas != nil {
+			hours = strconv.FormatFloat(*item.Horas, 'f', -1, 64)
+		}
+		if item.Observacao != nil {
+			note = *item.Observacao
+		}
+		_ = w.Write([]string{name, email, item.Tipo, item.Inicio.Format("02/01/2006"), end, hours, note, creator})
+	}
 }
 
 // formatDatePT renders "02 de agosto de 2026"
@@ -93,15 +409,17 @@ type RHHandler struct {
 	assetRepo *repository.AssetRepository
 	alertRepo *repository.EmergencyAlertRepository
 	broker    *AlertSSEBroker
+	emailSvc  service.EmailService
 }
 
-func NewRHHandler(rhRepo *repository.RHRepository, userRepo *repository.UserRepository, assetRepo *repository.AssetRepository, alertRepo *repository.EmergencyAlertRepository, broker *AlertSSEBroker) *RHHandler {
+func NewRHHandler(rhRepo *repository.RHRepository, userRepo *repository.UserRepository, assetRepo *repository.AssetRepository, alertRepo *repository.EmergencyAlertRepository, broker *AlertSSEBroker, emailSvc service.EmailService) *RHHandler {
 	return &RHHandler{
 		rhRepo:    rhRepo,
 		userRepo:  userRepo,
 		assetRepo: assetRepo,
 		alertRepo: alertRepo,
 		broker:    broker,
+		emailSvc:  emailSvc,
 	}
 }
 
@@ -350,10 +668,18 @@ func (h *RHHandler) OffboardUser(c *gin.Context) {
 		return
 	}
 
+	// Keep the personnel history explicit even though the inactive account also
+	// makes the calculated status immediately show as "desligado".
+	now := time.Now()
+	offboardingNote := "Desligamento processado pelo Portal RH"
+	if current := middleware.GetCurrentUser(c); current != nil {
+		_ = h.rhRepo.CreateStatus(&models.RHStatus{UsuarioID: user.ID, Tipo: "desligado", Inicio: now, Observacao: &offboardingNote, CriadoPorID: current.ID})
+	}
+
 	// List user assets to inform in the alert
 	assets, err := h.assetRepo.ListByCurrentUser(uint(id))
 	ativoStr := "Nenhum ativo vinculado"
-	
+
 	if err == nil && len(assets) > 0 {
 		names := make([]string, 0, len(assets))
 		for _, a := range assets {
@@ -368,7 +694,7 @@ func (h *RHHandler) OffboardUser(c *gin.Context) {
 
 	// Create emergency alert for IT
 	motivo := fmt.Sprintf("O colaborador %s foi desligado pelo RH. Por favor, utilize a opção de solicitação de devolução para recolher os seguintes ativos: %s.", user.Nome, ativoStr)
-	
+
 	setorStr := "Não informado"
 	if user.DepartamentoID != nil {
 		var dept models.Departamento
@@ -408,8 +734,7 @@ func (h *RHHandler) OffboardUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Colaborador desligado com sucesso. Alerta de devolução enviado para a TI.",
+		"message":         "Colaborador desligado com sucesso. Alerta de devolução enviado para a TI.",
 		"assets_affected": len(assets),
 	})
 }
-

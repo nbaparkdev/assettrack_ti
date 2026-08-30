@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { qrApi } from '../../api/qr';
 import { useAuthStore } from '../../stores/authStore';
+import { cameraPermissionMessage, ensureCameraPermission } from '../../utils/cameraPermission';
 import type { UserPublicProfile, PendingDeliveryItem } from '../../types';
 import { 
   X, 
@@ -71,6 +72,10 @@ export const QRHandoverModal: React.FC<QRHandoverModalProps> = ({ isOpen, onClos
   const startCamera = async () => {
     try {
       setScanError(null);
+      if (!(await ensureCameraPermission())) {
+        setScanError(cameraPermissionMessage);
+        return;
+      }
       setCameraActive(true);
       
       // Delay scanner setup to allow DOM element to render
@@ -82,8 +87,10 @@ export const QRHandoverModal: React.FC<QRHandoverModalProps> = ({ isOpen, onClos
           await html5Qrcode.start(
             { facingMode: 'environment' },
             {
-              fps: 10,
-              qrbox: { width: 250, height: 250 },
+              fps: 12,
+              qrbox: { width: 280, height: 280 },
+              aspectRatio: 1,
+              disableFlip: false,
             },
             (decodedText) => {
               // Successfully scanned token
@@ -96,7 +103,7 @@ export const QRHandoverModal: React.FC<QRHandoverModalProps> = ({ isOpen, onClos
           );
         } catch (err: any) {
           console.error('Html5Qrcode init error:', err);
-          setScanError('Não foi possível iniciar a câmera. Verifique as permissões de acesso.');
+          setScanError(cameraPermissionMessage);
           setCameraActive(false);
         }
       }, 300);

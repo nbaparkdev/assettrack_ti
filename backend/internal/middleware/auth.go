@@ -125,11 +125,11 @@ func RequireSupplierManager() gin.HandlerFunc {
 	}
 }
 
-// RequireRH ensures RH module access (admin, rh, gerente, gerente_infra)
+// RequireRH ensures the personnel portal is managed only by RH and admins.
 func RequireRH() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := GetCurrentUser(c)
-		if user == nil || !user.CanManageRH() {
+		if user == nil || (user.Role != models.RoleAdmin && user.Role != models.RoleRH) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"detail": "Acesso restrito ao RH e Administradores",
 			})

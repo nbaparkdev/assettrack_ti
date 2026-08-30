@@ -4,6 +4,7 @@ import { authApi } from '../api/auth';
 import { API_BASE_URL } from '../api/client';
 import { KeyRound, QrCode, AlertCircle, Settings, RotateCcw, Camera, X, CheckCircle } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { cameraPermissionMessage, ensureCameraPermission } from '../utils/cameraPermission';
 
 export const LoginPage: React.FC = () => {
   const loginStore = useAuthStore().login;
@@ -79,6 +80,10 @@ export const LoginPage: React.FC = () => {
   const startCamera = async () => {
     try {
       setScanError(null);
+      if (!(await ensureCameraPermission())) {
+        setScanError(cameraPermissionMessage);
+        return;
+      }
       setCameraActive(true);
       
       setTimeout(async () => {
@@ -89,8 +94,10 @@ export const LoginPage: React.FC = () => {
           await html5Qrcode.start(
             { facingMode: 'environment' },
             {
-              fps: 10,
-              qrbox: { width: 180, height: 180 },
+              fps: 12,
+              qrbox: { width: 220, height: 220 },
+              aspectRatio: 1,
+              disableFlip: false,
             },
             (decodedText) => {
               const token = extractTokenFromQr(decodedText);
@@ -104,7 +111,7 @@ export const LoginPage: React.FC = () => {
           );
         } catch (err: any) {
           console.error('Html5Qrcode login init error:', err);
-          setScanError('Não foi possível iniciar a câmera. Verifique as permissões de acesso.');
+          setScanError(cameraPermissionMessage);
           setCameraActive(false);
         }
       }, 300);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
+import { cameraPermissionMessage, ensureCameraPermission } from '../utils/cameraPermission';
 import { assetsApi } from '../api/assets';
 import { suppliersApi } from '../api/suppliers';
 import { usersApi } from '../api/users';
@@ -789,8 +790,13 @@ export const AssetsPage: React.FC = () => {
     }
   };
 
-  const startScannerCamera = () => {
+  const startScannerCamera = async () => {
     setScannerError(null);
+    if (!(await ensureCameraPermission())) {
+      setScannerError(cameraPermissionMessage);
+      setScannerCameraActive(false);
+      return;
+    }
     setScannerCameraActive(true);
     setTimeout(async () => {
       try {
@@ -802,8 +808,10 @@ export const AssetsPage: React.FC = () => {
         await html5Qrcode.start(
           { facingMode: 'environment' },
           {
-            fps: 10,
-            qrbox: { width: 220, height: 220 },
+            fps: 12,
+            qrbox: { width: 260, height: 260 },
+            aspectRatio: 1,
+            disableFlip: false,
           },
           (decodedText) => {
             handleProcessScannedText(decodedText);
@@ -812,7 +820,7 @@ export const AssetsPage: React.FC = () => {
         );
       } catch (err: any) {
         console.warn('QR camera start failed:', err);
-        setScannerError('Câmera indisponível ou permissão não concedida. Você pode enviar uma foto ou digitar o código do patrimônio.');
+        setScannerError(`${cameraPermissionMessage} Você também pode enviar uma foto ou digitar o código do patrimônio.`);
         setScannerCameraActive(false);
       }
     }, 300);

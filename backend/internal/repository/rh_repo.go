@@ -3,10 +3,56 @@ package repository
 import (
 	"github.com/assettrack/backend/internal/models"
 	"gorm.io/gorm"
+	"time"
 )
 
 type RHRepository struct {
 	db *gorm.DB
+}
+
+func (r *RHRepository) ListStatuses() ([]models.RHStatus, error) {
+	var statuses []models.RHStatus
+	err := r.db.Preload("Usuario.Departamento").Preload("CriadoPor").Order("inicio desc, created_at desc").Find(&statuses).Error
+	return statuses, err
+}
+
+func (r *RHRepository) ListStatusesForUser(userID uint) ([]models.RHStatus, error) {
+	var statuses []models.RHStatus
+	err := r.db.Where("usuario_id = ?", userID).Order("inicio asc").Find(&statuses).Error
+	return statuses, err
+}
+
+func (r *RHRepository) CreateStatus(status *models.RHStatus) error { return r.db.Create(status).Error }
+func (r *RHRepository) DeleteStatus(id uint) error                 { return r.db.Delete(&models.RHStatus{}, id).Error }
+
+func (r *RHRepository) ListComunicados() ([]models.RHComunicado, error) {
+	var comunicados []models.RHComunicado
+	err := r.db.Preload("Usuario").Preload("CriadoPor").Order("inicio desc, created_at desc").Find(&comunicados).Error
+	return comunicados, err
+}
+
+func (r *RHRepository) ListComunicadosForUser(userID uint, now time.Time) ([]models.RHComunicado, error) {
+	var comunicados []models.RHComunicado
+	err := r.db.Preload("CriadoPor").Where("ativo = true AND inicio <= ? AND (fim IS NULL OR fim >= ?) AND (usuario_id IS NULL OR usuario_id = ?)", now, now, userID).Order("inicio desc").Find(&comunicados).Error
+	return comunicados, err
+}
+
+func (r *RHRepository) CreateComunicado(comunicado *models.RHComunicado) error {
+	return r.db.Create(comunicado).Error
+}
+func (r *RHRepository) DeleteComunicado(id uint) error {
+	return r.db.Delete(&models.RHComunicado{}, id).Error
+}
+
+func (r *RHRepository) ListReadComunicadoIDs(userID uint) ([]uint, error) {
+	var ids []uint
+	err := r.db.Model(&models.RHComunicadoLeitura{}).Where("usuario_id = ?", userID).Pluck("comunicado_id", &ids).Error
+	return ids, err
+}
+
+func (r *RHRepository) MarkComunicadoRead(comunicadoID, userID uint) error {
+	item := models.RHComunicadoLeitura{ComunicadoID: comunicadoID, UsuarioID: userID}
+	return r.db.Where("comunicado_id = ? AND usuario_id = ?", comunicadoID, userID).FirstOrCreate(&item).Error
 }
 
 func NewRHRepository(db *gorm.DB) *RHRepository {

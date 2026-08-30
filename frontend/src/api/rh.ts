@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { TermoResponsabilidade, RHListResponse } from '../types/rh';
+import type { TermoResponsabilidade, RHListResponse, RHControlResponse, RHStatusRecord, RHComunicado, MyRHPortal } from '../types/rh';
 import type { Solicitacao } from '../types/transaction';
 
 export const rhApi = {
@@ -35,4 +35,14 @@ export const rhApi = {
     const response = await apiClient.post<{ message: string; assets_affected: number }>(`/rh/colaboradores/${userId}/desligamento`);
     return response.data;
   },
+  control: async (): Promise<RHControlResponse> => (await apiClient.get<RHControlResponse>('/rh/controle')).data,
+  createStatus: async (data: { usuario_id: number; tipo: string; inicio: string; fim?: string; horas?: number; observacao?: string }): Promise<RHStatusRecord> =>
+    (await apiClient.post<RHStatusRecord>('/rh/status', data)).data,
+  deleteStatus: async (id: number): Promise<void> => { await apiClient.delete(`/rh/status/${id}`); },
+  createComunicado: async (data: { usuario_id?: number; titulo: string; mensagem: string; inicio?: string; fim?: string }): Promise<RHComunicado> =>
+    (await apiClient.post<RHComunicado>('/rh/comunicados', data)).data,
+  deleteComunicado: async (id: number): Promise<void> => { await apiClient.delete(`/rh/comunicados/${id}`); },
+  myPortal: async (): Promise<MyRHPortal> => (await apiClient.get<MyRHPortal>('/profile/rh')).data,
+  markMyComunicadoRead: async (id: number): Promise<void> => { await apiClient.post(`/profile/rh/comunicados/${id}/lida`); },
+  exportStatusCSV: async (): Promise<Blob> => (await apiClient.get('/rh/controle/export.csv', { responseType: 'blob' })).data,
 };
