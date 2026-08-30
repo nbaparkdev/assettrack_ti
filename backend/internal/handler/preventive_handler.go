@@ -13,6 +13,7 @@ import (
 	"github.com/assettrack/backend/internal/middleware"
 	"github.com/assettrack/backend/internal/models"
 	"github.com/assettrack/backend/internal/repository"
+	"github.com/assettrack/backend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -29,6 +30,12 @@ var pmPeriodicityDays = map[string]int{
 	models.PeriodicidadeSemestral:     180,
 	models.PeriodicidadeAnual:         365,
 	models.PeriodicidadePersonalizada: 0, // uses dias_personalizado
+}
+
+// syncKanbanOrder is intentionally best-effort: a maintenance action must not
+// fail in the field if an optional visual board is temporarily unavailable.
+func (h *PreventiveHandler) syncKanbanOrder(orderID, actorID uint) {
+	_ = service.SyncPreventiveOrderToKanban(h.userRepo.DB(), orderID, actorID)
 }
 
 var pmSystemTypes = []string{
@@ -725,6 +732,7 @@ func (h *PreventiveHandler) CreateOrder(c *gin.Context) {
 	if order.TecnicoID != nil || order.PlanID != nil {
 		h.notifyOrderAssigned(*order)
 	}
+	h.syncKanbanOrder(order.ID, user.ID)
 
 	c.JSON(http.StatusCreated, order)
 }
@@ -880,6 +888,7 @@ func (h *PreventiveHandler) UpdateOrder(c *gin.Context) {
 	if order.TecnicoID != nil && (tecnicoAnteriorID == nil || *tecnicoAnteriorID != *order.TecnicoID) {
 		h.notifyOrderAssigned(*order)
 	}
+	h.syncKanbanOrder(order.ID, user.ID)
 
 	c.JSON(http.StatusOK, order)
 }
@@ -978,6 +987,7 @@ func (h *PreventiveHandler) StartOrder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.syncKanbanOrder(order.ID, user.ID)
 	c.JSON(http.StatusOK, order)
 }
 
@@ -1042,6 +1052,7 @@ func (h *PreventiveHandler) PauseOrder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.syncKanbanOrder(order.ID, user.ID)
 	c.JSON(http.StatusOK, order)
 }
 
@@ -1216,6 +1227,7 @@ func (h *PreventiveHandler) CompleteOrder(c *gin.Context) {
 
 	// Notify managers
 	h.notifyOrderCompleted(*order, user.Nome)
+	h.syncKanbanOrder(order.ID, user.ID)
 
 	c.JSON(http.StatusOK, order)
 }
@@ -1297,6 +1309,7 @@ func (h *PreventiveHandler) CancelOrder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.syncKanbanOrder(order.ID, user.ID)
 	c.JSON(http.StatusOK, order)
 }
 
@@ -1400,6 +1413,7 @@ func (h *PreventiveHandler) ExecuteChecklistItem(c *gin.Context) {
 	if photo != nil && isDone {
 		h.saveChecklistPhoto(c, photo, uint(orderID), execution.ID, item, user)
 	}
+	h.syncKanbanOrder(uint(orderID), user.ID)
 
 	c.JSON(http.StatusOK, execution)
 }

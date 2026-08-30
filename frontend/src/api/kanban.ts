@@ -19,7 +19,7 @@ export const kanbanApi = {
     const response = await apiClient.get(`/kanban/projetos/${id}`);
     return response.data;
   },
-  createProject: async (data: { titulo: string; descricao?: string; board_background_color?: string; board_pattern?: string; related_to_maintenance?: boolean; related_to_preventive?: boolean; preventive_plan_id?: number; participante_ids?: number[] }): Promise<KanbanProject> => {
+  createProject: async (data: Partial<KanbanProject> & { titulo: string; participante_ids?: number[] }): Promise<KanbanProject> => {
     const response = await apiClient.post<KanbanProject>('/kanban/projetos', data);
     return response.data;
   },
@@ -41,6 +41,14 @@ export const kanbanApi = {
   },
   toggleFavorite: async (id: number): Promise<{ favoritado: boolean }> => {
     const response = await apiClient.post(`/kanban/projetos/${id}/favorito`);
+    return response.data;
+  },
+  startPreventiveAutomation: async (id: number): Promise<{ created_count: number; horizon_days: number; started_at?: string; last_run_at?: string; next_run_at?: string; cards: KanbanCard[] }> => {
+    const response = await apiClient.post(`/kanban/projetos/${id}/preventiva/start`);
+    return response.data;
+  },
+  syncPreventiveAutomation: async (id: number): Promise<{ created_count: number; horizon_days: number; started_at?: string; last_run_at?: string; next_run_at?: string; cards: KanbanCard[] }> => {
+    const response = await apiClient.post(`/kanban/projetos/${id}/preventiva/sincronizar`);
     return response.data;
   },
   addColumn: async (projectId: number, nome: string, cor?: string): Promise<KanbanColumn> => {

@@ -20,20 +20,30 @@ const (
 )
 
 type KanbanProject struct {
-	ID                   uint      `gorm:"primaryKey" json:"id"`
-	Titulo               string    `gorm:"size:255;not null" json:"titulo"`
-	Descricao            *string   `gorm:"type:text" json:"descricao"`
-	BoardBackgroundColor string    `gorm:"column:board_background_color;size:20;default:'#212121'" json:"board_background_color"`
-	BoardPattern         string    `gorm:"column:board_pattern;size:30;default:'glow'" json:"board_pattern"`
-	RelatedToMaintenance bool      `gorm:"column:related_to_maintenance;default:false" json:"related_to_maintenance"`
-	RelatedToPreventive  bool      `gorm:"column:related_to_preventive;default:false" json:"related_to_preventive"`
-	PreventivePlanID     *uint     `gorm:"column:preventive_plan_id" json:"preventive_plan_id"`
-	CriadorID            uint      `gorm:"column:criador_id;not null" json:"criador_id"`
-	IsActive             bool      `gorm:"column:is_active;default:true" json:"is_active"`
-	IsArchived           bool      `gorm:"column:is_archived;default:false" json:"is_archived"`
-	Favoritado           bool      `gorm:"-" json:"favoritado"`
-	CreatedAt            time.Time `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt            time.Time `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
+	ID                                uint       `gorm:"primaryKey" json:"id"`
+	Titulo                            string     `gorm:"size:255;not null" json:"titulo"`
+	Descricao                         *string    `gorm:"type:text" json:"descricao"`
+	BoardBackgroundColor              string     `gorm:"column:board_background_color;size:20;default:'#212121'" json:"board_background_color"`
+	BoardPattern                      string     `gorm:"column:board_pattern;size:30;default:'glow'" json:"board_pattern"`
+	RelatedToMaintenance              bool       `gorm:"column:related_to_maintenance;default:false" json:"related_to_maintenance"`
+	RelatedToPreventive               bool       `gorm:"column:related_to_preventive;default:false" json:"related_to_preventive"`
+	PreventivePlanID                  *uint      `gorm:"column:preventive_plan_id" json:"preventive_plan_id"`
+	PreventiveAutomationEnabled       bool       `gorm:"column:preventive_automation_enabled;default:false" json:"preventive_automation_enabled"`
+	PreventiveAutomationHorizonDays   int        `gorm:"column:preventive_automation_horizon_days;default:30" json:"preventive_automation_horizon_days"`
+	PreventiveAutomationStartedAt     *time.Time `gorm:"column:preventive_automation_started_at" json:"preventive_automation_started_at"`
+	PreventiveAutomationLastRunAt     *time.Time `gorm:"column:preventive_automation_last_run_at" json:"preventive_automation_last_run_at"`
+	PreventiveAutomationNextRunAt     *time.Time `gorm:"column:preventive_automation_next_run_at" json:"preventive_automation_next_run_at"`
+	PreventiveCardTitleTemplate       string     `gorm:"column:preventive_card_title_template;size:255;default:'Preventiva {{os}} - {{ativo}}'" json:"preventive_card_title_template"`
+	PreventiveCardDescriptionTemplate *string    `gorm:"column:preventive_card_description_template;type:text" json:"preventive_card_description_template"`
+	PreventiveCardChecklistTemplate   *string    `gorm:"column:preventive_card_checklist_template;type:text" json:"preventive_card_checklist_template"`
+	PreventiveCardPriority            string     `gorm:"column:preventive_card_priority;size:20;default:'alta'" json:"preventive_card_priority"`
+	PreventiveCardColor               string     `gorm:"column:preventive_card_color;size:20;default:'#06B6D4'" json:"preventive_card_color"`
+	CriadorID                         uint       `gorm:"column:criador_id;not null" json:"criador_id"`
+	IsActive                          bool       `gorm:"column:is_active;default:true" json:"is_active"`
+	IsArchived                        bool       `gorm:"column:is_archived;default:false" json:"is_archived"`
+	Favoritado                        bool       `gorm:"-" json:"favoritado"`
+	CreatedAt                         time.Time  `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt                         time.Time  `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
 
 	Criador        *User            `gorm:"foreignKey:CriadorID" json:"criador,omitempty"`
 	PreventivePlan *MaintenancePlan `gorm:"foreignKey:PreventivePlanID" json:"preventive_plan,omitempty"`

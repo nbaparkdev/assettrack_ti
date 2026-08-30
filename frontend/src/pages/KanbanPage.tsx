@@ -48,6 +48,7 @@ import {
   Upload,
   Maximize2,
   Minimize2,
+  Bot,
 } from 'lucide-react';
 
 const columnPalette = ['#60A5FA', '#F59E0B', '#A78BFA', '#34D399', '#F87171', '#22D3EE'];
@@ -62,6 +63,10 @@ const boardPatternOptions = [
 const defaultBoardPattern = 'glow';
 const cardColorPalette = ['#0079BF', '#61BD4F', '#F2D600', '#FF8C00', '#EB5A46', '#A259FF', '#00B8D9', '#172B4D'];
 const defaultCardColor = '#0079BF';
+const defaultPreventiveCardColor = '#06B6D4';
+const defaultPreventiveCardTitleTemplate = 'Preventiva {{os}} - {{ativo}}';
+const defaultPreventiveCardDescriptionTemplate = 'OS {{os}} programada para {{data}}.\n\nPlano: {{plano}}\nAtivo/Serviço: {{ativo}}\nStatus: {{status}}\nTipo: {{tipo}}';
+const defaultPreventiveCardChecklistTemplate = 'Inspecionar condições de segurança\nExecutar checklist técnico\nRegistrar evidências e recomendações';
 const preventiveOrderIntentStorageKey = 'assettrack:preventive-order-intent';
 const preventiveOrderDetailIntentStorageKey = 'assettrack:preventive-order-detail-intent';
 const kanbanReturnIntentStorageKey = 'assettrack:kanban-return-intent';
@@ -302,6 +307,16 @@ export const KanbanPage: React.FC = () => {
   const [pRelatedToMaintenance, setPRelatedToMaintenance] = useState(false);
   const [pRelatedToPreventive, setPRelatedToPreventive] = useState(false);
   const [pPreventivePlanId, setPPreventivePlanId] = useState<number | null>(null);
+  const [pPreventiveAutomationEnabled, setPPreventiveAutomationEnabled] = useState(false);
+  const [pPreventiveAutomationHorizonDays, setPPreventiveAutomationHorizonDays] = useState(30);
+  const [pPreventiveCardTitleTemplate, setPPreventiveCardTitleTemplate] = useState(defaultPreventiveCardTitleTemplate);
+  const [pPreventiveCardDescriptionTemplate, setPPreventiveCardDescriptionTemplate] = useState(defaultPreventiveCardDescriptionTemplate);
+  const [pPreventiveCardChecklistTemplate, setPPreventiveCardChecklistTemplate] = useState(defaultPreventiveCardChecklistTemplate);
+  const [pPreventiveCardPriority, setPPreventiveCardPriority] = useState('alta');
+  const [pPreventiveCardColor, setPPreventiveCardColor] = useState(defaultPreventiveCardColor);
+  const [preventiveSyncStatus, setPreventiveSyncStatus] = useState<string | null>(null);
+  const [preventiveStarting, setPreventiveStarting] = useState(false);
+  const [preventiveSyncing, setPreventiveSyncing] = useState(false);
   const [pParticipantQuery, setPParticipantQuery] = useState('');
   const [boardInfoOpen, setBoardInfoOpen] = useState(false);
   const [boardSearchQuery, setBoardSearchQuery] = useState('');
@@ -413,6 +428,11 @@ export const KanbanPage: React.FC = () => {
     return new Date(date).toLocaleDateString('pt-BR');
   };
 
+  const formatDateTime = (date?: string | null) => {
+    if (!date) return null;
+    return new Date(date).toLocaleString('pt-BR');
+  };
+
   const getInitials = (name?: string) => {
     if (!name) return '?';
     return name
@@ -519,15 +539,60 @@ export const KanbanPage: React.FC = () => {
     if (!card?.checklist_json) return [];
     try {
       const parsed = JSON.parse(card.checklist_json) as Array<Partial<KanbanChecklistItem>>;
-      return parsed
-        .map((item, index) => ({
-          id: String(item.id || `checklist-${index + 1}`),
-          titulo: String(item.titulo || '').trim(),
-          concluido: Boolean(item.concluido),
-        }))
-        .filter((item) => item.titulo);
+      const items: KanbanChecklistItem[] = [];
+      const append = (entries: Array<Partial<KanbanChecklistItem>>) => {
+        entries.forEach((item) => {
+          const title = String(item.titulo || '').trim();
+          // Older automatically generated cards could contain a serialized
+          // checklist as the title of their first item. Flatten it when read.
+          if (title.startsWith('[')) {
+            try {
+              const nested = JSON.parse(title) as Array<Partial<KanbanChecklistItem>>;
+              if (Array.isArray(nested)) {
+                append(nested);
+                return;
+              }
+            } catch {
+              // Keep the original title when it is not valid JSON.
+            }
+          }
+          if (title) {
+            items.push({
+              id: String(item.id || `checklist-${items.length + 1}`),
+              titulo: title,
+              concluido: Boolean(item.concluido),
+            });
+          }
+        });
+      };
+      append(parsed);
+      return items;
     } catch {
       return [];
+    }
+  };
+
+  const checklistTemplateAsText = (value?: string | null) => {
+    const raw = String(value || '').trim();
+    if (!raw.startsWith('[')) return raw;
+    try {
+      const parsed = JSON.parse(raw) as Array<{ titulo?: string }>;
+      if (!Array.isArray(parsed)) return raw;
+      const titles: string[] = [];
+      const append = (items: Array<{ titulo?: string }>) => items.forEach((item) => {
+        const title = String(item.titulo || '').trim();
+        if (title.startsWith('[')) {
+          try {
+            const nested = JSON.parse(title) as Array<{ titulo?: string }>;
+            if (Array.isArray(nested)) { append(nested); return; }
+          } catch { /* keep the original text below */ }
+        }
+        if (title) titles.push(title);
+      });
+      append(parsed);
+      return titles.join('\n') || raw;
+    } catch {
+      return raw;
     }
   };
 
@@ -645,6 +710,13 @@ export const KanbanPage: React.FC = () => {
     setPRelatedToMaintenance(false);
     setPRelatedToPreventive(false);
     setPPreventivePlanId(null);
+    setPPreventiveAutomationEnabled(false);
+    setPPreventiveAutomationHorizonDays(30);
+    setPPreventiveCardTitleTemplate(defaultPreventiveCardTitleTemplate);
+    setPPreventiveCardDescriptionTemplate(defaultPreventiveCardDescriptionTemplate);
+    setPPreventiveCardChecklistTemplate(defaultPreventiveCardChecklistTemplate);
+    setPPreventiveCardPriority('alta');
+    setPPreventiveCardColor(defaultPreventiveCardColor);
   };
 
   const applyBoardThemePreset = (preset: (typeof boardThemePresets)[number]) => {
@@ -690,6 +762,13 @@ export const KanbanPage: React.FC = () => {
     setPRelatedToMaintenance(Boolean(project.related_to_maintenance));
     setPRelatedToPreventive(Boolean(project.related_to_preventive));
     setPPreventivePlanId(project.preventive_plan_id ?? null);
+    setPPreventiveAutomationEnabled(Boolean(project.preventive_automation_enabled));
+    setPPreventiveAutomationHorizonDays(project.preventive_automation_horizon_days ?? 30);
+    setPPreventiveCardTitleTemplate(project.preventive_card_title_template || defaultPreventiveCardTitleTemplate);
+    setPPreventiveCardDescriptionTemplate(project.preventive_card_description_template || defaultPreventiveCardDescriptionTemplate);
+    setPPreventiveCardChecklistTemplate(checklistTemplateAsText(project.preventive_card_checklist_template) || defaultPreventiveCardChecklistTemplate);
+    setPPreventiveCardPriority(project.preventive_card_priority || 'alta');
+    setPPreventiveCardColor(normalizeCardColor(project.preventive_card_color || defaultPreventiveCardColor));
     setProjModal(true);
   };
 
@@ -980,6 +1059,44 @@ export const KanbanPage: React.FC = () => {
     }
   };
 
+  const syncPreventiveAutomation = async () => {
+    if (!board) return;
+    try {
+      setPreventiveSyncing(true);
+      setPreventiveSyncStatus(null);
+      const result = await kanbanApi.syncPreventiveAutomation(board.project.id);
+      await openBoard(board.project.id);
+      setPreventiveSyncStatus(
+        result.created_count > 0
+          ? `${result.created_count} card(s) preventivo(s) gerados para os próximos ${result.horizon_days} dias.`
+          : `Nenhum card novo. As OS dos próximos ${result.horizon_days} dias já estão sincronizadas.`,
+      );
+    } catch (err) {
+      showError(err);
+    } finally {
+      setPreventiveSyncing(false);
+    }
+  };
+
+  const startPreventiveAutomation = async () => {
+    if (!board) return;
+    try {
+      setPreventiveStarting(true);
+      setPreventiveSyncStatus(null);
+      const result = await kanbanApi.startPreventiveAutomation(board.project.id);
+      await openBoard(board.project.id);
+      setPreventiveSyncStatus(
+        result.created_count > 0
+          ? `Start realizado. ${result.created_count} card(s) gerados para o primeiro ciclo de ${result.horizon_days} dias.`
+          : `Start realizado. O ciclo de ${result.horizon_days} dias começou agora; nenhuma OS nova caiu nesta janela.`,
+      );
+    } catch (err) {
+      showError(err);
+    } finally {
+      setPreventiveStarting(false);
+    }
+  };
+
   const openNotification = async (notification: KanbanNotification) => {
     try {
       if (!notification.lida) {
@@ -1025,6 +1142,13 @@ export const KanbanPage: React.FC = () => {
         related_to_maintenance: pRelatedToMaintenance,
         related_to_preventive: pRelatedToPreventive,
         preventive_plan_id: pRelatedToPreventive ? (pPreventivePlanId ?? undefined) : undefined,
+        preventive_automation_enabled: pRelatedToPreventive && pPreventiveAutomationEnabled,
+        preventive_automation_horizon_days: pPreventiveAutomationHorizonDays,
+        preventive_card_title_template: pPreventiveCardTitleTemplate.trim() || defaultPreventiveCardTitleTemplate,
+        preventive_card_description_template: pPreventiveCardDescriptionTemplate.trim() || undefined,
+        preventive_card_checklist_template: pPreventiveCardChecklistTemplate.trim() || undefined,
+        preventive_card_priority: pPreventiveCardPriority,
+        preventive_card_color: normalizeCardColor(pPreventiveCardColor),
         participante_ids: !editingProject || canManageProjectParticipants(editingProject) ? pParticipants : undefined,
       };
       if (editingProject) {
@@ -1591,6 +1715,10 @@ export const KanbanPage: React.FC = () => {
   const boardThemeLabel = boardPatternOptions.find((option) => option.value === normalizeBoardPattern(board?.project.board_pattern))?.label ?? 'Glow';
   const boardRelatedToMaintenance = Boolean(board?.project.related_to_maintenance);
   const boardRelatedToPreventive = Boolean(board?.project.related_to_preventive);
+  const boardPreventiveAutomationEnabled = Boolean(board?.project.preventive_automation_enabled);
+  const boardPreventiveAutomationStartedAt = board?.project.preventive_automation_started_at ?? null;
+  const boardPreventiveAutomationNextRunAt = board?.project.preventive_automation_next_run_at ?? null;
+  const boardPreventiveAutomationRunning = boardPreventiveAutomationEnabled && Boolean(boardPreventiveAutomationStartedAt);
   const boardFilteredCards = board?.project.colunas?.flatMap((column) => column.cards ?? []).filter(cardMatchesBoardFilters) ?? [];
   const visibleProjects = projects.filter((project) => projectView === 'arquivados' ? project.is_archived : !project.is_archived);
   const isFilteringActive = Boolean(boardSearchQuery.trim()) || boardPriorityFilter !== 'todos' || boardResponsibleFilter !== 'todos';
@@ -2531,24 +2659,128 @@ export const KanbanPage: React.FC = () => {
                           </label>
                         </div>
                         {pRelatedToPreventive && (
-                          <div className="mt-4">
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-[#5e6c84]">
-                              Plano preventivo vinculado
-                            </label>
-                            <select
-                              value={pPreventivePlanId ?? ''}
-                              onChange={(e) => setPPreventivePlanId(e.target.value ? Number(e.target.value) : null)}
-                              className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] focus:border-[#0079bf] focus:outline-none"
-                            >
-                              <option value="">Selecionar depois</option>
-                              {preventivePlans.map((plan) => (
-                                <option key={plan.id} value={plan.id}>
-                                  {plan.nome} {plan.codigo ? `(${plan.codigo})` : ''}
-                                </option>
-                              ))}
-                            </select>
-                            <div className="mt-2 text-xs text-[#5e6c84]">
-                              Esse plano será usado como base para abrir rapidamente uma nova OS preventiva a partir do board.
+                          <div className="mt-4 space-y-4">
+                            <div>
+                              <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-[#5e6c84]">
+                                Plano preventivo vinculado
+                              </label>
+                              <select
+                                value={pPreventivePlanId ?? ''}
+                                onChange={(e) => setPPreventivePlanId(e.target.value ? Number(e.target.value) : null)}
+                                className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] focus:border-[#0079bf] focus:outline-none"
+                              >
+                                <option value="">Todos os planos com OS futuras</option>
+                                {preventivePlans.map((plan) => (
+                                  <option key={plan.id} value={plan.id}>
+                                    {plan.nome} {plan.codigo ? `(${plan.codigo})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="mt-2 text-xs text-[#5e6c84]">
+                                Com um plano selecionado, a automação gera cards somente para as OS desse plano.
+                              </div>
+                            </div>
+
+                            <div className="rounded-[14px] border border-cyan-200 bg-white p-3">
+                              <div className="flex items-start justify-between gap-4">
+                                <div>
+                                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-cyan-800">
+                                    <Bot size={14} />
+                                    <span>Automação preventiva</span>
+                                  </div>
+                                  <div className="mt-1 text-sm text-[#44546f]">
+                                    Prepara a geração de cards futuros. Depois de salvar, use “Dar start” no board para iniciar a contagem dos dias.
+                                  </div>
+                                </div>
+                                <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-cyan-50 px-3 py-2 shadow-sm">
+                                  <input
+                                    type="checkbox"
+                                    checked={pPreventiveAutomationEnabled}
+                                    onChange={(e) => setPPreventiveAutomationEnabled(e.target.checked)}
+                                    className="h-4 w-4 rounded border-[#b6c2cf] text-cyan-600 focus:ring-cyan-600"
+                                  />
+                                  <span className="text-sm font-semibold text-[#172b4d]">Ativar</span>
+                                </label>
+                              </div>
+
+                              <div className="mt-4 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
+                                <div>
+                                  <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Janela</label>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={365}
+                                    value={pPreventiveAutomationHorizonDays}
+                                    onChange={(e) => setPPreventiveAutomationHorizonDays(Math.max(1, Math.min(365, Number(e.target.value) || 30)))}
+                                    className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] focus:border-cyan-600 focus:outline-none"
+                                  />
+                                  <div className="mt-1 text-[11px] text-[#5e6c84]">dias futuros</div>
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Título modelo</label>
+                                  <input
+                                    type="text"
+                                    value={pPreventiveCardTitleTemplate}
+                                    onChange={(e) => setPPreventiveCardTitleTemplate(e.target.value)}
+                                    className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] focus:border-cyan-600 focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                <div>
+                                  <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Prioridade</label>
+                                  <select
+                                    value={pPreventiveCardPriority}
+                                    onChange={(e) => setPPreventiveCardPriority(e.target.value)}
+                                    className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-sm text-[#172b4d] focus:border-cyan-600 focus:outline-none"
+                                  >
+                                    {CARD_PRIORITIES.map((priority) => (
+                                      <option key={priority} value={priority}>{priority}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Cor do card</label>
+                                  <input
+                                    type="color"
+                                    value={pPreventiveCardColor}
+                                    onChange={(e) => setPPreventiveCardColor(e.target.value)}
+                                    className="h-10 w-full rounded border border-[#dfe1e6] bg-white p-1"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="mt-3">
+                                <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Descrição modelo</label>
+                                <textarea
+                                  rows={4}
+                                  value={pPreventiveCardDescriptionTemplate}
+                                  onChange={(e) => setPPreventiveCardDescriptionTemplate(e.target.value)}
+                                  className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-xs text-[#172b4d] focus:border-cyan-600 focus:outline-none"
+                                />
+                              </div>
+
+                              <div className="mt-3">
+                                <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] text-[#5e6c84]">Checklist modelo</label>
+                                <textarea
+                                  rows={5}
+                                  placeholder={'Inspecionar condições de segurança\nExecutar checklist técnico\nRegistrar evidências e recomendações'}
+                                  value={pPreventiveCardChecklistTemplate}
+                                  onChange={(e) => setPPreventiveCardChecklistTemplate(e.target.value)}
+                                  className="w-full rounded border border-[#dfe1e6] bg-white px-3 py-2 text-xs text-[#172b4d] focus:border-cyan-600 focus:outline-none"
+                                />
+                                <div className="mt-2 flex items-start justify-between gap-3 text-[11px] text-[#5e6c84]">
+                                  <span>Uma linha vira uma tarefa. Você pode editar, remover ou reordenar as linhas antes de salvar. Variáveis: {'{{os}}'}, {'{{plano}}'}, {'{{ativo}}'}, {'{{data}}'}, {'{{status}}'}.</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPPreventiveCardChecklistTemplate(defaultPreventiveCardChecklistTemplate)}
+                                    className="shrink-0 rounded border border-cyan-200 px-2 py-1 font-semibold text-cyan-700 hover:bg-cyan-50"
+                                  >
+                                    Restaurar padrão
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         )}
@@ -2832,6 +3064,29 @@ export const KanbanPage: React.FC = () => {
                               Abrir preventiva
                             </button>
                           )}
+                          {canEditProject(board.project) && boardPreventiveAutomationEnabled && (
+                            boardPreventiveAutomationRunning ? (
+                              <button
+                                type="button"
+                                onClick={syncPreventiveAutomation}
+                                disabled={preventiveSyncing}
+                                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-cyan-600 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white hover:bg-cyan-700 disabled:opacity-60"
+                              >
+                                {preventiveSyncing ? <RefreshCw size={13} className="animate-spin" /> : <Bot size={13} />}
+                                <span>Sincronizar cards</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={startPreventiveAutomation}
+                                disabled={preventiveStarting}
+                                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white hover:bg-emerald-700 disabled:opacity-60"
+                              >
+                                {preventiveStarting ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
+                                <span>Dar start</span>
+                              </button>
+                            )
+                          )}
                           {canCreatePreventiveOrder && board?.project.preventive_plan_id && (
                             <button
                               type="button"
@@ -2844,6 +3099,38 @@ export const KanbanPage: React.FC = () => {
                         </div>
                       )}
                     </div>
+
+                    {boardRelatedToPreventive && (
+                      <div className={`mt-4 rounded-[14px] border px-3 py-3 text-sm ${boardPreventiveAutomationRunning ? 'border-emerald-200 bg-emerald-50/60 text-[#334155]' : boardPreventiveAutomationEnabled ? 'border-cyan-200 bg-white text-[#334155]' : 'border-dashed border-cyan-200 bg-cyan-50/60 text-[#5e6c84]'}`}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <span className="font-semibold text-[#172b4d]">
+                              Automação de cards: {boardPreventiveAutomationRunning ? 'em execução' : boardPreventiveAutomationEnabled ? 'aguardando start' : 'desativada'}
+                            </span>
+                            <div className="mt-1 text-xs">
+                              {boardPreventiveAutomationRunning
+                                ? `Ciclo iniciado em ${formatDateTime(boardPreventiveAutomationStartedAt)}. Próxima janela até ${formatDateTime(boardPreventiveAutomationNextRunAt)}.`
+                                : boardPreventiveAutomationEnabled
+                                  ? `Clique em Dar start para iniciar a contagem de ${board.project.preventive_automation_horizon_days ?? 30} dias e gerar os cards da primeira janela.`
+                                  : 'Ative na personalização do board quando quiser gerar cards programados.'}
+                            </div>
+                          </div>
+                          {boardPreventiveAutomationEnabled && (
+                            <span
+                              className="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-white"
+                              style={{ backgroundColor: normalizeCardColor(board.project.preventive_card_color || defaultPreventiveCardColor) }}
+                            >
+                              {board.project.preventive_card_priority || 'alta'}
+                            </span>
+                          )}
+                        </div>
+                        {preventiveSyncStatus && (
+                          <div className="mt-3 rounded border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-800">
+                            {preventiveSyncStatus}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {boardRelatedToPreventive && preventiveSummary && (
                       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

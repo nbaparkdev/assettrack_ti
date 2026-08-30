@@ -15,14 +15,20 @@ import (
 	"github.com/assettrack/backend/internal/middleware"
 	"github.com/assettrack/backend/internal/models"
 	"github.com/assettrack/backend/internal/repository"
+	"github.com/assettrack/backend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 const kanbanUploadDir = "uploads/kanban"
 const defaultKanbanBoardBackgroundColor = "#212121"
 const defaultKanbanBoardPattern = "glow"
 const defaultKanbanCardColor = "#0079BF"
+const defaultPreventiveKanbanCardColor = "#06B6D4"
+const defaultPreventiveKanbanCardTitleTemplate = "Preventiva {{os}} - {{ativo}}"
+const defaultPreventiveKanbanCardDescriptionTemplate = "OS {{os}} programada para {{data}}.\n\nPlano: {{plano}}\nAtivo/Serviço: {{ativo}}\nStatus: {{status}}\nTipo: {{tipo}}"
+const defaultPreventiveKanbanChecklistTemplate = "Inspecionar condições de segurança\nExecutar checklist técnico\nRegistrar evidências e recomendações"
 
 // KanbanEvent is a server-sent event payload.
 type KanbanEvent struct {
@@ -204,14 +210,21 @@ func (h *KanbanHandler) CreateProject(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 
 	var in struct {
-		Titulo               string `json:"titulo"`
-		Descricao            string `json:"descricao"`
-		BoardBackgroundColor string `json:"board_background_color"`
-		BoardPattern         string `json:"board_pattern"`
-		RelatedToMaintenance bool   `json:"related_to_maintenance"`
-		RelatedToPreventive  bool   `json:"related_to_preventive"`
-		PreventivePlanID     *uint  `json:"preventive_plan_id"`
-		ParticipanteIDs      []uint `json:"participante_ids"`
+		Titulo                            string `json:"titulo"`
+		Descricao                         string `json:"descricao"`
+		BoardBackgroundColor              string `json:"board_background_color"`
+		BoardPattern                      string `json:"board_pattern"`
+		RelatedToMaintenance              bool   `json:"related_to_maintenance"`
+		RelatedToPreventive               bool   `json:"related_to_preventive"`
+		PreventivePlanID                  *uint  `json:"preventive_plan_id"`
+		PreventiveAutomationEnabled       bool   `json:"preventive_automation_enabled"`
+		PreventiveAutomationHorizonDays   int    `json:"preventive_automation_horizon_days"`
+		PreventiveCardTitleTemplate       string `json:"preventive_card_title_template"`
+		PreventiveCardDescriptionTemplate string `json:"preventive_card_description_template"`
+		PreventiveCardChecklistTemplate   string `json:"preventive_card_checklist_template"`
+		PreventiveCardPriority            string `json:"preventive_card_priority"`
+		PreventiveCardColor               string `json:"preventive_card_color"`
+		ParticipanteIDs                   []uint `json:"participante_ids"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -243,19 +256,32 @@ func (h *KanbanHandler) CreateProject(c *gin.Context) {
 	}
 
 	project := &models.KanbanProject{
-		Titulo:               strings.TrimSpace(in.Titulo),
-		BoardBackgroundColor: normalizeHexColor(in.BoardBackgroundColor, defaultKanbanBoardBackgroundColor),
-		BoardPattern:         normalizeBoardPattern(in.BoardPattern),
-		RelatedToMaintenance: in.RelatedToMaintenance,
-		RelatedToPreventive:  in.RelatedToPreventive,
-		PreventivePlanID:     preventivePlanID,
-		CriadorID:            user.ID,
-		IsActive:             true,
-		Participantes:        participants,
+		Titulo:                          strings.TrimSpace(in.Titulo),
+		BoardBackgroundColor:            normalizeHexColor(in.BoardBackgroundColor, defaultKanbanBoardBackgroundColor),
+		BoardPattern:                    normalizeBoardPattern(in.BoardPattern),
+		RelatedToMaintenance:            in.RelatedToMaintenance,
+		RelatedToPreventive:             in.RelatedToPreventive,
+		PreventivePlanID:                preventivePlanID,
+		PreventiveAutomationEnabled:     in.RelatedToPreventive && in.PreventiveAutomationEnabled,
+		PreventiveAutomationHorizonDays: normalizePreventiveAutomationHorizon(in.PreventiveAutomationHorizonDays),
+		PreventiveCardTitleTemplate:     normalizePreventiveTemplate(in.PreventiveCardTitleTemplate, defaultPreventiveKanbanCardTitleTemplate),
+		PreventiveCardPriority:          normalizeEnumValue(in.PreventiveCardPriority, []string{models.CardPriorityBaixa, models.CardPriorityMedia, models.CardPriorityAlta, models.CardPriorityUrgente}, models.CardPriorityAlta),
+		PreventiveCardColor:             normalizeHexColor(in.PreventiveCardColor, defaultPreventiveKanbanCardColor),
+		CriadorID:                       user.ID,
+		IsActive:                        true,
+		Participantes:                   participants,
 	}
 	if strings.TrimSpace(in.Descricao) != "" {
 		d := strings.TrimSpace(in.Descricao)
 		project.Descricao = &d
+	}
+	if strings.TrimSpace(in.PreventiveCardDescriptionTemplate) != "" {
+		d := strings.TrimSpace(in.PreventiveCardDescriptionTemplate)
+		project.PreventiveCardDescriptionTemplate = &d
+	}
+	if strings.TrimSpace(in.PreventiveCardChecklistTemplate) != "" {
+		checklist := buildKanbanChecklistTemplate(in.PreventiveCardChecklistTemplate)
+		project.PreventiveCardChecklistTemplate = checklist
 	}
 
 	if err := h.projectRepo.Create(project); err != nil {
@@ -328,6 +354,165 @@ func (h *KanbanHandler) GetProjectBoard(c *gin.Context) {
 	})
 }
 
+func (h *KanbanHandler) SyncPreventiveAutomation(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	project, err := h.projectRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Projeto não encontrado"})
+		return
+	}
+	if !h.userCanAccessProject(user, project) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado"})
+		return
+	}
+	if user.Role != models.RoleAdmin && project.CriadorID != user.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores ou o criador podem executar esta automação"})
+		return
+	}
+	if !project.RelatedToPreventive || !project.PreventiveAutomationEnabled {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Automação preventiva do Kanban está desativada neste projeto"})
+		return
+	}
+	if project.PreventiveAutomationStartedAt == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Clique em Dar start para iniciar o ciclo antes de sincronizar cards"})
+		return
+	}
+
+	if err := h.ensurePreventiveStatusColumns(project); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	horizonDays := normalizePreventiveAutomationHorizon(project.PreventiveAutomationHorizonDays)
+	windowStart, windowEnd := preventiveAutomationWindow(project)
+	// When a cycle expires, roll the window forward without moving or deleting
+	// historical cards. New preventive orders generated in the next window get
+	// their own cards, preserving a complete maintenance history.
+	now := time.Now()
+	if project.PreventiveAutomationNextRunAt != nil && !now.Before(*project.PreventiveAutomationNextRunAt) {
+		windowStart = *project.PreventiveAutomationNextRunAt
+		windowEnd = windowStart.AddDate(0, 0, horizonDays)
+		for !now.Before(windowEnd) {
+			windowEnd = windowEnd.AddDate(0, 0, horizonDays)
+		}
+		project.PreventiveAutomationNextRunAt = &windowEnd
+	}
+	createdCards, err := h.syncPreventiveAutomationCards(project, user.ID, windowStart, windowEnd)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	project.PreventiveAutomationLastRunAt = &now
+	// Persist only the cycle timestamps. Saving the fully preloaded project
+	// here would also save stale nested cards and undo their status movement.
+	if err := h.userRepo.DB().Model(&models.KanbanProject{}).Where("id = ?", project.ID).Updates(map[string]interface{}{
+		"preventive_automation_last_run_at": project.PreventiveAutomationLastRunAt,
+		"preventive_automation_next_run_at": project.PreventiveAutomationNextRunAt,
+		"updated_at":                        now,
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(createdCards) > 0 {
+		h.notify(h.projectParticipantIDs(project), user.ID, models.NotifCartaoAtribuido,
+			"Automação preventiva sincronizada",
+			fmt.Sprintf("%d card(s) preventivo(s) foram gerados no projeto '%s'.", len(createdCards), project.Titulo),
+			&project.ID, nil)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"created_count": len(createdCards),
+		"cards":         createdCards,
+		"horizon_days":  horizonDays,
+		"started_at":    project.PreventiveAutomationStartedAt,
+		"last_run_at":   project.PreventiveAutomationLastRunAt,
+		"next_run_at":   project.PreventiveAutomationNextRunAt,
+		"window_start":  windowStart,
+		"window_end":    windowEnd,
+	})
+}
+
+func (h *KanbanHandler) StartPreventiveAutomation(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	project, err := h.projectRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Projeto não encontrado"})
+		return
+	}
+	if !h.userCanAccessProject(user, project) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso negado"})
+		return
+	}
+	if user.Role != models.RoleAdmin && project.CriadorID != user.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Apenas administradores ou o criador podem iniciar esta automação"})
+		return
+	}
+	if !project.RelatedToPreventive || !project.PreventiveAutomationEnabled {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Ative a automação preventiva no projeto antes de dar start"})
+		return
+	}
+	if err := h.ensurePreventiveStatusColumns(project); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	horizonDays := normalizePreventiveAutomationHorizon(project.PreventiveAutomationHorizonDays)
+	startedAt := time.Now()
+	nextRunAt := startedAt.AddDate(0, 0, horizonDays)
+	project.PreventiveAutomationStartedAt = &startedAt
+	project.PreventiveAutomationLastRunAt = &startedAt
+	project.PreventiveAutomationNextRunAt = &nextRunAt
+	project.PreventiveAutomationHorizonDays = horizonDays
+	project.UpdatedAt = startedAt
+
+	if err := h.projectRepo.Update(project); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	createdCards, err := h.syncPreventiveAutomationCards(project, user.ID, startedAt, nextRunAt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(createdCards) > 0 {
+		h.notify(h.projectParticipantIDs(project), user.ID, models.NotifCartaoAtribuido,
+			"Automação preventiva iniciada",
+			fmt.Sprintf("%s iniciou a automação preventiva em '%s' e %d card(s) foram gerados.", user.Nome, project.Titulo, len(createdCards)),
+			&project.ID, nil)
+	} else {
+		h.notify(h.projectParticipantIDs(project), user.ID, models.NotifProjetoAdicionado,
+			"Automação preventiva iniciada",
+			fmt.Sprintf("%s iniciou a automação preventiva em '%s'. O ciclo de %d dia(s) começou agora.", user.Nome, project.Titulo, horizonDays),
+			&project.ID, nil)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"created_count": len(createdCards),
+		"cards":         createdCards,
+		"horizon_days":  horizonDays,
+		"started_at":    project.PreventiveAutomationStartedAt,
+		"last_run_at":   project.PreventiveAutomationLastRunAt,
+		"next_run_at":   project.PreventiveAutomationNextRunAt,
+		"window_start":  startedAt,
+		"window_end":    nextRunAt,
+	})
+}
+
 func (h *KanbanHandler) ToggleProjectFavorite(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -378,16 +563,23 @@ func (h *KanbanHandler) UpdateProject(c *gin.Context) {
 	}
 
 	var in struct {
-		Titulo               string  `json:"titulo"`
-		Descricao            string  `json:"descricao"`
-		BoardBackgroundColor *string `json:"board_background_color"`
-		BoardPattern         *string `json:"board_pattern"`
-		RelatedToMaintenance *bool   `json:"related_to_maintenance"`
-		RelatedToPreventive  *bool   `json:"related_to_preventive"`
-		PreventivePlanID     *uint   `json:"preventive_plan_id"`
-		ParticipanteIDs      []uint  `json:"participante_ids"`
-		IsActive             *bool   `json:"is_active"`
-		IsArchived           *bool   `json:"is_archived"`
+		Titulo                            string  `json:"titulo"`
+		Descricao                         string  `json:"descricao"`
+		BoardBackgroundColor              *string `json:"board_background_color"`
+		BoardPattern                      *string `json:"board_pattern"`
+		RelatedToMaintenance              *bool   `json:"related_to_maintenance"`
+		RelatedToPreventive               *bool   `json:"related_to_preventive"`
+		PreventivePlanID                  *uint   `json:"preventive_plan_id"`
+		PreventiveAutomationEnabled       *bool   `json:"preventive_automation_enabled"`
+		PreventiveAutomationHorizonDays   *int    `json:"preventive_automation_horizon_days"`
+		PreventiveCardTitleTemplate       *string `json:"preventive_card_title_template"`
+		PreventiveCardDescriptionTemplate *string `json:"preventive_card_description_template"`
+		PreventiveCardChecklistTemplate   *string `json:"preventive_card_checklist_template"`
+		PreventiveCardPriority            *string `json:"preventive_card_priority"`
+		PreventiveCardColor               *string `json:"preventive_card_color"`
+		ParticipanteIDs                   []uint  `json:"participante_ids"`
+		IsActive                          *bool   `json:"is_active"`
+		IsArchived                        *bool   `json:"is_archived"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -420,6 +612,8 @@ func (h *KanbanHandler) UpdateProject(c *gin.Context) {
 	}
 	if in.RelatedToPreventive != nil && !project.RelatedToPreventive {
 		project.PreventivePlanID = nil
+		project.PreventiveAutomationEnabled = false
+		clearPreventiveAutomationSchedule(project)
 	} else if in.PreventivePlanID != nil {
 		var plan models.MaintenancePlan
 		if err := h.userRepo.DB().First(&plan, *in.PreventivePlanID).Error; err != nil {
@@ -428,11 +622,50 @@ func (h *KanbanHandler) UpdateProject(c *gin.Context) {
 		}
 		project.PreventivePlanID = in.PreventivePlanID
 	}
+	if in.PreventiveAutomationEnabled != nil {
+		project.PreventiveAutomationEnabled = project.RelatedToPreventive && *in.PreventiveAutomationEnabled
+		if !project.PreventiveAutomationEnabled {
+			clearPreventiveAutomationSchedule(project)
+		}
+	}
+	if in.PreventiveAutomationHorizonDays != nil {
+		project.PreventiveAutomationHorizonDays = normalizePreventiveAutomationHorizon(*in.PreventiveAutomationHorizonDays)
+		if project.PreventiveAutomationStartedAt != nil {
+			nextRunAt := project.PreventiveAutomationStartedAt.AddDate(0, 0, project.PreventiveAutomationHorizonDays)
+			project.PreventiveAutomationNextRunAt = &nextRunAt
+		}
+	}
+	if in.PreventiveCardTitleTemplate != nil {
+		project.PreventiveCardTitleTemplate = normalizePreventiveTemplate(*in.PreventiveCardTitleTemplate, defaultPreventiveKanbanCardTitleTemplate)
+	}
+	if in.PreventiveCardDescriptionTemplate != nil {
+		if strings.TrimSpace(*in.PreventiveCardDescriptionTemplate) == "" {
+			project.PreventiveCardDescriptionTemplate = nil
+		} else {
+			d := strings.TrimSpace(*in.PreventiveCardDescriptionTemplate)
+			project.PreventiveCardDescriptionTemplate = &d
+		}
+	}
+	if in.PreventiveCardChecklistTemplate != nil {
+		project.PreventiveCardChecklistTemplate = buildKanbanChecklistTemplate(*in.PreventiveCardChecklistTemplate)
+	}
+	if in.PreventiveCardPriority != nil {
+		project.PreventiveCardPriority = normalizeEnumValue(*in.PreventiveCardPriority, []string{models.CardPriorityBaixa, models.CardPriorityMedia, models.CardPriorityAlta, models.CardPriorityUrgente}, models.CardPriorityAlta)
+	}
+	if in.PreventiveCardColor != nil {
+		project.PreventiveCardColor = normalizeHexColor(*in.PreventiveCardColor, defaultPreventiveKanbanCardColor)
+	}
 	if in.IsActive != nil {
 		project.IsActive = *in.IsActive
 	}
 	if in.IsArchived != nil {
 		project.IsArchived = *in.IsArchived
+	}
+	if project.RelatedToPreventive && project.PreventiveAutomationEnabled {
+		if err := h.ensurePreventiveStatusColumns(project); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 	project.UpdatedAt = time.Now()
 
@@ -547,17 +780,24 @@ func (h *KanbanHandler) DuplicateProject(c *gin.Context) {
 	}
 
 	duplicate := &models.KanbanProject{
-		Titulo:               strings.TrimSpace(project.Titulo) + " (Cópia)",
-		Descricao:            project.Descricao,
-		BoardBackgroundColor: normalizeHexColor(project.BoardBackgroundColor, defaultKanbanBoardBackgroundColor),
-		BoardPattern:         normalizeBoardPattern(project.BoardPattern),
-		RelatedToMaintenance: project.RelatedToMaintenance,
-		RelatedToPreventive:  project.RelatedToPreventive,
-		PreventivePlanID:     project.PreventivePlanID,
-		CriadorID:            user.ID,
-		IsActive:             true,
-		IsArchived:           false,
-		Participantes:        participants,
+		Titulo:                            strings.TrimSpace(project.Titulo) + " (Cópia)",
+		Descricao:                         project.Descricao,
+		BoardBackgroundColor:              normalizeHexColor(project.BoardBackgroundColor, defaultKanbanBoardBackgroundColor),
+		BoardPattern:                      normalizeBoardPattern(project.BoardPattern),
+		RelatedToMaintenance:              project.RelatedToMaintenance,
+		RelatedToPreventive:               project.RelatedToPreventive,
+		PreventivePlanID:                  project.PreventivePlanID,
+		PreventiveAutomationEnabled:       false,
+		PreventiveAutomationHorizonDays:   normalizePreventiveAutomationHorizon(project.PreventiveAutomationHorizonDays),
+		PreventiveCardTitleTemplate:       normalizePreventiveTemplate(project.PreventiveCardTitleTemplate, defaultPreventiveKanbanCardTitleTemplate),
+		PreventiveCardDescriptionTemplate: project.PreventiveCardDescriptionTemplate,
+		PreventiveCardChecklistTemplate:   project.PreventiveCardChecklistTemplate,
+		PreventiveCardPriority:            normalizeEnumValue(project.PreventiveCardPriority, []string{models.CardPriorityBaixa, models.CardPriorityMedia, models.CardPriorityAlta, models.CardPriorityUrgente}, models.CardPriorityAlta),
+		PreventiveCardColor:               normalizeHexColor(project.PreventiveCardColor, defaultPreventiveKanbanCardColor),
+		CriadorID:                         user.ID,
+		IsActive:                          true,
+		IsArchived:                        false,
+		Participantes:                     participants,
 	}
 
 	if err := h.projectRepo.Create(duplicate); err != nil {
@@ -1452,6 +1692,371 @@ func normalizeBoardPattern(input string) string {
 		return strings.ToLower(strings.TrimSpace(input))
 	default:
 		return defaultKanbanBoardPattern
+	}
+}
+
+func normalizePreventiveAutomationHorizon(days int) int {
+	if days <= 0 {
+		return 30
+	}
+	if days > 365 {
+		return 365
+	}
+	return days
+}
+
+func clearPreventiveAutomationSchedule(project *models.KanbanProject) {
+	project.PreventiveAutomationStartedAt = nil
+	project.PreventiveAutomationLastRunAt = nil
+	project.PreventiveAutomationNextRunAt = nil
+}
+
+func normalizePreventiveTemplate(input string, fallback string) string {
+	value := strings.TrimSpace(input)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func buildKanbanChecklistTemplate(input string) *string {
+	// Templates may arrive already serialized (for example when an exported
+	// project is edited and imported again). Preserve each checklist entry
+	// instead of turning the whole JSON array into one title.
+	if normalized := normalizeKanbanChecklistJSON(input); normalized != nil {
+		return normalized
+	}
+	lines := strings.Split(input, "\n")
+	items := make([]kanbanChecklistItemPayload, 0, len(lines))
+	for index, line := range lines {
+		title := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, "-"), "•"))
+		if title == "" {
+			continue
+		}
+		items = append(items, kanbanChecklistItemPayload{
+			ID:        fmt.Sprintf("auto-%d", index+1),
+			Titulo:    title,
+			Concluido: false,
+		})
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	payload, err := json.Marshal(items)
+	if err != nil {
+		return nil
+	}
+	value := string(payload)
+	return &value
+}
+
+func normalizeKanbanChecklistJSON(input string) *string {
+	var parsed []kanbanChecklistItemPayload
+	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &parsed); err != nil || len(parsed) == 0 {
+		return nil
+	}
+	items := make([]kanbanChecklistItemPayload, 0, len(parsed))
+	for _, item := range parsed {
+		title := strings.TrimSpace(item.Titulo)
+		if strings.HasPrefix(title, "[") {
+			var nested []kanbanChecklistItemPayload
+			if err := json.Unmarshal([]byte(title), &nested); err == nil {
+				items = append(items, nested...)
+				continue
+			}
+		}
+		item.Titulo = title
+		items = append(items, item)
+	}
+	normalized, err := marshalKanbanChecklist(items)
+	if err != nil {
+		return nil
+	}
+	return normalized
+}
+
+func pickPreventiveAutomationColumn(project *models.KanbanProject) *models.KanbanColumn {
+	if project == nil || len(project.Colunas) == 0 {
+		return nil
+	}
+	for idx := range project.Colunas {
+		name := strings.ToLower(project.Colunas[idx].Nome)
+		if strings.Contains(name, "fazer") || strings.Contains(name, "planej") || strings.Contains(name, "agend") {
+			return &project.Colunas[idx]
+		}
+	}
+	return &project.Colunas[0]
+}
+
+func preventiveAutomationWindow(project *models.KanbanProject) (time.Time, time.Time) {
+	start := time.Now()
+	if project != nil && project.PreventiveAutomationStartedAt != nil {
+		start = *project.PreventiveAutomationStartedAt
+	}
+
+	if project != nil && project.PreventiveAutomationNextRunAt != nil {
+		return start, *project.PreventiveAutomationNextRunAt
+	}
+
+	horizonDays := 30
+	if project != nil {
+		horizonDays = normalizePreventiveAutomationHorizon(project.PreventiveAutomationHorizonDays)
+	}
+	return start, start.AddDate(0, 0, horizonDays)
+}
+
+type preventiveStatusColumn struct {
+	name  string
+	color string
+}
+
+var preventiveStatusColumns = []preventiveStatusColumn{
+	{name: "A Fazer", color: "#6B7280"},
+	{name: "Em Andamento", color: "#2563EB"},
+	{name: "Aguardando Peça", color: "#F59E0B"},
+	{name: "Pausada", color: "#8B5CF6"},
+	{name: "Concluído", color: "#16A34A"},
+}
+
+func (h *KanbanHandler) ensurePreventiveStatusColumns(project *models.KanbanProject) error {
+	if project == nil {
+		return fmt.Errorf("projeto inválido")
+	}
+	for _, wanted := range preventiveStatusColumns {
+		found := false
+		for _, col := range project.Colunas {
+			name := strings.ToLower(strings.TrimSpace(col.Nome))
+			if name == strings.ToLower(wanted.name) ||
+				(wanted.name == "Aguardando Peça" && strings.Contains(name, "aguardando") && strings.Contains(name, "compr")) ||
+				(wanted.name == "Concluído" && strings.Contains(name, "conclu")) {
+				found = true
+				break
+			}
+		}
+		if found {
+			continue
+		}
+		count, _ := h.columnRepo.CountByProject(project.ID)
+		col := &models.KanbanColumn{ProjectID: project.ID, Nome: wanted.name, Cor: wanted.color, Ordem: int(count)}
+		if err := h.columnRepo.Create(col); err != nil {
+			return err
+		}
+		project.Colunas = append(project.Colunas, *col)
+	}
+	return nil
+}
+
+func (h *KanbanHandler) preventiveColumnForStatus(project *models.KanbanProject, status string) *models.KanbanColumn {
+	if project == nil {
+		return nil
+	}
+	status = strings.ToLower(strings.TrimSpace(status))
+	needle := "a fazer"
+	switch status {
+	case strings.ToLower(models.PMStatusEmAndamento):
+		needle = "andamento"
+	case strings.ToLower(models.PMStatusAguardandoPeca):
+		needle = "aguardando"
+	case strings.ToLower(models.PMStatusPausada):
+		needle = "pausad"
+	case strings.ToLower(models.PMStatusConcluida):
+		needle = "conclu"
+	}
+	for idx := range project.Colunas {
+		name := strings.ToLower(project.Colunas[idx].Nome)
+		if strings.Contains(name, needle) || (needle == "aguardando" && strings.Contains(name, "compr")) {
+			return &project.Colunas[idx]
+		}
+	}
+	return pickPreventiveAutomationColumn(project)
+}
+
+func (h *KanbanHandler) syncPreventiveAutomationCards(project *models.KanbanProject, userID uint, windowStart time.Time, windowEnd time.Time) ([]models.KanbanCard, error) {
+	if err := h.ensurePreventiveStatusColumns(project); err != nil {
+		return nil, err
+	}
+	if err := h.syncExistingPreventiveCardStatuses(project); err != nil {
+		return nil, err
+	}
+	targetColumn := pickPreventiveAutomationColumn(project)
+	if targetColumn == nil {
+		return nil, fmt.Errorf("crie ao menos uma coluna no projeto antes de sincronizar")
+	}
+
+	db := h.userRepo.DB()
+	var orders []models.MaintenanceOrder
+	query := db.Preload("Plan").Preload("Asset").Preload("Tecnico").
+		Where("status NOT IN ?", []string{models.PMStatusConcluida, models.PMStatusCancelada}).
+		Where("COALESCE(data_agendada, data_abertura) >= ? AND COALESCE(data_agendada, data_abertura) <= ?", windowStart, windowEnd)
+	if project.PreventivePlanID != nil {
+		query = query.Where("plan_id = ?", *project.PreventivePlanID)
+	}
+	if err := query.Order("COALESCE(data_agendada, data_abertura) asc").Find(&orders).Error; err != nil {
+		return nil, err
+	}
+
+	createdCards := make([]models.KanbanCard, 0)
+	for _, order := range orders {
+		// Reconcile legacy cards too: this copies the real OS checklist and
+		// status into Kanban even when the OS was updated before the event hook.
+		if err := service.SyncPreventiveOrderToKanban(db, order.ID, userID); err != nil {
+			return nil, err
+		}
+		// Keep existing cards synchronized with the authoritative OS status.
+		var existingCards []models.KanbanCard
+		if err := db.Where("project_id = ? AND preventive_order_id = ?", project.ID, order.ID).Find(&existingCards).Error; err != nil {
+			return nil, err
+		}
+		if len(existingCards) > 0 {
+			statusColumn := h.preventiveColumnForStatus(project, order.Status)
+			if statusColumn != nil {
+				for _, existing := range existingCards {
+					if existing.ColumnID != statusColumn.ID {
+						_ = db.Model(&models.KanbanCard{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{"column_id": statusColumn.ID, "ordem": 0})
+					}
+				}
+			}
+			continue
+		}
+		var countExisting int64
+		if err := db.Model(&models.KanbanCard{}).
+			Where("project_id = ? AND preventive_order_id = ?", project.ID, order.ID).
+			Count(&countExisting).Error; err != nil {
+			return nil, err
+		}
+		if countExisting > 0 {
+			continue
+		}
+
+		statusColumn := h.preventiveColumnForStatus(project, order.Status)
+		if statusColumn == nil {
+			statusColumn = targetColumn
+		}
+		// Ordem zero makes the newest cycle appear above older cards.
+		_ = db.Model(&models.KanbanCard{}).Where("project_id = ? AND column_id = ?", project.ID, statusColumn.ID).Updates(map[string]interface{}{"ordem": gorm.Expr("ordem + 1")})
+		card := buildPreventiveKanbanCard(project, statusColumn.ID, 0, userID, order)
+		if err := h.cardRepo.Create(card); err != nil {
+			return nil, err
+		}
+		if order.AssetID != nil {
+			_ = h.cardRepo.ReplaceAssets(card, []uint{*order.AssetID})
+		}
+		if order.TecnicoID != nil {
+			_ = h.cardRepo.ReplaceParticipantes(card, []uint{*order.TecnicoID})
+		}
+		_ = h.interactionRepo.Create(&models.KanbanCardInteraction{
+			CardID:    card.ID,
+			UsuarioID: userID,
+			Mensagem:  fmt.Sprintf("Card gerado automaticamente a partir da OS preventiva %s.", order.Numero),
+			Tipo:      models.InteractionSistemaResp,
+		})
+		if loaded, err := h.cardRepo.GetByID(card.ID); err == nil && loaded != nil {
+			createdCards = append(createdCards, *loaded)
+		} else {
+			createdCards = append(createdCards, *card)
+		}
+	}
+
+	return createdCards, nil
+}
+
+func (h *KanbanHandler) syncExistingPreventiveCardStatuses(project *models.KanbanProject) error {
+	db := h.userRepo.DB()
+	var cards []models.KanbanCard
+	if err := db.Preload("PreventiveOrder").Where("project_id = ? AND preventive_order_id IS NOT NULL", project.ID).Find(&cards).Error; err != nil {
+		return err
+	}
+	for _, card := range cards {
+		if card.PreventiveOrder == nil {
+			continue
+		}
+		column := h.preventiveColumnForStatus(project, card.PreventiveOrder.Status)
+		if column != nil && column.ID != card.ColumnID {
+			if err := db.Model(&models.KanbanCard{}).Where("id = ?", card.ID).Updates(map[string]interface{}{"column_id": column.ID, "ordem": 0}).Error; err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func buildPreventiveKanbanCard(project *models.KanbanProject, columnID uint, ordem int, creatorID uint, order models.MaintenanceOrder) *models.KanbanCard {
+	titleTemplate := normalizePreventiveTemplate(project.PreventiveCardTitleTemplate, defaultPreventiveKanbanCardTitleTemplate)
+	descTemplate := defaultPreventiveKanbanCardDescriptionTemplate
+	if project.PreventiveCardDescriptionTemplate != nil && strings.TrimSpace(*project.PreventiveCardDescriptionTemplate) != "" {
+		descTemplate = *project.PreventiveCardDescriptionTemplate
+	}
+
+	title := applyPreventiveTemplate(titleTemplate, order)
+	desc := applyPreventiveTemplate(descTemplate, order)
+	cardPriority := normalizeEnumValue(project.PreventiveCardPriority, []string{models.CardPriorityBaixa, models.CardPriorityMedia, models.CardPriorityAlta, models.CardPriorityUrgente}, preventivePriorityToCardPriority(order.Prioridade))
+	cardColor := normalizeHexColor(project.PreventiveCardColor, defaultPreventiveKanbanCardColor)
+	checklist := project.PreventiveCardChecklistTemplate
+	if checklist != nil {
+		checklist = normalizeKanbanChecklistJSON(*checklist)
+	}
+	if checklist == nil {
+		checklist = buildKanbanChecklistTemplate(defaultPreventiveKanbanChecklistTemplate)
+	}
+
+	card := &models.KanbanCard{
+		ProjectID:         project.ID,
+		ColumnID:          columnID,
+		Titulo:            title,
+		Cor:               cardColor,
+		Descricao:         &desc,
+		ChecklistJSON:     checklist,
+		PreventiveOrderID: &order.ID,
+		CriadorID:         creatorID,
+		ResponsavelID:     order.TecnicoID,
+		Prioridade:        cardPriority,
+		DataEntrega:       order.DataAgendada,
+		Ordem:             ordem,
+	}
+	return card
+}
+
+func applyPreventiveTemplate(template string, order models.MaintenanceOrder) string {
+	planName := "Sem plano"
+	if order.Plan != nil {
+		if strings.TrimSpace(order.Plan.Codigo) != "" {
+			planName = fmt.Sprintf("%s (%s)", order.Plan.Nome, order.Plan.Codigo)
+		} else {
+			planName = order.Plan.Nome
+		}
+	}
+	target := "Infraestrutura"
+	if order.Asset != nil {
+		target = order.Asset.Nome
+	} else if order.InfraPredialServico != nil && strings.TrimSpace(*order.InfraPredialServico) != "" {
+		target = strings.TrimSpace(*order.InfraPredialServico)
+	}
+	scheduled := "Sem data"
+	if order.DataAgendada != nil {
+		scheduled = order.DataAgendada.Format("02/01/2006")
+	}
+
+	replacer := strings.NewReplacer(
+		"{{os}}", order.Numero,
+		"{{plano}}", planName,
+		"{{ativo}}", target,
+		"{{data}}", scheduled,
+		"{{status}}", order.Status,
+		"{{tipo}}", order.Tipo,
+	)
+	return strings.TrimSpace(replacer.Replace(template))
+}
+
+func preventivePriorityToCardPriority(priority string) string {
+	switch strings.ToLower(strings.TrimSpace(priority)) {
+	case "baixa":
+		return models.CardPriorityBaixa
+	case "alta":
+		return models.CardPriorityAlta
+	case "urgente", "crítica", "critica":
+		return models.CardPriorityUrgente
+	default:
+		return models.CardPriorityMedia
 	}
 }
 

@@ -7,6 +7,16 @@ export interface KanbanProject {
   related_to_maintenance?: boolean;
   related_to_preventive?: boolean;
   preventive_plan_id?: number;
+  preventive_automation_enabled?: boolean;
+  preventive_automation_horizon_days?: number;
+  preventive_automation_started_at?: string | null;
+  preventive_automation_last_run_at?: string | null;
+  preventive_automation_next_run_at?: string | null;
+  preventive_card_title_template?: string;
+  preventive_card_description_template?: string;
+  preventive_card_checklist_template?: string;
+  preventive_card_priority?: string;
+  preventive_card_color?: string;
   criador_id: number;
   is_active: boolean;
   is_archived: boolean;

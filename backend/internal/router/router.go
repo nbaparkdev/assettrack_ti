@@ -305,6 +305,8 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			kanban.POST("/projetos/:id/duplicar", kanbanHandler.DuplicateProject)
 			kanban.POST("/projetos/:id/status", kanbanHandler.ToggleProjectStatus)
 			kanban.POST("/projetos/:id/favorito", kanbanHandler.ToggleProjectFavorite)
+			kanban.POST("/projetos/:id/preventiva/start", kanbanHandler.StartPreventiveAutomation)
+			kanban.POST("/projetos/:id/preventiva/sincronizar", kanbanHandler.SyncPreventiveAutomation)
 			kanban.POST("/projetos/:id/colunas", kanbanHandler.AddColumn)
 			kanban.PUT("/colunas/:columnId", kanbanHandler.UpdateColumn)
 

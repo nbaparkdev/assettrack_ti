@@ -242,6 +242,7 @@ export const PreventiveMaintenancePage: React.FC = () => {
         justificativa: pmPartJustification.trim(),
         tipo_item: pmPartItemType,
         asset_id: orderDetail.order.asset_id || undefined,
+        maintenance_order_id: orderDetail.order.id,
       });
 
       setPmPurchaseSuccess('Solicitação de compra enviada para o Comprador com sucesso!');

@@ -13,6 +13,7 @@ import (
 	"github.com/assettrack/backend/internal/middleware"
 	"github.com/assettrack/backend/internal/models"
 	"github.com/assettrack/backend/internal/repository"
+	"github.com/assettrack/backend/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -162,6 +163,49 @@ func (h *ProcurementHandler) broadcastKanbanRequestUpdate(req *models.PurchaseRe
 			"status":     req.Status,
 		},
 	})
+}
+
+// syncMaintenancePurchaseToKanban turns a preventive purchase request into a
+// visible operational stop: the OS waits for the part and its Kanban card is
+// linked to the request so buyers and field technicians share one context.
+func (h *ProcurementHandler) syncMaintenancePurchaseToKanban(req *models.PurchaseRequest, userID uint) {
+	if req == nil || req.OrigemOSID == nil {
+		return
+	}
+	db := h.userRepo.DB()
+	var order models.MaintenanceOrder
+	if err := db.First(&order, *req.OrigemOSID).Error; err != nil {
+		return
+	}
+	if order.Status != models.PMStatusConcluida && order.Status != models.PMStatusCancelada {
+		previousStatus := order.Status
+		order.Status = models.PMStatusAguardandoPeca
+		if err := db.Save(&order).Error; err != nil {
+			return
+		}
+		_ = db.Create(&models.MaintenanceHistory{
+			OrderID: order.ID, Acao: "Aguardando Peça",
+			Descricao: fmt.Sprintf("OS aguardando a solicitação de compra %s para liberação da peça/material.", req.Numero),
+			UsuarioID: &userID, DataHora: time.Now(), StatusAnterior: &previousStatus, StatusNovo: &order.Status,
+		}).Error
+	}
+	if err := service.SyncPreventiveOrderToKanban(db, order.ID, userID); err != nil {
+		return
+	}
+	_ = db.Model(&models.KanbanCard{}).Where("preventive_order_id = ?", order.ID).Updates(map[string]interface{}{
+		"purchase_request_id": req.ID,
+		"updated_at":          time.Now(),
+	}).Error
+	var cards []models.KanbanCard
+	if err := db.Where("preventive_order_id = ?", order.ID).Find(&cards).Error; err == nil {
+		for _, card := range cards {
+			_ = h.interactionRepo.Create(&models.KanbanCardInteraction{
+				CardID: card.ID, UsuarioID: userID, Tipo: models.InteractionSistemaSupr,
+				Mensagem: fmt.Sprintf("Solicitação de compra %s vinculada. OS aguardando peça/material.", req.Numero),
+			})
+		}
+	}
+	h.broadcastKanbanRequestUpdate(req, nil, fmt.Sprintf("Solicitação de compra %s vinculada à OS preventiva; aguardando peça/material.", req.Numero))
 }
 
 func (h *ProcurementHandler) projectParticipantIDs(project *models.KanbanProject) []uint {
@@ -2928,6 +2972,7 @@ func (h *ProcurementHandler) CreateMaintenancePurchaseRequest(c *gin.Context) {
 			UsuarioID: &user.ID,
 			DataHora:  time.Now(),
 		}).Error
+		h.syncMaintenancePurchaseToKanban(req, user.ID)
 	}
 
 	// Notify buyers
