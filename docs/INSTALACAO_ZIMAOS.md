@@ -18,6 +18,13 @@ Arquivos usados somente no ZimaOS:
 - Git, se for clonar direto no ZimaOS
 - Portas livres: `8000` para Web e `8080` para API
 
+Se o ZimaOS mostrar `Docker Compose nao encontrado`, instale o Compose com:
+
+```bash
+chmod +x scripts/zimaos_install_compose.sh
+./scripts/zimaos_install_compose.sh
+```
+
 ## Instalar
 
 ```bash
