@@ -250,3 +250,14 @@ Administradores podem consultar os registros de envio de e-mail em **Logs de e-m
 ### Assistente de IA
 
 Quando habilitado nas configurações, o assistente de IA permite consultar informações operacionais do sistema de forma conversacional.
+
+---
+
+## 📲 17. Instalação como PWA no smartphone
+
+Ao acessar a aplicação pelo navegador do celular usando o endereço da rede, por exemplo `http://192.168.x.x:8000`, o sistema pode ser instalado como aplicativo web.
+
+1. Abra a tela de login pelo QR Code exibido no computador ou digite o endereço no navegador do celular.
+2. No Chrome/Android, toque no menu do navegador e escolha **Adicionar à tela inicial** ou **Instalar app**.
+3. No Safari/iPhone, use o botão de compartilhamento e escolha **Adicionar à Tela de Início**.
+4. Depois de instalado, o AssetTrack TI abre em modo aplicativo, mantendo o mesmo endereço da aplicação local.

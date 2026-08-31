@@ -29,6 +29,7 @@ O painel foi projetado para uso em uma TV: abra a rota, clique em **Tela cheia**
 - **RH:** Termos de responsabilidade, assinatura, anexos, status da equipe, comunicados, portal do colaborador e seleção para monitoramento.
 - **Sala de Monitoramento:** Painel TV com chamados, manutenções, solicitações, Kanban, emergências e status RH selecionado.
 - **Android APK:** Download do APK anexado manualmente, QR de instalação, verificação de versão e configuração por endereço único da aplicação.
+- **PWA Mobile:** A aplicação web pode ser instalada pelo navegador do smartphone quando acessada pelo endereço da rede, como `http://192.168.x.x:8000`.
 - **Administração:** Configurações globais, RBAC de menus, webhooks, backups, restore, logs de e-mail e assistente de IA.
 
 ## Estrutura

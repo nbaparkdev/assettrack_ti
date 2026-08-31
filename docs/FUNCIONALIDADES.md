@@ -106,6 +106,7 @@ Módulo de transmissão de comunicados e comunicados institucionais para toda a 
 
 ## 📱 Aplicativo Android (Capacitor) & Arquitetura Offline-First
 
+- **PWA para Mobile:** A versão web possui manifest e service worker para instalação pelo navegador em smartphones, usando o endereço atual da aplicação na rede local.
 - **Arquitetura Offline-First:** Fila de mutações persistida no armazenamento local (`localStorage`), permitindo que técnicos registrem ações (chamados, manutenções e verificações de ativos) mesmo totalmente sem sinal de internet.
 - **Sincronização Automática:** Reconexão transparente ao sinal de rede com indicador visual de status e contagem de itens sincronizados.
 - **Botão e Modal de Download do APK na Web:** Botão em destaque no cabeçalho da versão web com modal interativo que exibe:
