@@ -2,12 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../api/auth';
 import { API_BASE_URL, normalizeServerUrlToApiBaseUrl } from '../api/client';
-import { KeyRound, QrCode, AlertCircle, Settings, RotateCcw, Camera, X, CheckCircle } from 'lucide-react';
+import { KeyRound, QrCode, AlertCircle, Settings, RotateCcw, Camera, X, CheckCircle, Smartphone } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { cameraPermissionMessage, ensureCameraPermission } from '../utils/cameraPermission';
 
 export const LoginPage: React.FC = () => {
   const loginStore = useAuthStore().login;
+  const appAccessUrl = window.location.origin;
+  const appAccessQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&data=${encodeURIComponent(appAccessUrl)}`;
+  const isLocalhostAccess = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const [mode, setMode] = useState<'standard' | 'qr'>('standard');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -266,6 +269,39 @@ export const LoginPage: React.FC = () => {
             <QrCode size={14} />
             <span>QR Code + PIN</span>
           </button>
+        </div>
+
+        <div className="mb-6 rounded-xl border border-cyan-500/20 bg-cyan-50/70 p-4">
+          <div className="flex items-start gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-brand-primary shadow-sm">
+              <Smartphone size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-brand-primary">
+                Acessar no smartphone
+              </h3>
+              <p className="mt-1 text-[11px] leading-relaxed text-brand-muted">
+                Escaneie para abrir esta aplicação no celular conectado à mesma rede.
+              </p>
+              <div className="mt-3 flex items-center gap-3">
+                <img
+                  src={appAccessQrUrl}
+                  alt={`QR Code para acessar ${appAccessUrl}`}
+                  className="h-[92px] w-[92px] rounded-lg border border-brand-border bg-white p-1"
+                />
+                <div className="min-w-0">
+                  <p className="truncate rounded-lg border border-brand-border bg-white px-2 py-1.5 text-[10px] font-mono text-brand-text">
+                    {appAccessUrl}
+                  </p>
+                  {isLocalhostAccess && (
+                    <p className="mt-2 text-[10px] leading-relaxed text-amber-700">
+                      Para celular, abra o sistema pelo IP da máquina na rede, por exemplo http://192.168.x.x:8000, e o QR será atualizado automaticamente.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Error Notification */}
