@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { rhApi } from '../api/rh';
-import { apiClient as api } from '../api/client';
+import { apiClient as api, toApiFileUrl } from '../api/client';
 import type { TermoResponsabilidade, RHControlResponse, RHStatusType, RHStatusRecord } from '../types/rh';
 import type { Solicitacao } from '../types/transaction';
 import type { User } from '../types/user';
-import { FileSignature, Printer, CheckCircle2, XCircle, Edit2, Plus, UserMinus, CalendarDays, MessageSquareText, UsersRound, Clock3, Download, ClipboardPlus, Megaphone, LayoutDashboard } from 'lucide-react';
+import { FileSignature, Printer, CheckCircle2, XCircle, Edit2, Plus, UserMinus, CalendarDays, MessageSquareText, UsersRound, Clock3, Download, ClipboardPlus, Megaphone, LayoutDashboard, Eye, EyeOff } from 'lucide-react';
 import jsPDF from 'jspdf';
 
 const statusStyles: Record<string, string> = {
@@ -132,6 +132,15 @@ export const RHPage: React.FC = () => {
       anchor.href = url; anchor.download = 'controle_rh.csv'; anchor.click();
       URL.revokeObjectURL(url);
     } catch { alert('Não foi possível exportar o relatório de RH.'); }
+  };
+
+  const toggleMonitoringVisibility = async (userId: number, current: boolean) => {
+    try {
+      await rhApi.updateMonitoringVisibility(userId, !current);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Não foi possível atualizar a exibição na sala de monitoramento.');
+    }
   };
 
   const openCreate = async (solicitacao: Solicitacao) => {
@@ -287,7 +296,33 @@ export const RHPage: React.FC = () => {
           <div className="border border-brand-border bg-brand-card">
             <div className="p-4 border-b border-brand-border flex items-center gap-2 text-sm font-bold font-mono uppercase tracking-wider text-brand-text"><UsersRound size={16} className="text-brand-primary" /> Status atual da equipe <span className="ml-auto text-[10px] normal-case text-brand-muted font-normal">atualiza automaticamente</span></div>
             <div className="divide-y divide-brand-border/60 max-h-[340px] overflow-y-auto">
-              {control.colaboradores.map(({ usuario, status_atual }) => <div key={usuario.id} className="p-3 flex items-center justify-between gap-3"><div><span className="font-medium text-brand-text">{usuario.nome}</span><span className="ml-2 text-xs text-brand-muted">{usuario.cargo || 'Cargo não definido'}</span></div><span className={`text-[10px] font-mono uppercase px-2 py-1 border ${employeeStatus[status_atual].className}`}>{employeeStatus[status_atual].label}</span></div>)}
+              {control.colaboradores.map(({ usuario, status_atual, horas }) => {
+                const avatarUrl = toApiFileUrl(usuario.avatar_url);
+                return <div key={usuario.id} className="p-3 flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-brand-border bg-brand-dark">
+                      {avatarUrl ? <img src={avatarUrl} alt={usuario.nome} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-xs font-bold text-brand-primary">{usuario.nome.slice(0, 2).toUpperCase()}</div>}
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-medium text-brand-text">{usuario.nome}</span>
+                      <span className="ml-2 text-xs text-brand-muted">{usuario.cargo || 'Cargo não definido'}</span>
+                      {status_atual === 'banco_horas' && horas ? <p className="m-0 mt-0.5 text-xs text-amber-700">{horas}h em banco de horas</p> : null}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className={`text-[10px] font-mono uppercase px-2 py-1 border ${employeeStatus[status_atual].className}`}>{employeeStatus[status_atual].label}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleMonitoringVisibility(usuario.id, !!usuario.show_on_monitoring)}
+                      title={usuario.show_on_monitoring ? 'Ocultar na sala de monitoramento' : 'Mostrar na sala de monitoramento'}
+                      className={`inline-flex items-center gap-1 border px-2 py-1 text-[10px] font-mono uppercase ${usuario.show_on_monitoring ? 'border-emerald-500/30 text-emerald-600 bg-emerald-500/10' : 'border-brand-border text-brand-muted hover:text-brand-text'}`}
+                    >
+                      {usuario.show_on_monitoring ? <Eye size={13} /> : <EyeOff size={13} />}
+                      {usuario.show_on_monitoring ? 'Na sala' : 'Oculto'}
+                    </button>
+                  </div>
+                </div>;
+              })}
             </div>
           </div>
 

@@ -105,6 +105,36 @@ type rhComunicadoInput struct {
 	Fim       string `json:"fim"`
 }
 
+type rhMonitoringInput struct {
+	ShowOnMonitoring bool `json:"show_on_monitoring"`
+}
+
+func monitoringTeamPayload(users []models.User, byUser map[uint][]models.RHStatus, now time.Time, onlySelected bool) []gin.H {
+	colaboradores := make([]gin.H, 0)
+	for _, user := range users {
+		if onlySelected && !user.ShowOnMonitoring {
+			continue
+		}
+		status := currentRHStatus(byUser[user.ID], now)
+		if !user.IsActive {
+			status = "desligado"
+		}
+
+		var horas *float64
+		if status == "banco_horas" {
+			for _, item := range byUser[user.ID] {
+				if item.Tipo == "banco_horas" && !item.Inicio.After(now) && (item.Fim == nil || !item.Fim.Before(now)) && item.Horas != nil {
+					horas = item.Horas
+					break
+				}
+			}
+		}
+
+		colaboradores = append(colaboradores, gin.H{"usuario": user, "status_atual": status, "horas": horas})
+	}
+	return colaboradores
+}
+
 // StatusDashboard returns the personnel control center, including the
 // current calculated status of every employee and their scheduled calendar.
 func (h *RHHandler) StatusDashboard(c *gin.Context) {
@@ -128,15 +158,49 @@ func (h *RHHandler) StatusDashboard(c *gin.Context) {
 		byUser[status.UsuarioID] = append(byUser[status.UsuarioID], status)
 	}
 	now := time.Now()
-	colaboradores := make([]gin.H, 0)
-	for _, user := range users {
-		status := currentRHStatus(byUser[user.ID], now)
-		if !user.IsActive {
-			status = "desligado"
-		}
-		colaboradores = append(colaboradores, gin.H{"usuario": user, "status_atual": status})
-	}
+	colaboradores := monitoringTeamPayload(users, byUser, now, false)
 	c.JSON(http.StatusOK, gin.H{"colaboradores": colaboradores, "status": statuses, "comunicados": comunicados, "atualizado_em": now})
+}
+
+func (h *RHHandler) UpdateMonitoringVisibility(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	var in rhMonitoringInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if _, err := h.userRepo.GetByID(uint(id)); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Colaborador não encontrado"})
+		return
+	}
+	if err := h.userRepo.SetShowOnMonitoring(uint(id), in.ShowOnMonitoring); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": id, "show_on_monitoring": in.ShowOnMonitoring})
+}
+
+func (h *RHHandler) MonitoringTeam(c *gin.Context) {
+	statuses, err := h.rhRepo.ListStatuses()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	users, err := h.userRepo.GetMulti(0, 1000)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	byUser := make(map[uint][]models.RHStatus)
+	for _, status := range statuses {
+		byUser[status.UsuarioID] = append(byUser[status.UsuarioID], status)
+	}
+	now := time.Now()
+	c.JSON(http.StatusOK, gin.H{"colaboradores": monitoringTeamPayload(users, byUser, now, true), "atualizado_em": now})
 }
 
 func (h *RHHandler) CreateStatus(c *gin.Context) {

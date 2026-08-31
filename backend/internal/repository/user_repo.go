@@ -56,6 +56,10 @@ func (r *UserRepository) Update(user *models.User) error {
 	return r.db.Save(user).Error
 }
 
+func (r *UserRepository) SetShowOnMonitoring(userID uint, show bool) error {
+	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("show_on_monitoring", show).Error
+}
+
 func (r *UserRepository) Delete(id uint) error {
 	return r.db.Delete(&models.User{}, id).Error
 }

@@ -29,6 +29,7 @@ type User struct {
 	Cargo            *string    `json:"cargo"`
 	Role             string     `gorm:"type:varchar(20);default:'usuario_comum'" json:"role"`
 	IsActive         bool       `gorm:"default:false" json:"is_active"`
+	ShowOnMonitoring bool       `gorm:"column:show_on_monitoring;default:false" json:"show_on_monitoring"`
 	AvatarURL        *string    `gorm:"column:avatar_url" json:"avatar_url"`
 	QRToken          *string    `gorm:"column:qr_token;uniqueIndex" json:"-"`
 	QRTokenCreatedAt *time.Time `gorm:"column:qr_token_created_at" json:"-"`

@@ -2,14 +2,15 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import {
   Activity, AlertOctagon, AlertTriangle, CheckCircle2, Clock3, Expand,
-  Headphones, MonitorCog, RefreshCw, ShieldCheck, Ticket, Wrench, X,
+  Headphones, MonitorCog, RefreshCw, ShieldCheck, Ticket, UsersRound, Wrench, X,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { dashboardApi, type DashboardStats } from '../api/dashboard';
 import { serviceDeskApi } from '../api/serviceDesk';
 import { maintenanceApi } from '../api/maintenance';
 import { alertsApi } from '../api/alerts';
-import { API_BASE_URL } from '../api/client';
+import { API_BASE_URL, toApiFileUrl } from '../api/client';
+import { rhApi } from '../api/rh';
 import { transactionApi } from '../api/transaction';
 import { kanbanApi } from '../api/kanban';
 import type { KanbanProject } from '../types/kanban';
@@ -18,6 +19,7 @@ import type { ServiceTicket } from '../types/serviceDesk';
 import type { SolicitacaoManutencao } from '../types/maintenance';
 import type { EmergencyAlert } from '../types/alerts';
 import type { Solicitacao } from '../types/transaction';
+import type { RHMonitoringTeamResponse, RHStatusType } from '../types/rh';
 import { playNotificationSound } from '../utils/audio';
 import { notifyAndroid } from '../utils/androidNotifications';
 
@@ -48,6 +50,16 @@ const statusLabel = (status?: string) => String(status || 'aberto').replaceAll('
 const assigneeLabel = (ticket: ServiceTicket) =>
   ticket.tecnico?.nome || ticket.responsavel?.nome || 'Não atribuído';
 
+const rhStatusMeta: Record<RHStatusType, { label: string; className: string; dot: string }> = {
+  trabalhando: { label: 'Trabalhando', className: 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200', dot: 'bg-emerald-300' },
+  folga: { label: 'Folga', className: 'border-sky-300/20 bg-sky-300/10 text-sky-200', dot: 'bg-sky-300' },
+  ferias: { label: 'Férias', className: 'border-violet-300/20 bg-violet-300/10 text-violet-200', dot: 'bg-violet-300' },
+  banco_horas: { label: 'Banco de horas', className: 'border-amber-300/20 bg-amber-300/10 text-amber-200', dot: 'bg-amber-300' },
+  desligado: { label: 'Desligado', className: 'border-red-300/20 bg-red-300/10 text-red-200', dot: 'bg-red-300' },
+};
+
+const firstName = (name?: string) => String(name || 'Equipe').trim().split(/\s+/)[0] || 'Equipe';
+
 export const MonitoramentoPage: React.FC = () => {
   const { user, token, loading: authLoading } = useAuthStore();
   const navigate = useNavigate();
@@ -57,6 +69,7 @@ export const MonitoramentoPage: React.FC = () => {
   const [maintenance, setMaintenance] = useState<SolicitacaoManutencao[]>([]);
   const [assetRequests, setAssetRequests] = useState<Solicitacao[]>([]);
   const [kanbanProjects, setKanbanProjects] = useState<KanbanProject[]>([]);
+  const [rhTeam, setRhTeam] = useState<RHMonitoringTeamResponse['colaboradores']>([]);
   const [emergencyAlerts, setEmergencyAlerts] = useState<EmergencyAlert[]>([]);
   const [clock, setClock] = useState(new Date());
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -73,12 +86,14 @@ export const MonitoramentoPage: React.FC = () => {
       alertsApi.history(),
       transactionApi.listSolicitacoes(0, 100),
       kanbanApi.listProjects(false),
+      rhApi.monitoringTeam(),
     ]);
     if (results[0].status === 'fulfilled') setStats(results[0].value);
     const nextTickets = results[1].status === 'fulfilled' ? results[1].value : tickets;
     const nextMaintenance = results[2].status === 'fulfilled' ? results[2].value : maintenance;
     const nextAssetRequests = results[4].status === 'fulfilled' ? results[4].value : assetRequests;
     const nextKanbanProjects = results[5].status === 'fulfilled' ? results[5].value : kanbanProjects;
+    const nextRhTeam = results[6].status === 'fulfilled' ? results[6].value.colaboradores : rhTeam;
     const boardResults = results[5].status === 'fulfilled'
       ? await Promise.allSettled(nextKanbanProjects.slice(0, 40).map((project) => kanbanApi.getBoard(project.id)))
       : [];
@@ -90,6 +105,7 @@ export const MonitoramentoPage: React.FC = () => {
       requests: nextAssetRequests.map((request) => [request.id, request.status]),
       maintenance: nextMaintenance.map((item) => [item.id, item.status]),
       kanban: loadedKanbanProjects.flatMap((project) => (project.colunas || []).flatMap((column) => (column.cards || []).map((card) => [card.id, column.id, card.updated_at]))),
+      rhTeam: nextRhTeam.map((item) => [item.usuario.id, item.status_atual, item.horas, item.usuario.show_on_monitoring]),
     });
     if (monitorSignatureRef.current !== null && monitorSignatureRef.current !== nextSignature) {
       playNotificationSound();
@@ -101,6 +117,7 @@ export const MonitoramentoPage: React.FC = () => {
     if (results[3].status === 'fulfilled') setEmergencyAlerts(results[3].value);
     if (results[4].status === 'fulfilled') setAssetRequests(nextAssetRequests);
     if (loadedKanbanProjects.length || results[5].status === 'fulfilled') setKanbanProjects(loadedKanbanProjects);
+    if (results[6].status === 'fulfilled') setRhTeam(nextRhTeam);
     setLastUpdate(new Date());
     setLoading(false);
   }, []);
@@ -198,6 +215,37 @@ export const MonitoramentoPage: React.FC = () => {
         </header>
 
         <div className="flex flex-1 flex-col gap-4 pt-4 sm:gap-5 sm:pt-5">
+          {rhTeam.length > 0 && (
+            <section className="rounded-2xl border border-white/10 bg-[#0d2137] p-4 shadow-2xl shadow-black/10">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider"><UsersRound size={17} className="text-cyan-300" /> Status atual da equipe</h2>
+                  <p className="mt-1 text-xs text-slate-500">Colaboradores selecionados pelo RH para exibição na sala</p>
+                </div>
+                <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">{rhTeam.length} visíveis</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8">
+                {rhTeam.slice(0, 16).map(({ usuario, status_atual, horas }) => {
+                  const meta = rhStatusMeta[status_atual];
+                  const avatarUrl = toApiFileUrl(usuario.avatar_url);
+                  return (
+                    <div key={usuario.id} className="min-w-0 rounded-2xl border border-white/10 bg-[#102a44] p-3 text-center">
+                      <div className="mx-auto h-16 w-16 overflow-hidden rounded-full border border-white/15 bg-[#071525]">
+                        {avatarUrl ? <img src={avatarUrl} alt={usuario.nome} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-lg font-bold text-cyan-200">{firstName(usuario.nome).slice(0, 2).toUpperCase()}</div>}
+                      </div>
+                      <p className="mt-2 truncate text-sm font-semibold text-slate-100">{firstName(usuario.nome)}</p>
+                      <div className={`mx-auto mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${meta.className}`}>
+                        <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
+                        <span className="truncate">{meta.label}</span>
+                      </div>
+                      {status_atual === 'banco_horas' && horas !== null && horas !== undefined ? <p className="mt-1 text-[10px] text-amber-200">{horas}h</p> : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
             {metricCards.map(({ label, value, icon: Icon, color, link }) => <div key={label} className="rounded-2xl border border-white/10 bg-[#0d2137] p-4 shadow-2xl shadow-black/10 sm:p-5"><div className="flex items-start justify-between"><p className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</p><Icon size={20} className={color} /></div><p className={`mt-2 text-3xl font-semibold tracking-tight sm:text-4xl ${color}`}>{loading ? '—' : value}</p><p className="mt-1 text-[11px] text-slate-500">{link}</p></div>)}
           </div>

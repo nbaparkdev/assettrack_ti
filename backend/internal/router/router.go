@@ -428,6 +428,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			rh.GET("/controle/export.csv", rhHandler.ExportStatusCSV)
 			rh.POST("/status", rhHandler.CreateStatus)
 			rh.DELETE("/status/:id", rhHandler.DeleteStatus)
+			rh.PUT("/colaboradores/:id/monitoramento", rhHandler.UpdateMonitoringVisibility)
 			rh.POST("/comunicados", rhHandler.CreateComunicado)
 			rh.DELETE("/comunicados/:id", rhHandler.DeleteComunicado)
 			rh.GET("/solicitacoes/:id/modelo", rhHandler.GenerateTemplate)
@@ -437,6 +438,11 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			rh.POST("/termos/:id/cancelar", rhHandler.Cancel)
 			rh.GET("/termos/:id/pdf", rhHandler.PDF)
 			rh.POST("/colaboradores/:id/desligamento", rhHandler.OffboardUser)
+		}
+
+		monitoring := v1.Group("/monitoramento", authMW, rActive, rManager)
+		{
+			monitoring.GET("/equipe-rh", rhHandler.MonitoringTeam)
 		}
 
 		// QR routes

@@ -50,9 +50,14 @@ export interface RHComunicado {
 }
 
 export interface RHControlResponse {
-  colaboradores: Array<{ usuario: import('./user').User; status_atual: RHStatusType }>;
+  colaboradores: Array<{ usuario: import('./user').User; status_atual: RHStatusType; horas?: number | null }>;
   status: RHStatusRecord[];
   comunicados: RHComunicado[];
+  atualizado_em: string;
+}
+
+export interface RHMonitoringTeamResponse {
+  colaboradores: Array<{ usuario: import('./user').User; status_atual: RHStatusType; horas?: number | null }>;
   atualizado_em: string;
 }
 
