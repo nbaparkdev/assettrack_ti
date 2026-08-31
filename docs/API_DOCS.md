@@ -17,6 +17,33 @@ http://IP_DO_SERVIDOR:8000/api/v1
 
 O Nginx do container web encaminha essa rota internamente para a API Go. O acesso direto em `http://IP_DO_SERVIDOR:8080/api/v1` continua útil para diagnóstico, mas não precisa ser configurado na tela de login nem no APK.
 
+## 🗂️ Grupos de Endpoints
+
+| Grupo | Base | Finalidade |
+|-------|------|------------|
+| Aplicativo Android | `/app` | Versão publicada e download do APK anexado. |
+| Autenticação | `/auth` | Login, cadastro administrativo e sessão atual. |
+| Usuários | `/users` | Colaboradores, perfis, histórico e relatórios. |
+| Ativos | `/assets` | Inventário, referências, importação/exportação, QR e histórico. |
+| Service Desk | `/servicos` | Categorias, definições, chamados, anexos e interações. |
+| Manutenção Corretiva | `/solicitacoes-manutencao` | Solicitações, aceite, rejeição, conclusão e recebimento. |
+| Solicitações/Empréstimos | `/solicitacoes`, `/movimentacoes` | Pedidos de ativos, aprovação, transferência e devolução. |
+| Fornecedores/NF-e | `/fornecedores`, `/notas-fiscais` | Cadastro, notas fiscais, upload e leitura de XML. |
+| Manutenção Preventiva | `/preventiva` | Dashboard, planos, checklists, ordens, materiais, fotos e notificações. |
+| Kanban | `/kanban` | Projetos, colunas, cards, anexos, comentários, SSE e notificações. |
+| Alertas | `/alertas`, `/emergencia` | Emergências, streaming, histórico, ciência e atendimento. |
+| Avisos | `/avisos` | Comunicados oficiais com mídia, vigência e ativação. |
+| Compras | `/compras` | Dashboard, categorias, produtos, centro de custos, solicitações, cotações, pedidos, estoque, contratos e pesquisas. |
+| RH | `/rh` | Termos, controle de status, comunicados, desligamento e seleção para monitoramento. |
+| Monitoramento | `/monitoramento` | Dados auxiliares para a Sala de Monitoramento TV. |
+| QR/Crachá | `/qr` | Login por QR, crachá, PIN, perfil público e confirmação de entrega. |
+| Webhooks | `/webhooks` | Integrações externas, testes e logs. |
+| Backup | `/backups` | Geração, download, exclusão, restore e status. |
+| Perfil | `/profile` | Dados pessoais, avatar, senha e portal RH pessoal. |
+| Dashboard | `/dashboard` | Indicadores consolidados. |
+| Administração | `/admin/settings`, `/admin/email-logs` | Configurações globais, permissões e logs de e-mail. |
+| IA | `/chat` | Assistente conversacional conectado aos dados da aplicação. |
+
 ## 🔐 Autenticação (`/auth`)
 
 ### POST `/auth/login`
@@ -320,6 +347,7 @@ As rotas abaixo representam as páginas atuais da SPA em React. Elas são render
 | `/alertas` | Alertas de emergência |
 | `/compras` | Compras / Procurement |
 | `/rh` | Portal RH |
+| `/monitoramento` | Sala de monitoramento para TV |
 | `/webhooks` | Webhooks |
 | `/backups` | Backup & Restore |
 | `/profile` | Perfil |
@@ -333,6 +361,8 @@ As rotas abaixo representam as páginas atuais da SPA em React. Elas são render
 - Configurações administrativas são feitas via `GET/PUT /api/v1/admin/settings`.
 - Alertas aceitam dois estágios operacionais distintos: `ciente` e `atendido`.
 - A manutenção preventiva possui rotas REST próprias em `/api/v1/preventiva/*`.
+- O RH controla a exibição de colaboradores na sala por `PUT /api/v1/rh/colaboradores/:id/monitoramento`.
+- A sala de monitoramento consulta os colaboradores selecionados em `GET /api/v1/monitoramento/equipe-rh`.
 
 ---
 

@@ -9,9 +9,27 @@ Sistema de Controle de Ativos de TI com backend em Go (Gin + GORM), frontend em 
 
 ## 📺 Sala de monitoramento e manual online
 
-Após iniciar a aplicação, a equipe pode abrir o [Manual do Sistema](http://localhost:8000/manual) pelo botão de ajuda ou pelo menu lateral. Administradores, gerentes e técnicos também possuem a [Sala de Monitoramento TV](http://localhost:8000/monitoramento), com status de chamados, atribuições, solicitações de ativos, alertas emergenciais, som de notificação e atualização automática a cada 5 segundos.
+Após iniciar a aplicação, a equipe pode abrir o [Manual do Sistema](http://localhost:8000/manual) pelo botão de ajuda ou pelo menu lateral. Administradores, gerentes e técnicos também possuem a [Sala de Monitoramento TV](http://localhost:8000/monitoramento), com status de chamados, atribuições, solicitações de ativos, alertas emergenciais, status RH da equipe selecionada, som de notificação e atualização automática a cada 5 segundos.
 
 O painel foi projetado para uso em uma TV: abra a rota, clique em **Tela cheia** e mantenha a sessão autenticada com um perfil operacional.
+
+## ✅ Funcionalidades principais
+
+- **Dashboard:** Indicadores operacionais, atalhos filtrados, comunicados oficiais e notificações por perfil.
+- **Ativos & Inventário:** Cadastro, importação/exportação CSV, categorias, localizações, armazenamento, E-Patrimônio, QR Code, histórico e relatórios.
+- **Usuários e Perfis:** Gestão de colaboradores, permissões por perfil, avatar, senha, crachá digital e relatórios por usuário.
+- **Movimentações:** Solicitação, aprovação, entrega, transferência, devolução e confirmação por QR Code.
+- **Service Desk:** Chamados com categoria, prioridade, anexos, timeline, interações, atribuição técnica e dashboard gerencial.
+- **Alertas Emergenciais:** Acionamento rápido, transmissão em tempo real, som de alerta, histórico, ciência e atendimento.
+- **Comunicados:** Avisos oficiais com texto, imagens, vídeos, links, vigência e exibição no dashboard.
+- **Manutenção Corretiva:** Solicitações de reparo, aceite, rejeição, conclusão e confirmação de recebimento.
+- **Manutenção Preventiva:** Planos, checklists, ordens, materiais, fotos, notificações e integração com Kanban.
+- **Compras:** Solicitações, cotações, pedidos, recebimento, estoque, contratos, centros de custo, produtos, fornecedores e pesquisas.
+- **Kanban:** Projetos, colunas, cards, responsáveis, anexos, comentários, favoritos, notificações e vínculo com compras/estoque/preventiva.
+- **RH:** Termos de responsabilidade, assinatura, anexos, status da equipe, comunicados, portal do colaborador e seleção para monitoramento.
+- **Sala de Monitoramento:** Painel TV com chamados, manutenções, solicitações, Kanban, emergências e status RH selecionado.
+- **Android APK:** Download do APK anexado manualmente, QR de instalação, verificação de versão e configuração por endereço único da aplicação.
+- **Administração:** Configurações globais, RBAC de menus, webhooks, backups, restore, logs de e-mail e assistente de IA.
 
 ## Estrutura
 - **backend/**: API em Go, regras de negócio, modelos GORM e migração automática
@@ -346,6 +364,8 @@ Módulo dedicado à emissão e controle legal da entrega de ativos aos colaborad
 | **Emissão de Termos** | Geração automática de Termos de Responsabilidade (PDF) a partir de solicitações de ativos concluídas. |
 | **Gestão de Aceite** | Controle do status de assinatura pelo colaborador (Pendente/Assinado). |
 | **Armazenamento Seguro** | Upload do documento físico digitalizado (PDF ou Imagem) diretamente no sistema. |
+| **Status da Equipe** | Controle visual de colaboradores trabalhando, de folga, em férias, desligados ou em banco de horas. |
+| **Seleção para Monitoramento** | O RH escolhe quais colaboradores aparecem na Sala de Monitoramento, com avatar, primeiro nome, status atual e horas quando aplicável. |
 | **Visão Simplificada** | Usuários do perfil `RH` enxergam uma interface amigável e restrita (similar ao usuário comum), sem os menus técnicos complexos da TI. |
 
 ---

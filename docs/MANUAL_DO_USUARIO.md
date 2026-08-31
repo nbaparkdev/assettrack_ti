@@ -85,6 +85,7 @@ Seu **Crachá Digital** serve para:
 - Identificação rápida perante a equipe de TI.
 - Login sem senha (usando apenas o PIN).
 - Validação de recebimento de equipamentos.
+- Consulta do crachá pessoal na página **Meu QR Code**.
 
 > **Dica:** Você pode regenerar seu token QR a qualquer momento caso sinta que a segurança foi comprometida.
 
@@ -108,6 +109,13 @@ O sistema oferece relatórios gerenciais com filtros avançados.
 2. Utilize o painel **Filtros & Relatórios** na própria página.
 3. Filtre por data de aquisição, categoria, fornecedor, localização, nota fiscal ou E-Patrimônio.
 4. Exporte o resultado atual para **CSV** quando necessário.
+5. Use a importação CSV e a duplicação em lote quando precisar cadastrar muitos ativos semelhantes.
+
+### Movimentações de Ativos
+
+1. Use **Empréstimos/Movimentações** para aprovar solicitações, entregar, transferir ou devolver ativos.
+2. Cada movimentação registra usuário, equipamento, data e responsável pela ação.
+3. O histórico pode ser consultado diretamente na ficha do ativo.
 
 ---
 
@@ -144,10 +152,25 @@ O ciclo de compras no sistema é completamente integrado e segue o fluxo abaixo:
 4. **Pedido de Compra (PO):** Após a seleção do vencedor, é gerado um Pedido de Compra estruturado (formato PDF) para envio ao fornecedor.
 5. **Recebimento de Itens:** Ao receber a mercadoria, o Almoxarifado realiza o recebimento no sistema (parcial ou total). Itens de consumo entram no estoque de manutenção, enquanto equipamentos geram automaticamente um Ativo patrimonial no inventário de TI.
 6. **Contratos:** O menu **Contratos** permite gerenciar a vigência de contratos com fornecedores, exibindo alertas visuais de vencimento a partir de 90 dias.
+7. **Estoque:** Itens de consumo podem ser movimentados e consumidos em manutenções ou projetos.
+8. **Pesquisas:** Pesquisas de compra registram alternativas, envio e decisão antes da aquisição.
 
 ---
 
-## 🎛️ 12. Configurações de Módulos e Acessos por Menu (RBAC)
+## 🧰 12. Manutenção Preventiva
+
+O módulo de manutenção preventiva controla rotinas planejadas para evitar falhas recorrentes.
+
+1. **Planos:** Cadastre planos com periodicidade, ativos envolvidos e responsáveis.
+2. **Checklists:** Configure itens de verificação para padronizar a execução.
+3. **Ordens:** Inicie, pause, conclua ou cancele ordens de manutenção.
+4. **Evidências:** Anexe fotos e registre materiais consumidos.
+5. **Notificações:** Acompanhe pendências e atualizações pelo dashboard e pelo módulo.
+6. **Kanban:** Quando necessário, sincronize a preventiva com projetos internos.
+
+---
+
+## 🎛️ 13. Configurações de Módulos e Acessos por Menu (RBAC)
 
 Os administradores têm controle total sobre as seções de menu da aplicação através da tela **Configurações**:
 
@@ -159,7 +182,7 @@ Os administradores têm controle total sobre as seções de menu da aplicação 
 
 ---
 
-## 🤝 13. Recursos Humanos (RH) e Termos de Responsabilidade
+## 🤝 14. Recursos Humanos (RH) e Termos de Responsabilidade
 
 Para controle legal, o sistema oferece um módulo dedicado à emissão de **Termos de Responsabilidade**.
 
@@ -167,10 +190,14 @@ Para controle legal, o sistema oferece um módulo dedicado à emissão de **Term
 2. **Assinatura e Controle:** O colaborador assina o documento.
 3. **Armazenamento Seguro:** O usuário de RH faz o upload do arquivo digitalizado (PDF ou Imagem) e altera o status para "Assinado", garantindo o histórico digital do aceite.
 4. **Simplificação de Tela:** Usuários com o perfil `RH` acessam uma interface enxuta e objetiva, focando na sua atividade principal sem a complexidade dos módulos de Tecnologia da Informação.
+5. **Status da Equipe:** Na área **Status atual da equipe**, o RH visualiza se cada colaborador está trabalhando, de folga, em férias, desligado ou com banco de horas.
+6. **Exibir na Sala de Monitoramento:** Use o botão **Na sala/Oculto** para escolher quais colaboradores aparecem na tela `/monitoramento`. Os selecionados serão exibidos com avatar, primeiro nome, status atual e horas quando estiverem em banco de horas.
+7. **Comunicados de RH:** Publique comunicados gerais ou direcionados e acompanhe a leitura pelo colaborador.
+8. **Exportação:** Exporte o controle de status da equipe em CSV para conferência ou arquivamento.
 
 ---
 
-## 🆕 14. Manual visual e sala de monitoramento
+## 🆕 15. Manual visual e sala de monitoramento
 
 O sistema possui uma central de manual visual em **Ajuda > Manual do Sistema** ou na rota `/manual`. O conteúdo é separado automaticamente conforme o perfil autenticado:
 
@@ -188,6 +215,7 @@ O sistema possui uma central de manual visual em **Ajuda > Manual do Sistema** o
 Administradores, gerentes e técnicos podem acessar `/monitoramento` para acompanhar a operação em uma tela dedicada. O painel apresenta chamados ativos, prioridade, status, técnico/responsável atribuído, solicitações de ativos, manutenções e alertas.
 
 - Os dados operacionais são atualizados automaticamente a cada 5 segundos.
+- A seção **Status atual da equipe** mostra somente os colaboradores selecionados no módulo de RH, com avatar, primeiro nome, status e banco de horas quando aplicável.
 - Alertas emergenciais chegam por transmissão ao vivo, tocam `notificacao_alerta.mp3` e abrem o modal emergencial padrão.
 - A tela possui relógio, conexão ao vivo, logo centralizada e modo tela cheia para uso em TV.
 - O campo de equipamentos do alerta usa os ativos vinculados ao usuário e também complementa alertas antigos que não tinham essa informação.
@@ -198,3 +226,27 @@ Administradores, gerentes e técnicos podem acessar `/monitoramento` para acompa
 - O Kanban mantém seus comandos funcionais em tela cheia, incluindo modais.
 - A logo oficial está presente no menu, no login e na sala de monitoramento.
 - O APK Android é atualizado pelo fluxo de publicação e disponibilizado pelo botão **App Android**.
+
+---
+
+## 🔌 16. Webhooks, Backups, Perfil e IA
+
+### Webhooks
+
+Administradores podem cadastrar integrações externas em **Webhooks**, testar o envio e consultar logs de execução.
+
+### Backup & Restore
+
+Em **Backup**, administradores podem gerar backup, baixar arquivos, excluir backups antigos, consultar status e restaurar o ambiente quando necessário.
+
+### Perfil
+
+Em **Perfil**, o usuário pode atualizar dados pessoais, trocar senha, enviar avatar e consultar informações pessoais do RH.
+
+### Logs de E-mail
+
+Administradores podem consultar os registros de envio de e-mail em **Logs de e-mail**.
+
+### Assistente de IA
+
+Quando habilitado nas configurações, o assistente de IA permite consultar informações operacionais do sistema de forma conversacional.
