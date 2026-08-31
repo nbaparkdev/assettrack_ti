@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../api/auth';
 import { API_BASE_URL, normalizeServerUrlToApiBaseUrl } from '../api/client';
-import { KeyRound, QrCode, AlertCircle, Settings, RotateCcw, Camera, X, CheckCircle, Smartphone } from 'lucide-react';
+import { KeyRound, QrCode, AlertCircle, Settings, RotateCcw, Camera, X, CheckCircle, Smartphone, ChevronDown } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { cameraPermissionMessage, ensureCameraPermission } from '../utils/cameraPermission';
 
@@ -19,6 +19,7 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [qrSuccessMsg, setQrSuccessMsg] = useState<string | null>(null);
+  const [showMobileAccess, setShowMobileAccess] = useState(false);
 
   // Optional server address override for APK/mobile/local network testing
   const [showSettings, setShowSettings] = useState(false);
@@ -181,26 +182,26 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-[radial-gradient(circle_at_80%_15%,rgba(255,255,255,.30),transparent_25rem),linear-gradient(135deg,#a9d4ee,#68acd3)]">
-      <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/90 p-8 shadow-[0_18px_60px_rgba(9,30,66,.22)] backdrop-blur relative">
+    <div className="min-h-screen flex flex-col justify-center items-center p-3 sm:p-4 bg-[radial-gradient(circle_at_80%_15%,rgba(255,255,255,.30),transparent_25rem),linear-gradient(135deg,#a9d4ee,#68acd3)]">
+      <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white/90 p-5 shadow-[0_18px_60px_rgba(9,30,66,.22)] backdrop-blur relative sm:p-8">
         {/* Settings Trigger Icon */}
         <button
           type="button"
           onClick={() => setShowSettings(!showSettings)}
-          className="absolute top-6 right-6 p-2 rounded-xl text-brand-muted hover:text-brand-primary hover:bg-slate-100/50 transition-all duration-200"
+          className="absolute top-4 right-4 p-2 rounded-xl text-brand-muted hover:text-brand-primary hover:bg-slate-100/50 transition-all duration-200 sm:top-6 sm:right-6"
           title="Configurações de Conexão"
         >
           <Settings size={18} className={`transition-transform duration-300 ${showSettings ? 'rotate-90' : ''}`} />
         </button>
 
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-5 sm:mb-8">
           <img
             src="/logo-assettrack-claro.svg"
             alt="AssetTrack TI"
-            className="mx-auto mb-4 h-auto w-[220px] max-w-[75%] object-contain"
+            className="mx-auto mb-3 h-auto w-[190px] max-w-[72%] object-contain sm:mb-4 sm:w-[220px]"
           />
-          <h2 className="text-2xl font-bold tracking-tight text-brand-text">
+          <h2 className="text-xl font-bold tracking-tight text-brand-text sm:text-2xl">
             Painel de Acesso
           </h2>
         </div>
@@ -244,11 +245,11 @@ export const LoginPage: React.FC = () => {
         )}
 
         {/* Mode Toggle */}
-        <div className="flex rounded-xl border border-brand-border bg-slate-50 p-1 mb-6">
+        <div className="flex rounded-xl border border-brand-border bg-slate-50 p-1 mb-4 sm:mb-6">
           <button
             type="button"
             onClick={() => { setMode('standard'); setError(null); }}
-            className={`flex-1 py-3 text-xs font-mono uppercase tracking-wider flex items-center justify-center space-x-2 transition-all duration-150 ${
+            className={`flex-1 py-2.5 text-[11px] font-mono uppercase tracking-wider flex items-center justify-center space-x-2 transition-all duration-150 sm:py-3 sm:text-xs ${
               mode === 'standard'
                 ? 'bg-white text-brand-primary rounded-lg shadow-sm'
                 : 'text-brand-muted hover:text-brand-text'
@@ -260,7 +261,7 @@ export const LoginPage: React.FC = () => {
           <button
             type="button"
             onClick={() => { setMode('qr'); setError(null); }}
-            className={`flex-1 py-3 text-xs font-mono uppercase tracking-wider flex items-center justify-center space-x-2 transition-all duration-150 ${
+            className={`flex-1 py-2.5 text-[11px] font-mono uppercase tracking-wider flex items-center justify-center space-x-2 transition-all duration-150 sm:py-3 sm:text-xs ${
               mode === 'qr'
                 ? 'bg-white text-brand-primary rounded-lg shadow-sm'
                 : 'text-brand-muted hover:text-brand-text'
@@ -271,8 +272,13 @@ export const LoginPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="mb-6 rounded-xl border border-cyan-500/20 bg-cyan-50/70 p-4">
-          <div className="flex items-start gap-3">
+        <div className="mb-4 rounded-xl border border-cyan-500/20 bg-cyan-50/70 sm:mb-6">
+          <button
+            type="button"
+            onClick={() => setShowMobileAccess((current) => !current)}
+            className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-cyan-100/40 sm:p-4"
+            aria-expanded={showMobileAccess}
+          >
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-brand-primary shadow-sm">
               <Smartphone size={18} />
             </div>
@@ -280,14 +286,22 @@ export const LoginPage: React.FC = () => {
               <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-brand-primary">
                 Acessar no smartphone
               </h3>
-              <p className="mt-1 text-[11px] leading-relaxed text-brand-muted">
+              <p className="mt-0.5 truncate text-[11px] text-brand-muted">
+                QR Code para abrir no celular
+              </p>
+            </div>
+            <ChevronDown size={18} className={`shrink-0 text-brand-muted transition-transform ${showMobileAccess ? 'rotate-180' : ''}`} />
+          </button>
+          {showMobileAccess && (
+            <div className="border-t border-cyan-500/10 px-3 pb-3 sm:px-4 sm:pb-4">
+              <p className="pt-3 text-[11px] leading-relaxed text-brand-muted">
                 Escaneie para abrir esta aplicação no celular conectado à mesma rede.
               </p>
-              <div className="mt-3 flex items-center gap-3">
+              <div className="mt-3 flex flex-col gap-3 min-[380px]:flex-row min-[380px]:items-center">
                 <img
                   src={appAccessQrUrl}
                   alt={`QR Code para acessar ${appAccessUrl}`}
-                  className="h-[92px] w-[92px] rounded-lg border border-brand-border bg-white p-1"
+                  className="mx-auto h-[112px] w-[112px] rounded-lg border border-brand-border bg-white p-1 min-[380px]:mx-0"
                 />
                 <div className="min-w-0">
                   <p className="truncate rounded-lg border border-brand-border bg-white px-2 py-1.5 text-[10px] font-mono text-brand-text">
@@ -301,7 +315,7 @@ export const LoginPage: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Error Notification */}
