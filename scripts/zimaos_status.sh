@@ -5,7 +5,16 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-docker compose --env-file .env.zimaos -f docker-compose.zimaos.yml -p assettrack-zimaos ps
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE_CMD=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE_CMD=(docker-compose)
+else
+  echo "Docker Compose nao encontrado. Instale o plugin 'docker compose' ou o comando 'docker-compose'."
+  exit 1
+fi
+
+"${COMPOSE_CMD[@]}" --env-file .env.zimaos -f docker-compose.zimaos.yml -p assettrack-zimaos ps
 
 api_port="$(grep -E '^API_PORT=' .env.zimaos 2>/dev/null | cut -d= -f2- || true)"
 api_port="${api_port:-8080}"

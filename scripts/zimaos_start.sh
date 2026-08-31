@@ -14,8 +14,12 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! docker compose version >/dev/null 2>&1; then
-  echo "Docker Compose v2 nao encontrado."
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE_CMD=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE_CMD=(docker-compose)
+else
+  echo "Docker Compose nao encontrado. Instale o plugin 'docker compose' ou o comando 'docker-compose'."
   exit 1
 fi
 
@@ -37,7 +41,7 @@ api_port="$(grep -E '^API_PORT=' "$ENV_FILE" | cut -d= -f2- || true)"
 api_port="${api_port:-8080}"
 
 echo "Subindo AssetTrack TI para ZimaOS..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p "$PROJECT_NAME" up -d --build
+"${COMPOSE_CMD[@]}" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p "$PROJECT_NAME" up -d --build
 
 echo "Aguardando API..."
 for _ in $(seq 1 30); do

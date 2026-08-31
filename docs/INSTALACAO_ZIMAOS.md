@@ -14,7 +14,7 @@ Arquivos usados somente no ZimaOS:
 ## Requisitos
 
 - ZimaOS com Docker ativo
-- Docker Compose v2 (`docker compose`)
+- Docker Compose v2 (`docker compose`) ou o comando legado `docker-compose`
 - Git, se for clonar direto no ZimaOS
 - Portas livres: `8000` para Web e `8080` para API
 
