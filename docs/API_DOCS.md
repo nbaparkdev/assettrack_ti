@@ -282,18 +282,12 @@ Retorna as informações sobre a versão oficial compilada do APK Android.
   "apk_size_bytes": 5885123,
   "apk_size_formatted": "5.6 MB",
   "min_android_version": "Android 7.0 (Nougat) ou superior",
-  "release_notes": "• APK gerado automaticamente a partir da versão mais recente da aplicação..."
+  "release_notes": "• APK anexado manualmente após build realizado via terminal..."
 }
 ```
 
 ### GET `/app/download`
-Transmite o arquivo binário `.apk` versionado mais recente via HTTP com cabeçalhos para download direto no navegador ou smartphone. O nome do arquivo é derivado do manifest gerado na publicação.
-
-### POST `/admin/mobile/publish-apk`
-Dispara, em background, a geração e publicação do APK Android mais recente. Requer autenticação e perfil de administrador.
-
-### GET `/admin/mobile/publish-apk/status`
-Retorna o estado atual da publicação do APK em andamento, incluindo progresso e erro eventual.
+Transmite o arquivo binário `.apk` mais recente via HTTP com cabeçalhos para download direto no navegador ou smartphone. O nome do arquivo é derivado do manifest gerado ao anexar o APK manualmente com `scripts/publish_mobile_apk.sh /caminho/AssetTrack-TI.apk`.
 
 ---
 

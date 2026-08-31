@@ -1,16 +1,12 @@
 package handler
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,12 +16,6 @@ type AppHandler struct{}
 
 func NewAppHandler() *AppHandler {
 	return &AppHandler{}
-}
-
-type AppPublishStatus struct {
-	IsRunning bool   `json:"is_running"`
-	Progress  string `json:"progress"`
-	Error     string `json:"error,omitempty"`
 }
 
 type AppVersionResponse struct {
@@ -48,13 +38,6 @@ const (
 )
 
 const releaseManifestFilename = "mobile-release.json"
-
-var (
-	appPublishMutex   sync.Mutex
-	appPublishRunning bool
-	appPublishMsg     string
-	appPublishErr     string
-)
 
 type MobileReleaseManifest struct {
 	VersionCode       int    `json:"version_code"`
@@ -101,34 +84,6 @@ func loadReleaseManifest() (*MobileReleaseManifest, string) {
 	}
 
 	return &manifest, uploadsDir
-}
-
-func setPublishStatus(running bool, msg string, errMsg string) {
-	appPublishMutex.Lock()
-	defer appPublishMutex.Unlock()
-	appPublishRunning = running
-	appPublishMsg = msg
-	appPublishErr = errMsg
-}
-
-func getPublishStatus() (bool, string, string) {
-	appPublishMutex.Lock()
-	defer appPublishMutex.Unlock()
-	return appPublishRunning, appPublishMsg, appPublishErr
-}
-
-func findPublishScript() string {
-	candidates := []string{
-		"/workspace/scripts/publish_mobile_apk.sh",
-		"../scripts/publish_mobile_apk.sh",
-		"scripts/publish_mobile_apk.sh",
-	}
-	for _, p := range candidates {
-		if info, err := os.Stat(p); err == nil && !info.IsDir() {
-			return p
-		}
-	}
-	return ""
 }
 
 func findAPKPath() string {
@@ -272,68 +227,4 @@ func (h *AppHandler) DownloadAPK(c *gin.Context) {
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 	c.Header("Content-Type", "application/vnd.android.package-archive")
 	c.File(cleanPath)
-}
-
-func (h *AppHandler) PublishMobileAPK(c *gin.Context) {
-	running, _, _ := getPublishStatus()
-	if running {
-		c.JSON(http.StatusConflict, gin.H{"error": "Uma publicação de APK já está em andamento."})
-		return
-	}
-
-	scriptPath := findPublishScript()
-	if scriptPath == "" {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Script de publicação do APK não encontrado no servidor."})
-		return
-	}
-
-	setPublishStatus(true, "Iniciando publicação do APK...", "")
-
-	go func() {
-		defer func() {
-			running, msg, errMsg := getPublishStatus()
-			if running {
-				setPublishStatus(false, msg, errMsg)
-			}
-		}()
-
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Minute)
-		defer cancel()
-
-		cmd := exec.CommandContext(ctx, "bash", scriptPath)
-		cmd.Dir = filepath.Dir(filepath.Dir(scriptPath))
-
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-
-		setPublishStatus(true, "Sincronizando frontend e gerando APK...", "")
-		if err := cmd.Run(); err != nil {
-			errMsg := strings.TrimSpace(stderr.String())
-			if errMsg == "" {
-				errMsg = err.Error()
-			} else {
-				errMsg = errMsg + "\n" + err.Error()
-			}
-			if stdout.Len() > 0 {
-				errMsg = errMsg + "\n" + strings.TrimSpace(stdout.String())
-			}
-			setPublishStatus(false, "Falha na publicação do APK.", errMsg)
-			return
-		}
-
-		setPublishStatus(false, "APK publicada com sucesso!", "")
-	}()
-
-	c.JSON(http.StatusAccepted, gin.H{"message": "Publicação do APK iniciada em background."})
-}
-
-func (h *AppHandler) GetPublishStatus(c *gin.Context) {
-	running, progress, errMsg := getPublishStatus()
-	c.JSON(http.StatusOK, AppPublishStatus{
-		IsRunning: running,
-		Progress:  progress,
-		Error:     errMsg,
-	})
 }

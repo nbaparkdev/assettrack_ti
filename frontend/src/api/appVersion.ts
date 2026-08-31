@@ -12,12 +12,6 @@ export interface AppVersionInfo {
   release_notes: string;
 }
 
-export interface AppPublishStatus {
-  is_running: boolean;
-  progress: string;
-  error?: string;
-}
-
 export const appVersionApi = {
   getVersion: async (): Promise<AppVersionInfo> => {
     const res = await apiClient.get<AppVersionInfo>('/app/version');
@@ -26,15 +20,5 @@ export const appVersionApi = {
 
   getDownloadUrl: (): string => {
     return `${API_BASE_URL}/app/download`;
-  },
-
-  publishMobileApk: async (): Promise<{ message: string }> => {
-    const res = await apiClient.post<{ message: string }>('/admin/mobile/publish-apk');
-    return res.data;
-  },
-
-  getPublishStatus: async (): Promise<AppPublishStatus> => {
-    const res = await apiClient.get<AppPublishStatus>('/admin/mobile/publish-apk/status');
-    return res.data;
   },
 };

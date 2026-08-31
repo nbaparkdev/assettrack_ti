@@ -35,7 +35,7 @@ COMPOSE_CMD="docker compose"
 echo "✅ Docker OK"
 echo "✅ Docker Compose OK"
 
-# Gerar identificador único para a release atual e compartilhar com o build web + APK
+# Gerar identificador único para a release atual e compartilhar com o build web
 export VITE_APP_VERSION_CODE="$(date -u +%s)"
 export VITE_APP_VERSION_NAME="$(date -u +%Y.%m.%d.%H%M)"
 export VITE_APP_BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -48,8 +48,8 @@ echo "🛑 Parando containers antigos..."
 $COMPOSE_CMD down --remove-orphans 2>/dev/null || true
 
 # Garantir remoção de processos conflitantes nas portas 8080 e 8000
-PORT_8080=$(docker ps -a --filter "publish=8080" -q 2>/dev/null)
-PORT_8000=$(docker ps -a --filter "publish=8000" -q 2>/dev/null)
+PORT_8080=$(docker ps -a --filter "publish=8080" -q 2>/dev/null || true)
+PORT_8000=$(docker ps -a --filter "publish=8000" -q 2>/dev/null || true)
 CONFLICT_CONTAINERS=$(echo "$PORT_8080 $PORT_8000" | xargs)
 if [ -n "$CONFLICT_CONTAINERS" ]; then
     echo "🧹 Removendo containers conflitantes nas portas 8080/8000..."
@@ -77,16 +77,6 @@ if [ $WAITED -ge $MAX_WAIT ]; then
     echo "⚠️ Timeout aguardando API. Verifique os logs com: docker compose logs api"
 fi
 
-# Gerar e publicar APK da versão mais recente, se o ambiente Android estiver disponível
-if [ -x "./scripts/publish_mobile_apk.sh" ]; then
-    echo "📱 Publicando APK da versão atual..."
-    if ./scripts/publish_mobile_apk.sh; then
-        echo "✅ APK publicado e disponível para download."
-    else
-        echo "⚠️ Não foi possível gerar o APK agora. A aplicação continua funcionando normalmente."
-    fi
-fi
-
 # Status
 echo "📦 Containers ativos:"
 docker ps --format "table {{.Names}}\t{{.Status}}" 2>/dev/null || docker ps
@@ -102,6 +92,7 @@ echo "------------------------------------------------"
 echo "🌐 Frontend URL: http://${HOST_IP}:8000"
 echo "🌐 Backend API:  http://${HOST_IP}:8080/api/v1"
 echo "🌐 API Health:   http://localhost:8080/health"
+echo "📱 APK Android:  gere pelo terminal e anexe com: ./scripts/publish_mobile_apk.sh /caminho/arquivo.apk"
 echo "👤 Admin Padrão: admin@example.com"
 echo "🔑 Senha:        admin"
 echo "------------------------------------------------"

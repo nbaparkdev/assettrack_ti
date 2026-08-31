@@ -507,12 +507,6 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			adminSettings.PUT("", settingsHandler.UpdateMany)
 		}
 
-		adminMobile := v1.Group("/admin/mobile", authMW, rActive, rAdmin)
-		{
-			adminMobile.POST("/publish-apk", appHandler.PublishMobileAPK)
-			adminMobile.GET("/publish-apk/status", appHandler.GetPublishStatus)
-		}
-
 		adminEmailLogs := v1.Group("/admin/email-logs", authMW, rActive, rAdmin)
 		{
 			adminEmailLogs.GET("", emailLogHandler.List)

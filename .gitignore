@@ -59,6 +59,7 @@ coverage.xml
 # Django stuff:
 *.log
 local_settings.py
+.env.zimaos
 # Database files
 *.db
 *.db-journal

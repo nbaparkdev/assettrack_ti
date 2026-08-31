@@ -104,7 +104,7 @@ Para facilitar a manutenção, você pode usar os seguintes scripts:
 
 ### 🔄 Atualizar a aplicação na VM
 
-Para baixar automaticamente as mudanças do GitHub, reconstruir os containers e publicar o APK mais recente, execute na VM:
+Para baixar automaticamente as mudanças do GitHub e reconstruir os containers, execute na VM:
 
 ```bash
 cd /caminho/assettrack_ti
@@ -112,7 +112,7 @@ git pull --ff-only
 bash update_docker.sh
 ```
 
-O script atualiza a API e o frontend, reinicia os serviços e tenta gerar o APK caso o ambiente Android esteja disponível. Se os scripts ainda não tiverem permissão de execução:
+O script atualiza a API e o frontend e reinicia os serviços. Se os scripts ainda não tiverem permissão de execução:
 
 ```bash
 chmod +x *.sh scripts/*.sh
@@ -141,7 +141,11 @@ chmod +x init_docker.sh scripts/*.sh
 
 O instalador cria a configuração local, constrói a API, o frontend, o banco e o Redis, executa as migrações e inicia a aplicação.
 
-Para usar o botão **Publicar APK Mobile** dentro do portal, o Docker precisa acessar o Android SDK da VM. Antes de iniciar, ajuste `ANDROID_SDK_PATH` no arquivo `.env` para o caminho real do SDK, por exemplo `ANDROID_SDK_PATH=/home/usuario/Android/Sdk`. O container disponibiliza esse SDK no caminho interno correto e o script atualiza automaticamente o `local.properties`.
+O APK Android não é mais gerado pela aplicação nem pelos scripts de instalação/atualização. Gere o arquivo via terminal e anexe-o ao portal de download com:
+
+```bash
+./scripts/publish_mobile_apk.sh /caminho/AssetTrack-TI.apk
+```
 
 ### 2. Inicialização Manual
 Caso prefira rodar os comandos passo a passo:
