@@ -30,10 +30,7 @@ fi
 
 if [ ! -f "$ENV_FILE" ]; then
   cp .env.zimaos.example "$ENV_FILE"
-  host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
-  host_ip="${host_ip:-IP_DO_ZIMAOS}"
-  sed -i "s|http://IP_DO_ZIMAOS:8080/api/v1|http://${host_ip}:8080/api/v1|g" "$ENV_FILE"
-  echo "Arquivo $ENV_FILE criado. Revise SECRET_KEY, POSTGRES_PASSWORD e VITE_API_URL antes de expor em producao."
+  echo "Arquivo $ENV_FILE criado. Revise SECRET_KEY e POSTGRES_PASSWORD antes de expor em producao."
 fi
 
 mkdir -p backend/uploads

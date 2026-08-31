@@ -17,7 +17,7 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [qrSuccessMsg, setQrSuccessMsg] = useState<string | null>(null);
 
-  // Connectivity Settings for mobile dev/local testing
+  // Optional connectivity override for mobile dev/local testing
   const [showSettings, setShowSettings] = useState(false);
   const [customApiUrl, setCustomApiUrl] = useState(
     localStorage.getItem('custom_api_url') || API_BASE_URL
@@ -207,7 +207,7 @@ export const LoginPage: React.FC = () => {
               ⚙️ Endereço do Servidor
             </h3>
             <p className="text-[10px] text-brand-muted font-mono leading-relaxed">
-              Configure a URL da API local. Exemplo: {API_BASE_URL}
+              Uso opcional para testes mobile ou rede especial. No Docker, o padrão usa o mesmo endereço do sistema: {API_BASE_URL}
             </p>
             <div className="space-y-2">
               <input
@@ -215,7 +215,7 @@ export const LoginPage: React.FC = () => {
                 value={customApiUrl}
                 onChange={(e) => setCustomApiUrl(e.target.value)}
                 className="w-full rounded-lg bg-white border border-brand-border px-3 py-2 text-xs font-mono text-brand-text focus:outline-none focus:border-brand-primary"
-                placeholder="http://192.168.X.X:8080/api/v1"
+                placeholder="/api/v1"
               />
               <div className="flex space-x-2">
                 <button

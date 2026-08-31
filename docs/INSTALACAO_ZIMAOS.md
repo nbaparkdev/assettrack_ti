@@ -42,14 +42,13 @@ Edite `.env.zimaos` e ajuste:
 - `SECRET_KEY`
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`, usando a mesma senha do Postgres
-- `VITE_API_URL`, usando o IP ou dominio do ZimaOS
 
 Exemplo:
 
 ```env
 POSTGRES_PASSWORD=minha_senha_segura
 DATABASE_URL=postgres://assettrack:minha_senha_segura@db:5432/assettrack?sslmode=disable
-VITE_API_URL=http://192.168.1.50:8080/api/v1
+VITE_API_URL=/api/v1
 ```
 
 Suba a aplicacao:

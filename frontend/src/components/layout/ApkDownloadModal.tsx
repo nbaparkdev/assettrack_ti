@@ -13,10 +13,12 @@ export const ApkDownloadModal: React.FC<ApkDownloadModalProps> = ({ isOpen, onCl
   const [versionInfo, setVersionInfo] = useState<AppVersionInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
+      setDownloadNotice(null);
       appVersionApi.getVersion()
         .then(info => setVersionInfo(info))
         .catch(err => console.error('Erro ao buscar versão do app:', err))
@@ -30,6 +32,8 @@ export const ApkDownloadModal: React.FC<ApkDownloadModalProps> = ({ isOpen, onCl
   const versionName = versionInfo?.version_name || APP_CONFIG.CURRENT_VERSION_NAME;
   const apkSize = versionInfo?.apk_size_formatted || '5.6 MB';
   const downloadFilename = versionInfo?.apk_filename || `AssetTrack-TI-v${versionName}.apk`;
+  const apkAvailable = versionInfo?.apk_available !== false;
+  const missingApkMessage = 'O aplicativo Android ainda não foi anexado ao sistema. Entre em contato com o setor de TI para solicitar a disponibilização do APK.';
 
   // Ensure absolute URL without duplicating origin
   const downloadUrl = rawDownloadUrl.startsWith('http://') || rawDownloadUrl.startsWith('https://')
@@ -38,18 +42,43 @@ export const ApkDownloadModal: React.FC<ApkDownloadModalProps> = ({ isOpen, onCl
 
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&data=${encodeURIComponent(downloadUrl)}`;
 
-  const handleDownloadClick = () => {
-    setDownloading(true);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.setAttribute('download', downloadFilename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadClick = async () => {
+    if (!apkAvailable) {
+      setDownloadNotice(missingApkMessage);
+      return;
+    }
 
-    setTimeout(() => {
+    setDownloading(true);
+    setDownloadNotice(null);
+
+    try {
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        let message = missingApkMessage;
+        try {
+          const data = await response.json();
+          if (data?.error) message = data.error;
+        } catch {
+          // Keep the friendly fallback message.
+        }
+        setDownloadNotice(message);
+        return;
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.setAttribute('download', downloadFilename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      setDownloadNotice('Não foi possível iniciar o download agora. Entre em contato com o setor de TI para verificar o APK do aplicativo Android.');
+    } finally {
       setDownloading(false);
-    }, 2000);
+    }
   };
 
   return createPortal(
@@ -102,20 +131,36 @@ export const ApkDownloadModal: React.FC<ApkDownloadModalProps> = ({ isOpen, onCl
               </div>
               <h4 className="text-lg font-bold text-[#172b4d] m-0">AssetTrack TI Mobile</h4>
               <p className="text-xs text-[#5e6c84] m-0 font-sans">
-                Tamanho do arquivo: <strong className="text-[#0c66e4] font-mono font-bold">{apkSize}</strong> • Requer {APP_CONFIG.PLATFORM_ANDROID}
+                {apkAvailable ? (
+                  <>Tamanho do arquivo: <strong className="text-[#0c66e4] font-mono font-bold">{apkSize}</strong> • Requer {APP_CONFIG.PLATFORM_ANDROID}</>
+                ) : (
+                  <>APK ainda não anexado • Requer {APP_CONFIG.PLATFORM_ANDROID}</>
+                )}
               </p>
             </div>
 
             <button
               type="button"
               onClick={handleDownloadClick}
-              disabled={loading}
-              className="w-full sm:w-auto px-6 py-3.5 bg-[#0c66e4] hover:bg-[#0052cc] active:scale-95 text-white font-bold text-sm uppercase tracking-wider font-mono transition-all flex items-center justify-center space-x-2 shadow-md hover:shadow-lg shrink-0 rounded-xl cursor-pointer border-none"
+              disabled={loading || downloading}
+              className="w-full sm:w-auto px-6 py-3.5 bg-[#0c66e4] hover:bg-[#0052cc] active:scale-95 disabled:opacity-70 text-white font-bold text-sm uppercase tracking-wider font-mono transition-all flex items-center justify-center space-x-2 shadow-md hover:shadow-lg shrink-0 rounded-xl cursor-pointer border-none"
             >
               <Download size={18} className={`text-white ${downloading ? 'animate-bounce' : ''}`} />
               <span className="text-white font-black">{downloading ? 'Iniciando Download...' : 'Baixar APK Direto'}</span>
             </button>
           </div>
+
+          {(!apkAvailable || downloadNotice) && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-xl flex items-start gap-3">
+              <AlertCircle size={18} className="text-amber-600 mt-0.5 shrink-0" />
+              <div className="space-y-1 text-left">
+                <h5 className="text-xs font-bold font-mono uppercase m-0 text-amber-900">APK não disponível no momento</h5>
+                <p className="text-xs leading-relaxed m-0 font-sans">
+                  {downloadNotice || missingApkMessage}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* QR Code and Mobile Fast Download Section */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-[#f4f5f7] border border-[#d6e1ea] p-4 rounded-xl">
@@ -229,7 +274,8 @@ export const ApkDownloadModal: React.FC<ApkDownloadModalProps> = ({ isOpen, onCl
             <button
               type="button"
               onClick={handleDownloadClick}
-              className="px-4 py-2 bg-[#0c66e4] hover:bg-[#0052cc] text-white font-bold text-xs rounded-xl transition-colors font-mono uppercase shadow-xs flex items-center space-x-1.5 cursor-pointer border-none"
+              disabled={downloading}
+              className="px-4 py-2 bg-[#0c66e4] hover:bg-[#0052cc] disabled:opacity-70 text-white font-bold text-xs rounded-xl transition-colors font-mono uppercase shadow-xs flex items-center space-x-1.5 cursor-pointer border-none"
             >
               <Download size={13} className="text-white" />
               <span className="text-white">Baixar APK</span>

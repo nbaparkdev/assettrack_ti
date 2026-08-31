@@ -8,7 +8,12 @@ const getApiBaseUrl = () => {
     return customUrl;
   }
 
-  const { hostname, protocol } = window.location;
+  const configuredUrl = import.meta.env.VITE_API_URL;
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  const { hostname, port, protocol } = window.location;
   
   // Check if running inside a Capacitor app
   const isCapacitor = typeof window !== 'undefined' && !!(window as any).Capacitor;
@@ -20,10 +25,15 @@ const getApiBaseUrl = () => {
     // o APK precisa de um endereço explícito para alcançar a API.
     return 'http://172.30.6.127:8080/api/v1';
   }
+
+  // Native Vite development runs on its own port and needs to reach the API directly.
+  if (port === '3000' || port === '5173') {
+    const apiProtocol = protocol.startsWith('http') ? protocol : 'http:';
+    return `${apiProtocol}//${hostname || 'localhost'}:8080/api/v1`;
+  }
   
-  // Ensure we use http/https protocol for requests (Capacitor uses custom protocols like capacitor://)
-  const apiProtocol = protocol.startsWith('http') ? protocol : 'http:';
-  return `${apiProtocol}//${hostname}:8080/api/v1`;
+  // Docker/Nginx deployment proxies /api/v1 to the API container internally.
+  return '/api/v1';
 };
 
 export const API_BASE_URL = getApiBaseUrl();

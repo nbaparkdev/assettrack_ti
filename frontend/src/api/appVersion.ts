@@ -8,6 +8,7 @@ export interface AppVersionInfo {
   apk_filename?: string;
   apk_size_bytes: number;
   apk_size_formatted: string;
+  apk_available?: boolean;
   min_android_version: string;
   release_notes: string;
 }

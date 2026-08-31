@@ -26,6 +26,7 @@ type AppVersionResponse struct {
 	APKFilename       string `json:"apk_filename"`
 	APKSizeBytes      int64  `json:"apk_size_bytes"`
 	APKSizeFormatted  string `json:"apk_size_formatted"`
+	APKAvailable      bool   `json:"apk_available"`
 	MinAndroidVersion string `json:"min_android_version"`
 	ReleaseNotes      string `json:"release_notes"`
 }
@@ -203,6 +204,7 @@ func (h *AppHandler) GetAppVersion(c *gin.Context) {
 		APKFilename:       apkFilename,
 		APKSizeBytes:      sizeBytes,
 		APKSizeFormatted:  sizeFormatted,
+		APKAvailable:      apkPath != "",
 		MinAndroidVersion: minAndroidVersion,
 		ReleaseNotes:      releaseNotes,
 	})
@@ -212,7 +214,7 @@ func (h *AppHandler) DownloadAPK(c *gin.Context) {
 	apkPath := findAPKPath()
 	if apkPath == "" {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Arquivo APK não encontrado no servidor. Por favor, solicite a compilação ao administrador.",
+			"error": "O APK ainda não foi anexado ao sistema. Entre em contato com o setor de TI para solicitar a disponibilização do aplicativo Android.",
 		})
 		return
 	}
