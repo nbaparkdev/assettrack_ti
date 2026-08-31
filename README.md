@@ -79,8 +79,26 @@ Certifique-se de ter Docker e Docker Compose instalados.
 Nesse modo:
 
 - **Frontend Web** fica em `http://localhost:8000`
-- **API Go** fica em `http://localhost:8080`
+- **API Go** fica em `http://localhost:8080`, mas o frontend acessa a API automaticamente por `/api/v1`
 - **Healthcheck da API** fica em `http://localhost:8080/health`
+
+### Endereço único da aplicação
+
+Em instalações Docker, o usuário deve abrir somente o endereço da aplicação web:
+
+```text
+http://IP_DO_SERVIDOR:8000
+```
+
+O container web faz proxy interno para a API em `/api/v1`, `/uploads` e `/health`. Assim, a tela de login não precisa ser configurada com `http://IP_DO_SERVIDOR:8080/api/v1`.
+
+No APK Android, quando for necessário configurar o servidor, informe também apenas o endereço da aplicação:
+
+```text
+http://IP_DO_SERVIDOR:8000
+```
+
+O aplicativo completa automaticamente o caminho da API para `/api/v1`.
 
 ### 1. Inicialização Rápida (Automação)
 O projeto inclui um script que configura o ambiente, sobe os containers e inicializa o usuário administrador automaticamente:
@@ -126,7 +144,7 @@ docker compose ps
 curl http://localhost:8080/health
 ```
 
-Em uma VM acessada por outros dispositivos, utilize o endereço IP da VM exibido pelo instalador e libere as portas `8000` e `8080` no firewall.
+Em uma VM acessada por outros dispositivos, utilize o endereço IP da VM exibido pelo instalador e libere a porta `8000` no firewall. A porta `8080` só precisa ser exposta se você quiser acessar a API diretamente para testes ou integrações.
 
 ### 🆕 Instalação inicial na VM
 
@@ -160,7 +178,8 @@ Caso prefira rodar os comandos passo a passo:
     ```
 3.  **Acesse o sistema:**
     - Frontend Web: [http://localhost:8000](http://localhost:8000)
-    - API Go: [http://localhost:8080](http://localhost:8080)
+    - API via web/proxy: [http://localhost:8000/api/v1](http://localhost:8000/api/v1)
+    - API direta: [http://localhost:8080](http://localhost:8080)
     - Healthcheck da API: [http://localhost:8080/health](http://localhost:8080/health)
 
 ---

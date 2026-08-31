@@ -16,7 +16,7 @@ Arquivos usados somente no ZimaOS:
 - ZimaOS com Docker ativo
 - Docker Compose v2 (`docker compose`) ou o comando legado `docker-compose`
 - Git, se for clonar direto no ZimaOS
-- Portas livres: `8000` para Web e `8080` para API
+- Porta livre: `8000` para Web. A porta `8080` fica disponivel para testes diretos da API, mas o uso normal acontece pelo endereco web.
 
 Se o ZimaOS mostrar `Docker Compose nao encontrado`, instale o binario local do Compose com:
 
@@ -62,6 +62,24 @@ Acesse:
 ```text
 http://IP_DO_ZIMAOS:8000
 ```
+
+## Endereco unico da aplicacao
+
+No ZimaOS e em qualquer instalacao Docker, use somente o endereco da aplicacao:
+
+```text
+http://IP_DO_ZIMAOS:8000
+```
+
+O frontend encaminha automaticamente as chamadas para `/api/v1` pelo container web, que conversa com a API internamente no Docker. Por isso, a tela de login nao precisa receber `http://IP_DO_ZIMAOS:8080/api/v1`.
+
+No APK Android, configure o servidor com o mesmo endereco base:
+
+```text
+http://IP_DO_ZIMAOS:8000
+```
+
+O APK adiciona `/api/v1` automaticamente.
 
 ## Operacao
 

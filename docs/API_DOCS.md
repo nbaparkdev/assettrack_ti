@@ -9,6 +9,14 @@ Documentação completa dos endpoints do AssetTrack TI. A aplicação possui doi
 
 # API REST — JSON (`/api/v1`)
 
+Em instalações Docker, o frontend deve consumir a API pelo mesmo host da aplicação usando `/api/v1`. Exemplo:
+
+```text
+http://IP_DO_SERVIDOR:8000/api/v1
+```
+
+O Nginx do container web encaminha essa rota internamente para a API Go. O acesso direto em `http://IP_DO_SERVIDOR:8080/api/v1` continua útil para diagnóstico, mas não precisa ser configurado na tela de login nem no APK.
+
 ## 🔐 Autenticação (`/auth`)
 
 ### POST `/auth/login`
