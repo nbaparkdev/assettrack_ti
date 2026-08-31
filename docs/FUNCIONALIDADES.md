@@ -83,7 +83,7 @@ Módulo de transmissão de comunicados e comunicados institucionais para toda a 
 - **Sincronização Automática:** Reconexão transparente ao sinal de rede com indicador visual de status e contagem de itens sincronizados.
 - **Botão e Modal de Download do APK na Web:** Botão em destaque no cabeçalho da versão web com modal interativo que exibe:
   - Download direto do arquivo APK versionado mais recente, publicado automaticamente e refletido pelo manifest do backend.
-  - QR Code apontando diretamente para a URL da API para leitura e download imediato no celular.
+  - QR Code apontando para o endereço de download do sistema para leitura e download imediato no celular.
   - Notas da versão e changelog.
   - Guia de 3 passos simples para instalação no Android.
 - **Notificador de Novas Versões:** Verificação em segundo plano informando a disponibilidade de atualizações do aplicativo com 1 clique, comparando a versão atual do portal com a versão publicada do APK.

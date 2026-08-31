@@ -1,16 +1,47 @@
 import axios from 'axios';
 import { offlineStorage } from '../utils/offlineStorage';
 
+const API_PATH = '/api/v1';
+const CUSTOM_APP_URL_KEY = 'custom_app_url';
+const LEGACY_CUSTOM_API_URL_KEY = 'custom_api_url';
+
+export const normalizeServerUrlToApiBaseUrl = (value?: string | null) => {
+  const raw = (value || '').trim();
+  if (!raw) return '';
+
+  if (raw.startsWith('/')) {
+    return raw.endsWith(API_PATH) ? raw : `${raw.replace(/\/$/, '')}${API_PATH}`;
+  }
+
+  try {
+    const url = new URL(raw);
+    const normalizedPath = url.pathname.replace(/\/$/, '');
+    if (normalizedPath === '' || normalizedPath === '/') {
+      url.pathname = API_PATH;
+    } else if (!normalizedPath.endsWith(API_PATH)) {
+      url.pathname = `${normalizedPath}${API_PATH}`;
+    }
+    url.search = '';
+    url.hash = '';
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return raw.endsWith(API_PATH) ? raw : `${raw.replace(/\/$/, '')}${API_PATH}`;
+  }
+};
+
 const getApiBaseUrl = () => {
-  // Check if there is a custom API URL configured (useful for mobile local testing)
-  const customUrl = typeof window !== 'undefined' ? localStorage.getItem('custom_api_url') : null;
+  // Optional server URL configured by the user. It can be the application URL
+  // (for example http://server:8000); the API path is added automatically.
+  const customUrl = typeof window !== 'undefined'
+    ? localStorage.getItem(CUSTOM_APP_URL_KEY) || localStorage.getItem(LEGACY_CUSTOM_API_URL_KEY)
+    : null;
   if (customUrl) {
-    return customUrl;
+    return normalizeServerUrlToApiBaseUrl(customUrl);
   }
 
   const configuredUrl = import.meta.env.VITE_API_URL;
   if (configuredUrl) {
-    return configuredUrl;
+    return normalizeServerUrlToApiBaseUrl(configuredUrl);
   }
 
   const { hostname, port, protocol } = window.location;
@@ -18,22 +49,20 @@ const getApiBaseUrl = () => {
   // Check if running inside a Capacitor app
   const isCapacitor = typeof window !== 'undefined' && !!(window as any).Capacitor;
 
-  // If running inside Capacitor (localhost), fall back to the development server IP on the Wi-Fi network
+  // The APK does not know the server address by itself. Use the settings icon
+  // on the login screen and enter only the application URL.
   if (isCapacitor && (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '')) {
-    // IP da interface Wi-Fi do servidor no ambiente local atual.
-    // O portal web continua usando o hostname acessado pelo dispositivo;
-    // o APK precisa de um endereço explícito para alcançar a API.
-    return 'http://172.30.6.127:8080/api/v1';
+    return API_PATH;
   }
 
   // Native Vite development runs on its own port and needs to reach the API directly.
   if (port === '3000' || port === '5173') {
     const apiProtocol = protocol.startsWith('http') ? protocol : 'http:';
-    return `${apiProtocol}//${hostname || 'localhost'}:8080/api/v1`;
+    return `${apiProtocol}//${hostname || 'localhost'}:8080${API_PATH}`;
   }
   
   // Docker/Nginx deployment proxies /api/v1 to the API container internally.
-  return '/api/v1';
+  return API_PATH;
 };
 
 export const API_BASE_URL = getApiBaseUrl();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../api/auth';
-import { API_BASE_URL } from '../api/client';
+import { API_BASE_URL, normalizeServerUrlToApiBaseUrl } from '../api/client';
 import { KeyRound, QrCode, AlertCircle, Settings, RotateCcw, Camera, X, CheckCircle } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { cameraPermissionMessage, ensureCameraPermission } from '../utils/cameraPermission';
@@ -17,18 +17,20 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [qrSuccessMsg, setQrSuccessMsg] = useState<string | null>(null);
 
-  // Optional connectivity override for mobile dev/local testing
+  // Optional server address override for APK/mobile/local network testing
   const [showSettings, setShowSettings] = useState(false);
   const [customApiUrl, setCustomApiUrl] = useState(
-    localStorage.getItem('custom_api_url') || API_BASE_URL
+    localStorage.getItem('custom_app_url') || localStorage.getItem('custom_api_url') || ''
   );
 
   const handleSaveSettings = () => {
-    localStorage.setItem('custom_api_url', customApiUrl.trim());
+    localStorage.setItem('custom_app_url', customApiUrl.trim());
+    localStorage.removeItem('custom_api_url');
     window.location.reload();
   };
 
   const handleResetSettings = () => {
+    localStorage.removeItem('custom_app_url');
     localStorage.removeItem('custom_api_url');
     window.location.reload();
   };
@@ -204,10 +206,10 @@ export const LoginPage: React.FC = () => {
         {showSettings && (
           <div className="mb-6 p-4 rounded-xl border border-blue-500/20 bg-blue-50/50 backdrop-blur-sm space-y-3 transition-all duration-300">
             <h3 className="text-xs font-mono uppercase tracking-wider text-brand-primary font-bold">
-              ⚙️ Endereço do Servidor
+              ⚙️ Endereço da Aplicação
             </h3>
             <p className="text-[10px] text-brand-muted font-mono leading-relaxed">
-              Uso opcional para testes mobile ou rede especial. No Docker, o padrão usa o mesmo endereço do sistema: {API_BASE_URL}
+              Informe apenas onde o sistema abre, por exemplo http://192.168.1.50:8000. A API será localizada automaticamente em {normalizeServerUrlToApiBaseUrl(customApiUrl || API_BASE_URL)}.
             </p>
             <div className="space-y-2">
               <input
@@ -215,7 +217,7 @@ export const LoginPage: React.FC = () => {
                 value={customApiUrl}
                 onChange={(e) => setCustomApiUrl(e.target.value)}
                 className="w-full rounded-lg bg-white border border-brand-border px-3 py-2 text-xs font-mono text-brand-text focus:outline-none focus:border-brand-primary"
-                placeholder="/api/v1"
+                placeholder="http://192.168.X.X:8000"
               />
               <div className="flex space-x-2">
                 <button
