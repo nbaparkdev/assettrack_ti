@@ -32,6 +32,31 @@ const dateInputValue = () => {
 
 const formatDate = (value?: string | null) => value ? new Date(value).toLocaleDateString('pt-BR') : '-';
 
+const dateOnly = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const exportPeriodRange = (mode: 'week' | 'month', referenceValue: string) => {
+  const reference = referenceValue ? new Date(`${referenceValue}T00:00:00`) : new Date();
+  if (mode === 'month') {
+    const start = new Date(reference.getFullYear(), reference.getMonth(), 1);
+    const end = new Date(reference.getFullYear(), reference.getMonth() + 1, 0, 23, 59, 59);
+    return { start, end, label: start.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) };
+  }
+  const start = dateOnly(reference);
+  const day = start.getDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + offset);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return { start, end, label: `${formatDate(start.toISOString())} até ${formatDate(end.toISOString())}` };
+};
+
+const overlapsPeriod = (record: RHStatusRecord, start: Date, end: Date) => {
+  const recordStart = new Date(record.inicio);
+  const recordEnd = new Date(record.fim || record.inicio);
+  return recordStart <= end && recordEnd >= start;
+};
+
 const RHMonthlyCalendar: React.FC<{ records: RHStatusRecord[]; sectorId: string }> = ({ records, sectorId }) => {
   const [reference, setReference] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const days = useMemo(() => {
@@ -72,6 +97,8 @@ export const RHPage: React.FC = () => {
   const [noticeForm, setNoticeForm] = useState({ usuario_id: '', titulo: '', mensagem: '', inicio: dateInputValue(), fim: '' });
   const [calendarSector, setCalendarSector] = useState('');
   const [exportSector, setExportSector] = useState('');
+  const [exportPeriod, setExportPeriod] = useState<'week' | 'month'>('week');
+  const [exportReference, setExportReference] = useState(dateInputValue());
   const [hierarchy, setHierarchy] = useState<{ setores: Array<{ id: number; nome: string; responsavel_id?: number | null }>; usuarios: User[] } | null>(null);
   const [hierarchySector, setHierarchySector] = useState('');
   const [hierarchyManager, setHierarchyManager] = useState('');
@@ -182,6 +209,7 @@ export const RHPage: React.FC = () => {
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const now = new Date();
       const scopeLabel = isRHAdmin ? 'Portal RH' : 'Equipe do gestor';
+      const period = exportPeriodRange(exportPeriod, exportReference);
       const selected = exportSector
         ? control.colaboradores.filter(({ usuario }) => String(usuario.departamento_id ?? 'sem-setor') === exportSector)
         : control.colaboradores;
@@ -201,18 +229,22 @@ export const RHPage: React.FC = () => {
       doc.text('Relatório do Portal RH', 14, 16);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.text(`${scopeLabel} - gerado em ${now.toLocaleString('pt-BR')}`, 14, 22);
+      doc.text(`${scopeLabel} - ${exportPeriod === 'week' ? 'Semana' : 'Mês'}: ${period.label} - gerado em ${now.toLocaleString('pt-BR')}`, 14, 22);
 
       let startY = 34;
       Array.from(grouped.entries())
         .sort(([, a], [, b]) => (a[0]?.usuario.departamento?.nome || 'Sem setor').localeCompare(b[0]?.usuario.departamento?.nome || 'Sem setor'))
         .forEach(([sectorKey, items], index) => {
-          if (index > 0 && startY > 165) {
+          if (index > 0 && startY > 150) {
             doc.addPage();
             startY = 18;
           }
           const sectorName = items[0]?.usuario.departamento?.nome || 'Sem setor';
           const managerName = getSectorManagerName(sectorKey, items.map(item => item.usuario));
+          const selectedUserIds = new Set(items.map(item => item.usuario.id));
+          const periodRecords = control.status
+            .filter(record => selectedUserIds.has(record.usuario_id) && overlapsPeriod(record, period.start, period.end))
+            .sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime());
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(11);
           doc.text(`Setor: ${sectorName}`, 14, startY);
@@ -222,32 +254,59 @@ export const RHPage: React.FC = () => {
 
           autoTable(doc, {
             startY: startY + 10,
-            head: [['Colaborador', 'Setor', 'Cargo', 'Status atual', 'Banco de horas', 'Início', 'Fim', 'Observação']],
+            head: [['Colaborador', 'Setor', 'Cargo', 'Status atual', 'Banco de horas']],
             body: items.map(({ usuario, status_atual, horas }) => {
-              const latest = control.status.find(item => item.usuario_id === usuario.id);
               return [
                 usuario.nome,
                 usuario.departamento?.nome || 'Sem setor',
                 usuario.cargo || '-',
                 employeeStatus[status_atual]?.label || status_atual,
                 status_atual === 'banco_horas' && horas ? `${horas}h` : '-',
-                latest ? formatDate(latest.inicio) : '-',
-                latest?.fim ? formatDate(latest.fim) : '-',
-                latest?.observacao || '-',
               ];
             }),
             styles: { fontSize: 8, cellPadding: 2 },
             headStyles: { fillColor: [12, 102, 228], textColor: 255 },
             columnStyles: {
-              0: { cellWidth: 42 },
-              1: { cellWidth: 34 },
-              2: { cellWidth: 34 },
-              3: { cellWidth: 28 },
-              4: { cellWidth: 24 },
-              7: { cellWidth: 58 },
+              0: { cellWidth: 58 },
+              1: { cellWidth: 42 },
+              2: { cellWidth: 48 },
+              3: { cellWidth: 34 },
+              4: { cellWidth: 30 },
             },
           });
-          startY = ((doc as any).lastAutoTable?.finalY || startY + 32) + 12;
+
+          startY = ((doc as any).lastAutoTable?.finalY || startY + 32) + 8;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9);
+          doc.text('Programação do período', 14, startY);
+
+          autoTable(doc, {
+            startY: startY + 4,
+            head: [['Colaborador', 'Status programado', 'Início', 'Fim', 'Horas', 'Observação', 'Registrado por']],
+            body: periodRecords.length > 0
+              ? periodRecords.map(record => [
+                  record.usuario?.nome || items.find(item => item.usuario.id === record.usuario_id)?.usuario.nome || 'Colaborador',
+                  employeeStatus[record.tipo]?.label || record.tipo,
+                  formatDate(record.inicio),
+                  formatDate(record.fim),
+                  record.horas ? `${record.horas}h` : '-',
+                  record.observacao || '-',
+                  record.criado_por?.nome || '-',
+                ])
+              : [['Sem programação registrada no período', '-', '-', '-', '-', '-', '-']],
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [15, 23, 42], textColor: 255 },
+            columnStyles: {
+              0: { cellWidth: 48 },
+              1: { cellWidth: 34 },
+              2: { cellWidth: 24 },
+              3: { cellWidth: 24 },
+              4: { cellWidth: 18 },
+              5: { cellWidth: 76 },
+              6: { cellWidth: 36 },
+            },
+          });
+          startY = ((doc as any).lastAutoTable?.finalY || startY + 32) + 14;
         });
 
       doc.save(`portal_rh_${now.toISOString().slice(0, 10)}.pdf`);
@@ -368,6 +427,13 @@ export const RHPage: React.FC = () => {
               <option value="">Todos os setores</option>
               {exportSectorOptions.map(sector => <option key={sector.id} value={sector.id}>{sector.name}</option>)}
             </select>
+            <div className="grid grid-cols-2 gap-2">
+              <select value={exportPeriod} onChange={e => setExportPeriod(e.target.value as 'week' | 'month')} className="rounded-xl border border-white/25 bg-white/95 px-3 py-2 text-xs font-semibold text-brand-text shadow-sm focus:outline-none focus:ring-2 focus:ring-white/60">
+                <option value="week">Semana</option>
+                <option value="month">Mês inteiro</option>
+              </select>
+              <input type="date" value={exportReference} onChange={e => setExportReference(e.target.value)} className="rounded-xl border border-white/25 bg-white/95 px-3 py-2 text-xs font-semibold text-brand-text shadow-sm focus:outline-none focus:ring-2 focus:ring-white/60" title="Data de referência do relatório" />
+            </div>
             <button type="button" onClick={exportControl} className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-primary shadow-sm hover:bg-blue-50"><Download size={15} className="mr-2" />Exportar PDF</button>
           </div>
         </div>
