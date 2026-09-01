@@ -7,6 +7,7 @@ import type { User } from '../types/user';
 import { FileSignature, Printer, CheckCircle2, XCircle, Edit2, Plus, UserMinus, CalendarDays, MessageSquareText, UsersRound, Clock3, Download, ClipboardPlus, Megaphone, LayoutDashboard, Eye, EyeOff, Search, Network } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const statusStyles: Record<string, string> = {
   Pendente: 'border-yellow-500/30 text-yellow-400',
@@ -28,6 +29,8 @@ const dateInputValue = () => {
   const day = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;
 };
+
+const formatDate = (value?: string | null) => value ? new Date(value).toLocaleDateString('pt-BR') : '-';
 
 const RHMonthlyCalendar: React.FC<{ records: RHStatusRecord[]; sectorId: string }> = ({ records, sectorId }) => {
   const [reference, setReference] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -153,13 +156,50 @@ export const RHPage: React.FC = () => {
   };
 
   const exportControl = async () => {
+    if (!control) return;
     try {
-      const blob = await rhApi.exportStatusCSV();
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url; anchor.download = 'controle_rh.csv'; anchor.click();
-      URL.revokeObjectURL(url);
-    } catch { alert('Não foi possível exportar o relatório de RH.'); }
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const now = new Date();
+      const scopeLabel = isRHAdmin ? 'Todos os colaboradores visíveis ao RH' : 'Equipe do gestor';
+      const rows = control.colaboradores.map(({ usuario, status_atual, horas }) => {
+        const latest = control.status.find(item => item.usuario_id === usuario.id);
+        return [
+          usuario.nome,
+          usuario.departamento?.nome || 'Sem setor',
+          usuario.cargo || '-',
+          employeeStatus[status_atual]?.label || status_atual,
+          status_atual === 'banco_horas' && horas ? `${horas}h` : '-',
+          latest ? formatDate(latest.inicio) : '-',
+          latest?.fim ? formatDate(latest.fim) : '-',
+          latest?.observacao || '-',
+        ];
+      });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.text('Relatório do Portal RH', 14, 16);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(`${scopeLabel} - gerado em ${now.toLocaleString('pt-BR')}`, 14, 22);
+
+      autoTable(doc, {
+        startY: 30,
+        head: [['Colaborador', 'Setor', 'Cargo', 'Status atual', 'Banco de horas', 'Início', 'Fim', 'Observação']],
+        body: rows,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [12, 102, 228], textColor: 255 },
+        columnStyles: {
+          0: { cellWidth: 42 },
+          1: { cellWidth: 34 },
+          2: { cellWidth: 34 },
+          3: { cellWidth: 28 },
+          4: { cellWidth: 24 },
+          7: { cellWidth: 58 },
+        },
+      });
+
+      doc.save(`portal_rh_${now.toISOString().slice(0, 10)}.pdf`);
+    } catch { alert('Não foi possível exportar o relatório em PDF.'); }
   };
 
   const toggleMonitoringVisibility = async (userId: number, current: boolean) => {
@@ -271,7 +311,7 @@ export const RHPage: React.FC = () => {
         <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full bg-white/10" />
         <div className="relative flex flex-col gap-5 p-6 text-white sm:flex-row sm:items-end sm:justify-between sm:p-8">
           <div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/70"><LayoutDashboard size={15} /> Gestão de pessoas</div><h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Portal RH</h1><p className="mt-2 max-w-xl text-sm leading-relaxed text-white/80">Acompanhe a disponibilidade da equipe, mantenha o calendário atualizado e centralize as comunicações internas.</p></div>
-          <button type="button" onClick={exportControl} className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-primary shadow-sm hover:bg-blue-50"><Download size={15} className="mr-2" />Exportar relatório</button>
+          <button type="button" onClick={exportControl} className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-primary shadow-sm hover:bg-blue-50"><Download size={15} className="mr-2" />Exportar PDF</button>
         </div>
       </section>
 
