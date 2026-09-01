@@ -71,6 +71,7 @@ export const RHPage: React.FC = () => {
   const [statusForm, setStatusForm] = useState({ usuario_id: '', tipo: 'folga', inicio: dateInputValue(), fim: '', horas: '', observacao: '' });
   const [noticeForm, setNoticeForm] = useState({ usuario_id: '', titulo: '', mensagem: '', inicio: dateInputValue(), fim: '' });
   const [calendarSector, setCalendarSector] = useState('');
+  const [exportSector, setExportSector] = useState('');
   const [hierarchy, setHierarchy] = useState<{ setores: Array<{ id: number; nome: string; responsavel_id?: number | null }>; usuarios: User[] } | null>(null);
   const [hierarchySector, setHierarchySector] = useState('');
   const [hierarchyManager, setHierarchyManager] = useState('');
@@ -155,25 +156,45 @@ export const RHPage: React.FC = () => {
     } catch (err: any) { alert(err.response?.data?.error || 'Não foi possível enviar o comunicado.'); }
   };
 
+  const exportSectorOptions = useMemo(() => {
+    const sectors = new Map<string, string>();
+    control?.colaboradores.forEach(({ usuario }) => {
+      sectors.set(String(usuario.departamento_id ?? 'sem-setor'), usuario.departamento?.nome || 'Sem setor');
+    });
+    return Array.from(sectors.entries()).map(([id, name]) => ({ id, name }));
+  }, [control]);
+
+  const getSectorManagerName = (sectorKey: string, users: User[]) => {
+    if (!isRHAdmin) return currentUser?.nome || 'Gestor não informado';
+    const numericSectorId = Number(sectorKey);
+    if (!Number.isNaN(numericSectorId)) {
+      const sector = hierarchy?.setores.find(item => item.id === numericSectorId);
+      const manager = hierarchy?.usuarios.find(item => item.id === sector?.responsavel_id);
+      if (manager?.nome) return manager.nome;
+    }
+    const managerFromUsers = users.find(item => item.gestor?.nome)?.gestor?.nome;
+    return managerFromUsers || 'Gestor não definido';
+  };
+
   const exportControl = async () => {
     if (!control) return;
     try {
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const now = new Date();
-      const scopeLabel = isRHAdmin ? 'Todos os colaboradores visíveis ao RH' : 'Equipe do gestor';
-      const rows = control.colaboradores.map(({ usuario, status_atual, horas }) => {
-        const latest = control.status.find(item => item.usuario_id === usuario.id);
-        return [
-          usuario.nome,
-          usuario.departamento?.nome || 'Sem setor',
-          usuario.cargo || '-',
-          employeeStatus[status_atual]?.label || status_atual,
-          status_atual === 'banco_horas' && horas ? `${horas}h` : '-',
-          latest ? formatDate(latest.inicio) : '-',
-          latest?.fim ? formatDate(latest.fim) : '-',
-          latest?.observacao || '-',
-        ];
-      });
+      const scopeLabel = isRHAdmin ? 'Portal RH' : 'Equipe do gestor';
+      const selected = exportSector
+        ? control.colaboradores.filter(({ usuario }) => String(usuario.departamento_id ?? 'sem-setor') === exportSector)
+        : control.colaboradores;
+      if (selected.length === 0) {
+        alert('Nenhum colaborador encontrado para exportar.');
+        return;
+      }
+      const grouped = selected.reduce((acc, item) => {
+        const key = String(item.usuario.departamento_id ?? 'sem-setor');
+        if (!acc.has(key)) acc.set(key, []);
+        acc.get(key)!.push(item);
+        return acc;
+      }, new Map<string, typeof selected>());
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(15);
@@ -182,21 +203,52 @@ export const RHPage: React.FC = () => {
       doc.setFontSize(9);
       doc.text(`${scopeLabel} - gerado em ${now.toLocaleString('pt-BR')}`, 14, 22);
 
-      autoTable(doc, {
-        startY: 30,
-        head: [['Colaborador', 'Setor', 'Cargo', 'Status atual', 'Banco de horas', 'Início', 'Fim', 'Observação']],
-        body: rows,
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [12, 102, 228], textColor: 255 },
-        columnStyles: {
-          0: { cellWidth: 42 },
-          1: { cellWidth: 34 },
-          2: { cellWidth: 34 },
-          3: { cellWidth: 28 },
-          4: { cellWidth: 24 },
-          7: { cellWidth: 58 },
-        },
-      });
+      let startY = 34;
+      Array.from(grouped.entries())
+        .sort(([, a], [, b]) => (a[0]?.usuario.departamento?.nome || 'Sem setor').localeCompare(b[0]?.usuario.departamento?.nome || 'Sem setor'))
+        .forEach(([sectorKey, items], index) => {
+          if (index > 0 && startY > 165) {
+            doc.addPage();
+            startY = 18;
+          }
+          const sectorName = items[0]?.usuario.departamento?.nome || 'Sem setor';
+          const managerName = getSectorManagerName(sectorKey, items.map(item => item.usuario));
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+          doc.text(`Setor: ${sectorName}`, 14, startY);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          doc.text(`Gestor: ${managerName}`, 14, startY + 5);
+
+          autoTable(doc, {
+            startY: startY + 10,
+            head: [['Colaborador', 'Setor', 'Cargo', 'Status atual', 'Banco de horas', 'Início', 'Fim', 'Observação']],
+            body: items.map(({ usuario, status_atual, horas }) => {
+              const latest = control.status.find(item => item.usuario_id === usuario.id);
+              return [
+                usuario.nome,
+                usuario.departamento?.nome || 'Sem setor',
+                usuario.cargo || '-',
+                employeeStatus[status_atual]?.label || status_atual,
+                status_atual === 'banco_horas' && horas ? `${horas}h` : '-',
+                latest ? formatDate(latest.inicio) : '-',
+                latest?.fim ? formatDate(latest.fim) : '-',
+                latest?.observacao || '-',
+              ];
+            }),
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [12, 102, 228], textColor: 255 },
+            columnStyles: {
+              0: { cellWidth: 42 },
+              1: { cellWidth: 34 },
+              2: { cellWidth: 34 },
+              3: { cellWidth: 28 },
+              4: { cellWidth: 24 },
+              7: { cellWidth: 58 },
+            },
+          });
+          startY = ((doc as any).lastAutoTable?.finalY || startY + 32) + 12;
+        });
 
       doc.save(`portal_rh_${now.toISOString().slice(0, 10)}.pdf`);
     } catch { alert('Não foi possível exportar o relatório em PDF.'); }
@@ -311,7 +363,13 @@ export const RHPage: React.FC = () => {
         <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full bg-white/10" />
         <div className="relative flex flex-col gap-5 p-6 text-white sm:flex-row sm:items-end sm:justify-between sm:p-8">
           <div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/70"><LayoutDashboard size={15} /> Gestão de pessoas</div><h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Portal RH</h1><p className="mt-2 max-w-xl text-sm leading-relaxed text-white/80">Acompanhe a disponibilidade da equipe, mantenha o calendário atualizado e centralize as comunicações internas.</p></div>
-          <button type="button" onClick={exportControl} className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-primary shadow-sm hover:bg-blue-50"><Download size={15} className="mr-2" />Exportar PDF</button>
+          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-64">
+            <select value={exportSector} onChange={e => setExportSector(e.target.value)} className="rounded-xl border border-white/25 bg-white/95 px-3 py-2 text-xs font-semibold text-brand-text shadow-sm focus:outline-none focus:ring-2 focus:ring-white/60">
+              <option value="">Todos os setores</option>
+              {exportSectorOptions.map(sector => <option key={sector.id} value={sector.id}>{sector.name}</option>)}
+            </select>
+            <button type="button" onClick={exportControl} className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-primary shadow-sm hover:bg-blue-50"><Download size={15} className="mr-2" />Exportar PDF</button>
+          </div>
         </div>
       </section>
 
