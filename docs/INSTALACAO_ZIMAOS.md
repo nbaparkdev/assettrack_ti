@@ -14,7 +14,7 @@ Arquivos usados somente no ZimaOS:
 ## Requisitos
 
 - ZimaOS com Docker ativo
-- Docker Compose v2 (`docker compose`) ou o comando legado `docker-compose`
+- Docker Compose v2 (`docker compose` ou o binário local instalado pelo projeto)
 - Git, se for clonar direto no ZimaOS
 - Porta livre: `8000` para Web. A porta `8080` fica disponivel para testes diretos da API, mas o uso normal acontece pelo endereco web.
 
@@ -25,7 +25,7 @@ chmod +x scripts/zimaos_install_compose.sh
 ./scripts/zimaos_install_compose.sh
 ```
 
-O instalador salva o binario em `.zimaos/bin/docker-compose` e os scripts `zimaos_*` usam esse caminho automaticamente. Isso evita depender de `/DATA/.docker/config.json`.
+O instalador salva o binário em `.zimaos/bin/docker-compose` e os scripts `zimaos_*` priorizam esse Compose v2. O `docker-compose` legado 1.29.x não deve ser usado com Docker Engine atual, pois falha com `KeyError: 'ContainerConfig'`. Isso evita depender de `/DATA/.docker/config.json`.
 
 ## Instalar
 

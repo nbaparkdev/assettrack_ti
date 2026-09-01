@@ -9,6 +9,7 @@ ENV_FILE=".env.zimaos"
 COMPOSE_FILE="docker-compose.zimaos.yml"
 PROJECT_NAME="assettrack-zimaos"
 LOCAL_COMPOSE="$ROOT_DIR/.zimaos/bin/docker-compose"
+source "$ROOT_DIR/scripts/resolve_compose.sh"
 export DOCKER_CONFIG="$ROOT_DIR/.zimaos/docker-config"
 mkdir -p "$DOCKER_CONFIG"
 
@@ -17,16 +18,7 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-if docker compose version >/dev/null 2>&1; then
-  COMPOSE_CMD=(docker compose)
-elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE_CMD=(docker-compose)
-elif [ -x "$LOCAL_COMPOSE" ]; then
-  COMPOSE_CMD=("$LOCAL_COMPOSE")
-else
-  echo "Docker Compose nao encontrado. Rode: ./scripts/zimaos_install_compose.sh"
-  exit 1
-fi
+resolve_compose "$ROOT_DIR"
 
 if [ ! -f "$ENV_FILE" ]; then
   cp .env.zimaos.example "$ENV_FILE"

@@ -16,9 +16,9 @@ if DOCKER_CONFIG="$ROOT_DIR/.zimaos/docker-config" docker compose version >/dev/
   exit 0
 fi
 
-if command -v docker-compose >/dev/null 2>&1; then
+if command -v docker-compose >/dev/null 2>&1 && docker-compose version 2>/dev/null | grep -qE 'Docker Compose version v?2\.'; then
   docker-compose version
-  echo "docker-compose legado ja esta instalado."
+  echo "Docker Compose v2 ja esta instalado."
   exit 0
 fi
 

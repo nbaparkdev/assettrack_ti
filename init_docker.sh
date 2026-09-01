@@ -25,12 +25,8 @@ if ! command -v curl &> /dev/null; then
 fi
 
 # Verificar Docker Compose
-if ! docker compose version &> /dev/null; then
-    echo "❌ Docker Compose não encontrado."
-    exit 1
-fi
-
-COMPOSE_CMD="docker compose"
+source "./scripts/resolve_compose.sh"
+resolve_compose "$(pwd)"
 
 echo "✅ Docker OK"
 echo "✅ Docker Compose OK"
@@ -45,7 +41,7 @@ export VITE_API_URL="${VITE_API_URL:-http://${HOST_IP}:8080/api/v1}"
 
 # Derrubar ambiente antigo se estiver ativo
 echo "🛑 Parando containers antigos..."
-$COMPOSE_CMD down --remove-orphans 2>/dev/null || true
+"${COMPOSE_CMD[@]}" down --remove-orphans 2>/dev/null || true
 
 # Garantir remoção de processos conflitantes nas portas 8080 e 8000
 PORT_8080=$(docker ps -a --filter "publish=8080" -q 2>/dev/null || true)
@@ -58,7 +54,7 @@ fi
 
 # Build e Start
 echo "🏗️ Construindo e iniciando os containers (API, Web, DB, Redis)..."
-$COMPOSE_CMD up -d --build
+"${COMPOSE_CMD[@]}" up -d --build
 
 # Aguardar inicialização da API
 echo "⏳ Aguardando API (Go) ficar saudável..."
@@ -74,7 +70,7 @@ while [ $WAITED -lt $MAX_WAIT ]; do
 done
 
 if [ $WAITED -ge $MAX_WAIT ]; then
-    echo "⚠️ Timeout aguardando API. Verifique os logs com: docker compose logs api"
+    echo "⚠️ Timeout aguardando API. Verifique os logs com: ${COMPOSE_CMD[*]} logs api"
 fi
 
 # Status
@@ -97,5 +93,5 @@ echo "👤 Admin Padrão: admin@example.com"
 echo "🔑 Senha:        admin"
 echo "------------------------------------------------"
 echo "📜 Logs:"
-echo "$COMPOSE_CMD logs -f"
+echo "${COMPOSE_CMD[*]} logs -f"
 echo "------------------------------------------------"

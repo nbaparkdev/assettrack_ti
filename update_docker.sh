@@ -19,7 +19,8 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-COMPOSE_CMD="docker compose"
+source "./scripts/resolve_compose.sh"
+resolve_compose "$(pwd)"
 
 # Gerar identificador único para a release atual e compartilhar com o build web
 export VITE_APP_VERSION_CODE="$(date -u +%s)"
@@ -37,7 +38,7 @@ fi
 
 # Rebuild e Restart
 echo "🏗️ Recompilando e reiniciando a aplicação..."
-$COMPOSE_CMD up -d --build
+"${COMPOSE_CMD[@]}" up -d --build
 
 # Aguardar API ficar ativa
 echo "⏳ Aguardando API (Go) ficar saudável..."
