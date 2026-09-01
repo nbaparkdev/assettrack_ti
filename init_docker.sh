@@ -37,7 +37,9 @@ export VITE_APP_VERSION_NAME="$(date -u +%Y.%m.%d.%H%M)"
 export VITE_APP_BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 HOST_IP="${ASSETTRACK_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
 HOST_IP="${HOST_IP:-127.0.0.1}"
-export VITE_API_URL="${VITE_API_URL:-http://${HOST_IP}:8080/api/v1}"
+# The local web container proxies /api/v1 to the API container. Keep the
+# browser on one origin and avoid exposing the API port in the frontend build.
+export VITE_API_URL="${VITE_API_URL:-/api/v1}"
 
 # Derrubar ambiente antigo se estiver ativo
 echo "🛑 Parando containers antigos..."

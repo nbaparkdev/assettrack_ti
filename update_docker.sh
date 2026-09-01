@@ -28,7 +28,7 @@ export VITE_APP_VERSION_NAME="$(date -u +%Y.%m.%d.%H%M)"
 export VITE_APP_BUILD_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 HOST_IP="${ASSETTRACK_HOST_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
 HOST_IP="${HOST_IP:-127.0.0.1}"
-export VITE_API_URL="${VITE_API_URL:-http://${HOST_IP}:8080/api/v1}"
+export VITE_API_URL="${VITE_API_URL:-/api/v1}"
 
 # Atualizar Git
 if [ -d ".git" ]; then

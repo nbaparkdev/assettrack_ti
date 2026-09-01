@@ -127,6 +127,8 @@ chmod +x init_docker.sh
 ./init_docker.sh
 ```
 
+O ambiente Web local usa `http://localhost:8000` e o Nginx encaminha `/api/v1` internamente para a API. O fluxo local não depende do perfil ZimaOS nem deve apontar o frontend diretamente para a porta 8080.
+
 ### ⚙️ Utilitários de Gestão
 Para facilitar a manutenção, você pode usar os seguintes scripts:
 
