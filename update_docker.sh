@@ -37,8 +37,9 @@ if [ -d ".git" ]; then
 fi
 
 # Rebuild e Restart
-echo "🏗️ Recompilando e reiniciando a aplicação..."
-"${COMPOSE_CMD[@]}" up -d --build
+echo "🏗️ Recompilando e recriando a aplicação Web/API..."
+"${COMPOSE_CMD[@]}" up -d db redis
+"${COMPOSE_CMD[@]}" up -d --build --force-recreate --no-deps api web
 
 # Aguardar API ficar ativa
 echo "⏳ Aguardando API (Go) ficar saudável..."
