@@ -47,6 +47,7 @@ export interface RHComunicado {
   fim?: string | null;
   ativo: boolean;
   usuario?: { id: number; nome: string };
+  criado_por?: { id: number; nome: string };
 }
 
 export interface RHControlResponse {

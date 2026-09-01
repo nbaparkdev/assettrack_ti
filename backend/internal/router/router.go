@@ -86,7 +86,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	rateLimiter := middleware.NewRateLimiter(rdb)
 
 	// Handlers
-	authHandler := handler.NewAuthHandler(authSvc)
+	authHandler := handler.NewAuthHandler(authSvc, userRepo)
 	userHandler := handler.NewUserHandler(userRepo, authSvc, qrSvc)
 	qrHandler := handler.NewQRHandler(userRepo, authSvc, qrSvc, qrLogSvc, txRepo, maintRepo, assetRepo)
 	assetHandler := handler.NewAssetHandler(assetRepo, categoryRepo)
@@ -126,7 +126,6 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	rManager := middleware.RequireManagerOrAbove()
 	rManagerOrRH := middleware.RequireManagerOrRH()
 	rRH := middleware.RequireRH()
-	rRHOrManager := middleware.RequireRHOrManager()
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -421,12 +420,12 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			compras.POST("/pesquisas/:id/decidir", rManager, procurementHandler.DecideResearch)
 		}
 
-		// RH — Termos de Responsabilidade (protected, RH/admin/gerentes)
-		rh := v1.Group("/rh", authMW, rActive, rRHOrManager)
+		// RH — personnel controls are scoped by handler for configured sector managers.
+		rh := v1.Group("/rh", authMW, rActive)
 		{
 			rh.GET("/hierarquia", rRH, rhHandler.Hierarchy)
 			rh.PUT("/hierarquia", rRH, rhHandler.UpdateHierarchy)
-			rh.GET("/termos", rhHandler.List)
+			rh.GET("/termos", rRH, rhHandler.List)
 			rh.GET("/controle", rhHandler.StatusDashboard)
 			rh.GET("/controle/export.csv", rhHandler.ExportStatusCSV)
 			rh.POST("/status", rhHandler.CreateStatus)
@@ -434,16 +433,16 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			rh.PUT("/colaboradores/:id/monitoramento", rhHandler.UpdateMonitoringVisibility)
 			rh.POST("/comunicados", rhHandler.CreateComunicado)
 			rh.DELETE("/comunicados/:id", rhHandler.DeleteComunicado)
-			rh.GET("/solicitacoes/:id/modelo", rhHandler.GenerateTemplate)
-			rh.POST("/termos", rhHandler.Create)
-			rh.PUT("/termos/:id", rhHandler.Update)
-			rh.POST("/termos/:id/assinar", rhHandler.Sign)
-			rh.POST("/termos/:id/cancelar", rhHandler.Cancel)
-			rh.GET("/termos/:id/pdf", rhHandler.PDF)
-			rh.POST("/colaboradores/:id/desligamento", rhHandler.OffboardUser)
+			rh.GET("/solicitacoes/:id/modelo", rRH, rhHandler.GenerateTemplate)
+			rh.POST("/termos", rRH, rhHandler.Create)
+			rh.PUT("/termos/:id", rRH, rhHandler.Update)
+			rh.POST("/termos/:id/assinar", rRH, rhHandler.Sign)
+			rh.POST("/termos/:id/cancelar", rRH, rhHandler.Cancel)
+			rh.GET("/termos/:id/pdf", rRH, rhHandler.PDF)
+			rh.POST("/colaboradores/:id/desligamento", rRH, rhHandler.OffboardUser)
 		}
 
-		monitoring := v1.Group("/monitoramento", authMW, rActive, rManager)
+		monitoring := v1.Group("/monitoramento", authMW, rActive)
 		{
 			monitoring.GET("/equipe-rh", rhHandler.MonitoringTeam)
 		}

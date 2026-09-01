@@ -5,17 +5,20 @@ import (
 
 	"github.com/assettrack/backend/internal/dto"
 	"github.com/assettrack/backend/internal/middleware"
+	"github.com/assettrack/backend/internal/models"
+	"github.com/assettrack/backend/internal/repository"
 	"github.com/assettrack/backend/internal/service"
 	apperr "github.com/assettrack/backend/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 
 type AuthHandler struct {
-	authSvc *service.AuthService
+	authSvc  *service.AuthService
+	userRepo *repository.UserRepository
 }
 
-func NewAuthHandler(authSvc *service.AuthService) *AuthHandler {
-	return &AuthHandler{authSvc: authSvc}
+func NewAuthHandler(authSvc *service.AuthService, userRepo *repository.UserRepository) *AuthHandler {
+	return &AuthHandler{authSvc: authSvc, userRepo: userRepo}
 }
 
 // Login POST /api/v1/auth/login
@@ -67,5 +70,13 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"detail": "Not authenticated"})
 		return
 	}
-	c.JSON(http.StatusOK, toUserResponse(user))
+	resp := toUserResponse(user)
+	if user.Role == models.RoleAdmin || user.Role == models.RoleRH {
+		resp.HasRHManagement = true
+	} else if h.userRepo != nil {
+		reports, _ := h.userRepo.CountDirectReports(user.ID)
+		departments, _ := h.userRepo.CountManagedDepartments(user.ID)
+		resp.HasRHManagement = reports > 0 || departments > 0
+	}
+	c.JSON(http.StatusOK, resp)
 }

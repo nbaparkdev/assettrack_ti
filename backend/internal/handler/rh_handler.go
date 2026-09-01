@@ -133,7 +133,21 @@ func (h *RHHandler) ListMessages(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"mensagens": messages, "contatos": contacts})
+	var directReports []models.User
+	if err := h.userRepo.DB().Where("is_active = true AND gestor_id = ?", current.ID).Order("nome asc").Find(&directReports).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	seen := make(map[uint]bool, len(contacts)+len(directReports))
+	merged := make([]models.User, 0, len(contacts)+len(directReports))
+	for _, contact := range append(contacts, directReports...) {
+		if seen[contact.ID] || contact.ID == current.ID {
+			continue
+		}
+		seen[contact.ID] = true
+		merged = append(merged, contact)
+	}
+	c.JSON(http.StatusOK, gin.H{"mensagens": messages, "contatos": merged})
 }
 
 func (h *RHHandler) CreateMessage(c *gin.Context) {
@@ -148,9 +162,9 @@ func (h *RHHandler) CreateMessage(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Destinatário não encontrado"})
 		return
 	}
-	allowed := target.Role == models.RoleRH || target.Role == models.RoleAdmin || (current.GestorID != nil && *current.GestorID == target.ID)
+	allowed := target.Role == models.RoleRH || target.Role == models.RoleAdmin || (current.GestorID != nil && *current.GestorID == target.ID) || (target.GestorID != nil && *target.GestorID == current.ID)
 	if !allowed {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Mensagens só podem ser enviadas ao seu gestor ou ao RH"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Mensagens só podem ser enviadas ao seu gestor, RH ou subordinados diretos"})
 		return
 	}
 	message := &models.RHMensagem{RemetenteID: current.ID, DestinatarioID: target.ID, Assunto: strings.TrimSpace(in.Assunto), Mensagem: strings.TrimSpace(in.Mensagem)}
@@ -204,6 +218,58 @@ func (h *RHHandler) visibleToCurrent(c *gin.Context, user *models.User) bool {
 		return true
 	}
 	return user.GestorID != nil && *user.GestorID == current.ID
+}
+
+func (h *RHHandler) canAccessRHTeam(c *gin.Context) bool {
+	current := middleware.GetCurrentUser(c)
+	if current == nil {
+		return false
+	}
+	if current.Role == models.RoleAdmin || current.Role == models.RoleRH {
+		return true
+	}
+	reports, _ := h.userRepo.CountDirectReports(current.ID)
+	departments, _ := h.userRepo.CountManagedDepartments(current.ID)
+	return reports > 0 || departments > 0
+}
+
+func (h *RHHandler) filterUsersAndStatusesForCurrent(c *gin.Context, users []models.User, statuses []models.RHStatus) ([]models.User, []models.RHStatus, map[uint]bool) {
+	current := middleware.GetCurrentUser(c)
+	allowed := map[uint]bool{}
+	if current != nil && (current.Role == models.RoleAdmin || current.Role == models.RoleRH) {
+		for _, user := range users {
+			allowed[user.ID] = true
+		}
+		return users, statuses, allowed
+	}
+	filteredUsers := make([]models.User, 0)
+	for i := range users {
+		if h.visibleToCurrent(c, &users[i]) {
+			filteredUsers = append(filteredUsers, users[i])
+			allowed[users[i].ID] = true
+		}
+	}
+	filteredStatuses := make([]models.RHStatus, 0)
+	for _, status := range statuses {
+		if allowed[status.UsuarioID] {
+			filteredStatuses = append(filteredStatuses, status)
+		}
+	}
+	return filteredUsers, filteredStatuses, allowed
+}
+
+func (h *RHHandler) filterComunicadosForCurrent(c *gin.Context, comunicados []models.RHComunicado, allowed map[uint]bool) []models.RHComunicado {
+	current := middleware.GetCurrentUser(c)
+	if current != nil && (current.Role == models.RoleAdmin || current.Role == models.RoleRH) {
+		return comunicados
+	}
+	filtered := make([]models.RHComunicado, 0)
+	for _, comunicado := range comunicados {
+		if comunicado.UsuarioID != nil && allowed[*comunicado.UsuarioID] {
+			filtered = append(filtered, comunicado)
+		}
+	}
+	return filtered
 }
 
 func (h *RHHandler) UpdateHierarchy(c *gin.Context) {
@@ -284,6 +350,10 @@ func monitoringTeamPayload(users []models.User, byUser map[uint][]models.RHStatu
 // StatusDashboard returns the personnel control center, including the
 // current calculated status of every employee and their scheduled calendar.
 func (h *RHHandler) StatusDashboard(c *gin.Context) {
+	if !h.canAccessRHTeam(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso liberado somente para RH, administradores ou gestores com equipe configurada"})
+		return
+	}
 	statuses, err := h.rhRepo.ListStatuses()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -299,25 +369,8 @@ func (h *RHHandler) StatusDashboard(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	current := middleware.GetCurrentUser(c)
-	if current != nil && current.Role != models.RoleAdmin && current.Role != models.RoleRH {
-		allowed := map[uint]bool{}
-		filtered := make([]models.User, 0)
-		for i := range users {
-			if h.visibleToCurrent(c, &users[i]) {
-				filtered = append(filtered, users[i])
-				allowed[users[i].ID] = true
-			}
-		}
-		users = filtered
-		visibleStatuses := make([]models.RHStatus, 0)
-		for _, status := range statuses {
-			if allowed[status.UsuarioID] {
-				visibleStatuses = append(visibleStatuses, status)
-			}
-		}
-		statuses = visibleStatuses
-	}
+	users, statuses, allowed := h.filterUsersAndStatusesForCurrent(c, users, statuses)
+	comunicados = h.filterComunicadosForCurrent(c, comunicados, allowed)
 	byUser := make(map[uint][]models.RHStatus)
 	for _, status := range statuses {
 		byUser[status.UsuarioID] = append(byUser[status.UsuarioID], status)
@@ -358,6 +411,10 @@ func (h *RHHandler) UpdateMonitoringVisibility(c *gin.Context) {
 }
 
 func (h *RHHandler) MonitoringTeam(c *gin.Context) {
+	if !h.canAccessRHTeam(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso liberado somente para RH, administradores ou gestores com equipe configurada"})
+		return
+	}
 	statuses, err := h.rhRepo.ListStatuses()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -368,24 +425,7 @@ func (h *RHHandler) MonitoringTeam(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if current := middleware.GetCurrentUser(c); current != nil && current.Role != models.RoleAdmin && current.Role != models.RoleRH {
-		visible := make([]models.User, 0)
-		allowed := map[uint]bool{}
-		for i := range users {
-			if h.visibleToCurrent(c, &users[i]) {
-				visible = append(visible, users[i])
-				allowed[users[i].ID] = true
-			}
-		}
-		users = visible
-		filtered := make([]models.RHStatus, 0)
-		for _, status := range statuses {
-			if allowed[status.UsuarioID] {
-				filtered = append(filtered, status)
-			}
-		}
-		statuses = filtered
-	}
+	users, statuses, _ = h.filterUsersAndStatusesForCurrent(c, users, statuses)
 	byUser := make(map[uint][]models.RHStatus)
 	for _, status := range statuses {
 		byUser[status.UsuarioID] = append(byUser[status.UsuarioID], status)
@@ -443,7 +483,11 @@ func (h *RHHandler) CreateStatus(c *gin.Context) {
 		return
 	}
 	label := map[string]string{"trabalhando": "Trabalhando", "folga": "Folga", "ferias": "Férias", "banco_horas": "Banco de horas"}[status.Tipo]
-	message := fmt.Sprintf("O RH registrou o status %s a partir de %s.", label, status.Inicio.Format("02/01/2006"))
+	autor := "RH"
+	if current.Nome != "" {
+		autor = current.Nome
+	}
+	message := fmt.Sprintf("%s registrou o status %s a partir de %s.", autor, label, status.Inicio.Format("02/01/2006"))
 	if status.Fim != nil {
 		message += " Período previsto até " + status.Fim.Format("02/01/2006") + "."
 	}
@@ -466,6 +510,15 @@ func (h *RHHandler) DeleteStatus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
 		return
 	}
+	var status models.RHStatus
+	if err := h.userRepo.DB().Preload("Usuario").First(&status, uint(id)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Registro de status não encontrado"})
+		return
+	}
+	if !h.visibleToCurrent(c, status.Usuario) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Você só pode remover registros da sua equipe configurada"})
+		return
+	}
 	if err := h.rhRepo.DeleteStatus(uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -474,6 +527,10 @@ func (h *RHHandler) DeleteStatus(c *gin.Context) {
 }
 
 func (h *RHHandler) CreateComunicado(c *gin.Context) {
+	if !h.canAccessRHTeam(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso liberado somente para RH, administradores ou gestores com equipe configurada"})
+		return
+	}
 	var in rhComunicadoInput
 	if err := c.ShouldBindJSON(&in); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -529,6 +586,18 @@ func (h *RHHandler) DeleteComunicado(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
 		return
+	}
+	var comunicado models.RHComunicado
+	if err := h.userRepo.DB().Preload("Usuario").First(&comunicado, uint(id)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Comunicado não encontrado"})
+		return
+	}
+	current := middleware.GetCurrentUser(c)
+	if current == nil || (current.Role != models.RoleAdmin && current.Role != models.RoleRH) {
+		if comunicado.Usuario == nil || !h.visibleToCurrent(c, comunicado.Usuario) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Você só pode remover comunicados enviados para sua equipe configurada"})
+			return
+		}
 	}
 	if err := h.rhRepo.DeleteComunicado(uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -602,10 +671,23 @@ func (h *RHHandler) MarkMyComunicadoRead(c *gin.Context) {
 }
 
 func (h *RHHandler) ExportStatusCSV(c *gin.Context) {
+	if !h.canAccessRHTeam(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Acesso liberado somente para RH, administradores ou gestores com equipe configurada"})
+		return
+	}
 	statuses, err := h.rhRepo.ListStatuses()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+	if current := middleware.GetCurrentUser(c); current != nil && current.Role != models.RoleAdmin && current.Role != models.RoleRH {
+		filtered := make([]models.RHStatus, 0)
+		for _, status := range statuses {
+			if h.visibleToCurrent(c, status.Usuario) {
+				filtered = append(filtered, status)
+			}
+		}
+		statuses = filtered
 	}
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", "attachment; filename=controle_rh.csv")

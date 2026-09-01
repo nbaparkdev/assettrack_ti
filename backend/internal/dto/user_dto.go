@@ -30,20 +30,21 @@ type UserUpdateRequest struct {
 
 // UserResponse - user data returned to clients
 type UserResponse struct {
-	ID             uint             `json:"id"`
-	Email          string           `json:"email"`
-	Nome           string           `json:"nome"`
-	Matricula      *string          `json:"matricula"`
-	Cargo          *string          `json:"cargo"`
-	Role           string           `json:"role"`
-	IsActive       bool             `json:"is_active"`
-	AvatarURL      *string          `json:"avatar_url"`
-	DepartamentoID *uint            `json:"departamento_id"`
-	GestorID       *uint            `json:"gestor_id"`
-	Gestor         *UserSummaryDTO  `json:"gestor,omitempty"`
-	LocalizacaoID  *uint            `json:"localizacao_id"`
-	Departamento   *DepartamentoDTO `json:"departamento,omitempty"`
-	Localizacao    *LocalizacaoDTO  `json:"localizacao,omitempty"`
+	ID              uint             `json:"id"`
+	Email           string           `json:"email"`
+	Nome            string           `json:"nome"`
+	Matricula       *string          `json:"matricula"`
+	Cargo           *string          `json:"cargo"`
+	Role            string           `json:"role"`
+	IsActive        bool             `json:"is_active"`
+	AvatarURL       *string          `json:"avatar_url"`
+	HasRHManagement bool             `json:"has_rh_management"`
+	DepartamentoID  *uint            `json:"departamento_id"`
+	GestorID        *uint            `json:"gestor_id"`
+	Gestor          *UserSummaryDTO  `json:"gestor,omitempty"`
+	LocalizacaoID   *uint            `json:"localizacao_id"`
+	Departamento    *DepartamentoDTO `json:"departamento,omitempty"`
+	Localizacao     *LocalizacaoDTO  `json:"localizacao,omitempty"`
 }
 
 type ChangePasswordRequest struct {

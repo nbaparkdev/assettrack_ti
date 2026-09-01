@@ -18,6 +18,7 @@ export interface User {
   nome: string;
   role: UserRole;
   is_active: boolean;
+  has_rh_management?: boolean;
   show_on_monitoring?: boolean;
   matricula: string | null;
   cargo: string | null;

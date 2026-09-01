@@ -52,6 +52,7 @@ const RHMonthlyCalendar: React.FC<{ records: RHStatusRecord[]; sectorId: string 
 
 export const RHPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
+  const isRHAdmin = currentUser?.role === 'admin' || currentUser?.role === 'rh';
   const [termos, setTermos] = useState<TermoResponsabilidade[]>([]);
   const [pendentes, setPendentes] = useState<Solicitacao[]>([]);
   const [usuarios, setUsuarios] = useState<User[]>([]);
@@ -75,30 +76,30 @@ export const RHPage: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const data = await rhApi.list();
-      setTermos(data.termos ?? []);
-      setPendentes(data.pendentes ?? []);
+      if (isRHAdmin) {
+        const data = await rhApi.list();
+        setTermos(data.termos ?? []);
+        setPendentes(data.pendentes ?? []);
 
-      // Load active users
-      const res = await api.get<User[]>('/users');
-      setUsuarios((res.data || []).filter(u => {
-        // Must be active in the system
-        if (!u.is_active) return false;
-        
-        // Must NOT be an administrator
-        if (u.role === 'admin') return false;
-        
-        // Allowed roles: comum, rh, compras, gerentes, tecnico
-        const allowedRoles = ['usuario_comum', 'rh', 'comprador', 'gerente_ti', 'gerente_infra', 'tecnico'];
-        if (!allowedRoles.includes(u.role)) return false;
-        
-        return true;
-      }));
+        const res = await api.get<User[]>('/users');
+        setUsuarios((res.data || []).filter(u => {
+          if (!u.is_active) return false;
+          if (u.role === 'admin') return false;
+          const allowedRoles = ['usuario_comum', 'rh', 'comprador', 'gerente_ti', 'gerente_infra', 'tecnico'];
+          return allowedRoles.includes(u.role);
+        }));
+      } else {
+        setTermos([]);
+        setPendentes([]);
+        setUsuarios([]);
+      }
       setControl(await rhApi.control());
-      if (currentUser?.role === 'admin' || currentUser?.role === 'rh') {
+      if (isRHAdmin) {
         const tree = await rhApi.hierarchy();
         setHierarchy(tree);
         if (!hierarchySector && tree.setores[0]) setHierarchySector(String(tree.setores[0].id));
+      } else {
+        setHierarchy(null);
       }
     } catch (err) {
       console.error(err);
@@ -288,7 +289,7 @@ export const RHPage: React.FC = () => {
             })}
           </div>
 
-          {(currentUser?.role === 'admin' || currentUser?.role === 'rh') && hierarchy && <section className="border border-brand-border bg-brand-card p-5 space-y-4">
+          {isRHAdmin && hierarchy && <section className="border border-brand-border bg-brand-card p-5 space-y-4">
             <div className="flex items-start gap-3"><div className="rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><Network size={18} /></div><div><h2 className="text-base font-bold text-brand-text">Hierarquia por setor</h2><p className="mt-0.5 text-xs text-brand-muted">Defina o gestor e os subordinados que ele poderá acompanhar no Portal RH.</p></div></div>
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
               <select value={hierarchySector} onChange={e => setHierarchySector(e.target.value)} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text"><option value="">Selecione o setor</option>{hierarchy.setores.map(setor => <option key={setor.id} value={setor.id}>{setor.nome}</option>)}</select>
@@ -303,7 +304,7 @@ export const RHPage: React.FC = () => {
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <form onSubmit={saveStatus} className="border border-brand-border bg-brand-card p-5 space-y-4">
-              <div className="flex items-start gap-3"><div className="rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><ClipboardPlus size={18} /></div><div><div className="text-base font-bold text-brand-text">Registrar status</div><p className="mt-0.5 text-xs text-brand-muted">Inclua uma mudança de agenda no calendário do colaborador.</p></div></div>
+              <div className="flex items-start gap-3"><div className="rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><ClipboardPlus size={18} /></div><div><div className="text-base font-bold text-brand-text">Registrar status</div><p className="mt-0.5 text-xs text-brand-muted">{isRHAdmin ? 'Inclua uma mudança de agenda no calendário do colaborador.' : 'Controle folgas, férias e banco de horas somente da sua equipe configurada.'}</p></div></div>
               <select required value={statusForm.usuario_id} onChange={e => setStatusForm({ ...statusForm, usuario_id: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text">
                 <option value="">Selecione o colaborador</option>
                 {control.colaboradores.filter(c => c.usuario.is_active).map(c => <option key={c.usuario.id} value={c.usuario.id}>{c.usuario.nome}</option>)}
@@ -321,9 +322,9 @@ export const RHPage: React.FC = () => {
             </form>
 
             <form onSubmit={saveNotice} className="border border-brand-border bg-brand-card p-5 space-y-4">
-              <div className="flex items-start gap-3"><div className="rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><Megaphone size={18} /></div><div><div className="text-base font-bold text-brand-text">Novo comunicado</div><p className="mt-0.5 text-xs text-brand-muted">Envie uma mensagem individual ou para toda a empresa.</p></div></div>
-              <select value={noticeForm.usuario_id} onChange={e => setNoticeForm({ ...noticeForm, usuario_id: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text">
-                <option value="">Todos os colaboradores</option>
+              <div className="flex items-start gap-3"><div className="rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><Megaphone size={18} /></div><div><div className="text-base font-bold text-brand-text">Novo comunicado</div><p className="mt-0.5 text-xs text-brand-muted">{isRHAdmin ? 'Envie uma mensagem individual ou para toda a empresa.' : 'Envie comunicados apenas para subordinados da sua equipe.'}</p></div></div>
+              <select required={!isRHAdmin} value={noticeForm.usuario_id} onChange={e => setNoticeForm({ ...noticeForm, usuario_id: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text">
+                <option value="">{isRHAdmin ? 'Todos os colaboradores' : 'Selecione um subordinado'}</option>
                 {control.colaboradores.filter(c => c.usuario.is_active).map(c => <option key={c.usuario.id} value={c.usuario.id}>{c.usuario.nome}</option>)}
               </select>
               <input required placeholder="Título do comunicado" value={noticeForm.titulo} onChange={e => setNoticeForm({ ...noticeForm, titulo: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text" />
@@ -363,6 +364,7 @@ export const RHPage: React.FC = () => {
                   </div>
                 </div>;
               })}
+              {control.colaboradores.length === 0 && <div className="p-6 text-center text-sm text-brand-muted">Nenhum subordinado configurado para sua equipe.</div>}
             </div>
           </div>
 
@@ -373,13 +375,13 @@ export const RHPage: React.FC = () => {
 
           {(control.status.length > 0 || control.comunicados.length > 0) && <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="border border-brand-border bg-brand-card"><div className="p-4 border-b border-brand-border flex gap-2 text-sm font-bold font-mono uppercase tracking-wider text-brand-text"><Clock3 size={16} className="text-brand-primary" /> Agenda de RH</div><div className="divide-y divide-brand-border/60 max-h-72 overflow-y-auto">{control.status.slice(0, 20).map(s => <div className="p-3 flex justify-between gap-3" key={s.id}><div><span className="text-brand-text">{s.usuario?.nome || 'Colaborador'}</span><span className="ml-2 text-xs text-brand-muted">{new Date(s.inicio).toLocaleDateString('pt-BR')}{s.fim ? ` até ${new Date(s.fim).toLocaleDateString('pt-BR')}` : ''}</span><p className="text-xs text-brand-muted m-0 mt-1">{s.observacao || (s.horas ? `${s.horas}h registradas` : '')}</p></div><div className="flex gap-2 items-start"><span className={`text-[10px] font-mono uppercase px-2 py-1 border ${employeeStatus[s.tipo].className}`}>{employeeStatus[s.tipo].label}</span><button type="button" title="Remover registro" onClick={() => action(() => rhApi.deleteStatus(s.id), 'Remover este registro de calendário?')} className="text-red-400"><XCircle size={16} /></button></div></div>)}</div></div>
-            <div className="border border-brand-border bg-brand-card"><div className="p-4 border-b border-brand-border flex gap-2 text-sm font-bold font-mono uppercase tracking-wider text-brand-text"><MessageSquareText size={16} className="text-brand-primary" /> Comunicados enviados</div><div className="divide-y divide-brand-border/60 max-h-72 overflow-y-auto">{control.comunicados.slice(0, 20).map(n => <div className="p-3 flex justify-between gap-3" key={n.id}><div><span className="text-brand-text">{n.titulo}</span><span className="ml-2 text-xs text-brand-muted">{n.usuario?.nome || 'Todos os colaboradores'}</span><p className="text-xs text-brand-muted m-0 mt-1">{n.mensagem}</p></div><button type="button" title="Remover comunicado" onClick={() => action(() => rhApi.deleteComunicado(n.id), 'Remover este comunicado?')} className="text-red-400 h-fit"><XCircle size={16} /></button></div>)}</div></div>
+            <div className="border border-brand-border bg-brand-card"><div className="p-4 border-b border-brand-border flex gap-2 text-sm font-bold font-mono uppercase tracking-wider text-brand-text"><MessageSquareText size={16} className="text-brand-primary" /> Comunicados enviados</div><div className="divide-y divide-brand-border/60 max-h-72 overflow-y-auto">{control.comunicados.slice(0, 20).map(n => <div className="p-3 flex justify-between gap-3" key={n.id}><div><span className="text-brand-text">{n.titulo}</span><span className="ml-2 text-xs text-brand-muted">{n.usuario?.nome || 'Todos os colaboradores'}</span><p className="text-xs text-brand-muted m-0 mt-1">{n.mensagem}</p><span className="mt-1 block text-[10px] text-brand-muted">Enviado por {n.criado_por?.nome || 'RH'}</span></div><button type="button" title="Remover comunicado" onClick={() => action(() => rhApi.deleteComunicado(n.id), 'Remover este comunicado?')} className="text-red-400 h-fit"><XCircle size={16} /></button></div>)}</div></div>
           </div>}
         </>
       )}
 
       {/* Solicitações pendentes de termo */}
-      <div className="border border-brand-border bg-brand-card">
+      {isRHAdmin && <div className="border border-brand-border bg-brand-card">
         <div className="p-4 border-b border-brand-border text-sm font-bold font-mono uppercase tracking-wider text-brand-text flex items-center">
           <FileSignature size={16} className="mr-2 text-yellow-400" /> Solicitações pendentes de termo
         </div>
@@ -413,10 +415,10 @@ export const RHPage: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Termos */}
-      <div className="border border-brand-border bg-brand-card">
+      {isRHAdmin && <div className="border border-brand-border bg-brand-card">
         <div className="p-4 border-b border-brand-border text-sm font-bold font-mono uppercase tracking-wider text-brand-text">
           Termos de Responsabilidade
         </div>
@@ -481,10 +483,10 @@ export const RHPage: React.FC = () => {
             <div className="p-6 text-center text-brand-muted font-mono text-xs">Nenhum termo cadastrado.</div>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Desligamento de Colaborador */}
-      <div className="border border-brand-border bg-brand-card">
+      {isRHAdmin && <div className="border border-brand-border bg-brand-card">
         <div className="p-4 border-b border-brand-border text-sm font-bold font-mono uppercase tracking-wider text-red-500 flex items-center">
           <UserMinus size={16} className="mr-2" /> Desligamento de Colaborador (Offboarding)
         </div>
@@ -512,7 +514,7 @@ export const RHPage: React.FC = () => {
             <div className="p-6 text-center text-brand-muted font-mono text-xs">Nenhum colaborador ativo encontrado.</div>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Modal */}
       {modal && (

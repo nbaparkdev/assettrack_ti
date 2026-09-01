@@ -33,6 +33,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseMobile }) => {
   const { user, logout } = useAuthStore();
   const userRole = user?.role?.toLowerCase() || '';
+  const hasRHManagement = !!user?.has_rh_management;
   const [collapsed, setCollapsed] = useState(() => {
     const saved = localStorage.getItem('assettrack-sidebar-collapsed');
     return saved ? saved === 'true' : window.matchMedia('(max-width: 1279px)').matches;
@@ -63,7 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
     { name: 'Alertas', path: '/alertas', icon: BellRing, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
     { name: 'Empréstimos', path: '/emprestimos', icon: ArrowLeftRight },
     { name: 'Compras', path: '/compras', icon: Briefcase, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'comprador'] },
-    { name: 'Portal RH', path: '/rh', icon: FileSignature, roleLimit: ['admin', 'rh', 'gerente_ti', 'gerente_infra'] },
+    { name: 'Portal RH', path: '/rh', icon: FileSignature, roleLimit: ['admin', 'rh'], allowRHManagement: true },
     { name: 'Usuários', path: '/users', icon: Users, roleLimit: ['admin', 'gerente_ti', 'gerente_infra'] },
     { name: 'Webhooks', path: '/webhooks', icon: Webhook, roleLimit: ['admin'] },
     { name: 'Backup & Restore', path: '/backups', icon: Database, roleLimit: ['admin', 'gerente_ti', 'gerente_infra'] },
@@ -77,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
   ];
 
   const visibleAdminModules = adminModules.filter(
-    item => !item.roleLimit || item.roleLimit.includes(userRole)
+    item => !item.roleLimit || item.roleLimit.includes(userRole) || (item as any).allowRHManagement && hasRHManagement
   );
 
   const renderNavContent = (isMobileView: boolean) => (
@@ -150,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
         {/* Navigation */}
         <nav className={`p-3 space-y-1 flex-1 overflow-y-auto ${!isMobileView && collapsed ? 'px-2' : ''}`}>
           {menuItems.map((item) => {
-            if (item.roleLimit && !item.roleLimit.includes(userRole)) {
+            if (item.roleLimit && !item.roleLimit.includes(userRole) && !((item as any).allowRHManagement && hasRHManagement)) {
               return null;
             }
             return (

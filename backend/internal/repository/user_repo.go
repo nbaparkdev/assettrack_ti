@@ -60,6 +60,18 @@ func (r *UserRepository) SetShowOnMonitoring(userID uint, show bool) error {
 	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("show_on_monitoring", show).Error
 }
 
+func (r *UserRepository) CountDirectReports(userID uint) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.User{}).Where("gestor_id = ? AND is_active = true", userID).Count(&count).Error
+	return count, err
+}
+
+func (r *UserRepository) CountManagedDepartments(userID uint) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Departamento{}).Where("responsavel_id = ?", userID).Count(&count).Error
+	return count, err
+}
+
 func (r *UserRepository) Delete(id uint) error {
 	return r.db.Delete(&models.User{}, id).Error
 }

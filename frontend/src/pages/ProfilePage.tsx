@@ -15,6 +15,8 @@ const rhStatusMeta: Record<RHStatusType, { label: string; className: string }> =
   desligado: { label: 'Desligado', className: 'text-red-400 border-red-500/30 bg-red-500/10' },
 };
 
+const formatDate = (value: string) => new Date(value).toLocaleDateString('pt-BR');
+
 export const ProfilePage: React.FC = () => {
   const { user, logout, checkAuth } = useAuthStore();
   
@@ -165,6 +167,19 @@ export const ProfilePage: React.FC = () => {
   if (!user) return null;
 
   const avatarUrl = toApiFileUrl(user.avatar_url);
+  const today = new Date();
+  const rhCalendar = rhPortal?.calendario ?? [];
+  const upcomingCalendar = rhCalendar
+    .filter(item => new Date(item.fim || item.inicio) >= today)
+    .slice()
+    .sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime());
+  const recentCalendar = rhCalendar
+    .filter(item => new Date(item.fim || item.inicio) < today)
+    .slice()
+    .sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
+  const bancoHorasTotal = rhCalendar
+    .filter(item => item.tipo === 'banco_horas' && typeof item.horas === 'number')
+    .reduce((total, item) => total + Number(item.horas || 0), 0);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-8">
@@ -219,9 +234,21 @@ export const ProfilePage: React.FC = () => {
           {rhPortal && <div className="bg-brand-card border border-brand-border">
             <div className="p-4 border-b border-brand-border flex items-center gap-2"><CalendarDays size={17} className="text-brand-primary" /><h3 className="text-sm font-bold font-mono uppercase tracking-wider text-brand-text m-0">Minha situação RH</h3></div>
             <div className="p-4 space-y-4">
-              <div><span className="text-xs text-brand-muted font-mono uppercase">Status atual</span><div className={`w-fit mt-1 text-xs font-bold font-mono uppercase px-2 py-1 border ${rhStatusMeta[rhPortal.status_atual].className}`}>{rhStatusMeta[rhPortal.status_atual].label}</div></div>
-              {rhPortal.calendario.filter(item => new Date(item.fim || '2999-12-31') >= new Date()).slice(0, 3).map(item => <div key={item.id} className="border-t border-brand-border pt-3"><div className="text-sm text-brand-text capitalize">{rhStatusMeta[item.tipo].label}</div><div className="text-xs text-brand-muted">{new Date(item.inicio).toLocaleDateString('pt-BR')}{item.fim ? ` até ${new Date(item.fim).toLocaleDateString('pt-BR')}` : ''}</div>{item.observacao && <div className="text-xs text-brand-muted mt-1">{item.observacao}</div>}</div>)}
-              {rhPortal.calendario.length === 0 && <p className="text-xs text-brand-muted m-0">Nenhum período programado.</p>}
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className="text-xs text-brand-muted font-mono uppercase">Status atual</span><div className={`w-fit mt-1 text-xs font-bold font-mono uppercase px-2 py-1 border ${rhStatusMeta[rhPortal.status_atual].className}`}>{rhStatusMeta[rhPortal.status_atual].label}</div></div>
+                <div><span className="text-xs text-brand-muted font-mono uppercase">Banco de horas</span><div className="mt-1 text-sm font-semibold text-brand-text">{bancoHorasTotal ? `${bancoHorasTotal}h registradas` : 'Sem saldo registrado'}</div></div>
+              </div>
+              <div className="border-t border-brand-border pt-3">
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-brand-muted">Agenda programada</div>
+                <div className="space-y-2">
+                  {upcomingCalendar.slice(0, 6).map(item => <div key={item.id} className="rounded-lg border border-brand-border/70 bg-white/60 p-3"><div className="flex items-center justify-between gap-2"><span className={`text-[10px] font-bold uppercase px-2 py-1 border ${rhStatusMeta[item.tipo].className}`}>{rhStatusMeta[item.tipo].label}</span><span className="text-[10px] text-brand-muted">{formatDate(item.inicio)}{item.fim ? ` até ${formatDate(item.fim)}` : ''}</span></div>{item.horas ? <div className="mt-1 text-xs text-amber-700">{item.horas}h em banco de horas</div> : null}{item.observacao && <div className="text-xs text-brand-muted mt-1">{item.observacao}</div>}</div>)}
+                  {upcomingCalendar.length === 0 && <p className="text-xs text-brand-muted m-0">Nenhum período futuro programado.</p>}
+                </div>
+              </div>
+              {recentCalendar.length > 0 && <div className="border-t border-brand-border pt-3">
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-brand-muted">Histórico recente</div>
+                <div className="space-y-2">{recentCalendar.slice(0, 4).map(item => <div key={item.id} className="flex items-start justify-between gap-2 text-xs"><span className="text-brand-text">{rhStatusMeta[item.tipo].label}</span><span className="shrink-0 text-brand-muted">{formatDate(item.inicio)}{item.fim ? ` até ${formatDate(item.fim)}` : ''}</span></div>)}</div>
+              </div>}
             </div>
           </div>}
 
@@ -231,7 +258,7 @@ export const ProfilePage: React.FC = () => {
               const isUpdate = comunicado.titulo.startsWith('Atualização do RH:');
               return <article className={`relative rounded-xl border p-4 transition-colors ${lida ? 'border-brand-border bg-white/60' : 'border-brand-primary/30 bg-brand-primary/5 shadow-sm'}`} key={comunicado.id}>
                 {!lida && <span aria-label="Não lido" className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-brand-primary" />}
-                <div className="flex gap-3"><div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isUpdate ? 'bg-violet-500/10 text-violet-600' : 'bg-brand-primary/10 text-brand-primary'}`}>{isUpdate ? <CalendarDays size={17} /> : <BellRing size={17} />}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2 pr-5"><h4 className="text-sm font-semibold text-brand-text m-0">{comunicado.titulo}</h4><span className={`text-[10px] font-bold uppercase tracking-wide ${isUpdate ? 'text-violet-600' : 'text-brand-primary'}`}>{isUpdate ? 'Atualização' : comunicado.usuario_id ? 'Individual' : 'Comunicado geral'}</span></div><p className="mt-2 text-xs leading-relaxed text-brand-muted">{comunicado.mensagem}</p>{!lida && <button onClick={async () => { await rhApi.markMyComunicadoRead(comunicado.id); const data = await rhApi.myPortal(); setRhPortal(data); }} className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#4d4c4c] bg-[#f6f9fe] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#c12525] shadow-sm hover:bg-[#eef2f8] focus:outline-none focus:ring-2 focus:ring-[#c12525]/25"><Check size={13} strokeWidth={3} />Confirmar leitura</button>}</div></div>
+                <div className="flex gap-3"><div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isUpdate ? 'bg-violet-500/10 text-violet-600' : 'bg-brand-primary/10 text-brand-primary'}`}>{isUpdate ? <CalendarDays size={17} /> : <BellRing size={17} />}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2 pr-5"><h4 className="text-sm font-semibold text-brand-text m-0">{comunicado.titulo}</h4><span className={`text-[10px] font-bold uppercase tracking-wide ${isUpdate ? 'text-violet-600' : 'text-brand-primary'}`}>{isUpdate ? 'Atualização' : comunicado.usuario_id ? 'Individual' : 'Comunicado geral'}</span></div><p className="mt-2 text-xs leading-relaxed text-brand-muted">{comunicado.mensagem}</p><span className="mt-2 block text-[10px] text-brand-muted">Enviado por {comunicado.criado_por?.nome || 'RH'}</span>{!lida && <button onClick={async () => { await rhApi.markMyComunicadoRead(comunicado.id); const data = await rhApi.myPortal(); setRhPortal(data); }} className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#4d4c4c] bg-[#f6f9fe] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#c12525] shadow-sm hover:bg-[#eef2f8] focus:outline-none focus:ring-2 focus:ring-[#c12525]/25"><Check size={13} strokeWidth={3} />Confirmar leitura</button>}</div></div>
               </article>;
             })}</div>
           </div>}
