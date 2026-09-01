@@ -68,3 +68,17 @@ type RHComunicadoLeitura struct {
 }
 
 func (RHComunicadoLeitura) TableName() string { return "rh_comunicado_leituras" }
+
+type RHMensagem struct {
+	ID             uint       `gorm:"primaryKey" json:"id"`
+	RemetenteID    uint       `gorm:"column:remetente_id;not null;index" json:"remetente_id"`
+	DestinatarioID uint       `gorm:"column:destinatario_id;not null;index" json:"destinatario_id"`
+	Assunto        string     `gorm:"not null" json:"assunto"`
+	Mensagem       string     `gorm:"type:text;not null" json:"mensagem"`
+	CriadoEm       time.Time  `gorm:"column:criado_em;autoCreateTime" json:"criado_em"`
+	ConfirmadoEm   *time.Time `gorm:"column:confirmado_em" json:"confirmado_em"`
+	Remetente      *User      `gorm:"foreignKey:RemetenteID" json:"remetente,omitempty"`
+	Destinatario   *User      `gorm:"foreignKey:DestinatarioID" json:"destinatario,omitempty"`
+}
+
+func (RHMensagem) TableName() string { return "rh_mensagens" }

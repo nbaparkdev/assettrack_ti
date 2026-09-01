@@ -35,10 +35,12 @@ type User struct {
 	QRTokenCreatedAt *time.Time `gorm:"column:qr_token_created_at" json:"-"`
 	PINHash          *string    `gorm:"column:pin_hash" json:"-"`
 	DepartamentoID   *uint      `gorm:"column:departamento_id" json:"departamento_id"`
+	GestorID         *uint      `gorm:"column:gestor_id;index" json:"gestor_id"`
 	LocalizacaoID    *uint      `gorm:"column:localizacao_id" json:"localizacao_id"`
 
 	// Relationships (loaded explicitly)
 	Departamento *Departamento `gorm:"foreignKey:DepartamentoID" json:"departamento,omitempty"`
+	Gestor       *User         `gorm:"foreignKey:GestorID" json:"gestor,omitempty"`
 	Localizacao  *Localizacao  `gorm:"foreignKey:LocalizacaoID" json:"localizacao,omitempty"`
 
 	SolicitacoesManutencao            []SolicitacaoManutencao `gorm:"foreignKey:SolicitanteID;constraint:OnDelete:SET NULL" json:"solicitacoes_manutencao,omitempty"`

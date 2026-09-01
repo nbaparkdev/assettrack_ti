@@ -93,6 +93,7 @@ func main() {
 		&models.RHStatus{},
 		&models.RHComunicado{},
 		&models.RHComunicadoLeitura{},
+		&models.RHMensagem{},
 		&models.Webhook{},
 		&models.WebhookLog{},
 		&models.SystemSetting{},

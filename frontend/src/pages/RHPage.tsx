@@ -4,7 +4,8 @@ import { apiClient as api, toApiFileUrl } from '../api/client';
 import type { TermoResponsabilidade, RHControlResponse, RHStatusType, RHStatusRecord } from '../types/rh';
 import type { Solicitacao } from '../types/transaction';
 import type { User } from '../types/user';
-import { FileSignature, Printer, CheckCircle2, XCircle, Edit2, Plus, UserMinus, CalendarDays, MessageSquareText, UsersRound, Clock3, Download, ClipboardPlus, Megaphone, LayoutDashboard, Eye, EyeOff } from 'lucide-react';
+import { FileSignature, Printer, CheckCircle2, XCircle, Edit2, Plus, UserMinus, CalendarDays, MessageSquareText, UsersRound, Clock3, Download, ClipboardPlus, Megaphone, LayoutDashboard, Eye, EyeOff, Search, Network } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
 import jsPDF from 'jspdf';
 
 const statusStyles: Record<string, string> = {
@@ -50,6 +51,7 @@ const RHMonthlyCalendar: React.FC<{ records: RHStatusRecord[]; sectorId: string 
 };
 
 export const RHPage: React.FC = () => {
+  const { user: currentUser } = useAuthStore();
   const [termos, setTermos] = useState<TermoResponsabilidade[]>([]);
   const [pendentes, setPendentes] = useState<Solicitacao[]>([]);
   const [usuarios, setUsuarios] = useState<User[]>([]);
@@ -65,6 +67,11 @@ export const RHPage: React.FC = () => {
   const [statusForm, setStatusForm] = useState({ usuario_id: '', tipo: 'folga', inicio: dateInputValue(), fim: '', horas: '', observacao: '' });
   const [noticeForm, setNoticeForm] = useState({ usuario_id: '', titulo: '', mensagem: '', inicio: dateInputValue(), fim: '' });
   const [calendarSector, setCalendarSector] = useState('');
+  const [hierarchy, setHierarchy] = useState<{ setores: Array<{ id: number; nome: string; responsavel_id?: number | null }>; usuarios: User[] } | null>(null);
+  const [hierarchySector, setHierarchySector] = useState('');
+  const [hierarchyManager, setHierarchyManager] = useState('');
+  const [hierarchySearch, setHierarchySearch] = useState('');
+  const [hierarchyMembers, setHierarchyMembers] = useState<number[]>([]);
 
   const fetchData = async () => {
     try {
@@ -88,6 +95,11 @@ export const RHPage: React.FC = () => {
         return true;
       }));
       setControl(await rhApi.control());
+      if (currentUser?.role === 'admin' || currentUser?.role === 'rh') {
+        const tree = await rhApi.hierarchy();
+        setHierarchy(tree);
+        if (!hierarchySector && tree.setores[0]) setHierarchySector(String(tree.setores[0].id));
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -100,6 +112,21 @@ export const RHPage: React.FC = () => {
     const interval = window.setInterval(fetchData, 30000);
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const sector = hierarchy?.setores.find(item => String(item.id) === hierarchySector);
+    setHierarchyManager(sector?.responsavel_id ? String(sector.responsavel_id) : '');
+    setHierarchyMembers(hierarchy?.usuarios.filter(item => String(item.departamento_id) === hierarchySector && item.gestor_id === (sector?.responsavel_id ?? -1)).map(item => item.id) ?? []);
+  }, [hierarchySector, hierarchy]);
+
+  const saveHierarchy = async () => {
+    if (!hierarchySector) return;
+    try {
+      await rhApi.updateHierarchy({ departamento_id: Number(hierarchySector), gestor_id: hierarchyManager ? Number(hierarchyManager) : undefined, subordinado_ids: hierarchyMembers });
+      alert('Hierarquia salva com sucesso.');
+      const tree = await rhApi.hierarchy(); setHierarchy(tree);
+    } catch (err: any) { alert(err.response?.data?.error || 'Não foi possível salvar a hierarquia.'); }
+  };
 
   const saveStatus = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,6 +287,19 @@ export const RHPage: React.FC = () => {
               </div>;
             })}
           </div>
+
+          {(currentUser?.role === 'admin' || currentUser?.role === 'rh') && hierarchy && <section className="border border-brand-border bg-brand-card p-5 space-y-4">
+            <div className="flex items-start gap-3"><div className="rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><Network size={18} /></div><div><h2 className="text-base font-bold text-brand-text">Hierarquia por setor</h2><p className="mt-0.5 text-xs text-brand-muted">Defina o gestor e os subordinados que ele poderá acompanhar no Portal RH.</p></div></div>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+              <select value={hierarchySector} onChange={e => setHierarchySector(e.target.value)} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text"><option value="">Selecione o setor</option>{hierarchy.setores.map(setor => <option key={setor.id} value={setor.id}>{setor.nome}</option>)}</select>
+              <select value={hierarchyManager} onChange={e => setHierarchyManager(e.target.value)} className="bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text"><option value="">Sem gestor atribuído</option>{hierarchy.usuarios.filter(item => item.is_active && item.role !== 'admin').map(item => <option key={item.id} value={item.id}>{item.nome} · {item.departamento?.nome || 'Sem setor'}</option>)}</select>
+              <button type="button" onClick={saveHierarchy} className="inline-flex items-center justify-center gap-2 bg-brand-primary px-4 py-2 text-xs font-bold uppercase tracking-wide text-brand-dark"><CheckCircle2 size={15} />Salvar hierarquia</button>
+            </div>
+            <div className="relative"><Search size={15} className="absolute left-3 top-2.5 text-brand-muted" /><input value={hierarchySearch} onChange={e => setHierarchySearch(e.target.value)} placeholder="Buscar subordinado por nome ou setor" className="w-full bg-brand-dark border border-brand-border py-2 pl-9 pr-3 text-sm text-brand-text" /></div>
+            <div className="grid max-h-56 grid-cols-1 gap-2 overflow-y-auto md:grid-cols-2">
+              {hierarchy.usuarios.filter(item => item.is_active && item.id !== Number(hierarchyManager) && (String(item.departamento_id) === hierarchySector || item.gestor_id === Number(hierarchyManager)) && `${item.nome} ${item.departamento?.nome || ''}`.toLowerCase().includes(hierarchySearch.toLowerCase())).map(item => <label key={item.id} className="flex cursor-pointer items-center gap-3 border border-brand-border/70 px-3 py-2 text-sm text-brand-text"><input type="checkbox" checked={hierarchyMembers.includes(item.id)} onChange={e => setHierarchyMembers(current => e.target.checked ? [...new Set([...current, item.id])] : current.filter(id => id !== item.id))} /> <span>{item.nome}</span><span className="ml-auto text-[10px] text-brand-muted">{item.departamento?.nome || 'Sem setor'}</span></label>)}
+            </div>
+          </section>}
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <form onSubmit={saveStatus} className="border border-brand-border bg-brand-card p-5 space-y-4">

@@ -126,6 +126,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	rManager := middleware.RequireManagerOrAbove()
 	rManagerOrRH := middleware.RequireManagerOrRH()
 	rRH := middleware.RequireRH()
+	rRHOrManager := middleware.RequireRHOrManager()
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -421,8 +422,10 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		}
 
 		// RH — Termos de Responsabilidade (protected, RH/admin/gerentes)
-		rh := v1.Group("/rh", authMW, rActive, rRH)
+		rh := v1.Group("/rh", authMW, rActive, rRHOrManager)
 		{
+			rh.GET("/hierarquia", rRH, rhHandler.Hierarchy)
+			rh.PUT("/hierarquia", rRH, rhHandler.UpdateHierarchy)
 			rh.GET("/termos", rhHandler.List)
 			rh.GET("/controle", rhHandler.StatusDashboard)
 			rh.GET("/controle/export.csv", rhHandler.ExportStatusCSV)
@@ -495,6 +498,9 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		{
 			prof.PUT("", userHandler.UpdateProfile)
 			prof.GET("/rh", rhHandler.MyPortal)
+			prof.GET("/mensagens", rhHandler.ListMessages)
+			prof.POST("/mensagens", rhHandler.CreateMessage)
+			prof.POST("/mensagens/:id/confirmar", rhHandler.ConfirmMessage)
 			prof.POST("/rh/comunicados/:id/lida", rhHandler.MarkMyComunicadoRead)
 			prof.POST("/avatar", userHandler.UploadAvatar)
 			prof.PUT("/password", userHandler.ChangePassword)

@@ -62,6 +62,10 @@ func (h *UserHandler) HistoryReport(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"detail": "User not found"})
 		return
 	}
+	if !h.canAccessUser(c, user) {
+		c.JSON(http.StatusForbidden, gin.H{"detail": "Você só pode consultar usuários da sua equipe"})
+		return
+	}
 
 	if user.QRToken == nil || *user.QRToken == "" {
 		newToken, tokenErr := h.userRepo.RegenerateQRToken(user.ID)
@@ -180,6 +184,15 @@ func (h *UserHandler) List(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": "Failed to fetch users"})
 		return
 	}
+	if current := middleware.GetCurrentUser(c); current != nil && current.Role != models.RoleAdmin && current.Role != models.RoleRH {
+		visible := make([]models.User, 0)
+		for i := range users {
+			if h.canAccessUser(c, &users[i]) {
+				visible = append(visible, users[i])
+			}
+		}
+		users = visible
+	}
 
 	result := make([]dto.UserResponse, len(users))
 	for i, u := range users {
@@ -220,6 +233,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 		IsActive:       req.IsActive,
 		DepartamentoID: req.DepartamentoID,
 		LocalizacaoID:  req.LocalizacaoID,
+		GestorID:       req.GestorID,
 	}
 	if req.Matricula != "" {
 		user.Matricula = &req.Matricula
@@ -250,8 +264,23 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"detail": "User not found"})
 		return
 	}
+	if !h.canAccessUser(c, user) {
+		c.JSON(http.StatusForbidden, gin.H{"detail": "Você só pode consultar usuários da sua equipe"})
+		return
+	}
 
 	c.JSON(http.StatusOK, toUserResponse(user))
+}
+
+func (h *UserHandler) canAccessUser(c *gin.Context, target *models.User) bool {
+	current := middleware.GetCurrentUser(c)
+	if current == nil || target == nil {
+		return false
+	}
+	if current.Role == models.RoleAdmin || current.Role == models.RoleRH {
+		return true
+	}
+	return target.GestorID != nil && *target.GestorID == current.ID
 }
 
 // Update PUT /api/v1/users/:id
@@ -297,6 +326,13 @@ func (h *UserHandler) Update(c *gin.Context) {
 	}
 	if req.LocalizacaoID != nil {
 		user.LocalizacaoID = req.LocalizacaoID
+	}
+	if req.GestorID != nil {
+		if *req.GestorID == user.ID {
+			c.JSON(http.StatusBadRequest, gin.H{"detail": "Um usuário não pode ser seu próprio gestor"})
+			return
+		}
+		user.GestorID = req.GestorID
 	}
 	if req.Password != nil {
 		hash, err := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
@@ -473,6 +509,7 @@ func toUserResponse(u *models.User) *dto.UserResponse {
 		IsActive:       u.IsActive,
 		AvatarURL:      u.AvatarURL,
 		DepartamentoID: u.DepartamentoID,
+		GestorID:       u.GestorID,
 		LocalizacaoID:  u.LocalizacaoID,
 	}
 	if u.Departamento != nil {
@@ -483,6 +520,9 @@ func toUserResponse(u *models.User) *dto.UserResponse {
 	}
 	if u.Localizacao != nil {
 		resp.Localizacao = &dto.LocalizacaoDTO{ID: u.Localizacao.ID, Nome: u.Localizacao.Nome}
+	}
+	if u.Gestor != nil {
+		resp.Gestor = &dto.UserSummaryDTO{ID: u.Gestor.ID, Nome: u.Gestor.Nome}
 	}
 	return resp
 }

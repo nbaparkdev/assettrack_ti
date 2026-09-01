@@ -22,6 +22,8 @@ export interface User {
   matricula: string | null;
   cargo: string | null;
   departamento_id: number | null;
+  gestor_id?: number | null;
+  gestor?: { id: number; nome: string } | null;
   departamento: Departamento | null;
   localizacao_id: number | null;
   localizacao: { id: number; nome: string } | null;

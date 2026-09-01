@@ -3,6 +3,8 @@ import type { TermoResponsabilidade, RHListResponse, RHControlResponse, RHStatus
 import type { Solicitacao } from '../types/transaction';
 
 export const rhApi = {
+  hierarchy: async (): Promise<{ setores: Array<{ id: number; nome: string; responsavel_id?: number | null }>; usuarios: import('../types/user').User[] }> => (await apiClient.get('/rh/hierarquia')).data,
+  updateHierarchy: async (data: { departamento_id: number; gestor_id?: number; subordinado_ids: number[] }): Promise<void> => { await apiClient.put('/rh/hierarquia', data); },
   list: async (): Promise<RHListResponse> => {
     const response = await apiClient.get<RHListResponse>('/rh/termos');
     return response.data;
@@ -47,6 +49,9 @@ export const rhApi = {
   deleteComunicado: async (id: number): Promise<void> => { await apiClient.delete(`/rh/comunicados/${id}`); },
   myPortal: async (): Promise<MyRHPortal> => (await apiClient.get<MyRHPortal>('/profile/rh')).data,
   markMyComunicadoRead: async (id: number): Promise<void> => { await apiClient.post(`/profile/rh/comunicados/${id}/lida`); },
+  messages: async (): Promise<{ mensagens: Array<any>; contatos: Array<{ id: number; nome: string }> }> => (await apiClient.get('/profile/mensagens')).data,
+  sendMessage: async (data: { destinatario_id: number; assunto: string; mensagem: string }): Promise<void> => { await apiClient.post('/profile/mensagens', data); },
+  confirmMessage: async (id: number): Promise<void> => { await apiClient.post(`/profile/mensagens/${id}/confirmar`); },
   exportStatusCSV: async (): Promise<Blob> => (await apiClient.get('/rh/controle/export.csv', { responseType: 'blob' })).data,
   monitoringTeam: async (): Promise<RHMonitoringTeamResponse> => (await apiClient.get<RHMonitoringTeamResponse>('/monitoramento/equipe-rh')).data,
 };

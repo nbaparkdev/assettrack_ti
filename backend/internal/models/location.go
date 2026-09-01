@@ -5,6 +5,7 @@ type Departamento struct {
 	ID            uint   `gorm:"primaryKey" json:"id"`
 	Nome          string `gorm:"uniqueIndex;not null" json:"nome"`
 	ResponsavelID *uint  `gorm:"column:responsavel_id" json:"responsavel_id"`
+	Responsavel   *User  `gorm:"foreignKey:ResponsavelID" json:"responsavel,omitempty"`
 }
 
 func (Departamento) TableName() string { return "departamentos" }

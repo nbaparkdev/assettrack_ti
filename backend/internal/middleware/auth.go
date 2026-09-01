@@ -139,6 +139,17 @@ func RequireRH() gin.HandlerFunc {
 	}
 }
 
+func RequireRHOrManager() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user := GetCurrentUser(c)
+		if user == nil || (!user.CanManageRH() && !user.IsManagerOrAbove()) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"detail": "Acesso restrito ao RH, administradores e gestores"})
+			return
+		}
+		c.Next()
+	}
+}
+
 // GetCurrentUser extracts user from gin context
 func GetCurrentUser(c *gin.Context) *models.User {
 	val, exists := c.Get(ContextUserKey)

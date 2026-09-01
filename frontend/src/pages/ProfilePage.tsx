@@ -30,6 +30,8 @@ export const ProfilePage: React.FC = () => {
   const [savingPassword, setSavingPassword] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [rhPortal, setRhPortal] = useState<MyRHPortal | null>(null);
+  const [messages, setMessages] = useState<{ mensagens: any[]; contatos: Array<{ id: number; nome: string }> }>({ mensagens: [], contatos: [] });
+  const [messageForm, setMessageForm] = useState({ destinatario_id: '', assunto: '', mensagem: '' });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const notifiedRHIds = useRef<Set<number>>(new Set());
@@ -54,6 +56,7 @@ export const ProfilePage: React.FC = () => {
           void notifyAndroid(item.comunicado.titulo, item.comunicado.mensagem, { rh_comunicado_id: item.comunicado.id });
         });
         setRhPortal(data);
+        setMessages(await rhApi.messages());
       } catch { /* RH data must not block profile access */ }
     };
     void loadRH();
@@ -147,6 +150,16 @@ export const ProfilePage: React.FC = () => {
       processAndUploadAvatar(file);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const sendPrivateMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await rhApi.sendMessage({ destinatario_id: Number(messageForm.destinatario_id), assunto: messageForm.assunto, mensagem: messageForm.mensagem });
+      setMessageForm({ destinatario_id: '', assunto: '', mensagem: '' });
+      setMessages(await rhApi.messages());
+      alert('Mensagem enviada com sucesso.');
+    } catch (err: any) { alert(err.response?.data?.error || 'Não foi possível enviar a mensagem.'); }
   };
 
   if (!user) return null;
@@ -272,6 +285,12 @@ export const ProfilePage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+
+          <div className="bg-brand-card border border-brand-border">
+            <div className="p-5 border-b border-brand-border flex items-center"><div className="mr-3 rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><MessageSquareText size={18} /></div><div><h3 className="text-base font-bold text-brand-text m-0">Comunicação privada</h3><p className="text-xs text-brand-muted mt-0.5">Converse somente com seu gestor ou com RH.</p></div></div>
+            <form onSubmit={sendPrivateMessage} className="p-5 space-y-3"><select required value={messageForm.destinatario_id} onChange={e => setMessageForm({ ...messageForm, destinatario_id: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2.5 text-sm text-brand-text"><option value="">Selecione o destinatário</option>{messages.contatos.filter(item => item.id !== user.id).map(item => <option key={item.id} value={item.id}>{item.nome}</option>)}</select><input required placeholder="Assunto" value={messageForm.assunto} onChange={e => setMessageForm({ ...messageForm, assunto: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2.5 text-sm text-brand-text" /><textarea required placeholder="Escreva sua mensagem" value={messageForm.mensagem} onChange={e => setMessageForm({ ...messageForm, mensagem: e.target.value })} className="w-full min-h-24 bg-brand-dark border border-brand-border px-3 py-2.5 text-sm text-brand-text" /><button className="bg-brand-primary px-4 py-2 text-xs font-bold uppercase tracking-wide text-brand-dark">Enviar mensagem</button></form>
+            {messages.mensagens.length > 0 && <div className="border-t border-brand-border divide-y divide-brand-border/60">{messages.mensagens.slice(0, 8).map(message => <div key={message.id} className="p-4 text-sm"><div className="flex justify-between gap-3"><strong className="text-brand-text">{message.assunto}</strong>{message.destinatario_id === user.id && !message.confirmado_em && <button type="button" onClick={async () => { await rhApi.confirmMessage(message.id); setMessages(await rhApi.messages()); }} className="text-xs font-bold text-brand-primary">Confirmar recebimento</button>}</div><p className="mt-1 text-xs text-brand-muted">{message.mensagem}</p><span className="text-[10px] text-brand-muted">{message.remetente?.nome} · {new Date(message.criado_em).toLocaleString('pt-BR')}</span></div>)}</div>}
           </div>
 
           <div className="bg-brand-card border border-brand-border">

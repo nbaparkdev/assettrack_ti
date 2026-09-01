@@ -187,6 +187,8 @@ Módulo desenhado para fechar o ciclo de entrega de equipamentos, oferecendo res
 - **Exibição na Sala de Monitoramento:** Colaboradores marcados pelo RH aparecem na rota `/monitoramento` com avatar do perfil, primeiro nome, status atual e horas quando o status for `Banco de horas`.
 - **Comunicados de RH:** Publicação de comunicados direcionados ou gerais para colaboradores, com controle de leitura pelo portal individual.
 - **Portal RH do Colaborador:** Usuário consulta seu status atual, calendário de RH e comunicados no perfil.
+- **Hierarquia por setor:** RH e administradores atribuem o gestor de cada setor e selecionam subordinados por nome. Gestores acessam apenas sua equipe configurada.
+- **Comunicação privada:** Usuários enviam mensagens ao gestor direto ou ao RH/admin, sem exposição aos colegas, com confirmação de recebimento registrada.
 - **Desligamento:** Fluxo administrativo para marcar colaborador como desligado e refletir o estado no painel de controle.
 - **Exportação CSV:** Exportação do controle de status da equipe para conferência e arquivamento.
 

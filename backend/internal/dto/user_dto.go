@@ -10,6 +10,7 @@ type UserCreateRequest struct {
 	Role           string `json:"role,omitempty"`
 	IsActive       bool   `json:"is_active"`
 	DepartamentoID *uint  `json:"departamento_id,omitempty"`
+	GestorID       *uint  `json:"gestor_id,omitempty"`
 	LocalizacaoID  *uint  `json:"localizacao_id,omitempty"`
 }
 
@@ -23,6 +24,7 @@ type UserUpdateRequest struct {
 	Role           *string `json:"role,omitempty"`
 	IsActive       *bool   `json:"is_active,omitempty"`
 	DepartamentoID *uint   `json:"departamento_id,omitempty"`
+	GestorID       *uint   `json:"gestor_id,omitempty"`
 	LocalizacaoID  *uint   `json:"localizacao_id,omitempty"`
 }
 
@@ -37,6 +39,8 @@ type UserResponse struct {
 	IsActive       bool             `json:"is_active"`
 	AvatarURL      *string          `json:"avatar_url"`
 	DepartamentoID *uint            `json:"departamento_id"`
+	GestorID       *uint            `json:"gestor_id"`
+	Gestor         *UserSummaryDTO  `json:"gestor,omitempty"`
 	LocalizacaoID  *uint            `json:"localizacao_id"`
 	Departamento   *DepartamentoDTO `json:"departamento,omitempty"`
 	Localizacao    *LocalizacaoDTO  `json:"localizacao,omitempty"`
@@ -54,6 +58,11 @@ type DepartamentoDTO struct {
 }
 
 type LocalizacaoDTO struct {
+	ID   uint   `json:"id"`
+	Nome string `json:"nome"`
+}
+
+type UserSummaryDTO struct {
 	ID   uint   `json:"id"`
 	Nome string `json:"nome"`
 }

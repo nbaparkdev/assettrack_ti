@@ -193,6 +193,8 @@ Para controle legal, o sistema oferece um módulo dedicado à emissão de **Term
 5. **Status da Equipe:** Na área **Status atual da equipe**, o RH visualiza se cada colaborador está trabalhando, de folga, em férias, desligado ou com banco de horas.
 6. **Exibir na Sala de Monitoramento:** Use o botão **Na sala/Oculto** para escolher quais colaboradores aparecem na tela `/monitoramento`. Os selecionados serão exibidos com avatar, primeiro nome, status atual e horas quando estiverem em banco de horas.
 7. **Comunicados de RH:** Publique comunicados gerais ou direcionados e acompanhe a leitura pelo colaborador.
+8. **Hierarquia:** Em **Hierarquia por setor**, RH ou administrador escolhe o gestor e marca os subordinados. O gestor só poderá consultar e registrar status da própria equipe.
+9. **Comunicação privada:** No perfil, envie uma mensagem ao gestor direto ou ao RH. O destinatário confirma o recebimento e o retorno fica registrado.
 8. **Exportação:** Exporte o controle de status da equipe em CSV para conferência ou arquivamento.
 
 ---

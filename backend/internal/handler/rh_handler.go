@@ -109,6 +109,152 @@ type rhMonitoringInput struct {
 	ShowOnMonitoring bool `json:"show_on_monitoring"`
 }
 
+type hierarchyInput struct {
+	DepartamentoID uint   `json:"departamento_id" binding:"required"`
+	GestorID       *uint  `json:"gestor_id"`
+	SubordinadoIDs []uint `json:"subordinado_ids"`
+}
+
+type messageInput struct {
+	DestinatarioID uint   `json:"destinatario_id" binding:"required"`
+	Assunto        string `json:"assunto" binding:"required"`
+	Mensagem       string `json:"mensagem" binding:"required"`
+}
+
+func (h *RHHandler) ListMessages(c *gin.Context) {
+	current := middleware.GetCurrentUser(c)
+	var messages []models.RHMensagem
+	if err := h.userRepo.DB().Preload("Remetente").Preload("Destinatario").Where("remetente_id = ? OR destinatario_id = ?", current.ID, current.ID).Order("criado_em desc").Find(&messages).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	var contacts []models.User
+	if err := h.userRepo.DB().Where("is_active = true AND (role IN ? OR id = ?)", []string{models.RoleRH, models.RoleAdmin}, current.GestorID).Order("nome asc").Find(&contacts).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"mensagens": messages, "contatos": contacts})
+}
+
+func (h *RHHandler) CreateMessage(c *gin.Context) {
+	current := middleware.GetCurrentUser(c)
+	var in messageInput
+	if err := c.ShouldBindJSON(&in); err != nil || strings.TrimSpace(in.Assunto) == "" || strings.TrimSpace(in.Mensagem) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Destinatário, assunto e mensagem são obrigatórios"})
+		return
+	}
+	target, err := h.userRepo.GetByID(in.DestinatarioID)
+	if err != nil || !target.IsActive {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Destinatário não encontrado"})
+		return
+	}
+	allowed := target.Role == models.RoleRH || target.Role == models.RoleAdmin || (current.GestorID != nil && *current.GestorID == target.ID)
+	if !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Mensagens só podem ser enviadas ao seu gestor ou ao RH"})
+		return
+	}
+	message := &models.RHMensagem{RemetenteID: current.ID, DestinatarioID: target.ID, Assunto: strings.TrimSpace(in.Assunto), Mensagem: strings.TrimSpace(in.Mensagem)}
+	if err := h.userRepo.DB().Create(message).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, message)
+}
+
+func (h *RHHandler) ConfirmMessage(c *gin.Context) {
+	current := middleware.GetCurrentUser(c)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	now := time.Now()
+	result := h.userRepo.DB().Model(&models.RHMensagem{}).Where("id = ? AND destinatario_id = ?", id, current.ID).Update("confirmado_em", &now)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+		return
+	}
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Mensagem não encontrada"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"confirmado_em": now})
+}
+
+func (h *RHHandler) Hierarchy(c *gin.Context) {
+	users, err := h.userRepo.GetMulti(0, 1000)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	var setores []models.Departamento
+	if err := h.userRepo.DB().Preload("Responsavel").Find(&setores).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"setores": setores, "usuarios": users})
+}
+
+func (h *RHHandler) visibleToCurrent(c *gin.Context, user *models.User) bool {
+	current := middleware.GetCurrentUser(c)
+	if current == nil || user == nil {
+		return false
+	}
+	if current.Role == models.RoleAdmin || current.Role == models.RoleRH {
+		return true
+	}
+	return user.GestorID != nil && *user.GestorID == current.ID
+}
+
+func (h *RHHandler) UpdateHierarchy(c *gin.Context) {
+	var in hierarchyInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	db := h.userRepo.DB()
+	var sector models.Departamento
+	if err := db.First(&sector, in.DepartamentoID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Setor não encontrado"})
+		return
+	}
+	previousManagerID := sector.ResponsavelID
+	if in.GestorID != nil {
+		var manager models.User
+		if err := db.First(&manager, *in.GestorID).Error; err != nil || !manager.IsActive {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Gestor ativo não encontrado"})
+			return
+		}
+		sector.ResponsavelID = in.GestorID
+	} else {
+		sector.ResponsavelID = nil
+	}
+	if err := db.Save(&sector).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if previousManagerID != nil {
+		query := db.Model(&models.User{}).Where("departamento_id = ? AND gestor_id = ?", in.DepartamentoID, *previousManagerID)
+		if len(in.SubordinadoIDs) > 0 {
+			query = query.Where("id NOT IN ?", in.SubordinadoIDs)
+		}
+		if err := query.Update("gestor_id", nil).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	for _, userID := range in.SubordinadoIDs {
+		if userID == 0 || (in.GestorID != nil && userID == *in.GestorID) {
+			continue
+		}
+		if err := db.Model(&models.User{}).Where("id = ?", userID).Updates(map[string]interface{}{"gestor_id": in.GestorID, "departamento_id": in.DepartamentoID}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Hierarquia atualizada"})
+}
+
 func monitoringTeamPayload(users []models.User, byUser map[uint][]models.RHStatus, now time.Time, onlySelected bool) []gin.H {
 	colaboradores := make([]gin.H, 0)
 	for _, user := range users {
@@ -153,6 +299,25 @@ func (h *RHHandler) StatusDashboard(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	current := middleware.GetCurrentUser(c)
+	if current != nil && current.Role != models.RoleAdmin && current.Role != models.RoleRH {
+		allowed := map[uint]bool{}
+		filtered := make([]models.User, 0)
+		for i := range users {
+			if h.visibleToCurrent(c, &users[i]) {
+				filtered = append(filtered, users[i])
+				allowed[users[i].ID] = true
+			}
+		}
+		users = filtered
+		visibleStatuses := make([]models.RHStatus, 0)
+		for _, status := range statuses {
+			if allowed[status.UsuarioID] {
+				visibleStatuses = append(visibleStatuses, status)
+			}
+		}
+		statuses = visibleStatuses
+	}
 	byUser := make(map[uint][]models.RHStatus)
 	for _, status := range statuses {
 		byUser[status.UsuarioID] = append(byUser[status.UsuarioID], status)
@@ -177,6 +342,14 @@ func (h *RHHandler) UpdateMonitoringVisibility(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Colaborador não encontrado"})
 		return
 	}
+	current := middleware.GetCurrentUser(c)
+	if current != nil && current.Role != models.RoleAdmin && current.Role != models.RoleRH {
+		target, _ := h.userRepo.GetByID(uint(id))
+		if !h.visibleToCurrent(c, target) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Sem permissão para este colaborador"})
+			return
+		}
+	}
 	if err := h.userRepo.SetShowOnMonitoring(uint(id), in.ShowOnMonitoring); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -194,6 +367,24 @@ func (h *RHHandler) MonitoringTeam(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+	if current := middleware.GetCurrentUser(c); current != nil && current.Role != models.RoleAdmin && current.Role != models.RoleRH {
+		visible := make([]models.User, 0)
+		allowed := map[uint]bool{}
+		for i := range users {
+			if h.visibleToCurrent(c, &users[i]) {
+				visible = append(visible, users[i])
+				allowed[users[i].ID] = true
+			}
+		}
+		users = visible
+		filtered := make([]models.RHStatus, 0)
+		for _, status := range statuses {
+			if allowed[status.UsuarioID] {
+				filtered = append(filtered, status)
+			}
+		}
+		statuses = filtered
 	}
 	byUser := make(map[uint][]models.RHStatus)
 	for _, status := range statuses {
@@ -221,6 +412,10 @@ func (h *RHHandler) CreateStatus(c *gin.Context) {
 	user, err := h.userRepo.GetByID(in.UsuarioID)
 	if err != nil || !user.IsActive {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Colaborador ativo não encontrado"})
+		return
+	}
+	if !h.visibleToCurrent(c, user) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Você só pode gerenciar sua equipe configurada"})
 		return
 	}
 	inicio, err := parseRHDate(in.Inicio, false)
@@ -289,10 +484,18 @@ func (h *RHHandler) CreateComunicado(c *gin.Context) {
 		return
 	}
 	if in.UsuarioID != nil {
-		if _, err := h.userRepo.GetByID(*in.UsuarioID); err != nil {
+		target, err := h.userRepo.GetByID(*in.UsuarioID)
+		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Colaborador não encontrado"})
 			return
 		}
+		if !h.visibleToCurrent(c, target) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Você só pode comunicar sua equipe configurada"})
+			return
+		}
+	} else if current := middleware.GetCurrentUser(c); current != nil && current.Role != models.RoleAdmin && current.Role != models.RoleRH {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Gestores devem selecionar um subordinado"})
+		return
 	}
 	inicio, err := parseRHDate(in.Inicio, false)
 	if err != nil {
