@@ -1,28 +1,28 @@
-import React, { useEffect } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { MainLayout } from './components/layout/MainLayout';
 import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { UsersPage } from './pages/UsersPage';
-import { BadgePage } from './pages/BadgePage';
-import { AssetsPage } from './pages/AssetsPage';
-import { ServiceDeskPage } from './pages/ServiceDeskPage';
-import { MaintenancePage } from './pages/MaintenancePage';
-import { BorrowingsPage } from './pages/BorrowingsPage';
-import { PreventiveMaintenancePage } from './pages/PreventiveMaintenancePage';
-import { KanbanPage } from './pages/KanbanPage';
-import { AlertsPage } from './pages/AlertsPage';
-import { ProcurementPage } from './pages/ProcurementPage';
-import { RHPage } from './pages/RHPage';
-import { WebhooksPage } from './pages/WebhooksPage';
-import { BackupPage } from './pages/BackupPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { SettingsPage } from './pages/SettingsPage';
-import { EmailLogsPage } from './pages/EmailLogsPage';
-import { SetoresPage } from './pages/SetoresPage';
-import { MonitoramentoPage } from './pages/MonitoramentoPage';
-import { ManualPage } from './pages/ManualPage';
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const UsersPage = lazy(() => import('./pages/UsersPage').then(m => ({ default: m.UsersPage })));
+const BadgePage = lazy(() => import('./pages/BadgePage').then(m => ({ default: m.BadgePage })));
+const AssetsPage = lazy(() => import('./pages/AssetsPage').then(m => ({ default: m.AssetsPage })));
+const ServiceDeskPage = lazy(() => import('./pages/ServiceDeskPage').then(m => ({ default: m.ServiceDeskPage })));
+const MaintenancePage = lazy(() => import('./pages/MaintenancePage').then(m => ({ default: m.MaintenancePage })));
+const BorrowingsPage = lazy(() => import('./pages/BorrowingsPage').then(m => ({ default: m.BorrowingsPage })));
+const PreventiveMaintenancePage = lazy(() => import('./pages/PreventiveMaintenancePage').then(m => ({ default: m.PreventiveMaintenancePage })));
+const KanbanPage = lazy(() => import('./pages/KanbanPage').then(m => ({ default: m.KanbanPage })));
+const AlertsPage = lazy(() => import('./pages/AlertsPage').then(m => ({ default: m.AlertsPage })));
+const ProcurementPage = lazy(() => import('./pages/ProcurementPage').then(m => ({ default: m.ProcurementPage })));
+const RHPage = lazy(() => import('./pages/RHPage').then(m => ({ default: m.RHPage })));
+const WebhooksPage = lazy(() => import('./pages/WebhooksPage').then(m => ({ default: m.WebhooksPage })));
+const BackupPage = lazy(() => import('./pages/BackupPage').then(m => ({ default: m.BackupPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const EmailLogsPage = lazy(() => import('./pages/EmailLogsPage').then(m => ({ default: m.EmailLogsPage })));
+const SetoresPage = lazy(() => import('./pages/SetoresPage').then(m => ({ default: m.SetoresPage })));
+const MonitoramentoPage = lazy(() => import('./pages/MonitoramentoPage').then(m => ({ default: m.MonitoramentoPage })));
+const ManualPage = lazy(() => import('./pages/ManualPage').then(m => ({ default: m.ManualPage })));
 import { AppUpdateNotifier } from './components/layout/AppUpdateNotifier';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { initializeAndroidNotifications } from './utils/androidNotifications';
@@ -46,6 +46,7 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AppUpdateNotifier />
+        <Suspense fallback={<div className="grid min-h-[50vh] place-items-center text-sm text-brand-muted">Carregando módulo...</div>}>
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
@@ -225,6 +226,7 @@ const App: React.FC = () => {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </QueryClientProvider>
   );
