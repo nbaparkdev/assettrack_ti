@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { User, Key, Camera, Loader2, Save, CalendarDays, MessageSquareText, Building2, Mail, BadgeCheck, ShieldCheck, Check, BellRing } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { profileApi } from '../api/profile';
 import { toApiFileUrl } from '../api/client';
 import { rhApi } from '../api/rh';
-import type { MyRHPortal, RHStatusType } from '../types/rh';
+import type { MyRHPortal, RHStatusRecord, RHStatusType } from '../types/rh';
 import { notifyAndroid } from '../utils/androidNotifications';
 
 const rhStatusMeta: Record<RHStatusType, { label: string; className: string }> = {
@@ -16,6 +16,47 @@ const rhStatusMeta: Record<RHStatusType, { label: string; className: string }> =
 };
 
 const formatDate = (value: string) => new Date(value).toLocaleDateString('pt-BR');
+
+const ProfileRHCalendar: React.FC<{ records: RHStatusRecord[] }> = ({ records }) => {
+  const [reference, setReference] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const days = useMemo(() => {
+    const first = new Date(reference.getFullYear(), reference.getMonth(), 1);
+    const total = new Date(reference.getFullYear(), reference.getMonth() + 1, 0).getDate();
+    return [
+      ...Array.from({ length: first.getDay() }, () => null),
+      ...Array.from({ length: total }, (_, index) => new Date(reference.getFullYear(), reference.getMonth(), index + 1)),
+    ] as Array<Date | null>;
+  }, [reference]);
+  const eventsForDay = (date: Date) => records.filter(item => {
+    const start = new Date(item.inicio);
+    const end = new Date(item.fim || item.inicio);
+    const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+    return day >= new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime() && day <= new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
+  });
+
+  return (
+    <div className="overflow-hidden border border-brand-border bg-white/50">
+      <div className="flex items-center gap-3 border-b border-brand-border bg-brand-dark/40 px-4 py-3">
+        <CalendarDays size={16} className="text-brand-primary" />
+        <span className="text-xs font-bold uppercase tracking-wide text-brand-text">Meu calendário RH</span>
+        <div className="ml-auto flex items-center gap-2">
+          <button type="button" onClick={() => setReference(new Date(reference.getFullYear(), reference.getMonth() - 1, 1))} className="grid h-8 w-8 place-items-center rounded-lg border border-brand-border text-brand-primary" title="Mês anterior" aria-label="Mês anterior">&lt;</button>
+          <span className="min-w-32 text-center text-xs font-medium capitalize text-brand-muted">{reference.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+          <button type="button" onClick={() => setReference(new Date(reference.getFullYear(), reference.getMonth() + 1, 1))} className="grid h-8 w-8 place-items-center rounded-lg border border-brand-border text-brand-primary" title="Próximo mês" aria-label="Próximo mês">&gt;</button>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 border-l border-brand-border">
+        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => <div key={day} className="border-b border-r border-brand-border bg-brand-dark/30 p-2 text-center text-[10px] font-bold uppercase text-brand-muted">{day}</div>)}
+        {days.map((date, index) => {
+          const events = date ? eventsForDay(date) : [];
+          return <div key={index} className="min-h-24 border-b border-r border-brand-border bg-white/60 p-2">
+            {date && <><div className="mb-2 text-right text-xs font-semibold text-brand-muted">{date.getDate()}</div><div className="space-y-1">{events.slice(0, 2).map(item => <div key={item.id} className={`truncate rounded-md border px-1.5 py-1 text-[10px] font-bold uppercase ${rhStatusMeta[item.tipo].className}`} title={`${rhStatusMeta[item.tipo].label}${item.horas ? ` - ${item.horas}h` : ''}`}>{rhStatusMeta[item.tipo].label}{item.horas ? ` ${item.horas}h` : ''}</div>)}</div></>}
+          </div>;
+        })}
+      </div>
+    </div>
+  );
+};
 
 export const ProfilePage: React.FC = () => {
   const { user, logout, checkAuth } = useAuthStore();
@@ -32,6 +73,7 @@ export const ProfilePage: React.FC = () => {
   const [savingPassword, setSavingPassword] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [rhPortal, setRhPortal] = useState<MyRHPortal | null>(null);
+  const [rhLoadError, setRhLoadError] = useState('');
   const [messages, setMessages] = useState<{ mensagens: any[]; contatos: Array<{ id: number; nome: string }> }>({ mensagens: [], contatos: [] });
   const [messageForm, setMessageForm] = useState({ destinatario_id: '', assunto: '', mensagem: '' });
   
@@ -58,8 +100,15 @@ export const ProfilePage: React.FC = () => {
           void notifyAndroid(item.comunicado.titulo, item.comunicado.mensagem, { rh_comunicado_id: item.comunicado.id });
         });
         setRhPortal(data);
-        setMessages(await rhApi.messages());
-      } catch { /* RH data must not block profile access */ }
+        setRhLoadError('');
+        try {
+          setMessages(await rhApi.messages());
+        } catch {
+          setMessages({ mensagens: [], contatos: [] });
+        }
+      } catch {
+        if (mounted) setRhLoadError('Não foi possível carregar seu calendário RH agora.');
+      }
     };
     void loadRH();
     const interval = window.setInterval(loadRH, 30000);
@@ -312,6 +361,18 @@ export const ProfilePage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+
+          <div className="bg-brand-card border border-brand-border">
+            <div className="p-5 border-b border-brand-border flex items-center justify-between gap-4">
+              <div className="flex items-center"><div className="mr-3 rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><CalendarDays size={18} /></div><div><h3 className="text-base font-bold text-brand-text m-0">Meu calendário RH</h3><p className="text-xs text-brand-muted mt-0.5">Folgas, férias, banco de horas e status registrados para você.</p></div></div>
+              <div className={`shrink-0 text-[10px] font-bold uppercase px-2 py-1 border ${rhStatusMeta[rhPortal?.status_atual || 'trabalhando'].className}`}>{rhStatusMeta[rhPortal?.status_atual || 'trabalhando'].label}</div>
+            </div>
+            <div className="p-5 space-y-4">
+              {rhLoadError && <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">{rhLoadError}</div>}
+              <ProfileRHCalendar records={rhCalendar} />
+              {rhCalendar.length === 0 && !rhLoadError && <p className="m-0 text-xs text-brand-muted">Nenhum registro de folga, férias ou banco de horas foi lançado no seu calendário.</p>}
+            </div>
           </div>
 
           <div className="bg-brand-card border border-brand-border">
