@@ -129,9 +129,16 @@ func (h *RHHandler) ListMessages(c *gin.Context) {
 		return
 	}
 	var contacts []models.User
-	if err := h.userRepo.DB().Where("is_active = true AND (role IN ? OR id = ?)", []string{models.RoleRH, models.RoleAdmin}, current.GestorID).Order("nome asc").Find(&contacts).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	if current.GestorID != nil {
+		if err := h.userRepo.DB().Where("is_active = true AND (role = ? OR id = ?)", models.RoleRH, *current.GestorID).Order("nome asc").Find(&contacts).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	} else {
+		if err := h.userRepo.DB().Where("is_active = true AND role = ?", models.RoleRH).Order("nome asc").Find(&contacts).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 	var directReports []models.User
 	if err := h.userRepo.DB().Where("is_active = true AND gestor_id = ?", current.ID).Order("nome asc").Find(&directReports).Error; err != nil {
@@ -162,9 +169,9 @@ func (h *RHHandler) CreateMessage(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Destinatário não encontrado"})
 		return
 	}
-	allowed := target.Role == models.RoleRH || target.Role == models.RoleAdmin || (current.GestorID != nil && *current.GestorID == target.ID) || (target.GestorID != nil && *target.GestorID == current.ID)
+	allowed := target.Role == models.RoleRH || (current.GestorID != nil && *current.GestorID == target.ID) || (target.GestorID != nil && *target.GestorID == current.ID)
 	if !allowed {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Mensagens só podem ser enviadas ao seu gestor, RH ou subordinados diretos"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Mensagens só podem ser enviadas ao gestor, RH ou subordinados diretos"})
 		return
 	}
 	message := &models.RHMensagem{RemetenteID: current.ID, DestinatarioID: target.ID, Assunto: strings.TrimSpace(in.Assunto), Mensagem: strings.TrimSpace(in.Mensagem)}
@@ -217,7 +224,20 @@ func (h *RHHandler) visibleToCurrent(c *gin.Context, user *models.User) bool {
 	if current.Role == models.RoleAdmin || current.Role == models.RoleRH {
 		return true
 	}
+	if user.ID == current.ID {
+		return h.canAccessRHTeam(c)
+	}
 	return user.GestorID != nil && *user.GestorID == current.ID
+}
+
+func (h *RHHandler) managedRecipients(c *gin.Context) ([]models.User, error) {
+	current := middleware.GetCurrentUser(c)
+	if current == nil {
+		return nil, nil
+	}
+	var users []models.User
+	err := h.userRepo.DB().Preload("Departamento").Where("is_active = true AND gestor_id = ?", current.ID).Order("nome asc").Find(&users).Error
+	return users, err
 }
 
 func (h *RHHandler) canAccessRHTeam(c *gin.Context) bool {
@@ -551,8 +571,15 @@ func (h *RHHandler) CreateComunicado(c *gin.Context) {
 			return
 		}
 	} else if current := middleware.GetCurrentUser(c); current != nil && current.Role != models.RoleAdmin && current.Role != models.RoleRH {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Gestores devem selecionar um subordinado"})
-		return
+		recipients, err := h.managedRecipients(c)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if len(recipients) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Nenhum subordinado configurado para este gestor"})
+			return
+		}
 	}
 	inicio, err := parseRHDate(in.Inicio, false)
 	if err != nil {
@@ -573,6 +600,25 @@ func (h *RHHandler) CreateComunicado(c *gin.Context) {
 		return
 	}
 	current := middleware.GetCurrentUser(c)
+	if current != nil && current.Role != models.RoleAdmin && current.Role != models.RoleRH && in.UsuarioID == nil {
+		recipients, err := h.managedRecipients(c)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		created := make([]models.RHComunicado, 0, len(recipients))
+		for _, recipient := range recipients {
+			recipientID := recipient.ID
+			comunicado := models.RHComunicado{UsuarioID: &recipientID, Titulo: strings.TrimSpace(in.Titulo), Mensagem: strings.TrimSpace(in.Mensagem), Inicio: *inicio, Fim: fim, Ativo: true, CriadoPorID: current.ID}
+			if err := h.rhRepo.CreateComunicado(&comunicado); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			created = append(created, comunicado)
+		}
+		c.JSON(http.StatusCreated, gin.H{"message": "Comunicado enviado para a equipe", "quantidade": len(created), "comunicados": created})
+		return
+	}
 	comunicado := &models.RHComunicado{UsuarioID: in.UsuarioID, Titulo: strings.TrimSpace(in.Titulo), Mensagem: strings.TrimSpace(in.Mensagem), Inicio: *inicio, Fim: fim, Ativo: true, CriadoPorID: current.ID}
 	if err := h.rhRepo.CreateComunicado(comunicado); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

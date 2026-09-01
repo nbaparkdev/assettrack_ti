@@ -322,9 +322,9 @@ export const RHPage: React.FC = () => {
             </form>
 
             <form onSubmit={saveNotice} className="border border-brand-border bg-brand-card p-5 space-y-4">
-              <div className="flex items-start gap-3"><div className="rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><Megaphone size={18} /></div><div><div className="text-base font-bold text-brand-text">Novo comunicado</div><p className="mt-0.5 text-xs text-brand-muted">{isRHAdmin ? 'Envie uma mensagem individual ou para toda a empresa.' : 'Envie comunicados apenas para subordinados da sua equipe.'}</p></div></div>
-              <select required={!isRHAdmin} value={noticeForm.usuario_id} onChange={e => setNoticeForm({ ...noticeForm, usuario_id: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text">
-                <option value="">{isRHAdmin ? 'Todos os colaboradores' : 'Selecione um subordinado'}</option>
+              <div className="flex items-start gap-3"><div className="rounded-xl bg-brand-primary/10 p-2 text-brand-primary"><Megaphone size={18} /></div><div><div className="text-base font-bold text-brand-text">Novo comunicado</div><p className="mt-0.5 text-xs text-brand-muted">{isRHAdmin ? 'Envie uma mensagem individual ou para toda a empresa.' : 'Envie comunicado individual ou para todos os subordinados da sua equipe.'}</p></div></div>
+              <select value={noticeForm.usuario_id} onChange={e => setNoticeForm({ ...noticeForm, usuario_id: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text">
+                <option value="">{isRHAdmin ? 'Todos os colaboradores' : 'Todos da minha equipe'}</option>
                 {control.colaboradores.filter(c => c.usuario.is_active).map(c => <option key={c.usuario.id} value={c.usuario.id}>{c.usuario.nome}</option>)}
               </select>
               <input required placeholder="Título do comunicado" value={noticeForm.titulo} onChange={e => setNoticeForm({ ...noticeForm, titulo: e.target.value })} className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text" />
@@ -352,7 +352,7 @@ export const RHPage: React.FC = () => {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className={`text-[10px] font-mono uppercase px-2 py-1 border ${employeeStatus[status_atual].className}`}>{employeeStatus[status_atual].label}</span>
-                    <button
+                    {isRHAdmin && <button
                       type="button"
                       onClick={() => toggleMonitoringVisibility(usuario.id, !!usuario.show_on_monitoring)}
                       title={usuario.show_on_monitoring ? 'Ocultar na sala de monitoramento' : 'Mostrar na sala de monitoramento'}
@@ -360,7 +360,7 @@ export const RHPage: React.FC = () => {
                     >
                       {usuario.show_on_monitoring ? <Eye size={13} /> : <EyeOff size={13} />}
                       {usuario.show_on_monitoring ? 'Na sala' : 'Oculto'}
-                    </button>
+                    </button>}
                   </div>
                 </div>;
               })}
