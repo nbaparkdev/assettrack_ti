@@ -1,57 +1,52 @@
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
 import { offlineStorage } from '../utils/offlineStorage';
 
 const API_PATH = '/api/v1';
 const CUSTOM_APP_URL_KEY = 'custom_app_url';
-const LEGACY_CUSTOM_API_URL_KEY = 'custom_api_url';
 
-export const normalizeServerUrlToApiBaseUrl = (value?: string | null) => {
-  const raw = (value || '').trim();
+export const normalizeApplicationUrl = (value?: string | null) => {
+  let raw = (value || '').trim();
   if (!raw) return '';
 
-  if (raw.startsWith('/')) {
-    return raw.endsWith(API_PATH) ? raw : `${raw.replace(/\/$/, '')}${API_PATH}`;
+  if (!/^https?:\/\//i.test(raw)) {
+    raw = `http://${raw}`;
   }
 
   try {
     const url = new URL(raw);
-    const normalizedPath = url.pathname.replace(/\/$/, '');
-    if (normalizedPath === '' || normalizedPath === '/') {
-      url.pathname = API_PATH;
-    } else if (!normalizedPath.endsWith(API_PATH)) {
-      url.pathname = `${normalizedPath}${API_PATH}`;
-    }
-    url.search = '';
-    url.hash = '';
-    return url.toString().replace(/\/$/, '');
+    if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) return '';
+    return url.origin;
   } catch {
-    return raw.endsWith(API_PATH) ? raw : `${raw.replace(/\/$/, '')}${API_PATH}`;
+    return '';
   }
 };
 
+export const applicationUrlToApiBaseUrl = (value?: string | null) => {
+  const applicationUrl = normalizeApplicationUrl(value);
+  return applicationUrl ? `${applicationUrl}${API_PATH}` : '';
+};
+
+export const IS_NATIVE_APP = Capacitor.isNativePlatform();
+export const CONFIGURED_APPLICATION_URL = typeof window !== 'undefined'
+  ? normalizeApplicationUrl(localStorage.getItem(CUSTOM_APP_URL_KEY))
+  : '';
+
 const getApiBaseUrl = () => {
-  // Optional server URL configured by the user. It can be the application URL
-  // (for example http://server:8000); the API path is added automatically.
-  const customUrl = typeof window !== 'undefined'
-    ? localStorage.getItem(CUSTOM_APP_URL_KEY) || localStorage.getItem(LEGACY_CUSTOM_API_URL_KEY)
-    : null;
-  if (customUrl) {
-    return normalizeServerUrlToApiBaseUrl(customUrl);
+  if (CONFIGURED_APPLICATION_URL) {
+    return `${CONFIGURED_APPLICATION_URL}${API_PATH}`;
   }
 
   const configuredUrl = import.meta.env.VITE_API_URL;
   if (configuredUrl) {
-    return normalizeServerUrlToApiBaseUrl(configuredUrl);
+    if (configuredUrl.startsWith('/')) return configuredUrl;
+    return applicationUrlToApiBaseUrl(configuredUrl);
   }
 
   const { hostname, port, protocol } = window.location;
-  
-  // Check if running inside a Capacitor app
-  const isCapacitor = typeof window !== 'undefined' && !!(window as any).Capacitor;
 
-  // The APK does not know the server address by itself. Use the settings icon
-  // on the login screen and enter only the application URL.
-  if (isCapacitor && (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '')) {
+  // Native login is blocked until the application address is configured.
+  if (IS_NATIVE_APP) {
     return API_PATH;
   }
 

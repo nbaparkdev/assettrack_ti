@@ -1,10 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../api/auth';
-import { API_BASE_URL, normalizeServerUrlToApiBaseUrl } from '../api/client';
+import { CONFIGURED_APPLICATION_URL, IS_NATIVE_APP, normalizeApplicationUrl } from '../api/client';
 import { KeyRound, QrCode, AlertCircle, Settings, RotateCcw, Camera, X, CheckCircle, Smartphone, ChevronDown } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { cameraPermissionMessage, ensureCameraPermission } from '../utils/cameraPermission';
+
+type QrCamera = {
+  id: string;
+  label: string;
+};
+
+const QR_CAMERA_STORAGE_KEY = 'assettrack_qr_camera_id';
+
+const choosePreferredCamera = (cameras: QrCamera[]) => {
+  const savedCameraId = localStorage.getItem(QR_CAMERA_STORAGE_KEY);
+  if (savedCameraId && cameras.some((camera) => camera.id === savedCameraId)) {
+    return savedCameraId;
+  }
+
+  const isRearCamera = (label: string) => /back|rear|environment|traseir/i.test(label);
+  const isAuxiliaryLens = (label: string) => /ultra|wide|macro|depth|tele/i.test(label);
+  const mainRearCamera = cameras.find(
+    (camera) => isRearCamera(camera.label) && !isAuxiliaryLens(camera.label),
+  );
+
+  return mainRearCamera?.id
+    || cameras.find((camera) => isRearCamera(camera.label))?.id
+    || cameras.at(-1)?.id
+    || '';
+};
 
 export const LoginPage: React.FC = () => {
   const loginStore = useAuthStore().login;
@@ -22,13 +47,17 @@ export const LoginPage: React.FC = () => {
   const [showMobileAccess, setShowMobileAccess] = useState(false);
 
   // Optional server address override for APK/mobile/local network testing
-  const [showSettings, setShowSettings] = useState(false);
-  const [customApiUrl, setCustomApiUrl] = useState(
-    localStorage.getItem('custom_app_url') || localStorage.getItem('custom_api_url') || ''
-  );
+  const [showSettings, setShowSettings] = useState(IS_NATIVE_APP && !CONFIGURED_APPLICATION_URL);
+  const [customAppUrl, setCustomAppUrl] = useState(CONFIGURED_APPLICATION_URL);
 
   const handleSaveSettings = () => {
-    localStorage.setItem('custom_app_url', customApiUrl.trim());
+    const normalizedUrl = normalizeApplicationUrl(customAppUrl);
+    if (!normalizedUrl) {
+      setError('Informe um endereço válido, incluindo o IP ou nome do servidor e a porta.');
+      return;
+    }
+
+    localStorage.setItem('custom_app_url', normalizedUrl);
     localStorage.removeItem('custom_api_url');
     window.location.reload();
   };
@@ -42,6 +71,9 @@ export const LoginPage: React.FC = () => {
   // Camera Scanner configuration
   const [cameraActive, setCameraActive] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [availableCameras, setAvailableCameras] = useState<QrCamera[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState('');
+  const [detectingCameras, setDetectingCameras] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const regionId = 'qr-reader-login';
 
@@ -54,12 +86,68 @@ export const LoginPage: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (mode !== 'qr') {
-      stopCamera();
+  async function detectAvailableCameras(): Promise<string> {
+    setDetectingCameras(true);
+    setScanError(null);
+
+    try {
+      if (!(await ensureCameraPermission())) {
+        setScanError(cameraPermissionMessage);
+        return '';
+      }
+
+      const detected = await Html5Qrcode.getCameras();
+      const cameras = detected.map((camera, index) => ({
+        id: camera.id,
+        label: camera.label || `Câmera ${index + 1}`,
+      }));
+
+      if (cameras.length === 0) {
+        setScanError('Nenhuma câmera foi encontrada neste dispositivo.');
+        return '';
+      }
+
+      setAvailableCameras(cameras);
+      const preferredCameraId = choosePreferredCamera(cameras);
+      setSelectedCameraId(preferredCameraId);
+      return preferredCameraId;
+    } catch (err) {
+      console.error('Camera detection error:', err);
+      setScanError('Não foi possível detectar as câmeras disponíveis.');
+      return '';
+    } finally {
+      setDetectingCameras(false);
     }
+  }
+
+  const handleCameraSelection = (cameraId: string) => {
+    setSelectedCameraId(cameraId);
+    localStorage.setItem(QR_CAMERA_STORAGE_KEY, cameraId);
+  };
+
+  async function stopCamera() {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      try {
+        await scannerRef.current.stop();
+      } catch (err) {
+        console.error('Stop scanner error:', err);
+      }
+      scannerRef.current = null;
+    }
+    setCameraActive(false);
+  }
+
+  const handleModeChange = (nextMode: 'standard' | 'qr') => {
+    setMode(nextMode);
+    setError(null);
     setQrSuccessMsg(null);
-  }, [mode]);
+
+    if (nextMode === 'qr') {
+      void detectAvailableCameras();
+    } else {
+      void stopCamera();
+    }
+  };
 
   const extractTokenFromQr = (text: string): string => {
     if (!text) return '';
@@ -90,6 +178,10 @@ export const LoginPage: React.FC = () => {
         setScanError(cameraPermissionMessage);
         return;
       }
+
+      const cameraId = selectedCameraId || await detectAvailableCameras();
+      if (!cameraId) return;
+
       setCameraActive(true);
       
       setTimeout(async () => {
@@ -98,7 +190,7 @@ export const LoginPage: React.FC = () => {
           scannerRef.current = html5Qrcode;
 
           await html5Qrcode.start(
-            { facingMode: 'environment' },
+            cameraId,
             {
               fps: 12,
               qrbox: { width: 220, height: 220 },
@@ -127,18 +219,6 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const stopCamera = async () => {
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      try {
-        await scannerRef.current.stop();
-      } catch (err) {
-        console.error('Stop scanner error:', err);
-      }
-      scannerRef.current = null;
-    }
-    setCameraActive(false);
-  };
-
   const formatLoginError = (err: any): string => {
     const detail = err.response?.data?.detail || err.message || '';
     const lower = detail.toLowerCase();
@@ -153,6 +233,11 @@ export const LoginPage: React.FC = () => {
 
   const handleStandardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (IS_NATIVE_APP && !CONFIGURED_APPLICATION_URL) {
+      setShowSettings(true);
+      setError('Configure primeiro o endereço da aplicação com a porta.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -168,6 +253,11 @@ export const LoginPage: React.FC = () => {
 
   const handleQRSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (IS_NATIVE_APP && !CONFIGURED_APPLICATION_URL) {
+      setShowSettings(true);
+      setError('Configure primeiro o endereço da aplicação com a porta.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -213,13 +303,13 @@ export const LoginPage: React.FC = () => {
               ⚙️ Endereço da Aplicação
             </h3>
             <p className="text-[10px] text-brand-muted font-mono leading-relaxed">
-              Informe apenas onde o sistema abre, por exemplo http://192.168.1.50:8000. A API será localizada automaticamente em {normalizeServerUrlToApiBaseUrl(customApiUrl || API_BASE_URL)}.
+              Informe somente o endereço usado para abrir a aplicação, incluindo a porta. Exemplo: http://192.168.1.50:8000. Não adicione caminhos extras.
             </p>
             <div className="space-y-2">
               <input
                 type="text"
-                value={customApiUrl}
-                onChange={(e) => setCustomApiUrl(e.target.value)}
+                value={customAppUrl}
+                onChange={(e) => setCustomAppUrl(e.target.value)}
                 className="w-full rounded-lg bg-white border border-brand-border px-3 py-2 text-xs font-mono text-brand-text focus:outline-none focus:border-brand-primary"
                 placeholder="http://192.168.X.X:8000"
               />
@@ -248,7 +338,7 @@ export const LoginPage: React.FC = () => {
         <div className="flex rounded-xl border border-brand-border bg-slate-50 p-1 mb-4 sm:mb-6">
           <button
             type="button"
-            onClick={() => { setMode('standard'); setError(null); }}
+            onClick={() => handleModeChange('standard')}
             className={`flex-1 py-2.5 text-[11px] font-mono uppercase tracking-wider flex items-center justify-center space-x-2 transition-all duration-150 sm:py-3 sm:text-xs ${
               mode === 'standard'
                 ? 'bg-white text-brand-primary rounded-lg shadow-sm'
@@ -260,7 +350,7 @@ export const LoginPage: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => { setMode('qr'); setError(null); }}
+            onClick={() => handleModeChange('qr')}
             className={`flex-1 py-2.5 text-[11px] font-mono uppercase tracking-wider flex items-center justify-center space-x-2 transition-all duration-150 sm:py-3 sm:text-xs ${
               mode === 'qr'
                 ? 'bg-white text-brand-primary rounded-lg shadow-sm'
@@ -379,6 +469,36 @@ export const LoginPage: React.FC = () => {
               <label htmlFor="qr" className="block text-xs font-mono uppercase tracking-wider text-brand-muted mb-2">
                 Token QR Code
               </label>
+
+              {detectingCameras && (
+                <p className="mb-2 text-[10px] font-mono text-brand-muted">
+                  Detectando câmeras disponíveis...
+                </p>
+              )}
+
+              {!detectingCameras && availableCameras.length > 1 && (
+                <div className="mb-3">
+                  <label htmlFor="qr-camera" className="mb-1.5 block text-[10px] font-mono uppercase tracking-wider text-brand-muted">
+                    Câmera para leitura
+                  </label>
+                  <select
+                    id="qr-camera"
+                    value={selectedCameraId}
+                    onChange={(event) => handleCameraSelection(event.target.value)}
+                    disabled={cameraActive}
+                    className="w-full rounded-lg border border-brand-border bg-white px-3 py-2.5 text-xs text-brand-text focus:border-brand-primary focus:outline-none disabled:opacity-60"
+                  >
+                    {availableCameras.map((camera, index) => (
+                      <option key={camera.id} value={camera.id}>
+                        {camera.label || `Câmera ${index + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[10px] leading-relaxed text-brand-muted">
+                    A câmera traseira principal é selecionada automaticamente. Troque se outra lente focar melhor o QR Code.
+                  </p>
+                </div>
+              )}
               
               {cameraActive ? (
                 <div className="flex flex-col items-center justify-center space-y-3 mb-4 p-2 bg-slate-50 border border-brand-border rounded-xl">
@@ -409,6 +529,7 @@ export const LoginPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={startCamera}
+                    disabled={detectingCameras}
                     className="px-3 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary border border-brand-primary/20 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
                     title="Escanear com a Câmera"
                   >

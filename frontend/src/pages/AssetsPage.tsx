@@ -112,6 +112,10 @@ export const AssetsPage: React.FC = () => {
   const [assetArmazenamentoId, setAssetArmazenamentoId] = useState<number | ''>('');
   const [assetDataAquisicao, setAssetDataAquisicao] = useState('');
   const [assetDepartamentoId, setAssetDepartamentoId] = useState<number | ''>('');
+  const [referenceCreateType, setReferenceCreateType] = useState<'categoria' | 'localizacao' | 'armazenamento' | 'departamento' | null>(null);
+  const [referenceCreateName, setReferenceCreateName] = useState('');
+  const [referenceCreateError, setReferenceCreateError] = useState<string | null>(null);
+  const [creatingReference, setCreatingReference] = useState(false);
 
   // Duplication Wizard State
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
@@ -634,27 +638,52 @@ export const AssetsPage: React.FC = () => {
     }
   };
 
-  const handleCreateReference = async (type: 'categoria' | 'localizacao' | 'armazenamento' | 'departamento') => {
-    const nome = window.prompt(`Digite o nome para o novo registro:`);
-    if (!nome || !nome.trim()) return;
+  const handleCreateReference = (type: 'categoria' | 'localizacao' | 'armazenamento' | 'departamento') => {
+    setReferenceCreateType(type);
+    setReferenceCreateName('');
+    setReferenceCreateError(null);
+  };
 
+  const handleCloseReferenceCreate = () => {
+    if (creatingReference) return;
+    setReferenceCreateType(null);
+    setReferenceCreateName('');
+    setReferenceCreateError(null);
+  };
+
+  const handleSubmitReferenceCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!referenceCreateType) return;
+
+    const nome = referenceCreateName.trim();
+    if (!nome) {
+      setReferenceCreateError('Informe o nome do novo registro.');
+      return;
+    }
+
+    setCreatingReference(true);
+    setReferenceCreateError(null);
     try {
-      if (type === 'categoria') {
-        const res = await assetsApi.createCategoria(nome.trim());
+      if (referenceCreateType === 'categoria') {
+        const res = await assetsApi.createCategoria(nome);
         setAssetCategoriaId(res.id);
-      } else if (type === 'localizacao') {
-        const res = await assetsApi.createLocalizacao(nome.trim());
+      } else if (referenceCreateType === 'localizacao') {
+        const res = await assetsApi.createLocalizacao(nome);
         setAssetLocalId(res.id);
-      } else if (type === 'armazenamento') {
-        const res = await assetsApi.createArmazenamento(nome.trim());
+      } else if (referenceCreateType === 'armazenamento') {
+        const res = await assetsApi.createArmazenamento(nome);
         setAssetArmazenamentoId(res.id);
-      } else if (type === 'departamento') {
-        const res = await assetsApi.createDepartamento(nome.trim());
+      } else if (referenceCreateType === 'departamento') {
+        const res = await assetsApi.createDepartamento(nome);
         setAssetDepartamentoId(res.id);
       }
-      fetchReferences(); // re-fetch references
+      await fetchReferences();
+      setReferenceCreateType(null);
+      setReferenceCreateName('');
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Erro ao criar referência.');
+      setReferenceCreateError(err.response?.data?.error || 'Erro ao criar referência.');
+    } finally {
+      setCreatingReference(false);
     }
   };
 
@@ -2260,6 +2289,82 @@ export const AssetsPage: React.FC = () => {
                   className="bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono px-4 py-2 uppercase tracking-wider text-xs"
                 >
                   Confirmar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DIALOG: CREATE ASSET REFERENCE */}
+      {referenceCreateType && (
+        <div className="fixed inset-0 bg-brand-dark/85 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reference-create-title"
+            className="w-full max-w-md border border-brand-border bg-brand-card p-6 space-y-5 shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-brand-border pb-4">
+              <div>
+                <h3 id="reference-create-title" className="text-base font-bold font-mono uppercase tracking-wider text-brand-text">
+                  {referenceCreateType === 'categoria' && 'Nova Categoria'}
+                  {referenceCreateType === 'localizacao' && 'Nova Localização'}
+                  {referenceCreateType === 'armazenamento' && 'Novo Armazenamento'}
+                  {referenceCreateType === 'departamento' && 'Novo Setor'}
+                </h3>
+                <p className="mt-1 text-[11px] text-brand-muted">
+                  O novo registro será selecionado automaticamente no ativo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseReferenceCreate}
+                disabled={creatingReference}
+                className="text-brand-muted hover:text-brand-text disabled:opacity-50"
+                aria-label="Fechar criação de registro"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitReferenceCreate} className="space-y-5">
+              <div>
+                <label htmlFor="reference-create-name" className="block text-[10px] font-mono uppercase tracking-wider text-brand-muted mb-1.5">
+                  Nome *
+                </label>
+                <input
+                  id="reference-create-name"
+                  type="text"
+                  autoFocus
+                  required
+                  value={referenceCreateName}
+                  onChange={(e) => setReferenceCreateName(e.target.value)}
+                  disabled={creatingReference}
+                  className="w-full bg-brand-dark border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:border-brand-primary disabled:opacity-60"
+                  placeholder="Digite o nome"
+                />
+                {referenceCreateError && (
+                  <p role="alert" className="mt-2 text-xs text-red-400">{referenceCreateError}</p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-brand-border">
+                <button
+                  type="button"
+                  onClick={handleCloseReferenceCreate}
+                  disabled={creatingReference}
+                  className="border border-brand-border hover:bg-brand-dark/40 px-4 py-2 font-mono text-xs uppercase disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingReference}
+                  className="bg-brand-primary hover:bg-brand-primary/90 text-brand-dark font-bold font-mono px-4 py-2 uppercase tracking-wider text-xs flex items-center gap-2 disabled:opacity-60"
+                >
+                  {creatingReference && <RefreshCw size={14} className="animate-spin" />}
+                  <span>{creatingReference ? 'Criando...' : 'Criar e selecionar'}</span>
                 </button>
               </div>
             </form>

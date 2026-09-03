@@ -5,7 +5,7 @@ import { APP_CONFIG } from '../../config/appVersion';
 
 interface ApkDownloadButtonProps {
   className?: string;
-  variant?: 'header' | 'sidebar' | 'banner';
+  variant?: 'header' | 'sidebar';
 }
 
 export const ApkDownloadButton: React.FC<ApkDownloadButtonProps> = ({ className = '', variant = 'header' }) => {
