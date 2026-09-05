@@ -40,8 +40,11 @@ export const ApkDownloadButton: React.FC<ApkDownloadButtonProps> = ({ className 
         title="Baixar Aplicativo Android (APK) para Celular e Coletores"
         aria-label="Download do APK Android"
       >
-        <Smartphone size={15} className="text-emerald-300 animate-pulse" />
-        <span className="hidden sm:inline font-mono">App Android</span>
+        <img
+          src="/logoandroid.svg"
+          alt="Android"
+          className="h-5 w-auto max-w-[92px] object-contain"
+        />
         <span className="bg-emerald-500 text-slate-900 text-[10px] font-mono font-black px-1.5 py-0.2 rounded shrink-0 shadow-sm">
           v{APP_CONFIG.CURRENT_VERSION_NAME}
         </span>
