@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { LoginAccess } from './LoginAccess';
 import './landing.css';
 import { ArrowUpRight, ArrowRight, Boxes, ScanLine, Headphones, Wrench, ShoppingCart, Columns3, Users, ShieldCheck, Smartphone, Radio, Check, ChevronDown } from 'lucide-react';
@@ -11,7 +12,43 @@ const modules = [
   { icon: Users, title: 'Pessoas também fazem parte.', tag: '06 / RH', text: 'Organize termos de responsabilidade, calendário, status e comunicados. Gestores acompanham a equipe do seu setor.', items: ['Termos em PDF', 'Folgas, férias e banco de horas', 'Comunicação com gestor e RH'] },
 ];
 
+const seo = {
+  title: 'AssetTrack TI | Gestão de ativos e operações de TI',
+  description: 'AssetTrack TI reúne gestão de ativos, Service Desk, manutenção, compras, projetos Kanban e RH em uma única plataforma.',
+};
+
+function setMeta(selector: string, attribute: 'name' | 'property', key: string, content: string) {
+  let element = document.head.querySelector<HTMLMetaElement>(selector);
+  if (!element) {
+    element = document.createElement('meta');
+    element.setAttribute(attribute, key);
+    document.head.appendChild(element);
+  }
+  element.content = content;
+}
+
 export function LandingPage() {
+  useEffect(() => {
+    const canonicalUrl = new URL('/', window.location.origin).href;
+    document.title = seo.title;
+    setMeta('meta[name="description"]', 'name', 'description', seo.description);
+    setMeta('meta[property="og:title"]', 'property', 'og:title', seo.title);
+    setMeta('meta[property="og:description"]', 'property', 'og:description', seo.description);
+    setMeta('meta[property="og:url"]', 'property', 'og:url', canonicalUrl);
+    setMeta('meta[property="og:image"]', 'property', 'og:image', new URL('/assettrack-hero.png', window.location.origin).href);
+    setMeta('meta[name="twitter:title"]', 'name', 'twitter:title', seo.title);
+    setMeta('meta[name="twitter:description"]', 'name', 'twitter:description', seo.description);
+    setMeta('meta[name="twitter:image"]', 'name', 'twitter:image', new URL('/assettrack-hero.png', window.location.origin).href);
+
+    let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      document.head.appendChild(canonical);
+    }
+    canonical.href = canonicalUrl;
+  }, []);
+
   return <div className="public-landing">
     <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <header className="nav"><a className="brand" href="#inicio" aria-label="AssetTrack TI, início"><Boxes size={29}/><span>assettrack<span className="brand-ti">TI</span></span></a><nav aria-label="Navegação principal"><a href="#plataforma">Plataforma</a><a href="#fluxo">Como funciona</a><a href="#mobilidade">Mobilidade</a></nav><LoginAccess /></header>
