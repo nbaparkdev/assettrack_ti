@@ -43,7 +43,7 @@ export const ApkDownloadButton: React.FC<ApkDownloadButtonProps> = ({ className 
         <img
           src="/logoandroid.svg"
           alt="Android"
-          className="h-5 w-auto max-w-[92px] object-contain"
+          className="h-[62px] w-[104px] shrink-0 object-contain"
         />
         <span className="bg-emerald-500 text-slate-900 text-[10px] font-mono font-black px-1.5 py-0.2 rounded shrink-0 shadow-sm">
           v{APP_CONFIG.CURRENT_VERSION_NAME}
