@@ -183,7 +183,8 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       // Redirect to login if on protected page
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/qr-login') {
+      const publicAuthCheck = window.location.pathname === '/' && originalRequest?.url === '/auth/me';
+      if (!publicAuthCheck && !['/apresentacao', '/login', '/qr-login'].includes(window.location.pathname)) {
         window.location.href = '/login';
       }
     }

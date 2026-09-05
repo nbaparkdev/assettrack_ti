@@ -1,8 +1,10 @@
 import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { IS_NATIVE_APP } from './api/client';
 import { useAuthStore } from './stores/authStore';
 import { MainLayout } from './components/layout/MainLayout';
 import { LoginPage } from './pages/LoginPage';
+const LandingPage = lazy(() => import('./pages/landing/LandingPage').then(m => ({ default: m.LandingPage })));
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const UsersPage = lazy(() => import('./pages/UsersPage').then(m => ({ default: m.UsersPage })));
 const BadgePage = lazy(() => import('./pages/BadgePage').then(m => ({ default: m.BadgePage })));
@@ -31,6 +33,7 @@ const queryClient = new QueryClient();
 
 const App: React.FC = () => {
   const checkAuth = useAuthStore((state) => state.checkAuth);
+  const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
   const canAccessSettings = ['admin', 'gerente_ti', 'gerente_infra'].includes(user?.role?.toLowerCase() || '');
 
@@ -45,11 +48,12 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AppUpdateNotifier />
+        {token && <AppUpdateNotifier />}
         <Suspense fallback={<div className="grid min-h-[50vh] place-items-center text-sm text-brand-muted">Carregando módulo...</div>}>
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/apresentacao" element={<LandingPage />} />
 
           {/* TV monitoring mode: the page performs its own staff-role guard. */}
           <Route path="/monitoramento" element={<MonitoramentoPage />} />
@@ -62,14 +66,14 @@ const App: React.FC = () => {
             }
           />
 
-          {/* Protected Routes */}
+          {/* Public home for visitors; authenticated users keep their dashboard. */}
           <Route
             path="/"
-            element={
+            element={token ? (
               <MainLayout>
                 <DashboardPage />
               </MainLayout>
-            }
+            ) : IS_NATIVE_APP ? <Navigate to="/login" replace /> : <LandingPage />}
           />
           <Route
             path="/users"

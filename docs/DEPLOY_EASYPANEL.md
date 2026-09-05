@@ -52,3 +52,15 @@ Envie as alteracoes ao repositorio conectado e use **Deploy** no EasyPanel. O
 EasyPanel reconstruira apenas este perfil; os comandos locais como
 `docker compose up`, `start_local.sh` e os scripts ZimaOS continuam usando seus
 arquivos existentes e nao sao alterados por esta configuracao.
+
+## Página pública integrada
+
+A apresentação do AssetTrack TI é incluída no build do serviço `web`, sem serviço Sites ou domínio separado:
+
+- `/`: apresentação pública para visitantes; painel para usuários com sessão autenticada.
+- `/apresentacao`: apresentação pública, inclusive para usuários autenticados.
+- `/login`: autenticação da mesma instalação, aberta pelo botão **Acessar aplicação** após o aviso e a confirmação.
+
+O botão usa um caminho relativo à origem (`/login`), preservando automaticamente protocolo, domínio/IP e porta no acesso local ou no domínio publicado pelo EasyPanel. Não pede endereço, não usa descoberta de rede e não depende da API para abrir o login. As rotas operacionais permanecem protegidas. O APK mantém sua entrada direta no login.
+
+Para aplicar em uma instalação existente, reconstrua e publique somente o serviço `web` pelo fluxo normal do EasyPanel. Banco, API e APK não precisam ser recriados por esta mudança. No Docker Compose local: `docker compose up -d --build --no-deps web`.

@@ -290,3 +290,10 @@ Módulo de assistente virtual cognitivo integrado nativamente ao ERP, operando v
 | `/profile` | Perfil, avatar, senha e portal RH pessoal |
 | `/configuracoes` | Configurações, módulos e permissões |
 | `/logs-email` | Logs administrativos de e-mail |
+
+## Apresentação pública integrada
+
+- Landing page com ilustração de equipamentos, animações com suporte a movimento reduzido e conteúdo dos módulos.
+- Visitantes acessam `/` sem autenticação; `/apresentacao` está sempre disponível publicamente. Usuários autenticados continuam vendo o dashboard em `/`.
+- Botão **Acessar aplicação** abre aviso com as opções Cancelar e Continuar para o login, direcionando para `/login` na própria origem.
+- Incluída no frontend e no serviço web Docker/EasyPanel. Não requer informar IP ou domínio e não consulta registros operacionais.
