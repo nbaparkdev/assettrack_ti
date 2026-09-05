@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // Capacitor generates native build artifacts under android/; they are not
+  // application source and may contain directives for plugins unavailable here.
+  globalIgnores(['dist', 'android/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

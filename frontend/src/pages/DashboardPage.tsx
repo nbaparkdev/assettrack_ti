@@ -1063,7 +1063,7 @@ export const DashboardPage: React.FC = () => {
                   {myMaintenanceRequests.map(req => {
                     const statusLower = req.status?.toLowerCase() || '';
                     let statusColor = '';
-                    let statusLabel = '';
+                    let statusLabel: string;
 
                     if (statusLower === 'pendente') {
                       statusColor = 'text-blue-400 bg-blue-400/10 border-blue-400/20';
