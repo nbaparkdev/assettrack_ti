@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, Loader2 } from 'lucide-react';
 import { sendChatMessage } from '../../api/ai';
+import { getFeatureFlags } from '../../api/features';
 import type { ChatMessage } from '../../types/ai';
 
 export const ChatbotWidget: React.FC = () => {
@@ -8,7 +9,33 @@ export const ChatbotWidget: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [enabled, setEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    const refreshVisibility = async () => {
+      try {
+        const flags = await getFeatureFlags();
+        if (active) setEnabled(flags.ai_enabled === true);
+      } catch {
+        if (active) setEnabled(false);
+      }
+    };
+    const handleVisibilityChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ enabled?: boolean }>).detail;
+      if (typeof detail?.enabled === 'boolean') setEnabled(detail.enabled);
+      void refreshVisibility();
+    };
+    void refreshVisibility();
+    const interval = window.setInterval(refreshVisibility, 30000);
+    window.addEventListener('assettrack-ai-visibility-change', handleVisibilityChange);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener('assettrack-ai-visibility-change', handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -51,6 +78,8 @@ export const ChatbotWidget: React.FC = () => {
       handleSend();
     }
   };
+
+  if (!enabled) return null;
 
   return (
     <>

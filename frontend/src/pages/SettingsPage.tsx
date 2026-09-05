@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getSettings, updateSettings } from '../api/settings';
+import { getSettings, updateSettings, sendTestEmail } from '../api/settings';
 import type { SystemSettings, UpdateSettingsPayload } from '../types/settings';
-import { Save, AlertCircle } from 'lucide-react';
+import { Save, AlertCircle, Mail } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<SystemSettings>({});
@@ -9,6 +9,8 @@ export const SettingsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState('');
+  const [testingSmtp, setTestingSmtp] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -19,10 +21,13 @@ export const SettingsPage: React.FC = () => {
       const data = await getSettings();
       setSettings({
         ...data,
+        preventive_maintenance_enabled: data.preventive_maintenance_enabled || 'true',
+        purchases_enabled: data.purchases_enabled || 'true',
+        kanban_enabled: data.kanban_enabled || 'true',
         openai_model: data.openai_model || 'gpt-4o-mini',
         gemini_model: data.gemini_model || 'gemini-2.5-flash',
       });
-      const aiEnabled = data.ai_enabled !== 'false';
+      const aiEnabled = data.ai_enabled === 'true';
       localStorage.setItem('assettrack-ai-enabled', String(aiEnabled));
       window.dispatchEvent(new CustomEvent('assettrack-ai-visibility-change', { detail: { enabled: aiEnabled } }));
     } catch (err) {
@@ -41,12 +46,6 @@ export const SettingsPage: React.FC = () => {
       finalValue = checked ? 'true' : 'false';
     }
 
-    if (name === 'ai_enabled') {
-      const enabled = finalValue === 'true';
-      localStorage.setItem('assettrack-ai-enabled', String(enabled));
-      window.dispatchEvent(new CustomEvent('assettrack-ai-visibility-change', { detail: { enabled } }));
-    }
-
     setSettings(prev => ({
       ...prev,
       [name]: finalValue
@@ -62,12 +61,33 @@ export const SettingsPage: React.FC = () => {
     try {
       const payload: UpdateSettingsPayload = { ...settings };
       await updateSettings(payload);
+      const enabled = settings.ai_enabled === 'true';
+      localStorage.setItem('assettrack-ai-enabled', String(enabled));
+      window.dispatchEvent(new CustomEvent('assettrack-ai-visibility-change', { detail: { enabled } }));
       setSuccessMsg('Configurações salvas com sucesso!');
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err) {
       setError('Erro ao salvar as configurações.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestSmtp = async () => {
+    setTestingSmtp(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      // Persist the values in the form before testing so the test always uses
+      // exactly what the administrator is looking at.
+      await updateSettings({ ...settings });
+      const result = await sendTestEmail(testEmail);
+      setSuccessMsg(`E-mail de teste enviado para ${result.recipient}.`);
+      setTimeout(() => setSuccessMsg(null), 5000);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Não foi possível enviar o e-mail de teste.');
+    } finally {
+      setTestingSmtp(false);
     }
   };
 
@@ -286,6 +306,26 @@ export const SettingsPage: React.FC = () => {
                 onChange={handleInputChange}
                 className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors placeholder-brand-muted/30"
               />
+            </div>
+            <div className="md:col-span-2 mt-2 border-t border-brand-border pt-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex-1">
+                  <label className="block text-sm text-brand-muted mb-1 font-mono uppercase" htmlFor="smtp-test-email">Destinatário do teste (opcional)</label>
+                  <input
+                    id="smtp-test-email"
+                    type="email"
+                    placeholder="vazio = seu usuário administrador"
+                    value={testEmail}
+                    onChange={(event) => setTestEmail(event.target.value)}
+                    className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors placeholder-brand-muted/30"
+                  />
+                </div>
+                <button type="button" onClick={handleTestSmtp} disabled={testingSmtp} className="flex h-11 shrink-0 items-center justify-center gap-2 border border-brand-primary bg-brand-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-primary/80 disabled:cursor-not-allowed disabled:opacity-50">
+                  <Mail size={17} />
+                  {testingSmtp ? 'Enviando teste...' : 'Enviar e-mail de teste'}
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-brand-muted">O teste salva as configurações atuais e registra o resultado em Logs de E-mail.</p>
             </div>
           </div>
         </div>

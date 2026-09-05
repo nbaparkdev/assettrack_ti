@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { toApiFileUrl } from '../../api/client';
+import { getFeatureFlags, type FeatureFlags } from '../../api/features';
 import {
   LayoutDashboard,
   Users,
@@ -38,6 +39,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
     const saved = localStorage.getItem('assettrack-sidebar-collapsed');
     return saved ? saved === 'true' : window.matchMedia('(max-width: 1279px)').matches;
   });
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
+    preventive_maintenance_enabled: true,
+    purchases_enabled: true,
+    kanban_enabled: true,
+    ai_enabled: false,
+  });
+
+  useEffect(() => {
+    let active = true;
+    const refreshFeatures = async () => {
+      try {
+        const flags = await getFeatureFlags();
+        if (active) setFeatureFlags(flags);
+      } catch {
+        // Keep the backwards-compatible defaults when the feature endpoint is unavailable.
+      }
+    };
+    void refreshFeatures();
+    const interval = window.setInterval(refreshFeatures, 30000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('assettrack-sidebar-collapsed', String(collapsed));
@@ -59,11 +84,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
     { name: 'Ativos & Inventário', path: '/assets', icon: Cpu, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico', 'comprador'] },
     { name: 'Central de Suporte', path: '/servicos', icon: MessageSquare },
     { name: 'Manutenções', path: '/manutencoes', icon: Wrench, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
-    { name: 'Prev. Programada', path: '/manutencao-preventiva', icon: ClipboardList, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
-    { name: 'Kanban', path: '/kanban', icon: Columns3 },
+    { name: 'Prev. Programada', path: '/manutencao-preventiva', icon: ClipboardList, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'], feature: 'preventive_maintenance_enabled' as const },
+    { name: 'Kanban', path: '/kanban', icon: Columns3, feature: 'kanban_enabled' as const },
     { name: 'Alertas', path: '/alertas', icon: BellRing, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'tecnico'] },
     { name: 'Empréstimos', path: '/emprestimos', icon: ArrowLeftRight },
-    { name: 'Compras', path: '/compras', icon: Briefcase, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'comprador'] },
+    { name: 'Compras', path: '/compras', icon: Briefcase, roleLimit: ['admin', 'gerente_ti', 'gerente_infra', 'comprador'], feature: 'purchases_enabled' as const },
     { name: 'Portal RH', path: '/rh', icon: FileSignature, roleLimit: ['admin', 'rh'], allowRHManagement: true },
     { name: 'Usuários', path: '/users', icon: Users, roleLimit: ['admin', 'gerente_ti', 'gerente_infra'] },
     { name: 'Webhooks', path: '/webhooks', icon: Webhook, roleLimit: ['admin'] },
@@ -151,6 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpenMobile = false, onCloseM
         {/* Navigation */}
         <nav className={`p-3 space-y-1 flex-1 overflow-y-auto ${!isMobileView && collapsed ? 'px-2' : ''}`}>
           {menuItems.map((item) => {
+            if (item.feature && !featureFlags[item.feature]) return null;
             if (item.roleLimit && !item.roleLimit.includes(userRole) && !((item as any).allowRHManagement && hasRHManagement)) {
               return null;
             }

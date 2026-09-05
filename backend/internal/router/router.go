@@ -114,7 +114,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	webhookHandler := handler.NewWebhookHandler(webhookRepo, webhookDispatcher)
 	backupHandler := handler.NewBackupHandler(cfg)
 	dashboardHandler := handler.NewDashboardHandler(db)
-	settingsHandler := handler.NewSettingsHandler(systemSettingsRepo)
+	settingsHandler := handler.NewSettingsHandler(systemSettingsRepo, emailSvc)
 	emailLogHandler := handler.NewEmailLogHandler(emailLogRepo)
 	aiHandler := handler.NewAIHandler(aiSvc)
 	appHandler := handler.NewAppHandler()
@@ -253,7 +253,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		}
 
 		// Preventive maintenance routes (protected)
-		preventiva := v1.Group("/preventiva", authMW, rActive)
+		preventiva := v1.Group("/preventiva", authMW, rActive, middleware.RequireFeature(systemSettingsRepo, "preventive_maintenance_enabled", true))
 		{
 			preventiva.GET("/dashboard", preventiveHandler.Dashboard)
 			preventiva.GET("/notificacoes", preventiveHandler.MyNotifications)
@@ -295,7 +295,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		}
 
 		// Kanban routes (protected)
-		kanban := v1.Group("/kanban", authMW, rActive)
+		kanban := v1.Group("/kanban", authMW, rActive, middleware.RequireFeature(systemSettingsRepo, "kanban_enabled", true))
 		{
 			kanban.GET("/sse", kanbanHandler.SSEStream)
 			kanban.GET("/projetos", kanbanHandler.ListProjects)
@@ -359,7 +359,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		}
 
 		// Procurement (Compras) routes (protected)
-		compras := v1.Group("/compras", authMW, rActive)
+		compras := v1.Group("/compras", authMW, rActive, middleware.RequireFeature(systemSettingsRepo, "purchases_enabled", true))
 		{
 			compras.GET("/dashboard", procurementHandler.Dashboard)
 			compras.GET("/export.csv", procurementHandler.ExportCSV)
@@ -512,10 +512,16 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		}
 
 		// Admin config routes (protected: admin)
+		featureSettings := v1.Group("/settings", authMW, rActive)
+		{
+			featureSettings.GET("/features", settingsHandler.GetFeatures)
+		}
+
 		adminSettings := v1.Group("/admin/settings", authMW, rActive, rAdmin)
 		{
 			adminSettings.GET("", settingsHandler.GetAll)
 			adminSettings.PUT("", settingsHandler.UpdateMany)
+			adminSettings.POST("/test-email", settingsHandler.TestEmail)
 		}
 
 		adminEmailLogs := v1.Group("/admin/email-logs", authMW, rActive, rAdmin)

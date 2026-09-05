@@ -1,18 +1,75 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
+	"github.com/assettrack/backend/internal/middleware"
 	"github.com/assettrack/backend/internal/repository"
+	"github.com/assettrack/backend/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
 type SettingsHandler struct {
 	settingsRepo repository.SystemSettingsRepository
+	emailSvc     service.EmailService
 }
 
-func NewSettingsHandler(settingsRepo repository.SystemSettingsRepository) *SettingsHandler {
-	return &SettingsHandler{settingsRepo: settingsRepo}
+func NewSettingsHandler(settingsRepo repository.SystemSettingsRepository, emailSvc service.EmailService) *SettingsHandler {
+	return &SettingsHandler{settingsRepo: settingsRepo, emailSvc: emailSvc}
+}
+
+// GetFeatures is available to every active authenticated user so module visibility
+// is controlled by one server-side value instead of per-browser local state.
+func (h *SettingsHandler) GetFeatures(c *gin.Context) {
+	keys := []string{"preventive_maintenance_enabled", "purchases_enabled", "kanban_enabled", "ai_enabled"}
+	result := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		setting, err := h.settingsRepo.GetSetting(c.Request.Context(), key)
+		if err != nil || setting == nil {
+			// Existing installations predate feature rows; preserve their active modules.
+			result[key] = key != "ai_enabled"
+			continue
+		}
+		result[key] = strings.EqualFold(strings.TrimSpace(setting.SettingValue), "true")
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+type testEmailRequest struct {
+	Email string `json:"email"`
+}
+
+// TestEmail sends a harmless message to the requesting admin's address (or to
+// the explicitly supplied address) using the SMTP settings currently saved.
+func (h *SettingsHandler) TestEmail(c *gin.Context) {
+	if h.emailSvc == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Serviço de e-mail indisponível"})
+		return
+	}
+	var request testEmailRequest
+	if c.Request.ContentLength != 0 && c.Request.Body != nil {
+		if err := c.ShouldBindJSON(&request); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Informe um destinatário de teste válido"})
+			return
+		}
+	}
+	request.Email = strings.TrimSpace(request.Email)
+	if request.Email == "" {
+		if user := middleware.GetCurrentUser(c); user != nil {
+			request.Email = strings.TrimSpace(user.Email)
+		}
+	}
+	if request.Email == "" || !strings.Contains(request.Email, "@") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Informe o e-mail que receberá o teste"})
+		return
+	}
+	if err := h.emailSvc.SendEmail(c.Request.Context(), request.Email, "Teste SMTP — AssetTrack TI", "<p>Este é um envio de teste do servidor SMTP do AssetTrack TI.</p>"); err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("Não foi possível enviar o teste SMTP: %v", err)})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "E-mail de teste enviado", "recipient": request.Email})
 }
 
 func (h *SettingsHandler) GetAll(c *gin.Context) {

@@ -10,6 +10,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RequireFeature keeps a disabled module unavailable even when a user opens an
+// old bookmarked URL instead of navigating through the filtered menu.
+func RequireFeature(settingsRepo repository.SystemSettingsRepository, key string, defaultEnabled bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		setting, err := settingsRepo.GetSetting(c.Request.Context(), key)
+		enabled := defaultEnabled
+		if err == nil && setting != nil {
+			enabled = strings.EqualFold(strings.TrimSpace(setting.SettingValue), "true")
+		}
+		if !enabled {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"detail": "Este módulo está desativado pelo administrador", "feature": key})
+			return
+		}
+		c.Next()
+	}
+}
+
 const (
 	ContextUserKey = "current_user"
 )

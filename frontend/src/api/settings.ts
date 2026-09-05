@@ -9,3 +9,8 @@ export const getSettings = async (): Promise<SystemSettings> => {
 export const updateSettings = async (data: UpdateSettingsPayload): Promise<void> => {
   await api.put('/admin/settings', data);
 };
+
+export const sendTestEmail = async (email?: string): Promise<{ message: string; recipient: string }> => {
+  const response = await api.post<{ message: string; recipient: string }>('/admin/settings/test-email', { email: email?.trim() || undefined });
+  return response.data;
+};

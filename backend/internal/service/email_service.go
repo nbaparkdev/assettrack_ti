@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/mail"
 	"net/smtp"
 
 	"github.com/assettrack/backend/internal/models"
@@ -53,6 +54,12 @@ func (s *emailService) SendEmail(ctx context.Context, to string, subject string,
 	if fromSetting != nil && fromSetting.SettingValue != "" {
 		from = fromSetting.SettingValue
 	}
+	// SMTP envelope commands require a bare address even when the configured
+	// From value includes a display name such as "AssetTrack TI <mail@example>".
+	envelopeFrom := from
+	if parsed, err := mail.ParseAddress(from); err == nil && parsed.Address != "" {
+		envelopeFrom = parsed.Address
+	}
 
 	auth := smtp.PlainAuth("", user, pass, host)
 
@@ -66,7 +73,7 @@ func (s *emailService) SendEmail(ctx context.Context, to string, subject string,
 	var err error
 	if host != "" && user != "" && pass != "" {
 		address := host + ":" + port
-		err = smtp.SendMail(address, auth, from, []string{to}, msg)
+		err = smtp.SendMail(address, auth, envelopeFrom, []string{to}, msg)
 	} else {
 		err = fmt.Errorf("SMTP settings not fully configured")
 	}
@@ -87,7 +94,7 @@ func (s *emailService) SendEmail(ctx context.Context, to string, subject string,
 		Status:       status,
 		ErrorMessage: errMsg,
 	}
-	
+
 	// Fire and forget log creation
 	go func() {
 		_ = s.emailLogRepo.Create(context.Background(), logEntry)
