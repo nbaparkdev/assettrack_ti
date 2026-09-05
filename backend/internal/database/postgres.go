@@ -16,6 +16,9 @@ func ConnectPostgres(dsn string) *gorm.DB {
 		Logger:                 logger.Default.LogMode(logger.Warn),
 		SkipDefaultTransaction: true,
 		PrepareStmt:            true,
+		// User and Departamento reference each other. Deferring FK creation
+		// avoids a first-install migration ordering cycle on PostgreSQL.
+		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	if err != nil {
 		log.Fatalf("Failed to connect to PostgreSQL: %v", err)

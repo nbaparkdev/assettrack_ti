@@ -99,7 +99,7 @@ func main() {
 		&models.SystemSetting{},
 		&models.EmailLog{},
 	); err != nil {
-		log.Printf("⚠️ Auto-migration warning: %v", err)
+		log.Fatalf("❌ Auto-migration failed: %v", err)
 	}
 
 	if db.Migrator().HasColumn(&models.ServiceTicket{}, "titulo") {
