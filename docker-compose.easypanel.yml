@@ -1,0 +1,86 @@
+# Perfil de producao para uma aplicacao "Compose" no EasyPanel.
+# Nao substitui docker-compose.yml, usado no desenvolvimento local.
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Defina POSTGRES_USER no EasyPanel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no EasyPanel}
+      POSTGRES_DB: ${POSTGRES_DB:?Defina POSTGRES_DB no EasyPanel}
+    volumes:
+      - assettrack_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - assettrack_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:?Defina POSTGRES_USER no EasyPanel}:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no EasyPanel}@db:5432/${POSTGRES_DB:?Defina POSTGRES_DB no EasyPanel}?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?Defina SECRET_KEY no EasyPanel}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
+      PROJECT_NAME: ${PROJECT_NAME:-AssetTrack TI}
+      TZ: ${TZ:-America/Sao_Paulo}
+      PORT: "8080"
+      GIN_MODE: release
+    volumes:
+      - assettrack_uploads:/app/uploads
+      - assettrack_backups:/app/backups
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8080/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Mantem o navegador no mesmo dominio publicado pelo EasyPanel.
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+        VITE_APP_VERSION_CODE: ${VITE_APP_VERSION_CODE:-2}
+        VITE_APP_VERSION_NAME: ${VITE_APP_VERSION_NAME:-1.2.0}
+        VITE_APP_BUILD_TIMESTAMP: ${VITE_APP_BUILD_TIMESTAMP:-}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  assettrack_postgres_data:
+  assettrack_redis_data:
+  assettrack_uploads:
+  assettrack_backups:

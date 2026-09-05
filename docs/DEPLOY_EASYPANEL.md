@@ -1,85 +1,54 @@
-# Guia de Deploy no EasyPanel 🚀
+# Deploy no EasyPanel
 
-Este guia detalha o processo para implantar o **AssetTrack TI** utilizando a plataforma EasyPanel (Docker).
+Este perfil publica apenas o servico `web`. O Nginx dele encaminha `/api/v1`,
+`/uploads` e `/health` ao servico `api` pela rede interna; banco e Redis nao
+ficam expostos na internet. Ele e independente de `docker-compose.yml`, que
+continua sendo o perfil de desenvolvimento local.
 
-## 1. Preparação
-Certifique-se de que todo o código está atualizado no seu repositório GitHub.
-O projeto já conta com um `Dockerfile.prod` otimizado.
+## Criacao do projeto
 
-## 2. Criar Serviço de Banco de Dados (PostgreSQL)
-Recomendamos criar o banco separado da aplicação.
+1. No EasyPanel, crie um projeto e adicione um servico do tipo **Compose** a
+   partir deste repositorio Git.
+2. Em **Compose file**, informe `docker-compose.easypanel.yml`.
+3. Cadastre as variaveis de `.env.easypanel.example` na tela de variaveis do
+   servico. Use valores aleatorios e fortes para `POSTGRES_PASSWORD` e
+   `SECRET_KEY`; nao use os valores de exemplo.
+4. Adicione um dominio ao servico `web`, com porta interna `80`. Ative HTTPS.
+   Nao publique portas dos servicos `api`, `db` ou `redis`.
+5. Faça o deploy. A primeira inicializacao aplica as migracoes automaticamente.
 
-1.  No seu projeto no EasyPanel, clique em **+ Service** -> **PostgreSQL**.
-2.  Nomeie como preferir (ex: `asset-db`).
-3.  Clique em **Create**.
-4.  Após iniciar, clique no card do serviço e vá em **Connection Details**.
-5.  Copie a **Internal Connection URL**. Ela será parecida com:
-    `postgres://postgres:senha@asset-db:5432/postgres`
+O campo `VITE_API_URL` deve permanecer como `/api/v1`. Isso evita CORS e faz o
+portal, links de upload e o APK usarem o mesmo dominio HTTPS do EasyPanel.
 
-## 3. Criar Serviço da Aplicação
-1.  Clique em **+ Service** -> **App**.
-2.  Conecte seu GitHub e selecione o repositório `assettrack_ti`.
-3.  Vá na aba **Build**:
-    *   **Dockerfile Path**: Altere de `/Dockerfile` para `/Dockerfile.prod`.
-    *   Clique em **Save**.
+## Dados persistentes
 
-## 4. Variáveis de Ambiente (.env)
-Vá na aba **Environment** do serviço da aplicação e adicione as variáveis.
+O arquivo Compose cria quatro volumes nomeados, que devem ser preservados ao
+atualizar o codigo:
 
-```properties
-# Configurações Gerais
-PROJECT_NAME="AssetTrack TI"
-SECRET_KEY="crie-uma-senha-secreta-longa-aqui"
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
+- `assettrack_postgres_data`: dados do PostgreSQL;
+- `assettrack_redis_data`: Redis com AOF habilitado;
+- `assettrack_uploads`: anexos, avatares e APK publicado;
+- `assettrack_backups`: backups e arquivos temporarios de restauracao.
 
-# Configuração do Banco de Dados
-DATABASE_URL=postgres://postgres:suasenha@asset-db:5432/postgres?sslmode=disable
-REDIS_URL=redis://asset-redis:6379/0
-```
+Um redeploy/rebuild normal preserva esses volumes. Nao use a opcao de remover
+volumes ao recriar o servico. Antes de uma mudanca destrutiva, exporte um backup
+do PostgreSQL e salve uma copia externa dos uploads.
 
-## 5. Porta e Domínio
-1.  Vá na aba **Domains**.
-2.  Certifique-se de que a **Container Port** está definida como `8000`.
+## Validacao apos o deploy
 
-O usuário administrador (admin@npg.com) com a senha padrão será criado automaticamente via GORM AutoMigrate na inicialização da aplicação em Go. Não é necessário executar scripts manuais de criação.
-
-Seu deploy está concluído! ✅
-
----
-
-## 7. Scripts de Manutenção
-
-### Reset do Ambiente Docker
-Para reiniciar o ambiente Docker:
+Com o dominio configurado, confirme no navegador ou terminal:
 
 ```bash
-# Apenas para containers e redes (banco preservado)
-./reset_docker.sh
-
-# Remove volumes, imagens e build cache (banco destruído)
-./reset_docker.sh --full
-
-# Reset full + sobe ambiente limpo em seguida
-./reset_docker.sh --full --reinit
+curl -fsS https://SEU_DOMINIO/health
 ```
 
-| Flag | Efeito |
-|------|--------|
-| *(sem flags)* | Para containers e redes. Volume `postgres_data` é **preservado**. |
-| `--full` | Remove volumes (banco PostgreSQL), imagens do projeto e build cache. Pede confirmação. |
-| `--reinit` | Após o reset, executa `init_docker.sh` para subir o ambiente do zero. |
+O retorno esperado e `{"status":"ok"}`. Depois, teste login, upload de um
+anexo e download do APK, pois esses fluxos confirmam banco, Redis e o volume de
+uploads.
 
-Use `--full` com cautela — **todos os dados do banco local serão perdidos**.
+## Atualizacoes
 
-### Atualização do Ambiente
-Após fazer pull de novas alterações do repositório, execute:
-
-```bash
-./update_docker.sh
-```
-
-Este script reconstrói as imagens e sobe os containers com as últimas mudanças.
-
-### Auto-Migration no Startup
-O sistema executa migrações automáticas (`GORM AutoMigrate`) no banco de dados durante a inicialização da API em Go. Novas tabelas e colunas são adicionadas automaticamente.
+Envie as alteracoes ao repositorio conectado e use **Deploy** no EasyPanel. O
+EasyPanel reconstruira apenas este perfil; os comandos locais como
+`docker compose up`, `start_local.sh` e os scripts ZimaOS continuam usando seus
+arquivos existentes e nao sao alterados por esta configuracao.

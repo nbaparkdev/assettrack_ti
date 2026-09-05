@@ -36,6 +36,7 @@ O painel foi projetado para uso em uma TV: abra a rota, clique em **Tela cheia**
 - **backend/**: API em Go, regras de negócio, modelos GORM e migração automática
 - **frontend/**: aplicação React + Vite
 - **docker-compose.yml**: ambiente de desenvolvimento com PostgreSQL, Redis, API e Web
+- **docker-compose.easypanel.yml**: perfil de producao para deploy no EasyPanel, isolado do ambiente local
 - **start_local.ps1 / start_local.sh**: inicialização local nativa do backend e frontend
 
 ## 🚀 Como Rodar
@@ -185,6 +186,12 @@ O APK Android não é mais gerado pela aplicação nem pelos scripts de instala�
 ```bash
 ./scripts/publish_mobile_apk.sh /caminho/AssetTrack-TI.apk
 ```
+
+### Deploy no EasyPanel
+
+Para publicar por Git no EasyPanel sem alterar o modo local, use o arquivo
+`docker-compose.easypanel.yml`. O passo a passo e as variáveis obrigatórias estão em
+[docs/DEPLOY_EASYPANEL.md](./docs/DEPLOY_EASYPANEL.md).
 
 ### 2. Inicialização Manual
 Caso prefira rodar os comandos passo a passo:
