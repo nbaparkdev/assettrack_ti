@@ -36,7 +36,7 @@ export const ApkDownloadButton: React.FC<ApkDownloadButtonProps> = ({ className 
       <button
         type="button"
         onClick={() => setModalOpen(true)}
-        className={`inline-flex h-[38px] w-[183px] items-center justify-center space-x-1.5 overflow-visible bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-200 hover:text-white border border-emerald-400/40 rounded transition-all active:scale-95 shadow-sm text-xs font-semibold ${className}`}
+        className={`inline-flex h-[38px] w-[183px] min-[1280px]:w-[228px] items-center justify-center space-x-1.5 overflow-visible bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-200 hover:text-white border border-emerald-400/40 rounded transition-all active:scale-95 shadow-sm text-xs font-semibold ${className}`}
         title="Baixar Aplicativo Android (APK) para Celular e Coletores"
         aria-label="Download do APK Android"
       >

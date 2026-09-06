@@ -261,6 +261,11 @@ export const AssetsPage: React.FC = () => {
       setFilterStatus(statusParam);
     }
 
+    const searchParam = params.get('search') ?? params.get('e_patrimonio');
+    if (searchParam !== null) {
+      setSearchEP(searchParam);
+    }
+
     const categoryParam = params.get('category');
     if (categoryParam) {
       if (!Number.isNaN(Number(categoryParam))) {
