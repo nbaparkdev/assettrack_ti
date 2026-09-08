@@ -87,3 +87,23 @@ type ServiceTicketInteraction struct {
 }
 
 func (ServiceTicketInteraction) TableName() string { return "service_ticket_interactions" }
+
+// ServiceDeskNotification is an in-app notification generated from a ticket
+// lifecycle event. It is intentionally separate from e-mail delivery so each
+// channel can be managed independently in the system settings.
+type ServiceDeskNotification struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	UserID      uint      `gorm:"column:user_id;not null;index" json:"user_id"`
+	TicketID    uint      `gorm:"column:ticket_id;not null;index" json:"ticket_id"`
+	AutorID     *uint     `gorm:"column:autor_id" json:"autor_id"`
+	Tipo        string    `gorm:"size:50;not null" json:"tipo"`
+	Titulo      string    `gorm:"size:255;not null" json:"titulo"`
+	Mensagem    string    `gorm:"type:text;not null" json:"mensagem"`
+	Lida        bool      `gorm:"default:false" json:"lida"`
+	DataCriacao time.Time `gorm:"column:data_criacao;default:CURRENT_TIMESTAMP" json:"data_criacao"`
+
+	Ticket *ServiceTicket `gorm:"foreignKey:TicketID" json:"ticket,omitempty"`
+	Autor  *User          `gorm:"foreignKey:AutorID" json:"autor,omitempty"`
+}
+
+func (ServiceDeskNotification) TableName() string { return "service_desk_notifications" }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -20,6 +21,7 @@ type MaintenanceScheduler struct {
 	historyRepo   *repository.PMHistoryRepository
 	notifRepo     *repository.PMNotificationRepository
 	categoryRepo  *repository.AssetCategoryRepository
+	settingsRepo  repository.SystemSettingsRepository
 }
 
 func NewMaintenanceScheduler(
@@ -30,6 +32,7 @@ func NewMaintenanceScheduler(
 	historyRepo *repository.PMHistoryRepository,
 	notifRepo *repository.PMNotificationRepository,
 	categoryRepo *repository.AssetCategoryRepository,
+	settingsRepo repository.SystemSettingsRepository,
 ) *MaintenanceScheduler {
 	return &MaintenanceScheduler{
 		db:            db,
@@ -39,6 +42,7 @@ func NewMaintenanceScheduler(
 		historyRepo:   historyRepo,
 		notifRepo:     notifRepo,
 		categoryRepo:  categoryRepo,
+		settingsRepo:  settingsRepo,
 	}
 }
 
@@ -110,7 +114,7 @@ func (s *MaintenanceScheduler) CheckAndGenerate() {
 					}
 					if createErr := s.orderRepo.Create(order); createErr == nil {
 						_ = s.historyRepo.Create(&models.MaintenanceHistory{OrderID: order.ID, Acao: "Ordem Criada", Descricao: "Ordem geral gerada automaticamente pelo plano predial/industrial.", StatusNovo: &order.Status})
-						if plan.ResponsavelID != nil {
+						if plan.ResponsavelID != nil && IsNotificationSettingEnabled(context.Background(), s.settingsRepo, NotificationMaintenanceEnabled, true) {
 							_ = s.notifRepo.Create(&models.MaintenanceNotification{OrderID: &order.ID, UsuarioID: *plan.ResponsavelID, Tipo: "order_assigned", Mensagem: fmt.Sprintf("Nova ordem geral de manutenção gerada pelo plano %s.\n\nOS Código: %s\nÁrea/Serviço: %s\nPrioridade: %s", plan.Codigo, order.Numero, infra, plan.Prioridade)})
 						}
 						log.Printf("[SCHEDULER] General order %s created for plan %s.", order.Numero, plan.Codigo)
@@ -173,7 +177,7 @@ func (s *MaintenanceScheduler) CheckAndGenerate() {
 			})
 
 			// Notify the plan's responsible technician
-			if plan.ResponsavelID != nil {
+			if plan.ResponsavelID != nil && IsNotificationSettingEnabled(context.Background(), s.settingsRepo, NotificationMaintenanceEnabled, true) {
 				_ = s.notifRepo.Create(&models.MaintenanceNotification{
 					OrderID:   &order.ID,
 					UsuarioID: *plan.ResponsavelID,

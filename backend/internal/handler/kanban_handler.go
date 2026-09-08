@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -100,6 +102,8 @@ type KanbanHandler struct {
 	notifRepo       *repository.KanbanNotificationRepository
 	userRepo        *repository.UserRepository
 	broker          *KanbanSSEBroker
+	settingsRepo    repository.SystemSettingsRepository
+	emailSvc        service.EmailService
 }
 
 func NewKanbanHandler(
@@ -111,6 +115,8 @@ func NewKanbanHandler(
 	notifRepo *repository.KanbanNotificationRepository,
 	userRepo *repository.UserRepository,
 	broker *KanbanSSEBroker,
+	settingsRepo repository.SystemSettingsRepository,
+	emailSvc service.EmailService,
 ) *KanbanHandler {
 	return &KanbanHandler{
 		projectRepo:     projectRepo,
@@ -121,6 +127,8 @@ func NewKanbanHandler(
 		notifRepo:       notifRepo,
 		userRepo:        userRepo,
 		broker:          broker,
+		settingsRepo:    settingsRepo,
+		emailSvc:        emailSvc,
 	}
 }
 
@@ -161,19 +169,18 @@ func (h *KanbanHandler) projectParticipantIDs(project *models.KanbanProject) []u
 }
 
 func (h *KanbanHandler) notify(userIDs []uint, autorID uint, tipo, titulo, mensagem string, projectID, cardID *uint) {
+	internalEnabled := service.IsNotificationSettingEnabled(context.Background(), h.settingsRepo, service.NotificationKanbanEnabled, true)
+	emailEnabled := h.emailSvc != nil && h.emailSvc.IsNotificationEnabled(context.Background(), service.EmailNotificationKanban, true)
 	for _, uid := range userIDs {
 		link := fmt.Sprintf("/kanban")
-		_ = h.notifRepo.Create(&models.KanbanNotification{
-			UserID:    uid,
-			AutorID:   &autorID,
-			ProjectID: projectID,
-			CardID:    cardID,
-			Tipo:      tipo,
-			Titulo:    titulo,
-			Mensagem:  mensagem,
-			Link:      &link,
-			Lida:      uid == autorID,
-		})
+		if internalEnabled {
+			_ = h.notifRepo.Create(&models.KanbanNotification{UserID: uid, AutorID: &autorID, ProjectID: projectID, CardID: cardID, Tipo: tipo, Titulo: titulo, Mensagem: mensagem, Link: &link, Lida: uid == autorID})
+		}
+		if emailEnabled && uid != autorID {
+			if recipient, err := h.userRepo.GetByID(uid); err == nil && strings.TrimSpace(recipient.Email) != "" {
+				_ = h.emailSvc.SendEmail(context.Background(), recipient.Email, titulo+" — AssetTrack TI", "<p>"+html.EscapeString(mensagem)+"</p>")
+			}
+		}
 	}
 	payload := gin.H{"tipo": tipo, "mensagem": mensagem}
 	if projectID != nil {
@@ -182,7 +189,9 @@ func (h *KanbanHandler) notify(userIDs []uint, autorID uint, tipo, titulo, mensa
 	if cardID != nil {
 		payload["card_id"] = *cardID
 	}
-	h.broker.BroadcastToUsers(userIDs, KanbanEvent{Type: "kanban_update", Payload: payload})
+	if internalEnabled {
+		h.broker.BroadcastToUsers(userIDs, KanbanEvent{Type: "kanban_update", Payload: payload})
+	}
 }
 
 // ---------- Projects ----------

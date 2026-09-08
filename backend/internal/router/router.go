@@ -90,7 +90,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	userHandler := handler.NewUserHandler(userRepo, authSvc, qrSvc)
 	qrHandler := handler.NewQRHandler(userRepo, authSvc, qrSvc, qrLogSvc, txRepo, maintRepo, assetRepo)
 	assetHandler := handler.NewAssetHandler(assetRepo, categoryRepo)
-	serviceDeskHandler := handler.NewServiceDeskHandler(serviceDeskRepo)
+	serviceDeskHandler := handler.NewServiceDeskHandler(serviceDeskRepo, userRepo, systemSettingsRepo, emailSvc)
 	maintenanceHandler := handler.NewMaintenanceHandler(maintRepo, assetRepo, txRepo)
 	transactionHandler := handler.NewTransactionHandler(txRepo, assetRepo, userRepo)
 	supplierHandler := handler.NewSupplierHandler(supplierRepo, invoiceRepo)
@@ -98,17 +98,19 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		pmPlanRepo, pmChecklistRepo, pmItemRepo, pmPlanAssetRepo, pmOrderRepo,
 		pmExecRepo, pmHistoryRepo, pmMaterialRepo, pmPhotoRepo, pmNotifRepo,
 		pmCustomTypeRepo, assetRepo, userRepo, categoryRepo, procStockRepo,
+		systemSettingsRepo, emailSvc,
 	)
 	kanbanHandler := handler.NewKanbanHandler(
 		kanbanProjectRepo, kanbanColumnRepo, kanbanCardRepo, kanbanInteractionRepo,
 		kanbanAttachmentRepo, kanbanNotifRepo, userRepo, kanbanBroker,
+		systemSettingsRepo, emailSvc,
 	)
 	alertsHandler := handler.NewAlertsHandler(alertRepo, avisoRepo, userRepo, assetRepo, alertBroker, webhookDispatcher)
 	procurementHandler := handler.NewProcurementHandler(
 		procCategoryRepo, procProductRepo, procCCRepo, procRequestRepo, procApprovalRepo,
 		procQuotationRepo, procOrderRepo, procReceivingRepo, procStockRepo,
 		procContractRepo, procContractTypeRepo, procHistoryRepo, procNotifRepo,
-		procResearchRepo, invoiceRepo, assetRepo, userRepo, kanbanProjectRepo, kanbanCardRepo, kanbanInteractionRepo, kanbanBroker, systemSettingsRepo,
+		procResearchRepo, invoiceRepo, assetRepo, userRepo, kanbanProjectRepo, kanbanCardRepo, kanbanInteractionRepo, kanbanBroker, systemSettingsRepo, emailSvc,
 	)
 	rhHandler := handler.NewRHHandler(rhRepo, userRepo, assetRepo, alertRepo, alertBroker, emailSvc)
 	webhookHandler := handler.NewWebhookHandler(webhookRepo, webhookDispatcher)
@@ -201,6 +203,9 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			servicos.PUT("/chamados/:id", serviceDeskHandler.UpdateTicket)
 			servicos.POST("/chamados/:id/interacoes", serviceDeskHandler.CreateInteraction)
 			servicos.POST("/chamados/:id/interacoes/upload", serviceDeskHandler.UploadInteractionAttachment)
+			servicos.GET("/notificacoes", serviceDeskHandler.MyNotifications)
+			servicos.POST("/notificacoes/:id/lida", serviceDeskHandler.MarkNotificationRead)
+			servicos.POST("/notificacoes/lidas", serviceDeskHandler.MarkNotificationsRead)
 		}
 
 		// Maintenance routes (protected)

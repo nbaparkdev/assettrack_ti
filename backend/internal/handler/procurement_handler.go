@@ -2,8 +2,10 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"fmt"
+	"html"
 	"net/http"
 	"sort"
 	"strconv"
@@ -70,6 +72,7 @@ type ProcurementHandler struct {
 	interactionRepo  *repository.KanbanInteractionRepository
 	kanbanBroker     *KanbanSSEBroker
 	settingsRepo     repository.SystemSettingsRepository
+	emailSvc         service.EmailService
 }
 
 func NewProcurementHandler(
@@ -95,6 +98,7 @@ func NewProcurementHandler(
 	interactionRepo *repository.KanbanInteractionRepository,
 	kanbanBroker *KanbanSSEBroker,
 	settingsRepo repository.SystemSettingsRepository,
+	emailSvc service.EmailService,
 ) *ProcurementHandler {
 	return &ProcurementHandler{
 		categoryRepo:     categoryRepo,
@@ -119,6 +123,7 @@ func NewProcurementHandler(
 		interactionRepo:  interactionRepo,
 		kanbanBroker:     kanbanBroker,
 		settingsRepo:     settingsRepo,
+		emailSvc:         emailSvc,
 	}
 }
 
@@ -222,20 +227,30 @@ func (h *ProcurementHandler) projectParticipantIDs(project *models.KanbanProject
 
 // notifyStaff creates in-DB notifications for manager/comprador roles.
 func (h *ProcurementHandler) notifyStaff(mensagem string) {
+	internalEnabled := service.IsNotificationSettingEnabled(context.Background(), h.settingsRepo, service.NotificationProcurementEnabled, true)
+	emailEnabled := h.emailSvc != nil && h.emailSvc.IsNotificationEnabled(context.Background(), service.EmailNotificationProcurement, true)
 	staff, err := h.userRepo.ListByRoles([]string{models.RoleAdmin, models.RoleGerente, models.RoleGerenteInfra, models.RoleComprador})
 	if err != nil {
 		return
 	}
 	for _, u := range staff {
-		_ = h.notifRepo.Create(&models.PurchaseNotification{
-			UserID:               u.ID,
-			Mensagem:             mensagem,
-			LinkRedirecionamento: strPtr("/compras"),
-		})
+		if internalEnabled {
+			_ = h.notifRepo.Create(&models.PurchaseNotification{UserID: u.ID, Mensagem: mensagem, LinkRedirecionamento: strPtr("/compras")})
+		}
+		if emailEnabled && strings.TrimSpace(u.Email) != "" {
+			_ = h.emailSvc.SendEmail(context.Background(), u.Email, "Atualização de compras — AssetTrack TI", "<p>"+html.EscapeString(mensagem)+"</p>")
+		}
 	}
 }
 
 func strPtr(s string) *string { return &s }
+
+func (h *ProcurementHandler) sendPurchaseEmail(recipient models.User, subject, message string) {
+	if h.emailSvc == nil || !h.emailSvc.IsNotificationEnabled(context.Background(), service.EmailNotificationProcurement, true) || strings.TrimSpace(recipient.Email) == "" {
+		return
+	}
+	_ = h.emailSvc.SendEmail(context.Background(), recipient.Email, subject+" — AssetTrack TI", "<p>"+html.EscapeString(message)+"</p>")
+}
 
 func parseProcDate(s string) *time.Time {
 	if s == "" {
@@ -2789,16 +2804,16 @@ func (h *ProcurementHandler) KanbanPurchaseRequest(c *gin.Context) {
 	})
 
 	// Notify buyers (comprador, admin, gerente)
+	internalEnabled := service.IsNotificationSettingEnabled(context.Background(), h.settingsRepo, service.NotificationProcurementEnabled, true)
 	buyers, _ := h.userRepo.ListByRoles([]string{models.RoleComprador, models.RoleAdmin, models.RoleGerente})
 	for _, buyer := range buyers {
+		message := fmt.Sprintf("Nova Solicitação de Compra %s recebida do Kanban (Card #%d: '%s') para o produto '%s'.", num, card.ID, card.Titulo, in.NomeProduto)
 		// Purchase Notification
 		linkRedir := fmt.Sprintf("/compras?tab=solicitacoes&id=%d", req.ID)
-		_ = h.notifRepo.Create(&models.PurchaseNotification{
-			UserID:               buyer.ID,
-			Mensagem:             fmt.Sprintf("Nova Solicitação de Compra %s recebida do Kanban (Card #%d: '%s') para o produto '%s'.", num, card.ID, card.Titulo, in.NomeProduto),
-			LinkRedirecionamento: &linkRedir,
-			DataCriacao:          time.Now(),
-		})
+		if internalEnabled {
+			_ = h.notifRepo.Create(&models.PurchaseNotification{UserID: buyer.ID, Mensagem: message, LinkRedirecionamento: &linkRedir, DataCriacao: time.Now()})
+		}
+		h.sendPurchaseEmail(buyer, "Nova solicitação de compra", message)
 
 		// Kanban Notification
 		kanbanLink := fmt.Sprintf("/kanban?project=%d&card=%d", card.ProjectID, card.ID)
@@ -2976,15 +2991,15 @@ func (h *ProcurementHandler) CreateMaintenancePurchaseRequest(c *gin.Context) {
 	}
 
 	// Notify buyers
+	internalEnabled := service.IsNotificationSettingEnabled(context.Background(), h.settingsRepo, service.NotificationProcurementEnabled, true)
 	buyers, _ := h.userRepo.ListByRoles([]string{models.RoleComprador, models.RoleAdmin, models.RoleGerente})
 	for _, buyer := range buyers {
+		message := fmt.Sprintf("Nova Solicitação de Compra de Peça %s para '%s'%s.", num, in.NomeProduto, assetTag)
 		linkRedir := fmt.Sprintf("/compras?tab=solicitacoes&id=%d", req.ID)
-		_ = h.notifRepo.Create(&models.PurchaseNotification{
-			UserID:               buyer.ID,
-			Mensagem:             fmt.Sprintf("Nova Solicitação de Compra de Peça %s para '%s'%s.", num, in.NomeProduto, assetTag),
-			LinkRedirecionamento: &linkRedir,
-			DataCriacao:          time.Now(),
-		})
+		if internalEnabled {
+			_ = h.notifRepo.Create(&models.PurchaseNotification{UserID: buyer.ID, Mensagem: message, LinkRedirecionamento: &linkRedir, DataCriacao: time.Now()})
+		}
+		h.sendPurchaseEmail(buyer, "Nova solicitação de peça", message)
 	}
 
 	c.JSON(http.StatusCreated, req)

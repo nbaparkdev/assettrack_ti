@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"fmt"
+	"html"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,19 +14,55 @@ import (
 	"github.com/assettrack/backend/internal/middleware"
 	"github.com/assettrack/backend/internal/models"
 	"github.com/assettrack/backend/internal/repository"
+	"github.com/assettrack/backend/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
 type ServiceDeskHandler struct {
-	repo *repository.ServiceDeskRepository
+	repo         *repository.ServiceDeskRepository
+	userRepo     *repository.UserRepository
+	settingsRepo repository.SystemSettingsRepository
+	emailSvc     service.EmailService
 }
 
-func NewServiceDeskHandler(repo *repository.ServiceDeskRepository) *ServiceDeskHandler {
-	return &ServiceDeskHandler{repo: repo}
+func NewServiceDeskHandler(repo *repository.ServiceDeskRepository, userRepo *repository.UserRepository, settingsRepo repository.SystemSettingsRepository, emailSvc service.EmailService) *ServiceDeskHandler {
+	return &ServiceDeskHandler{repo: repo, userRepo: userRepo, settingsRepo: settingsRepo, emailSvc: emailSvc}
 }
 
 func isStaff(role string) bool {
 	return role == models.RoleAdmin || role == models.RoleGerente || role == models.RoleGerenteInfra || role == models.RoleTecnico
+}
+
+func (h *ServiceDeskHandler) notify(userIDs []uint, authorID uint, ticket models.ServiceTicket, kind, title, message string) {
+	internalEnabled := service.IsNotificationSettingEnabled(context.Background(), h.settingsRepo, service.NotificationServiceDeskEnabled, true)
+	emailEnabled := h.emailSvc != nil && h.emailSvc.IsNotificationEnabled(context.Background(), service.EmailNotificationServiceDesk, true)
+	seen := make(map[uint]bool, len(userIDs))
+	for _, userID := range userIDs {
+		if userID == 0 || userID == authorID || seen[userID] {
+			continue
+		}
+		seen[userID] = true
+		if internalEnabled {
+			_ = h.repo.CreateNotification(&models.ServiceDeskNotification{UserID: userID, TicketID: ticket.ID, AutorID: &authorID, Tipo: kind, Titulo: title, Mensagem: message})
+		}
+		if emailEnabled {
+			if recipient, err := h.userRepo.GetByID(userID); err == nil && strings.TrimSpace(recipient.Email) != "" {
+				_ = h.emailSvc.SendEmail(context.Background(), recipient.Email, title+" — AssetTrack TI", "<p>"+html.EscapeString(message)+"</p>")
+			}
+		}
+	}
+}
+
+func (h *ServiceDeskHandler) notifyStaff(authorID uint, ticket models.ServiceTicket, kind, title, message string) {
+	staff, err := h.userRepo.ListByRoles([]string{models.RoleAdmin, models.RoleGerente, models.RoleGerenteInfra, models.RoleTecnico})
+	if err != nil {
+		return
+	}
+	ids := make([]uint, 0, len(staff))
+	for _, staffMember := range staff {
+		ids = append(ids, staffMember.ID)
+	}
+	h.notify(ids, authorID, ticket, kind, title, message)
 }
 
 // Categories
@@ -145,6 +183,7 @@ func (h *ServiceDeskHandler) CreateTicket(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": err.Error()})
 		return
 	}
+	h.notifyStaff(user.ID, ticket, "ticket_opened", "Novo chamado aberto", fmt.Sprintf("%s abriu o chamado %s (%s).", user.Nome, ticket.Codigo, ticket.Prioridade))
 	c.JSON(http.StatusCreated, ticket)
 }
 
@@ -160,6 +199,12 @@ func (h *ServiceDeskHandler) UpdateTicket(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Chamado não encontrado"})
 		return
+	}
+	previousStatus := ticket.Status
+	var previousTechnicianID *uint
+	if ticket.TecnicoID != nil {
+		value := *ticket.TecnicoID
+		previousTechnicianID = &value
 	}
 
 	// Permission: only staff or the ticket owner (under specific fields) can update
@@ -269,6 +314,19 @@ func (h *ServiceDeskHandler) UpdateTicket(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": err.Error()})
 		return
 	}
+
+	if req.TecnicoID != nil && (previousTechnicianID == nil || *previousTechnicianID != *req.TecnicoID) {
+		h.notify([]uint{*req.TecnicoID}, user.ID, *ticket, "ticket_assigned", "Chamado atribuído a você", fmt.Sprintf("Você foi designado para o chamado %s.", ticket.Codigo))
+	}
+	if req.Status != nil && ticket.Status != previousStatus {
+		h.notify([]uint{ticket.SolicitanteID}, user.ID, *ticket, "ticket_status_changed", "Status do chamado atualizado", fmt.Sprintf("O chamado %s agora está %s.", ticket.Codigo, ticket.Status))
+	}
+	if req.Solucao != nil {
+		h.notify([]uint{ticket.SolicitanteID}, user.ID, *ticket, "ticket_solution", "Solução registrada no chamado", fmt.Sprintf("Uma solução foi registrada para o chamado %s.", ticket.Codigo))
+	}
+	if ticket.Status == models.ServiceStatusFechado || ticket.Status == models.ServiceStatusCancelado {
+		h.notifyStaff(user.ID, *ticket, "ticket_closed", "Chamado encerrado", fmt.Sprintf("O chamado %s foi %s.", ticket.Codigo, strings.ToLower(string(ticket.Status))))
+	}
 	c.JSON(http.StatusOK, ticket)
 }
 
@@ -308,7 +366,48 @@ func (h *ServiceDeskHandler) CreateInteraction(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"detail": err.Error()})
 		return
 	}
+	message := fmt.Sprintf("Há uma nova interação no chamado %s.", ticket.Codigo)
+	if isStaff(user.Role) {
+		h.notify([]uint{ticket.SolicitanteID}, user.ID, *ticket, "ticket_interaction", "Nova resposta no chamado", message)
+	} else if ticket.TecnicoID != nil {
+		h.notify([]uint{*ticket.TecnicoID}, user.ID, *ticket, "ticket_interaction", "Nova resposta do solicitante", message)
+	} else {
+		h.notifyStaff(user.ID, *ticket, "ticket_interaction", "Nova resposta do solicitante", message)
+	}
 	c.JSON(http.StatusCreated, inter)
+}
+
+func (h *ServiceDeskHandler) MyNotifications(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	notifications, err := h.repo.ListNotificationsByUser(user.ID, 50)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, notifications)
+}
+
+func (h *ServiceDeskHandler) MarkNotificationRead(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+	if err := h.repo.MarkNotificationRead(uint(id), user.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Notificação marcada como lida"})
+}
+
+func (h *ServiceDeskHandler) MarkNotificationsRead(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if err := h.repo.MarkAllNotificationsRead(user.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Notificações marcadas como lidas"})
 }
 
 func (h *ServiceDeskHandler) UploadInteractionAttachment(c *gin.Context) {

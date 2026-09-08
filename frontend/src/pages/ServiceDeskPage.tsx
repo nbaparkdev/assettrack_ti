@@ -5,7 +5,7 @@ import { serviceDeskApi } from '../api/serviceDesk';
 import { usersApi } from '../api/users';
 import { useAuthStore } from '../stores/authStore';
 import { toApiFileUrl } from '../api/client';
-import type { ServiceTicket, ServiceCategory, ServiceDefinition, User } from '../types';
+import type { ServiceTicket, ServiceCategory, ServiceDefinition, ServiceDeskNotification, User } from '../types';
 import {
   Plus,
   MessageSquare,
@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   Send,
   Star,
-  Play
+  Play,
+  Bell
 } from 'lucide-react';
 
 export const ServiceDeskPage: React.FC = () => {
@@ -30,6 +31,7 @@ export const ServiceDeskPage: React.FC = () => {
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [definitions, setDefinitions] = useState<ServiceDefinition[]>([]);
   const [technicians, setTechnicians] = useState<User[]>([]);
+  const [notifications, setNotifications] = useState<ServiceDeskNotification[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -200,8 +202,12 @@ export const ServiceDeskPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const ticketsData = await serviceDeskApi.listTickets();
+      const [ticketsData, notificationsData] = await Promise.all([
+        serviceDeskApi.listTickets(),
+        serviceDeskApi.listNotifications(),
+      ]);
       setTickets(ticketsData);
+      setNotifications(notificationsData);
 
       const ticketId = Number(new URLSearchParams(location.search).get('ticketId'));
       if (Number.isInteger(ticketId) && ticketId > 0) {
@@ -434,6 +440,20 @@ export const ServiceDeskPage: React.FC = () => {
   const resolvedTicketCount = tickets.filter((ticket) => ['resolvido', 'fechado'].includes(normalizeStatus(ticket.status))).length;
   const ticketTotalForChart = Math.max(tickets.length, 1);
   const recentTickets = [...tickets].sort((a, b) => new Date(b.data_abertura).getTime() - new Date(a.data_abertura).getTime()).slice(0, 4);
+  const unreadNotifications = notifications.filter((notification) => !notification.lida);
+
+  const openNotification = async (notification: ServiceDeskNotification) => {
+    try {
+      if (!notification.lida) {
+        await serviceDeskApi.markNotificationRead(notification.id);
+        setNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, lida: true } : item));
+      }
+      const ticket = await serviceDeskApi.getTicketById(notification.ticket_id);
+      setSelectedTicket(ticket);
+    } catch {
+      setError('Não foi possível abrir o chamado desta notificação.');
+    }
+  };
 
   return (
     <div className="flex h-full min-h-[calc(100vh-4rem)] bg-brand-dark overflow-hidden">
@@ -476,6 +496,14 @@ export const ServiceDeskPage: React.FC = () => {
             { label: 'Categorias ativas', value: categories.length, hint: `${definitions.length} serviços disponíveis`, icon: Filter, tone: 'text-violet-600 bg-violet-50' },
           ].map(({ label, value, hint, icon: Icon, tone }) => <button type="button" key={label} onClick={() => { if (label === 'Chamados em aberto') setStatusFilter('aberto'); if (label === 'Prioridade urgente') setPriorityFilter('urgente'); }} className="rounded-2xl border border-brand-border bg-brand-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"><div className="flex items-start justify-between gap-2"><span className={`rounded-xl p-2 ${tone}`}><Icon size={17} /></span><span className="text-2xl font-bold tracking-tight text-brand-text">{value}</span></div><div className="mt-4 text-xs font-bold uppercase tracking-wide text-brand-text">{label}</div><div className="mt-1 text-xs text-brand-muted">{hint}</div></button>)}
         </div>
+
+        <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><Bell size={17} className="text-brand-primary" /><div><div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Notificações do Service Desk</div><div className="mt-0.5 text-sm font-semibold text-brand-text">{unreadNotifications.length ? `${unreadNotifications.length} não lida${unreadNotifications.length === 1 ? '' : 's'}` : 'Tudo em dia'}</div></div></div>
+            {unreadNotifications.length > 0 && <button type="button" onClick={async () => { await serviceDeskApi.markAllNotificationsRead(); setNotifications((current) => current.map((item) => ({ ...item, lida: true }))); }} className="text-xs font-semibold text-brand-primary hover:underline">Marcar todas como lidas</button>}
+          </div>
+          {notifications.length > 0 ? <div className="grid gap-2 md:grid-cols-3">{notifications.slice(0, 3).map((notification) => <button type="button" key={notification.id} onClick={() => openNotification(notification)} className={`rounded-xl border p-3 text-left transition hover:border-brand-primary/50 ${notification.lida ? 'border-brand-border bg-brand-dark/10' : 'border-brand-primary/30 bg-brand-primary/5'}`}><div className="text-xs font-bold text-brand-text">{notification.titulo}</div><div className="mt-1 line-clamp-2 text-xs text-brand-muted">{notification.mensagem}</div><div className="mt-2 text-[10px] text-brand-muted">{new Date(notification.data_criacao).toLocaleString('pt-BR')}</div></button>)}</div> : <p className="text-sm text-brand-muted">Nenhum aviso de chamado para você.</p>}
+        </section>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,.75fr)]">
           <section className="rounded-2xl border border-brand-border bg-brand-card p-5 shadow-sm"><div className="mb-4 flex items-start justify-between"><div><div className="text-xs font-bold uppercase tracking-[0.12em] text-brand-muted">Panorama do atendimento</div><h2 className="mt-1 text-lg font-bold text-brand-text">Chamados por status</h2></div><span className="text-xs text-brand-muted">{tickets.length} registros</span></div><div className="grid gap-3 sm:grid-cols-4">{[['aberto', 'Abertos', 'bg-blue-500'], ['em_atendimento', 'Em atendimento', 'bg-amber-500'], ['resolvido', 'Resolvidos', 'bg-emerald-500'], ['fechado', 'Fechados', 'bg-slate-400']].map(([key, label, color]) => <button type="button" key={key} onClick={() => setStatusFilter(statusFilter === key ? '' : key)} className={`rounded-xl border p-3 text-left transition hover:border-brand-primary/40 ${statusFilter === key ? 'border-brand-primary ring-2 ring-brand-primary/15' : 'border-brand-border'}`}><div className="flex items-center gap-2 text-xs font-semibold text-brand-text"><span className={`h-2 w-2 rounded-full ${color}`} />{label}</div><div className="mt-2 text-2xl font-bold text-brand-text">{ticketStatusCounts[key] || 0}</div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-dark/10"><div className={`h-full rounded-full ${color}`} style={{ width: `${Math.max(((ticketStatusCounts[key] || 0) / ticketTotalForChart) * 100, ticketStatusCounts[key] ? 6 : 0)}%` }} /></div></button>)}</div></section>

@@ -31,6 +31,16 @@ export interface ServiceTicketInteraction {
   data_criacao: string;
 }
 
+export interface ServiceDeskNotification {
+  id: number;
+  ticket_id: number;
+  tipo: string;
+  titulo: string;
+  mensagem: string;
+  lida: boolean;
+  data_criacao: string;
+}
+
 export interface ServiceTicket {
   id: number;
   codigo: string;

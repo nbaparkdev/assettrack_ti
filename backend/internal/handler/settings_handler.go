@@ -84,6 +84,32 @@ func (h *SettingsHandler) GetAll(c *gin.Context) {
 	for _, s := range settings {
 		result[s.SettingKey] = s.SettingValue
 	}
+	// Keep notification controls visible and enabled by default on installations
+	// created before they were introduced.
+	for _, key := range []string{
+		service.EmailNotificationRHStatus,
+		service.EmailNotificationKanban,
+		service.EmailNotificationMaintenance,
+		service.EmailNotificationProcurement,
+		service.EmailNotificationServiceDesk,
+		service.NotificationKanbanEnabled,
+		service.NotificationMaintenanceEnabled,
+		service.NotificationProcurementEnabled,
+		service.NotificationServiceDeskEnabled,
+	} {
+		if _, exists := result[key]; !exists {
+			result[key] = "true"
+		}
+	}
+	// Older installations did not persist the SMTP security mode. Infer the
+	// conventional secure choice from their already configured port.
+	if _, exists := result["smtp_security"]; !exists {
+		if result["smtp_port"] == "465" {
+			result["smtp_security"] = service.SMTPSecuritySSLTLS
+		} else {
+			result["smtp_security"] = service.SMTPSecuritySTARTTLS
+		}
+	}
 
 	c.JSON(http.StatusOK, result)
 }

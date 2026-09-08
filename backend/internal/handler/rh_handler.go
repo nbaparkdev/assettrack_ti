@@ -516,7 +516,7 @@ func (h *RHHandler) CreateStatus(c *gin.Context) {
 	}
 	comunicado := &models.RHComunicado{UsuarioID: &user.ID, Titulo: "Atualização do RH: " + label, Mensagem: message, Inicio: time.Now(), Ativo: true, CriadoPorID: current.ID}
 	_ = h.rhRepo.CreateComunicado(comunicado)
-	if h.emailSvc != nil {
+	if h.emailSvc != nil && h.emailSvc.IsNotificationEnabled(context.Background(), service.EmailNotificationRHStatus, true) {
 		go func(email, subject, content string) {
 			_ = h.emailSvc.SendEmail(context.Background(), email, subject, "<p>"+html.EscapeString(content)+"</p>")
 		}(user.Email, comunicado.Titulo, message)

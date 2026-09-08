@@ -41,6 +41,7 @@ func main() {
 		&models.ServiceDefinition{},
 		&models.ServiceTicket{},
 		&models.ServiceTicketInteraction{},
+		&models.ServiceDeskNotification{},
 		&models.SolicitacaoManutencao{},
 		&models.Manutencao{},
 		&models.Movimentacao{},
@@ -147,6 +148,7 @@ func main() {
 		repository.NewPMHistoryRepository(db),
 		repository.NewPMNotificationRepository(db),
 		repository.NewAssetCategoryRepository(db),
+		repository.NewSystemSettingsRepository(db),
 	)
 	scheduler.Start(time.Hour)
 

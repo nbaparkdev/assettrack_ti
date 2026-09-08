@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { ServiceCategory, ServiceDefinition, ServiceTicket, ServiceTicketInteraction } from '../types';
+import type { ServiceCategory, ServiceDefinition, ServiceDeskNotification, ServiceTicket, ServiceTicketInteraction } from '../types';
 
 export const serviceDeskApi = {
   // Categories
@@ -67,5 +67,15 @@ export const serviceDeskApi = {
       },
     });
     return response.data;
+  },
+  listNotifications: async (): Promise<ServiceDeskNotification[]> => {
+    const response = await apiClient.get<ServiceDeskNotification[]>('/servicos/notificacoes');
+    return response.data;
+  },
+  markNotificationRead: async (id: number): Promise<void> => {
+    await apiClient.post(`/servicos/notificacoes/${id}/lida`);
+  },
+  markAllNotificationsRead: async (): Promise<void> => {
+    await apiClient.post('/servicos/notificacoes/lidas');
   },
 };

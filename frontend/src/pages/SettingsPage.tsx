@@ -91,6 +91,65 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const notificationControls = [
+    {
+      key: 'email_notification_rh_status_enabled',
+      channel: 'E-mail',
+      title: 'Atualizações de status do RH',
+      description: 'Envia e-mail ao colaborador quando um status de folga, férias, banco de horas ou trabalho é registrado.',
+    },
+    {
+      key: 'notification_kanban_enabled',
+      channel: 'Notificação interna e tempo real',
+      title: 'Projetos e cartões Kanban',
+      description: 'Cria avisos para participantes e atualiza o Kanban em tempo real quando projetos, cartões e anexos mudam.',
+    },
+    {
+      key: 'email_notification_kanban_enabled',
+      channel: 'E-mail',
+      title: 'Projetos e cartões Kanban',
+      description: 'Envia e-mail aos participantes quando ocorrerem alterações, atribuições e interações no Kanban.',
+    },
+    {
+      key: 'notification_maintenance_enabled',
+      channel: 'Notificação interna',
+      title: 'Ordens de manutenção preventiva',
+      description: 'Avisa técnicos e gestores sobre atribuição, geração automática e conclusão de ordens de serviço.',
+    },
+    {
+      key: 'email_notification_maintenance_enabled',
+      channel: 'E-mail',
+      title: 'Ordens de manutenção preventiva',
+      description: 'Envia e-mail sobre atribuição, geração automática e conclusão de ordens de serviço.',
+    },
+    {
+      key: 'notification_procurement_enabled',
+      channel: 'Notificação interna',
+      title: 'Compras e solicitações de peças',
+      description: 'Avisa compradores e gestores sobre solicitações, pedidos e compras originadas pelo Kanban ou manutenção.',
+    },
+    {
+      key: 'email_notification_procurement_enabled',
+      channel: 'E-mail',
+      title: 'Compras e solicitações de peças',
+      description: 'Envia e-mail a compradores e gestores sobre solicitações, pedidos e compras vinculadas.',
+    },
+    {
+      key: 'notification_service_desk_enabled',
+      channel: 'Notificação interna',
+      title: 'Chamados do Service Desk',
+      description: 'Avisa a equipe ao abrir um chamado e os envolvidos quando houver atribuição, resposta, alteração de status, solução ou encerramento.',
+    },
+    {
+      key: 'email_notification_service_desk_enabled',
+      channel: 'E-mail',
+      title: 'Chamados do Service Desk',
+      description: 'Envia e-mail aos envolvidos quando houver abertura, atribuição, resposta, solução ou encerramento de chamado.',
+    },
+  ];
+
+  const isEmailNotificationEnabled = (key: string) => settings[key] !== 'false';
+
   if (loading) return <div className="p-4 text-brand-muted">Carregando configurações...</div>;
 
   return (
@@ -249,6 +308,28 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
 
+        <div className="bg-brand-card p-6 border border-brand-border md:col-span-2">
+          <h2 className="text-lg font-semibold text-brand-primary mb-2 border-b border-brand-border pb-2 font-mono uppercase">Eventos de saída e notificações</h2>
+          <p className="mb-4 text-xs text-brand-muted">Ative ou desative cada evento de saída. Alertas emergenciais continuam visíveis no sistema para não comprometer o atendimento crítico.</p>
+          <div className="space-y-3">
+            {notificationControls.map((control) => (
+              <label key={control.key} className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-brand-border bg-white/45 p-4 transition-colors hover:bg-white/70">
+                <span>
+                  <span className="block text-[10px] font-mono uppercase tracking-wider text-brand-primary">{control.channel}</span>
+                  <span className="mt-1 block text-sm font-semibold text-brand-text">{control.title}</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-brand-muted">{control.description}</span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={isEmailNotificationEnabled(control.key)}
+                  onChange={(event) => setSettings((previous) => ({ ...previous, [control.key]: event.target.checked ? 'true' : 'false' }))}
+                  className="mt-1 h-5 w-5 shrink-0 accent-brand-primary"
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+
         {/* SMTP Config */}
         <div className="bg-brand-card p-6 border border-brand-border md:col-span-2">
           <h2 className="text-lg font-semibold text-brand-primary mb-4 border-b border-brand-border pb-2 font-mono uppercase">Servidor SMTP (Envio de E-mails)</h2>
@@ -276,6 +357,20 @@ export const SettingsPage: React.FC = () => {
                 className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors placeholder-brand-muted/30"
               />
             </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Segurança da conexão SMTP</label>
+              <select
+                name="smtp_security"
+                value={settings.smtp_security || (settings.smtp_port === '465' ? 'ssl_tls' : 'starttls')}
+                onChange={handleInputChange}
+                className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors"
+              >
+                <option value="ssl_tls">SSL/TLS implícito — recomendado para porta 465</option>
+                <option value="starttls">STARTTLS — recomendado para porta 587</option>
+                <option value="none">Sem criptografia — apenas servidores internos confiáveis</option>
+              </select>
+              <p className="mt-1 text-xs text-brand-muted">A porta e o modo devem corresponder ao provedor. A senha nunca é enviada sem TLS quando STARTTLS ou SSL/TLS estiver selecionado.</p>
+            </div>
             <div>
               <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">SMTP User / E-mail</label>
               <input
@@ -297,15 +392,16 @@ export const SettingsPage: React.FC = () => {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Remetente (From Name)</label>
+              <label className="block text-sm text-brand-muted mb-1 font-mono uppercase">Remetente (nome exibido ou e-mail autorizado)</label>
               <input
                 type="text"
                 name="smtp_from"
-                placeholder="Assettrack TI <noreply@assettrack.com>"
+                placeholder="Assettrack TI"
                 value={settings.smtp_from || ''}
                 onChange={handleInputChange}
                 className="w-full p-2.5 bg-brand-dark border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors placeholder-brand-muted/30"
               />
+              <p className="mt-1 text-xs text-brand-muted">Ao informar só um nome, o sistema envia pela caixa SMTP autenticada. Informe outro e-mail somente se ele for um endereço autorizado pelo seu provedor.</p>
             </div>
             <div className="md:col-span-2 mt-2 border-t border-brand-border pt-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

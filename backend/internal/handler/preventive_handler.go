@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"fmt"
+	"html"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -60,6 +62,8 @@ type PreventiveHandler struct {
 	userRepo       *repository.UserRepository
 	categoryRepo   *repository.AssetCategoryRepository
 	stockRepo      *repository.ProcurementStockRepository
+	settingsRepo   repository.SystemSettingsRepository
+	emailSvc       service.EmailService
 }
 
 type checklistItemPayload struct {
@@ -91,6 +95,8 @@ func NewPreventiveHandler(
 	userRepo *repository.UserRepository,
 	categoryRepo *repository.AssetCategoryRepository,
 	stockRepo *repository.ProcurementStockRepository,
+	settingsRepo repository.SystemSettingsRepository,
+	emailSvc service.EmailService,
 ) *PreventiveHandler {
 	return &PreventiveHandler{
 		planRepo:       planRepo,
@@ -108,6 +114,8 @@ func NewPreventiveHandler(
 		userRepo:       userRepo,
 		categoryRepo:   categoryRepo,
 		stockRepo:      stockRepo,
+		settingsRepo:   settingsRepo,
+		emailSvc:       emailSvc,
 	}
 }
 
@@ -738,6 +746,8 @@ func (h *PreventiveHandler) CreateOrder(c *gin.Context) {
 }
 
 func (h *PreventiveHandler) notifyOrderAssigned(order models.MaintenanceOrder) {
+	internalEnabled := service.IsNotificationSettingEnabled(context.Background(), h.settingsRepo, service.NotificationMaintenanceEnabled, true)
+	emailEnabled := h.emailSvc != nil && h.emailSvc.IsNotificationEnabled(context.Background(), service.EmailNotificationMaintenance, true)
 	assetName := "Manutenção de Infra Predial"
 	var patrimonio string
 	if order.InfraPredialServico != nil && *order.InfraPredialServico != "" {
@@ -768,12 +778,14 @@ func (h *PreventiveHandler) notifyOrderAssigned(order models.MaintenanceOrder) {
 		}
 	}
 	for _, recipientID := range recipients {
-		_ = h.notifRepo.Create(&models.MaintenanceNotification{
-			OrderID:   &order.ID,
-			UsuarioID: recipientID,
-			Tipo:      "order_assigned",
-			Mensagem:  msg,
-		})
+		if internalEnabled {
+			_ = h.notifRepo.Create(&models.MaintenanceNotification{OrderID: &order.ID, UsuarioID: recipientID, Tipo: "order_assigned", Mensagem: msg})
+		}
+		if emailEnabled {
+			if recipient, err := h.userRepo.GetByID(recipientID); err == nil && strings.TrimSpace(recipient.Email) != "" {
+				_ = h.emailSvc.SendEmail(context.Background(), recipient.Email, "Nova ordem de manutenção atribuída — AssetTrack TI", "<p>"+html.EscapeString(msg)+"</p>")
+			}
+		}
 	}
 }
 
@@ -1233,6 +1245,8 @@ func (h *PreventiveHandler) CompleteOrder(c *gin.Context) {
 }
 
 func (h *PreventiveHandler) notifyOrderCompleted(order models.MaintenanceOrder, technicianName string) {
+	internalEnabled := service.IsNotificationSettingEnabled(context.Background(), h.settingsRepo, service.NotificationMaintenanceEnabled, true)
+	emailEnabled := h.emailSvc != nil && h.emailSvc.IsNotificationEnabled(context.Background(), service.EmailNotificationMaintenance, true)
 	assetName := "Equipamento"
 	if order.AssetID != nil {
 		if asset, err := h.assetRepo.GetByID(*order.AssetID); err == nil && asset != nil {
@@ -1250,12 +1264,12 @@ func (h *PreventiveHandler) notifyOrderCompleted(order models.MaintenanceOrder, 
 	managers, err := h.userRepo.ListByRoles([]string{models.RoleAdmin, models.RoleGerente, models.RoleGerenteInfra})
 	if err == nil {
 		for _, mgr := range managers {
-			_ = h.notifRepo.Create(&models.MaintenanceNotification{
-				OrderID:   &order.ID,
-				UsuarioID: mgr.ID,
-				Tipo:      "order_completed",
-				Mensagem:  msg,
-			})
+			if internalEnabled {
+				_ = h.notifRepo.Create(&models.MaintenanceNotification{OrderID: &order.ID, UsuarioID: mgr.ID, Tipo: "order_completed", Mensagem: msg})
+			}
+			if emailEnabled && strings.TrimSpace(mgr.Email) != "" {
+				_ = h.emailSvc.SendEmail(context.Background(), mgr.Email, "Ordem de manutenção concluída — AssetTrack TI", "<p>"+html.EscapeString(msg)+"</p>")
+			}
 		}
 	}
 }

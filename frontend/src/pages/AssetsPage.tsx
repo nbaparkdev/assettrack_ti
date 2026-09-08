@@ -2966,14 +2966,14 @@ export const AssetsPage: React.FC = () => {
             </div>
 
             {/* Subheader / Tabs Navigation */}
-            <div className="flex border-b border-brand-border bg-brand-dark/70 px-3 sm:px-6 overflow-x-auto no-scrollbar gap-2 py-2.5 items-center min-h-[56px]">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 border-b border-brand-border bg-brand-dark/70 px-1 gap-2 py-1.5 items-stretch min-h-[56px]">
               <button
                 type="button"
                 onClick={() => setDetailActiveTab('info')}
-                className={`px-4 py-2.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shrink-0 border min-h-[40px] ${
+                className={`w-full px-3 py-2.5 rounded-md font-mono text-xs font-medium uppercase tracking-wider transition-all flex items-center justify-center gap-2 text-center whitespace-normal border min-h-[40px] ${
                   detailActiveTab === 'info'
-                    ? 'border-brand-primary text-brand-primary bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
-                    : 'border-transparent text-brand-muted hover:text-brand-text hover:bg-brand-dark/50'
+                    ? 'border-brand-primary text-[#8f8f8f] bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
+                    : 'border-transparent text-[#919191] hover:text-[#171717] hover:bg-brand-dark/50'
                 }`}
               >
                 <FileText size={15} className="shrink-0" />
@@ -2983,10 +2983,10 @@ export const AssetsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDetailActiveTab('movimentacoes')}
-                className={`px-4 py-2.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shrink-0 border min-h-[40px] ${
+                className={`w-full px-3 py-2.5 rounded-md font-mono text-xs font-medium uppercase tracking-wider transition-all flex items-center justify-center gap-2 text-center whitespace-normal border min-h-[40px] ${
                   detailActiveTab === 'movimentacoes'
-                    ? 'border-brand-primary text-brand-primary bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
-                    : 'border-transparent text-brand-muted hover:text-brand-text hover:bg-brand-dark/50'
+                    ? 'border-brand-primary text-[#8f8f8f] bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
+                    : 'border-transparent text-[#919191] hover:text-[#171717] hover:bg-brand-dark/50'
                 }`}
               >
                 <ArrowRightLeft size={15} className="shrink-0" />
@@ -3001,10 +3001,10 @@ export const AssetsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDetailActiveTab('manutencoes')}
-                className={`px-4 py-2.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shrink-0 border min-h-[40px] ${
+                className={`w-full px-3 py-2.5 rounded-md font-mono text-xs font-medium uppercase tracking-wider transition-all flex items-center justify-center gap-2 text-center whitespace-normal border min-h-[40px] ${
                   detailActiveTab === 'manutencoes'
-                    ? 'border-brand-primary text-brand-primary bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
-                    : 'border-transparent text-brand-muted hover:text-brand-text hover:bg-brand-dark/50'
+                    ? 'border-brand-primary text-[#8f8f8f] bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
+                    : 'border-transparent text-[#919191] hover:text-[#171717] hover:bg-brand-dark/50'
                 }`}
               >
                 <Wrench size={15} className="shrink-0" />
@@ -3019,10 +3019,10 @@ export const AssetsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDetailActiveTab('preventivas')}
-                className={`px-4 py-2.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shrink-0 border min-h-[40px] ${
+                className={`w-full px-3 py-2.5 rounded-md font-mono text-xs font-medium uppercase tracking-wider transition-all flex items-center justify-center gap-2 text-center whitespace-normal border min-h-[40px] ${
                   detailActiveTab === 'preventivas'
-                    ? 'border-brand-primary text-brand-primary bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
-                    : 'border-transparent text-brand-muted hover:text-brand-text hover:bg-brand-dark/50'
+                    ? 'border-brand-primary text-[#8f8f8f] bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
+                    : 'border-transparent text-[#919191] hover:text-[#171717] hover:bg-brand-dark/50'
                 }`}
               >
                 <CalendarDays size={15} className="shrink-0" />
@@ -3037,10 +3037,10 @@ export const AssetsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDetailActiveTab('compras')}
-                className={`px-4 py-2.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shrink-0 border min-h-[40px] ${
+                className={`w-full px-3 py-2.5 rounded-md font-mono text-xs font-medium uppercase tracking-wider transition-all flex items-center justify-center gap-2 text-center whitespace-normal border min-h-[40px] ${
                   detailActiveTab === 'compras'
-                    ? 'border-brand-primary text-brand-primary bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
-                    : 'border-transparent text-brand-muted hover:text-brand-text hover:bg-brand-dark/50'
+                    ? 'border-brand-primary text-[#8f8f8f] bg-brand-primary/15 shadow-sm ring-1 ring-brand-primary/30'
+                    : 'border-transparent text-[#919191] hover:text-[#171717] hover:bg-brand-dark/50'
                 }`}
               >
                 <ShoppingCart size={15} className="shrink-0" />

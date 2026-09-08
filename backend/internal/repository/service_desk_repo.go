@@ -124,3 +124,27 @@ func (r *ServiceDeskRepository) CreateInteraction(inter *models.ServiceTicketInt
 	inter.DataCriacao = time.Now()
 	return r.db.Create(inter).Error
 }
+
+// Service desk notifications
+func (r *ServiceDeskRepository) CreateNotification(notification *models.ServiceDeskNotification) error {
+	return r.db.Create(notification).Error
+}
+
+func (r *ServiceDeskRepository) ListNotificationsByUser(userID uint, limit int) ([]models.ServiceDeskNotification, error) {
+	var notifications []models.ServiceDeskNotification
+	err := r.db.Preload("Autor").Where("user_id = ?", userID).
+		Order("data_criacao desc").Limit(limit).Find(&notifications).Error
+	return notifications, err
+}
+
+func (r *ServiceDeskRepository) MarkNotificationRead(notificationID, userID uint) error {
+	return r.db.Model(&models.ServiceDeskNotification{}).
+		Where("id = ? AND user_id = ?", notificationID, userID).
+		Update("lida", true).Error
+}
+
+func (r *ServiceDeskRepository) MarkAllNotificationsRead(userID uint) error {
+	return r.db.Model(&models.ServiceDeskNotification{}).
+		Where("user_id = ? AND lida = false", userID).
+		Update("lida", true).Error
+}
